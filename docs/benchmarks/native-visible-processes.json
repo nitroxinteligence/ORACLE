@@ -1,0 +1,109 @@
+{
+  "hardware": "Mac14,7 Apple M2 8GB",
+  "state": "visible, ambient balanced, synthetic 22-document vault",
+  "sampling": "6 ps samples, 1 second apart; percentage reflects OS ps sampling, not instrumented battery/GPU time",
+  "samples": [
+    [
+      {
+        "pid": 40882,
+        "rss_kib": 40784,
+        "cpu_percent": 2.7
+      },
+      {
+        "pid": 40890,
+        "rss_kib": 35584,
+        "cpu_percent": 2.1
+      },
+      {
+        "pid": 40895,
+        "rss_kib": 50176,
+        "cpu_percent": 3.3
+      }
+    ],
+    [
+      {
+        "pid": 40882,
+        "rss_kib": 40784,
+        "cpu_percent": 2.5
+      },
+      {
+        "pid": 40890,
+        "rss_kib": 35536,
+        "cpu_percent": 1.9
+      },
+      {
+        "pid": 40895,
+        "rss_kib": 50304,
+        "cpu_percent": 3.3
+      }
+    ],
+    [
+      {
+        "pid": 40882,
+        "rss_kib": 39648,
+        "cpu_percent": 2.7
+      },
+      {
+        "pid": 40890,
+        "rss_kib": 31056,
+        "cpu_percent": 2.1
+      },
+      {
+        "pid": 40895,
+        "rss_kib": 37232,
+        "cpu_percent": 3.6
+      }
+    ],
+    [
+      {
+        "pid": 40882,
+        "rss_kib": 39600,
+        "cpu_percent": 3.0
+      },
+      {
+        "pid": 40890,
+        "rss_kib": 29392,
+        "cpu_percent": 2.4
+      },
+      {
+        "pid": 40895,
+        "rss_kib": 37424,
+        "cpu_percent": 3.7
+      }
+    ],
+    [
+      {
+        "pid": 40882,
+        "rss_kib": 39600,
+        "cpu_percent": 2.7
+      },
+      {
+        "pid": 40890,
+        "rss_kib": 29280,
+        "cpu_percent": 2.3
+      },
+      {
+        "pid": 40895,
+        "rss_kib": 37552,
+        "cpu_percent": 3.7
+      }
+    ],
+    [
+      {
+        "pid": 40882,
+        "rss_kib": 39600,
+        "cpu_percent": 2.8
+      },
+      {
+        "pid": 40890,
+        "rss_kib": 29280,
+        "cpu_percent": 2.0
+      },
+      {
+        "pid": 40895,
+        "rss_kib": 37504,
+        "cpu_percent": 3.0
+      }
+    ]
+  ]
+}

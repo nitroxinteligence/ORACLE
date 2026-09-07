@@ -1,0 +1,43 @@
+{
+  "status": "identity_and_index_verified",
+  "engine": {
+    "capabilities": [
+      "keyword-search",
+      "get-page",
+      "explicit-links"
+    ],
+    "commit": "2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d",
+    "engine": "pglite",
+    "inference": false,
+    "sources": [
+      {
+        "id": "default",
+        "local_path": null,
+        "name": "default"
+      },
+      {
+        "id": "oracle-vault",
+        "local_path": null,
+        "name": "Oracle vault"
+      }
+    ],
+    "version": "0.48.4.0"
+  },
+  "search_results": 2,
+  "page_title": "Atlas de teste",
+  "graph": [
+    {
+      "from_slug": "atlas",
+      "from_source_id": "oracle-vault",
+      "to_slug": "decisoes",
+      "to_source_id": "oracle-vault",
+      "link_type": "mentions",
+      "context": "# Atlas de teste O projeto fixture utiliza [[Decisoes]] como fonte.",
+      "link_source": "markdown",
+      "origin_slug": null,
+      "origin_source_id": null,
+      "origin_field": null
+    }
+  ],
+  "scope": "synthetic fixture, isolated PGLite, no external API keys"
+}

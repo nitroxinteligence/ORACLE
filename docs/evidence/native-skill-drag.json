@@ -1,0 +1,12 @@
+{
+  "scenario": "Native pointer drag of AB Testing while ambient rendering paused",
+  "layout": {
+    "leaves": {
+      "SISTEMA/skills/marketing/ab-testing/SKILL.md": {
+        "x": 402.7109375,
+        "y": 65.919921875
+      }
+    },
+    "nodes": {}
+  }
+}

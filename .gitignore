@@ -1,0 +1,14 @@
+.build/
+vendor/
+dist/
+.DS_Store
+.work/
+node_modules/
+Resources/engine/gbrain
+Resources/engine/oracle-gbrain-read
+# Generated public vendor payloads, reproducible from pinned manifests.
+Resources/catalog/packs/
+# Historical source packet contains machine-specific personal context.
+docs/planning/
+# Unlicensed upstream documentation snapshot, retained only for local research.
+docs/evidence/codex-hooks.md

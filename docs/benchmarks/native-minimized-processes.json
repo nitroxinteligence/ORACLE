@@ -1,0 +1,108 @@
+{
+  "state": "after native minimize action",
+  "samples": [
+    [
+      {
+        "pid": 42865,
+        "rss_kib": 25392,
+        "cpu_percent": 1.3
+      },
+      {
+        "pid": 42877,
+        "rss_kib": 39648,
+        "cpu_percent": 1.3
+      },
+      {
+        "pid": 42880,
+        "rss_kib": 31968,
+        "cpu_percent": 2.2
+      }
+    ],
+    [
+      {
+        "pid": 42865,
+        "rss_kib": 24544,
+        "cpu_percent": 1.3
+      },
+      {
+        "pid": 42877,
+        "rss_kib": 22768,
+        "cpu_percent": 0.7
+      },
+      {
+        "pid": 42880,
+        "rss_kib": 29088,
+        "cpu_percent": 1.4
+      }
+    ],
+    [
+      {
+        "pid": 42865,
+        "rss_kib": 24272,
+        "cpu_percent": 1.4
+      },
+      {
+        "pid": 42877,
+        "rss_kib": 22768,
+        "cpu_percent": 1.3
+      },
+      {
+        "pid": 42880,
+        "rss_kib": 28592,
+        "cpu_percent": 1.6
+      }
+    ],
+    [
+      {
+        "pid": 42865,
+        "rss_kib": 24048,
+        "cpu_percent": 1.1
+      },
+      {
+        "pid": 42877,
+        "rss_kib": 17136,
+        "cpu_percent": 0.6
+      },
+      {
+        "pid": 42880,
+        "rss_kib": 17728,
+        "cpu_percent": 1.1
+      }
+    ],
+    [
+      {
+        "pid": 42865,
+        "rss_kib": 24272,
+        "cpu_percent": 1.3
+      },
+      {
+        "pid": 42877,
+        "rss_kib": 17184,
+        "cpu_percent": 0.8
+      },
+      {
+        "pid": 42880,
+        "rss_kib": 17904,
+        "cpu_percent": 1.4
+      }
+    ],
+    [
+      {
+        "pid": 42865,
+        "rss_kib": 24272,
+        "cpu_percent": 1.4
+      },
+      {
+        "pid": 42877,
+        "rss_kib": 17248,
+        "cpu_percent": 0.7
+      },
+      {
+        "pid": 42880,
+        "rss_kib": 17936,
+        "cpu_percent": 1.3
+      }
+    ]
+  ],
+  "limitation": "OS ps sampling; not GPU or battery instrumentation"
+}

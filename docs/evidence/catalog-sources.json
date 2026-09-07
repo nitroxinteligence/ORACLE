@@ -1,0 +1,27 @@
+[
+  {
+    "collection": "ads",
+    "repo": "https://github.com/AgriciDaniel/claude-ads",
+    "commit": "669c7608ecb50dd95c941a71fa3ca0a1c0e40512"
+  },
+  {
+    "collection": "code",
+    "repo": "https://github.com/Gentleman-Programming/gentle-ai",
+    "commit": "a609f88b0c78cc3bdf0f7a6964101ac08dd3e912"
+  },
+  {
+    "collection": "customer-finder",
+    "repo": "https://github.com/Kappaemme-git/codex-first-customer-finder-skill",
+    "commit": "943c455bdfc40da46265b01b3c1f41e4bb386f27"
+  },
+  {
+    "collection": "cyber-security",
+    "repo": "https://github.com/mukul975/Anthropic-Cybersecurity-Skills",
+    "commit": "54a798831d2266a3ca61ce68a7acb80b81160d57"
+  },
+  {
+    "collection": "marketing",
+    "repo": "https://github.com/coreyhaines31/marketingskills",
+    "commit": "5b2c0007766c6a1cf1d53fd8fc73e979e0821022"
+  }
+]

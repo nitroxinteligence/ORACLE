@@ -21,3 +21,12 @@ export function projectJournal(baseline, events, cursor) {
   return [...byPath.values()].sort((a,b)=>a.path.localeCompare(b.path));
 }
 if(typeof window!=='undefined')window.OracleReplay={projectJournal};
+
+/** Formation is a visual reveal of an immutable snapshot, not an installation timeline. */
+export function formationAt(entries, collections, cursor) {
+  const stage=Math.max(0,Math.min(collections.length*2,Math.floor(cursor)));
+  const shown=collections.slice(0,Math.min(stage,collections.length));
+  const withSkills=new Set(collections.slice(0,Math.max(0,stage-collections.length)).map(c=>c.id));
+  return {collections:shown,entries:entries.filter(e=>withSkills.has(e.path.split('/')[2]))};
+}
+if(typeof window!=='undefined')window.OracleReplay.formationAt=formationAt;

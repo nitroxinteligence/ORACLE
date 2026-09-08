@@ -1,0 +1,8 @@
+{
+  "core_first": true,
+  "all_specialists_before_skills": true,
+  "child_requires_parent": true,
+  "immutable_snapshot": true,
+  "clamped_cursor": true,
+  "frames_verified": 15
+}

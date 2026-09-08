@@ -1,0 +1,33 @@
+{
+  "checks": [
+    "release bundle decoded without filesystem extraction",
+    "incompatible skill release rejected",
+    "duplicate bundle targets rejected",
+    "checksum rejects before mutation",
+    "skill path traversal rejected",
+    "unknown collection rejected",
+    "symlink destination rejected",
+    "new files installed and verified",
+    "unowned personal source preserved",
+    "owned version upgraded",
+    "rollback restores exact preimage",
+    "rollback preserves later user edits",
+    "intentional deletion preserved",
+    "interrupted transaction recovered by durable intent",
+    "concurrent update excluded",
+    "source with credentials rejected",
+    "non-HTTPS source rejected",
+    "future source configured without changing global settings",
+    "blocked recovery does not hide independent source results",
+    "runtime requires matching adapter commit",
+    "runtime rejects corrupt binary",
+    "official runtime activated only after version and SHA256 checks",
+    "interrupted staging preserves active runtime",
+    "modified runtime fails closed",
+    "runtime rollback restores bundled release",
+    "rollback retains modified runtime for inspection",
+    "runtime update and rollback never mutate database"
+  ],
+  "count": 27,
+  "real_release_tested": true
+}

@@ -1,0 +1,95 @@
+import Foundation
+
+func runUpdateTests(releasePath: String?) throws {
+    let base = fm.temporaryDirectory.appendingPathComponent("oracle-update-test-\(UUID().uuidString)")
+    defer { try? fm.removeItem(at: base) }
+    let c = try Core(home: base.appendingPathComponent("state")), root = base.appendingPathComponent("vault")
+    try fm.createDirectory(at: root, withIntermediateDirectories: true)
+    c.config["vault"] = root.path; try c.persist()
+    var checks = [String]()
+    func expect(_ ok: Bool, _ name: String) throws { guard ok else { throw failure(name) }; checks.append(name); print("PASS \(name)") }
+    func rejects(_ name: String, _ operation: () throws -> Void) throws { do { try operation() } catch { checks.append(name); print("PASS \(name)"); return }; throw failure("Did not reject: " + name) }
+    func file(_ path: String, _ text: String) -> UpdateFile { let bytes = Data(text.utf8); return UpdateFile(path: path, hash: digest(bytes), data: bytes) }
+    func read(_ path: String) throws -> String { try String(contentsOf: c.scoped(path, root: root), encoding: .utf8) }
+    let skill = "SISTEMA/skills/code/test/SKILL.md", other = "SISTEMA/skills/ads/test/SKILL.md"
+    let manual = "SISTEMA/skills/marketing/personal/SKILL.md"
+    let manualURL = try c.scoped(manual, root: root)
+    try fm.createDirectory(at: manualURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Data("personal original".utf8).write(to: manualURL)
+    let bytes=Data("bundle payload".utf8)
+    let bundle:[String:Any]=["schema_version":1,"oracle_compatibility":"0.2","version":"1","files":[["path":skill,"sha256":digest(bytes),"content_base64":bytes.base64EncodedString()]]]
+    let decoded=try c.decodeSkillsBundle(jsonData(bundle))
+    try expect(decoded.0=="1" && decoded.1.count==1 && decoded.1[0].data==bytes,"release bundle decoded without filesystem extraction")
+    var incompatibleBundle=bundle;incompatibleBundle["oracle_compatibility"]="9.0"
+    try rejects("incompatible skill release rejected") { _=try c.decodeSkillsBundle(jsonData(incompatibleBundle)) }
+    var duplicateBundle=bundle;duplicateBundle["files"]=(bundle["files"] as! [[String:Any]])+(bundle["files"] as! [[String:Any]])
+    try rejects("duplicate bundle targets rejected") { _=try c.decodeSkillsBundle(jsonData(duplicateBundle)) }
+    let invalid = UpdateFile(path: skill, hash: "invalid", data: Data("test".utf8))
+    try rejects("checksum rejects before mutation") { _ = try c.applySkillFiles([invalid], version: "1", repository: "test") }
+    try rejects("skill path traversal rejected") { _ = try c.applySkillFiles([file("SISTEMA/skills/code/../escape.md", "invalid")], version: "1", repository: "test") }
+    try rejects("unknown collection rejected") { _ = try c.applySkillFiles([file("SISTEMA/skills/unapproved/test.md", "invalid")], version: "1", repository: "test") }
+    let outside = base.appendingPathComponent("outside"); try fm.createDirectory(at: outside, withIntermediateDirectories: true)
+    let link = root.appendingPathComponent("SISTEMA/skills/code/link");try fm.createDirectory(at: link.deletingLastPathComponent(), withIntermediateDirectories: true);try fm.createSymbolicLink(at: link, withDestinationURL: outside)
+    try rejects("symlink destination rejected") { _ = try c.applySkillFiles([file("SISTEMA/skills/code/link/SKILL.md", "invalid")], version: "1", repository: "test") }
+    let first = try c.applySkillFiles([file(skill, "version one"), file(other, "ads one"), file(manual, "upstream")], version: "1", repository: "test")
+    try expect(try read(skill) == "version one", "new files installed and verified")
+    try expect(try read(manual) == "personal original" && (first["preserved"] as? [String]) == [manual], "unowned personal source preserved")
+    _ = try c.applySkillFiles([file(skill, "version two"), file(other, "ads two")], version: "2", repository: "test")
+    try expect(try read(skill) == "version two", "owned version upgraded")
+    try Data("user edit after upgrade".utf8).write(to: c.scoped(other, root: root), options: .atomic)
+    let rollback = try c.rollbackSkills()
+    try expect(try read(skill) == "version one", "rollback restores exact preimage")
+    try expect(try read(other) == "user edit after upgrade" && (rollback["preserved"] as? [String]) == [other], "rollback preserves later user edits")
+    try fm.removeItem(at: c.scoped(skill, root: root))
+    _ = try c.applySkillFiles([file(skill, "version three")], version: "3", repository: "test")
+    try expect(!fm.fileExists(atPath: (try c.scoped(skill, root: root)).path), "intentional deletion preserved")
+    // Crash between intent receipt and completed receipt: recovery recognizes the installed hash.
+    _ = try c.applySkillFiles([file("SISTEMA/skills/code/new/SKILL.md", "new")], version: "4", repository: "test")
+    let transactionURL = try c.updatePath("skills/transaction.json")
+    var transaction = try readJSON(transactionURL), ops = transaction["operations"] as! [[String: Any]]
+    ops[0]["applied"] = false;transaction["operations"] = ops;transaction["status"] = "applying";try writeJSON(transaction, transactionURL)
+    _ = try c.rollbackSkills()
+    try expect(!fm.fileExists(atPath: root.appendingPathComponent("SISTEMA/skills/code/new/SKILL.md").path), "interrupted transaction recovered by durable intent")
+    let held = try c.acquireOperationLock("updates")
+    try rejects("concurrent update excluded") { _ = try c.performUpdates() }
+    c.releaseOperationLock(held)
+    try rejects("source with credentials rejected") { _ = try c.configureSkillSource("https://secret@github.com/test/catalog") }
+    try rejects("non-HTTPS source rejected") { _ = try c.configureSkillSource("http://github.com/test/catalog") }
+    _ = try c.configureSkillSource("https://github.com/test/catalog")
+    try expect(c.updatePreferences()["skills_repository"] as? String == "https://github.com/test/catalog", "future source configured without changing global settings")
+    _ = try c.configureSkillSource("")
+    var pending=transaction;pending["status"]="applying";pending["vault"]=outside.path;try writeJSON(pending,transactionURL)
+    c.config["gbrainWorkspace"]=outside.path;try c.persist()
+    let independent=try c.performUpdates()
+    let independentResults=independent["results"] as? [[String:Any]] ?? []
+    try expect(independentResults.contains { $0["id"] as? String=="gbrain" && $0["status"] as? String=="external" } && independentResults.contains { $0["id"] as? String=="skills" && $0["status"] as? String=="error" },"blocked recovery does not hide independent source results")
+    c.config.removeValue(forKey:"gbrainWorkspace");try c.persist()
+    // The actual approved upstream binary is optional for quick offline tests.
+    if let releasePath {
+        let bytes = try Data(contentsOf: URL(fileURLWithPath: releasePath))
+        let source = try c.updateManifest()["gbrain"] as! [String: Any]
+        let release = (source["compatible_releases"] as! [[String: Any]])[0]
+        let sentinel = c.home.appendingPathComponent("gbrain/profile/database-sentinel")
+        try fm.createDirectory(at: sentinel.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("database must remain identical".utf8).write(to: sentinel)
+        let before = try fileDigest(sentinel)
+        var incompatible = release; incompatible["commit"] = "unapproved"
+        try rejects("runtime requires matching adapter commit") { _ = try c.activateRuntime(binary: bytes, release: incompatible) }
+        try rejects("runtime rejects corrupt binary") { _ = try c.activateRuntime(binary: Data("invalid".utf8), release: release) }
+        _ = try c.activateRuntime(binary: bytes, release: release)
+        let active = try c.engineResources()
+        try expect(try fileDigest(active.appendingPathComponent("gbrain")) == release["sha256"] as? String, "official runtime activated only after version and SHA256 checks")
+        let receipt = try readJSON(c.updatePath("runtime/current.json"))
+        // A staged directory is invisible until a complete receipt is atomically activated.
+        let incomplete = try c.updatePath("runtime/versions/" + UUID().uuidString)
+        try fm.createDirectory(at: incomplete, withIntermediateDirectories: true)
+        try expect(try c.engineResources() == active, "interrupted staging preserves active runtime")
+        try Data("local modification".utf8).write(to: active.appendingPathComponent("gbrain"), options: .atomic)
+        try rejects("modified runtime fails closed") { _ = try c.engineResources() }
+        _ = try c.rollbackRuntime()
+        try expect(try c.engineResources() == c.bundledEngineResources(), "runtime rollback restores bundled release")
+        try expect(fm.fileExists(atPath: active.path) && receipt["previous"] != nil, "rollback retains modified runtime for inspection")
+        try expect(try fileDigest(sentinel) == before, "runtime update and rollback never mutate database")
+    }
+    print("UPDATE_RECEIPT " + String(decoding: try jsonData(["checks": checks, "count": checks.count, "real_release_tested": releasePath != nil]), as: UTF8.self))
+}

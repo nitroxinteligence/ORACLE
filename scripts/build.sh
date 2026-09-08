@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+bun run build:atlas
+bun build packages/contracts/replay.js --target browser --format iife --outfile Resources/web/replay.js
 swift build -c release
 mkdir -p .work/Oracle.iconset
 swift scripts/make-icon.swift .work/Oracle.iconset
@@ -24,8 +26,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Oracle</string>
 <key>CFBundleDisplayName</key><string>Oracle</string>
 <key>CFBundleIdentifier</key><string>com.oraclecompanion.macos</string>
-<key>CFBundleVersion</key><string>1</string>
-<key>CFBundleShortVersionString</key><string>0.1.0</string>
+<key>CFBundleVersion</key><string>2</string>
+<key>CFBundleShortVersionString</key><string>0.2.0</string>
 <key>CFBundleExecutable</key><string>Oracle</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleIconFile</key><string>Oracle</string>

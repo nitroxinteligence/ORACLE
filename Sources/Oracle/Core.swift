@@ -55,6 +55,7 @@ final class Core {
         var value: [String: Any] = ["config":config,"collections":collections.map { ["id":$0.0,"name":$0.1,"icon":$0.2] },"events":try events(),"engine":"não verificado","coverage":"Hooks opcionais; sem acesso ao banco privado do Codex; ausência de evento = desconhecido"]
         if let root = try? vault() { do { value["entries"] = try scan(root: root) } catch { value["entries"] = []; value["scanError"] = error.localizedDescription } }
         else { value["entries"] = [] }
+        value["operations"] = ["setup":operationIsRunning("setup"),"gbrain":operationIsRunning("gbrain")]
         value["home"] = home.path
         value["catalog"] = catalogSummary()
         if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["vault"] as? String==config["vault"] as? String { value["setup"]=["plan_id":plan["id"] ?? "", "confirmed":plan["confirmed_hash"] != nil] }

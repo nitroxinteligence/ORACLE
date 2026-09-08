@@ -18,7 +18,7 @@ func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:
     return ProcessResult(code:process.terminationStatus,output:out + (process.terminationStatus == 0 ? "" : "\n"+err))
 }
 extension Core {
-    func engineResources() -> URL {
+    func bundledEngineResources() -> URL {
         if let override=ProcessInfo.processInfo.environment["ORACLE_ENGINE_RESOURCES"] { return URL(fileURLWithPath:override) }
         return Bundle.main.resourceURL!.appendingPathComponent("engine")
     }

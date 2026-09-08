@@ -1,0 +1,24 @@
+{
+  "observed_ui_completed": 2000,
+  "total": 4902,
+  "installation_complete": true,
+  "events": [
+    {
+      "event_id": "ff14dae71af789b465bccb16194892297d96a659e3a4286c7b7a136416beb31b",
+      "event_type": "catalog.files_verified",
+      "phase": "catalog",
+      "completed": 2000,
+      "total": 4902,
+      "received_at": "2026-09-08T02:19:20.284Z"
+    },
+    {
+      "event_id": "c4b722448201123af0b2fb26c6b287e0f2d9336cb64ab730e8fadbbee1f4c3c3",
+      "event_type": "catalog.files_verified",
+      "phase": "catalog",
+      "completed": 4902,
+      "total": 4902,
+      "received_at": "2026-09-08T02:19:27.024Z"
+    }
+  ],
+  "profile": "isolated validation with public catalog"
+}

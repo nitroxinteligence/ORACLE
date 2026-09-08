@@ -4,7 +4,10 @@ import LocalAuthentication
 
 let arguments = CommandLine.arguments
 func argument(_ key: String) -> String? { guard let i = arguments.firstIndex(of:key), arguments.count > i+1 else { return nil }; return arguments[i+1] }
-let core = try Core(home: argument("--state").map { URL(fileURLWithPath:$0) })
+// A validation bundle may pin its disposable profile, including relaunches from Finder.
+// The distributed application has neither this identifier nor this Info.plist key.
+let validationState = Bundle.main.bundleIdentifier?.hasSuffix(".validation") == true ? Bundle.main.object(forInfoDictionaryKey:"OracleQAState") as? String : nil
+let core = try Core(home: (argument("--state") ?? validationState).map { URL(fileURLWithPath:$0) })
 if arguments.contains("--hook") {
     do { let data = FileHandle.standardInput.readDataToEndOfFile(); guard data.count < 4_000_000, let value = try JSONSerialization.jsonObject(with:data) as? [String: Any] else { exit(0) }; try core.ingestHook(value) } catch { /* Observability must not block Codex. */ }
     print("{}"); exit(0)
@@ -21,7 +24,12 @@ if let hash = argument("--confirm-gbrain") { do { try core.confirmGBrain(hash); 
 if let operation = argument("--setup") {
     do { let result = try core.applyPlan(rollback:operation == "rollback",verifyOnly:operation == "verify"); print(String(decoding:try jsonData(result),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
+if arguments.contains("--self-test-updates") { do { try runUpdateTests(releasePath:argument("--test-release"));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test") { do { try runTests(); exit(0) } catch { fputs("FAIL: \(error)\n",stderr); exit(1) } }
+
+if let operation = argument("--update") {
+    do { print(String(decoding:try jsonData(core.performUpdates(operation:operation)),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) }
+}
 
 final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSWindowDelegate {
     var window: NSWindow!
@@ -31,11 +39,14 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var lockGeneration=0
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
     let queue = DispatchQueue(label:"oracle.core")
+    let updateQueue = DispatchQueue(label:"oracle.updates")
+    var updating = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         let content = WKUserContentController(); content.add(self,name:"oracle")
         let cfg = WKWebViewConfiguration(); cfg.userContentController = content
         cfg.websiteDataStore = .nonPersistent()
+        cfg.preferences.tabFocusesLinks = true
         web = WKWebView(frame:.zero,configuration:cfg); web.navigationDelegate = self
         web.setValue(false,forKey:"drawsBackground")
         window = NSWindow(contentRect:NSRect(x:0,y:0,width:1440,height:900),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
@@ -66,7 +77,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         view.submenu!.addItem(withTitle:"Tela cheia",action:#selector(NSWindow.toggleFullScreen(_:)),keyEquivalent:"f")
         NSApp.mainMenu = bar
     }
-    @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.1.0"; a.informativeText = "Companion nativo para macOS. Codex executa, GBrain recupera, Obsidian conserva. Cobertura de atividade parcial."; a.runModal() }
+    @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.2.0"; a.informativeText = "Companion nativo para macOS. Codex executa, GBrain recupera, Obsidian conserva. Cobertura de atividade parcial."; a.runModal() }
     @objc func lockApp() { lockGeneration += 1;locked = true; web?.evaluateJavaScript("window.oracleLock?.()",completionHandler:nil) }
     func authenticate(_ completion:@escaping(Bool,String?)->Void) {
         let generation=lockGeneration
@@ -104,6 +115,17 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 } catch { DispatchQueue.main.async { self.reply(id,nil,error.localizedDescription) } } }
             }; return
         }
+        if method == "updateStart" {
+            guard !updating else { reply(id,true);return }
+            let operation=p["operation"] as? String ?? "check-apply"
+            guard ["check-apply","rollback-gbrain","rollback-skills"].contains(operation) else { reply(id,nil,"Operação inválida");return }
+            updating=true; reply(id,true)
+            updateQueue.async {
+                do { let updater=try Core(home:core.home);_ = try updater.performUpdates(operation:operation) }
+                catch { try? core.recordUpdate("failed",error.localizedDescription) }
+                DispatchQueue.main.async { self.updating=false }
+            };return
+        }
         if method == "protect" { authenticate { ok,error in if ok { self.queue.async { core.config["protected"] = true; try? core.persist(); DispatchQueue.main.async { self.reply(id,true) } } } else { self.reply(id,nil,error) } }; return }
         if method == "openCodex" { let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier:"com.openai.codex") ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier:"com.openai.Codex"); if let url { NSWorkspace.shared.openApplication(at:url,configuration:.init()); reply(id,true) } else { reply(id,nil,"Codex não encontrado. Abra o app instalado manualmente e cole o pedido.") }; return }
         if method == "openExternal" { guard let text=p["url"] as? String,let parts=URLComponents(string:text),["https","http"].contains(parts.scheme ?? ""),parts.host != nil,parts.user == nil,parts.password == nil,let url=parts.url else { reply(id,nil,"Link externo inválido"); return }; NSWorkspace.shared.open(url); reply(id,true); return }
@@ -122,6 +144,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             let panel = NSOpenPanel(); panel.allowedContentTypes = [.json]; panel.message = "Importe uma exportação Oracle Conversations v1. Não lê histórico privado nem conteúdo cloud automaticamente."
             panel.beginSheetModal(for:window) { result in guard result == .OK,let url = panel.url else { self.reply(id,NSNull()); return }; self.queue.async { do { let data = try Data(contentsOf:url); guard data.count < 10_000_000 else { throw failure("Exportação maior que 10 MB") }; let doc = try readJSON(url); guard doc["schema_version"] as? Int == 1,let items = doc["conversations"] as? [[String:Any]], items.count <= 1000 else { throw failure("Formato: schema_version 1, conversations[]") }; var clean = [[String:Any]](); for item in items { guard let title = item["title"] as? String,let messages = item["messages"] as? [[String:String]] else { throw failure("Conversa inválida") }; clean.append(["title":title,"source":url.lastPathComponent,"messages":messages.filter { ["user","assistant"].contains($0["role"] ?? "") }.map { ["role":$0["role"]!,"text":$0["text"] ?? ""] }]) }; try writeJSON(["schema_version":1,"conversations":clean],core.home.appendingPathComponent("conversations.json")); DispatchQueue.main.async { self.reply(id,clean) } } catch { DispatchQueue.main.async { self.reply(id,nil,error.localizedDescription) } } } }; return
         }
+        let updaterBusy=updating
         queue.async {
             do {
                 var result:Any = NSNull()
@@ -130,6 +153,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                     guard let layout=p["layout"] as? [String:Any],let nodes=layout["nodes"] as? [String:[String:Double]],let leaves=layout["leaves"] as? [String:[String:Double]],nodes.count<=7,leaves.count<=1000 else { throw failure("Layout inválido") }
                     for point in Array(nodes.values)+Array(leaves.values) { guard let x=point["x"],let y=point["y"],x.isFinite,y.isFinite,abs(x)<=2000,abs(y)<=2000 else { throw failure("Posição inválida") } }
                     core.config["layout"]=layout; try core.persist(); result=true
+                case "updateStatus": var status=try core.updateStatus();status["busy"]=updaterBusy;if !updaterBusy,["checking","downloading","verifying","applying"].contains(status["phase"] as? String ?? "") {status["phase"]="interrupted";status["message"]="Operação interrompida. Verifique novamente para recuperar com segurança."};result=status
+                case "configureSkillSource": result = try core.configureSkillSource(p["repository"] as? String ?? "")
                 case "snapshot": result = try core.snapshot()
                 case "gbrainRead": result = try core.gbrainRead(p)
                 case "gbrainReadback": result = (try? readJSON(core.home.appendingPathComponent("setup/gbrain-readback.json"))) ?? [:]

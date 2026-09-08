@@ -12,6 +12,14 @@ extension Core {
         return fd
     }
     func releaseOperationLock(_ fd:Int32) { flock(fd,LOCK_UN);Darwin.close(fd) }
+    func operationIsRunning(_ name:String) -> Bool {
+        let url=home.appendingPathComponent("setup/locks/"+name+".lock")
+        let fd=Darwin.open(url.path,O_RDONLY)
+        guard fd>=0 else { return false }
+        defer { Darwin.close(fd) }
+        if flock(fd,LOCK_EX|LOCK_NB)==0 { flock(fd,LOCK_UN);return false }
+        return errno==EWOULDBLOCK
+    }
     func refreshConfig() {
         if let fresh=try? readJSON(home.appendingPathComponent("config.json")) { config=fresh;configBaseline=fresh }
     }

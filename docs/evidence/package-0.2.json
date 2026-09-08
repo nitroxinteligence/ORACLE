@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "artifact": "Oracle-0.2.0-arm64.dmg",
+  "bytes": 114499511,
+  "sha256": "ccf0e0c296a1f0ce4415d4965800f1081efcca78bdb39d77989e7444bb659614",
+  "dmg_integrity_verified": true,
+  "mounted_read_only": true,
+  "bundle_signature_verified": true,
+  "signature": "ad-hoc",
+  "developer_id": false,
+  "notarized": false,
+  "web_resources_match_source": true,
+  "qa_profile_absent_from_product": true,
+  "mounted_app_contracts_passed": 19,
+  "gatekeeper_assessment_exit": 3,
+  "gatekeeper_assessment": "rejected",
+  "architecture": "arm64",
+  "validation_host_macos": "26.6.2",
+  "external_publication": false
+}

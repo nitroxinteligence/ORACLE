@@ -23,8 +23,10 @@ func runTests() throws {
     let sibling=try Core(home:c.home);sibling.config["gbrainAccess"]=true;try sibling.persist();c.config["layout"]=["nodes":[:]];try c.persist()
     try expect((try Core(home:c.home)).config["gbrainAccess"] as? Bool==true,"cross-process preferences preserve independent fields")
     let held=try c.acquireOperationLock("setup")
+    try expect(c.operationIsRunning("setup"),"progress observes live operation lock")
     try rejects("concurrent installation excluded") { _ = try sibling.applyPlan() }
     c.releaseOperationLock(held)
+    try expect(!c.operationIsRunning("setup"),"stopped operation never remains live")
     try expect((first["verified"] as! [String]).count == templateFolders.count,"all planned folders verified")
     try expect((second["created"] as! [String]).count == (first["created"] as! [String]).count,"idempotent setup")
     let original = "---\nname: fixture\ndescription: Fixture skill\n---\n# Original\n"

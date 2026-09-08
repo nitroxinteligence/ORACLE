@@ -1,14 +1,12 @@
 # Oracle
 
-Aplicativo nativo para macOS que apresenta conhecimento do Obsidian, memória do GBrain e atividade observável do Codex Desktop.
+Aplicativo macOS instalável para explorar conhecimento local, memória e procedimentos em um universo Three.js. AppKit hospeda a janela e as operações nativas; o frontend usa assets locais em WKWebView.
 
-**Codex executa. GBrain recupera. Obsidian conserva. Oracle apresenta.**
+A versão **0.2.0** refina os painéis, reúne o timelapse no topo, padroniza os modais e acrescenta busca imediata e atualizações com compatibilidade e recuperação. O sol permanece animado. As sete coleções são Ads, Code, Contents, Customer Finder, Cybersecurity, Marketing e Personal Branding; skills são suas folhas.
 
-O frontend já funciona no app macOS: atlas completo em Three.js, núcleo solar procedural, sete coleções de especialistas, zoom ancorado, arraste com posições persistidas, inspetor, leitura de Markdown e editor de versões pessoais com diff. A versão 0.1.0 inclui catálogo de 940 skills, instalador retomável e MCP sobre GBrain oficial. Os testes de integração usam perfis sintéticos; presença de pacote não é prova de agente ativo.
+![Oracle 0.2 no aplicativo macOS: perfil de validação com notas sintéticas e catálogo público](docs/evidence/oracle-native-0.2.png)
 
-![Oracle renderizado no macOS, com dados sintéticos](docs/evidence/oracle-native-atlas-v5.png)
-
-## Executar
+## Executar e empacotar
 
 Requisitos de desenvolvimento: macOS, ferramentas Swift da Apple, Bun e Python 3.
 
@@ -17,55 +15,40 @@ bun install --frozen-lockfile
 bash scripts/bootstrap.sh
 bash scripts/build.sh
 open dist/Oracle.app
-# Opcional: gerar o DMG local
 bash scripts/package.sh
 ```
 
-O build produz um aplicativo macOS com recursos locais. Não é um site hospedado. O pacote de desenvolvimento usa assinatura ad hoc; assinatura Developer ID e notarização ainda não foram concluídas.
+O pacote é `dist/Oracle-0.2.0-arm64.dmg`. Esta é uma distribuição **de desenvolvimento, com assinatura ad hoc**. Developer ID e notarização Apple não foram concluídos.
 
-Para um preview exclusivamente visual no navegador:
+Preview visual opcional, sem acesso nativo às fontes:
 
 ```sh
 python3 -m http.server 4173 --bind 127.0.0.1 --directory Resources/web
 ```
 
-O navegador usa dados de demonstração identificados. Acesso a arquivos, autenticação e integrações do sistema pertencem ao aplicativo nativo.
+O preview usa fixtures; a origem permanece identificada nos ajustes. As capturas desta entrega usam perfis isolados com notas sintéticas e/ou skills públicas, sem conteúdo do vault pessoal.
 
-## O que está implementado
+## Comportamentos principais
 
-- Atlas com sete coleções: Ads, Code, Contents, Customer Finder, Cybersecurity, Marketing e Personal Branding.
-- Sol, núcleos, ligações e atmosfera em Three.js/WebGL2; labels e controles acessíveis; fallback SVG.
-- Mapa, Lista e Pastas; leitura do vault escolhido; fonte e hash do documento.
-- Versões pessoais de SKILL.md com revisão de diferenças e detecção de mudança externa.
-- Seletores nativos, menus, proteção de interface via LocalAuthentication e exportação de imagem.
-- Journal de estrutura com aplicação, verificação, retomada e rollback preservador.
-- GBrain oficial fixado no commit `2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d`.
-- Receptor de hooks com minimização de dados e sem inferir conclusão de objetivo a partir de Stop.
-- Catálogo público de 940 skills, com hashes, licenças, verificação e rollback que preserva edições.
-- MCP com ciclo de conexão por chamada, memória canônica e TTL, sem ferramentas de inferência.
-- Ponte em workspace próprio, com revisão de hooks e confiança no Codex.
-- Replay determinístico por baseline e recibos de arquivos.
+- Sol e atlas Three.js, conexões animadas, zoom, seleção e arraste persistente; controles acessíveis e fallback SVG.
+- Árvore lateral com pastas, documentos, sete coleções e INBOX/oracle, oracle-history e oracle-memory quando presentes na fonte.
+- Busca em modal por nome/caminho, incluindo `ads-google`; filtro enquanto digita, setas/Enter, Escape e retorno de foco. Atalho ⌘K.
+- Modais com cabeçalho e rodapé estáveis, corpo rolável, campos e botões consistentes. Editor preserva o rascunho, mostra diff e salva versão pessoal com procedência.
+- Formação visual determinística: núcleo → especialistas → skills. A reprodução não instala nem modifica arquivos. O journal continua acessível em Recibos e cobertura.
+- Barra de instalação de 2px dirigida por recibos e por bloqueio de operação ativo. Estado real separado de pausa/replay.
+- Botão Atualizar com consulta real a releases, allowlist de compatibilidade do GBrain, SHA-256, preparação isolada e rollback. Catálogo central configurável, com preservação de edições e remoções.
+- Catálogo público de 940 skills integrado. Origem, versão, diagnóstico e cobertura continuam disponíveis nos ajustes.
+- MCP sobre GBrain oficial, memória canônica e TTL; sem executor de IA adicional.
 
-## Fronteiras explícitas
+## Validação e limites
 
-A ponte não usa bancos privados do Codex, automação de cliques, tokens de assinatura ou outro motor de agentes. O fallback de configuração copia um pedido para execução no Codex Desktop. Hooks exigem confiança pelo mecanismo oficial. Conversas usam importação delimitada; o histórico completo ChatGPT/cloud não é presumido. O cartão Gmail não lê mensagens nem conecta uma conta.
+A entrega tem 19 contratos do núcleo, 27 verificações de atualização, 15 etapas de formação verificadas e round-trips do GBrain/MCP. A QA nativa verificou instalação de 4.902 arquivos, busca da skill original, gravação de versão pessoal, foco/teclado e reprodução sem alterar 4.909 arquivos do perfil de teste. Testes e capturas não comprovam operação na instalação pessoal.
 
-O bloqueio protege a interface, não criptografa o vault. As capturas e testes publicados usam dados sintéticos. Dados locais de execução, vaults, credenciais e o pacote histórico pessoal de planejamento não fazem parte deste repositório.
+- [Checklist rastreável dos 16 pedidos](docs/implementation/pendencias-16.md)
+- [Capturas e validação visual](docs/evidence/oracle-0.2-visuals.md)
+- [Contrato do atualizador e catálogo futuro](docs/implementation/updater.md)
+- [Avaliação Cognee: manter GBrain por enquanto](docs/decisions/cognee-evaluation.md)
 
-## Evidências e componentes
+Ainda dependem de decisão ou validação externa: URL do catálogo central, eventual adoção do Cognee, confiança real dos hooks no Codex, conexão à instalação pessoal preexistente, Developer ID/notarização e teste em outro Mac limpo. Nenhum desses estados é inferido a partir da animação ou da presença de arquivos.
 
-- `docs/evidence/frontend-validation.md`: cenários observados no aplicativo nativo.
-- `docs/benchmarks/`: amostras de renderização e processos, com limites de interpretação.
-- `docs/decisions/atlas-renderer.md`: decisão do renderer e fontes primárias.
-- `Sources/Oracle/`: shell e operações nativas em Swift.
-- `packages/atlas/`: renderer Three.js.
-- `packages/gbrain-adapter/`: adaptação sobre a biblioteca oficial GBrain.
-- `skills/oracle-setup/`: procedimento de instalação executado pelo Codex.
-
-As dependências de terceiros conservam suas próprias licenças. A licença do código original do Oracle ainda não foi definida.
-
-## Validação desta versão
-
-`Oracle --self-test` passou em 17 contratos de arquivos, plano, concorrência e eventos. Os testes publicados verificam instalação de 4.902 arquivos do catálogo, idempotência, preservação de edição no rollback, entrevista/indexação GBrain, handshake MCP, escrita canônica com TTL e leitura simultânea da UI enquanto a conexão MCP permanece aberta. O replay tem teste de projeção pura. Evidências em `docs/evidence/`.
-
-Pendências de distribuição: Developer ID/notarização, Mac limpo independente, atualização automática e backup/restore integrado. A conexão a uma instalação pessoal preexistente e a confiança real dos hooks no Codex ainda precisam de validação. Esta entrega não declara essas etapas concluídas.
+O app não usa bancos privados do Codex, tokens de assinatura como API, nem configura confiança de hooks. O cartão Gmail é explicativo. O bloqueio protege a interface, não criptografa o vault. Dependências de terceiros conservam suas licenças; a licença do código original do Oracle ainda não foi definida.

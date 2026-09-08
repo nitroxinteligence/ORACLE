@@ -1,7 +1,7 @@
 import Foundation
 
 extension Core {
-    func catalogRoot() -> URL { engineResources().deletingLastPathComponent().appendingPathComponent("catalog") }
+    func catalogRoot() -> URL { bundledEngineResources().deletingLastPathComponent().appendingPathComponent("catalog") }
     func catalogManifest() throws -> [String:Any] { try readJSON(catalogRoot().appendingPathComponent("manifest.json")) }
     func catalogSummary() -> [[String:Any]] { (try? catalogManifest()["collections"] as? [[String:Any]]) ?? [] }
     func catalogDigest() throws -> String { digest(try Data(contentsOf:catalogRoot().appendingPathComponent("manifest.json"))) }
@@ -85,7 +85,7 @@ extension Core {
             guard currentHash==expectedHash || currentHash==prior else { throw failure("Ponte contém alterações externas. Preserve e reconcilie o arquivo antes de preparar novamente.") }
         }
         try writeJSON(document,hookPath)
-        let source=engineResources().deletingLastPathComponent().appendingPathComponent("skills/oracle-setup/SKILL.md")
+        let source=bundledEngineResources().deletingLastPathComponent().appendingPathComponent("skills/oracle-setup/SKILL.md")
         let skill=root.appendingPathComponent(".agents/skills/oracle-setup/SKILL.md")
         try fm.createDirectory(at:skill.deletingLastPathComponent(),withIntermediateDirectories:true)
         let skillData=try Data(contentsOf:source)
@@ -102,7 +102,7 @@ extension Core {
         if plan["attach"] as? Bool != true {
             guard (try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")))?["status"] as? String=="identity_and_index_verified" else { throw failure("Finalize GBrain com --gbrain finish antes de preparar sua conexão MCP.") }
             func toml(_ value:String)->String { let data=try! JSONSerialization.data(withJSONObject:[value],options:[.withoutEscapingSlashes]);return String(decoding:data,as:UTF8.self).dropFirst().dropLast().description }
-            let adapter=engineResources().appendingPathComponent("oracle-gbrain-read").path
+            let adapter=try engineResources().appendingPathComponent("oracle-gbrain-read").path
             let content="""
             # Oracle-owned project configuration. Review in Codex; no global settings changed.
             [mcp_servers.oracle_companion]

@@ -1,0 +1,9 @@
+{
+  "busy": "false",
+  "result": "Documento de fast-fixture\nfast-fixture / fixture",
+  "selected": "fast-fixture",
+  "slow_response_ms": 1200,
+  "fast_response_ms": 50,
+  "late_response_ignored": true,
+  "scope": "browser-only synthetic fixture"
+}

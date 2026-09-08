@@ -1,7 +1,78 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'"><title>Oracle</title><link rel="stylesheet" href="style.css"></head><body>
-<div id="app"><header><a class="wordmark" href="#" aria-label="Oracle, meu universo">ORACLE</a><span class="header-sub">SEU CONHECIMENTO, CONECTADO.</span><nav class="segmented" aria-label="Visualização"><button data-view="map" class="active">Mapa</button><button data-view="list">Lista</button><button data-view="folders">Pastas</button></nav><button id="settings" class="icon-button" aria-label="Configuração">⚙</button><button id="lock" class="icon-button" aria-label="Bloquear">⌑</button></header>
-<main><div id="galaxy" aria-hidden="true"></div><aside class="panel left"><div class="panel-heading"><h2>Meu universo</h2><button id="refresh" class="icon-button" title="Atualizar pasta">↻</button></div><label class="search"><span data-icon="search"></span><input id="search" placeholder="Buscar no universo" aria-label="Buscar no universo"></label><div id="tree" class="tree"></div><div class="side-bottom"><button id="conversations"><span data-icon="chat"></span>Conversas Codex</button><button id="instructions"><span data-icon="book"></span>Instruções dos projetos</button><button id="tools"><span data-icon="tool"></span>Ferramentas</button></div><div id="vault-label" class="source-label"></div></aside>
-<section class="stage" aria-label="Atlas do conhecimento"><div class="panel progress-card"><div><span class="eyebrow" id="progress-label">OBSERVAÇÃO LOCAL</span><span id="status-badge" class="badge">Desconhecido</span></div><h1 id="progress-title">Seu universo começa aqui</h1><p id="progress-description">Conecte uma pasta para descobrir seu conhecimento.</p><div class="progress-track"><div id="progress-fill"></div></div><div class="progress-meta"><span id="progress-count">Nenhuma pasta conectada</span><button id="setup-button">Configurar Oracle ↗</button></div></div><div id="atlas"></div><div id="results" hidden></div><div class="map-tools"><button id="zoom-out" aria-label="Reduzir zoom">−</button><span id="zoom-label">100%</span><button id="zoom-in" aria-label="Aumentar zoom">+</button><button id="zoom-reset" aria-label="Enquadrar tudo" title="Enquadrar tudo · 0">⌖</button><button id="context-back" aria-label="Voltar ao contexto" title="Voltar ao contexto · Esc">↶</button></div><div class="panel replay-bar"><button id="play" aria-label="Reproduzir journal">▶</button><input id="timeline" type="range" min="0" max="0" value="0" aria-label="Posição na reprodução"><span id="replay-label">Ao vivo</span><button id="speed">1×</button><button id="live">Voltar ao vivo <i></i></button></div></section>
-<aside class="panel right"><div class="panel-heading"><h2 id="inspector-title">Observatório</h2><span data-icon="sliders"></span></div><div id="inspector"><p class="muted">Selecione uma coleção ou nota para explorar suas fontes.</p></div><div class="divider"></div><h3>Seu ambiente</h3><div class="connection"><span data-icon="code"></span><div><strong>Codex Desktop</strong><small id="codex-status">Atividade desconhecida</small></div><span class="status-dot"></span></div><div class="connection"><span data-icon="brain"></span><div><strong>GBrain</strong><small id="gbrain-status">Não verificado</small></div></div><button id="activity" class="quiet-link">Ver recibos e cobertura ↗</button><div class="divider"></div><label class="control">Detalhes do mapa<input id="density" type="range" min="0" max="6" value="3"></label><label class="check"><input id="motion" type="checkbox"> Reduzir movimento</label><label class="check"><input id="economy" type="checkbox"> Qualidade econômica</label><div class="visual-actions"><button id="ambient-toggle" class="quiet-link">Pausar atmosfera</button><button id="reset-layout" class="quiet-link">Restaurar posições</button></div><button id="gmail" class="service-row"><span data-icon="mail"></span>Gmail<span>↗</span></button></aside>
-</main><footer><span id="footer-status">LOCAL · FONTES PRESERVADAS</span><span>Codex executa · GBrain recupera · Obsidian conserva</span></footer></div>
-<dialog id="modal"><div id="modal-content"></div></dialog><div id="toast" role="status" aria-live="polite"></div><div id="lock-screen" hidden><div class="lock-card"><div class="wordmark">ORACLE</div><h1>Seu universo, reservado.</h1><p>Use Touch ID ou a senha do macOS para continuar.</p><button id="unlock" class="primary">Desbloquear Oracle</button><small>A proteção bloqueia esta interface. Seu vault continua acessível pelo Obsidian.</small></div></div><script src="preview.js"></script><script src="universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="app.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>Oracle</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app" inert>
+  <div id="installation-progress" class="installation-progress" role="progressbar" aria-label="Instalação do Second Brain" hidden><div id="progress-fill"></div></div>
+  <header class="app-header">
+    <a class="wordmark" href="#" aria-label="Oracle, enquadrar meu universo">ORACLE</a>
+    <div class="header-actions">
+      <div class="replay-controls" role="group" aria-label="Timelapse visual">
+        <button id="play" class="icon-button" aria-label="Iniciar timelapse" data-tooltip="Iniciar timelapse · formação do universo"><span data-icon="play"></span></button>
+        <span id="replay-label" class="live-label">Ao vivo</span>
+        <input id="timeline" type="range" min="0" max="14" value="14" aria-label="Posição do timelapse" data-tooltip="Explorar a formação visual">
+        <button id="speed" aria-label="Velocidade do timelapse: 1 vez" data-tooltip="Alterar velocidade do timelapse">1×</button>
+        <button id="live" class="icon-button" aria-label="Voltar ao vivo" data-tooltip="Voltar ao vivo" disabled><span data-icon="live"></span></button>
+      </div>
+      <span class="header-separator" aria-hidden="true"></span>
+      <button id="settings" class="icon-button" aria-label="Ajustes do Oracle" data-tooltip="Ajustes do Oracle · ⌘,"></button>
+      <button id="lock" class="icon-button" aria-label="Bloquear Oracle" data-tooltip="Bloquear Oracle · ⌘L"></button>
+    </div>
+  </header>
+  <main>
+    <div id="galaxy" aria-hidden="true"></div>
+    <aside class="panel left" aria-label="Navegação do universo">
+      <div class="panel-heading"><h2>Meu universo</h2><button id="refresh" class="icon-button" aria-label="Reler pasta" data-tooltip="Reler os arquivos da pasta"><span data-icon="refresh"></span></button></div>
+      <button id="search" class="search-trigger" aria-haspopup="dialog" aria-label="Buscar no universo" data-tooltip="Buscar notas e skills · ⌘K"><span data-icon="search"></span><span>Buscar no universo</span><kbd>⌘ K</kbd></button>
+      <div id="tree" class="tree"></div>
+      <div class="side-bottom">
+        <button id="conversations"><span data-icon="chat"></span>Conversas Codex</button>
+        <button id="instructions"><span data-icon="book"></span>Instruções dos projetos</button>
+        <button id="tools"><span data-icon="tool"></span>Ferramentas</button>
+      </div>
+    </aside>
+    <section class="stage" aria-label="Atlas do conhecimento">
+      <div id="atlas"></div>
+      <div id="results" hidden></div>
+      <div class="map-tools" role="group" aria-label="Navegação do atlas">
+        <button id="zoom-out" aria-label="Reduzir zoom" data-tooltip="Reduzir zoom · −">−</button>
+        <span id="zoom-label">100%</span>
+        <button id="zoom-in" aria-label="Aumentar zoom" data-tooltip="Aumentar zoom · +">+</button>
+        <span class="tool-separator" aria-hidden="true"></span>
+        <button id="zoom-reset" aria-label="Enquadrar tudo" data-tooltip="Enquadrar tudo · 0"><span data-icon="fit"></span></button>
+        <button id="context-back" aria-label="Voltar ao contexto" data-tooltip="Voltar ao contexto · Esc"><span data-icon="back"></span></button>
+      </div>
+    </section>
+    <aside class="panel right" aria-label="Observatório">
+      <div class="panel-heading"><h2 id="inspector-title">Observatório</h2><span class="observatory-mark" aria-hidden="true">✧</span></div>
+      <div id="inspector"></div>
+      <div class="divider"></div>
+      <h3>Seu ambiente</h3>
+      <div class="connection"><span data-icon="code"></span><div><strong>Codex Desktop</strong><small id="codex-status">Atividade desconhecida</small></div></div>
+      <div class="connection"><span data-icon="brain"></span><div><strong>Second Brain</strong><small id="gbrain-status">Não verificado</small></div></div>
+      <button id="activity" class="quiet-link">Recibos e cobertura <span aria-hidden="true">↗</span></button>
+      <div class="divider"></div>
+      <label class="control">Detalhes do mapa<input id="density" type="range" min="0" max="6" value="3"></label>
+      <label class="check"><input id="motion" type="checkbox"> Reduzir movimento</label>
+      <label class="check"><input id="economy" type="checkbox"> Qualidade econômica</label>
+      <div class="visual-actions">
+        <button id="ambient-toggle" class="quiet-link" data-tooltip="Pausar apenas a animação ambiente">Pausar atmosfera</button>
+        <button id="reset-layout" class="quiet-link" data-tooltip="Restaurar posições dos nós; os arquivos permanecem no lugar">Restaurar posições</button>
+      </div>
+      <button id="gmail" class="service-row"><span data-icon="mail"></span>Gmail<span aria-hidden="true">↗</span></button>
+    </aside>
+  </main>
+  <footer><span id="footer-status"></span><button id="updates" class="update-button" data-tooltip="Verificar e aplicar atualizações compatíveis"><span data-icon="refresh"></span><span>Atualizar</span></button></footer>
+</div>
+<dialog id="modal" aria-labelledby="modal-title"><div id="modal-content"></div></dialog>
+<div id="tooltip" role="tooltip" hidden></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<div id="lock-screen" hidden><div class="lock-card"><div class="wordmark">ORACLE</div><h1>Seu universo, reservado.</h1><p>Use Touch ID ou a senha do macOS para continuar.</p><button id="unlock" class="primary">Desbloquear Oracle</button><small>A proteção bloqueia esta interface. Seu vault continua acessível pelo Obsidian.</small></div></div>
+<script src="preview.js"></script><script src="universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="app.js"></script>
+</body></html>

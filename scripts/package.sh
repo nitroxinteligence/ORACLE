@@ -1,7 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-APP="dist/Oracle.app"
+APP=".work/build/Oracle.app"
+mkdir -p dist .work
 codesign --verify --deep --strict "$APP"
 STAGE=$(mktemp -d "$PWD/.work/dmg.XXXXXX")
 trap 'rm -rf "$STAGE"' EXIT

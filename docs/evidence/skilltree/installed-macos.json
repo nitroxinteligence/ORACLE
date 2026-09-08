@@ -1,0 +1,12 @@
+{
+  "installed": "/Applications/Oracle.app",
+  "verifiedFiles": 4934,
+  "profilePreserved": true,
+  "appExecutableSHA256": "ab9e420fa290a547945dd9a8d3c86405ef3056928b8cdcac643462a3992ffdd3",
+  "retiredIndexedCopies": 2,
+  "backupsPreserved": true,
+  "searchableApplications": [
+    "/Applications/Oracle.app"
+  ],
+  "developmentBundle": ".work/build/Oracle.app"
+}

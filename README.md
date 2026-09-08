@@ -38,7 +38,7 @@ bash scripts/build.sh
 bash scripts/package.sh
 ```
 
-Saídas: `dist/Oracle.app`, `dist/Oracle-0.3.0-arm64.dmg` e SHA-256. O build recompila o adaptador GBrain e gera o ICNS diretamente dos assets V3; não reutiliza a identidade V1 rejeitada.
+Saídas: `.work/build/Oracle.app`, `dist/Oracle-0.3.0-arm64.dmg` e SHA-256. O bundle de desenvolvimento fica em `.work` para não duplicar o Oracle instalado na busca de aplicativos do macOS. O build recompila o adaptador GBrain e gera o ICNS diretamente dos assets V3; não reutiliza a identidade V1 rejeitada.
 
 ## Verificação
 

@@ -8,13 +8,14 @@ bun build packages/contracts/replay.js --target browser --format iife --outfile 
 swift build -c release
 # Use the confirmed planetary direction and requested solid-color correction.
 python3 scripts/package-identity.py
-APP="dist/Oracle.app"
+# Development bundles stay hidden from Spotlight/Launch Services discovery.
+APP=".work/build/Oracle.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Oracle "$APP/Contents/MacOS/Oracle"
 python3 - <<'PYTHON'
 import shutil
 from pathlib import Path
-dest=Path("dist/Oracle.app/Contents/Resources")
+dest=Path(".work/build/Oracle.app/Contents/Resources")
 shutil.rmtree(dest)
 shutil.copytree("Resources",dest)
 PYTHON

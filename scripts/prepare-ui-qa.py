@@ -11,9 +11,9 @@ for path,text in {'INBOX/oracle/Identidade de teste.md':'# Identidade de teste\n
     file=vault/path;file.parent.mkdir(parents=True,exist_ok=True);file.write_text(text)
 answers={'AGENT_NAME':'Oracle QA','PRINCIPAL_NAME':'Pessoa Sintética','AGENT_PURPOSE':'Validar apenas documentos sintéticos.','AGENT_TOP_JOBS':'1. Encontrar fontes\n2. Explorar procedimentos','PRINCIPAL_CONTEXT':'Perfil de teste isolado, sem dados pessoais.','VOICE_REGISTER':'Respostas claras e curtas.'}
 request=base/'request.json';request.write_text(json.dumps({'answers':answers,'newVault':True,'attach':False,'catalogCollections':['ads','code','customer-finder','cyber-security','marketing']}))
-exe=root/'dist/Oracle.app/Contents/MacOS/Oracle'
+exe=root/'.work/build/Oracle.app/Contents/MacOS/Oracle'
 def run(*args):return subprocess.check_output([str(exe),'--state',str(state),*args],text=True)
 plan=json.loads(run('--create-plan',str(request)));run('--confirm-plan',plan['plan_hash'])
-result={'state':str(state),'vault':str(vault),'plan_id':plan['id'],'app':str(root/'dist/Oracle.app'),'source':'synthetic notes and bundled public skills'}
+result={'state':str(state),'vault':str(vault),'plan_id':plan['id'],'app':str(root/'.work/build/Oracle.app'),'source':'synthetic notes and bundled public skills'}
 (root/'.work/latest-ui-qa.json').write_text(json.dumps(result,indent=2))
 print(json.dumps(result))

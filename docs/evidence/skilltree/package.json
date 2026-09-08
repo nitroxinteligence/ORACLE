@@ -49,5 +49,8 @@
   "skillsSHA256": {
     "oracle-setup": "ece8c58406a67b8a3857139ca80fe14b1ee9bd98d7e9884ba1fc5cdbbfc17b26",
     "oracle-onboarding": "cbb63a310cb9d81adb51f7d97222f3502871592cdc050e8f16cad3c07a43b323"
-  }
+  },
+  "localApp": ".work/build/Oracle.app",
+  "installedApp": "/Applications/Oracle.app",
+  "installedFilesMatchLocalApp": true
 }

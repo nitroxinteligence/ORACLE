@@ -40,7 +40,7 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `168f12d826c8628d79984e0b20f7ab9cecc120a3bf4d498cf1d0bfdd4629e55b`
+- SHA-256 do DMG: `8d2857838a60d151a339390a41805dc1036d64def201f07e913c3cbee446c29e`
 
 Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 
@@ -57,3 +57,5 @@ O app pessoal em `/Applications` não foi substituído. Não houve push, publica
 `ce5be3f`: breadcrumb e retorno contextual nos plugins; detalhe retorna à lista e a lista retorna à origem.
 
 `d6db795`: badges de status translúcidos compartilhados por plugins (lista e detalhe), conexões, atualizações e configuração. Verde: conectado/ativo/concluído; vermelho: desconectado/ausente/erro; cinza: inativo; laranja: pausado/interrompido; amarelo: pendente/autorização/validação; azul: instalado/disponível/informação. Mapeamento de 23 estados verificado, incluindo distinção instalado/conectado e escape de rótulos.
+
+`a7efb59`: busca renomeada para Encontre uma skill; contorno interno removido do campo composto, com uma única borda externa. Foco de campos, editor e configuração padronizado sem contornos extras; botões/links mantêm indicação fina de teclado.

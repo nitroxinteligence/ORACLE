@@ -344,7 +344,7 @@ async function reviewBridge(){
 function openSearch(initial=''){
  const prefix=/^(SISTEMA|INBOX|PROJETOS|AREAS|WIKI|FONTES)\//i.test(initial)?initial:'';
  let selectedIndex=0,hits=[];
- modal(`<span class="step-label">MEU UNIVERSO</span><h1>Encontre uma ideia.</h1>
+ modal(`<span class="step-label">MEU UNIVERSO</span><h1>Encontre uma skill</h1>
  <label class="search search-field">${icon('search')}<input id="universe-query" type="search" autocomplete="off" spellcheck="false" aria-label="Buscar notas e skills" placeholder="Nome, assunto ou caminho…" value="${esc(prefix?'':initial)}" aria-controls="search-results"></label>
  ${prefix?`<button class="search-scope" id="clear-search-scope">${icon('folder')}${esc(prefix)} ${icon('close')}</button>`:''}
  <div class="search-meta" id="search-count" role="status" aria-live="polite"></div>
@@ -359,7 +359,7 @@ function openSearch(initial=''){
   all.sort((a,b)=>{const q=input.value.trim().toLowerCase();return Number(title(b).toLowerCase()===q)-Number(title(a).toLowerCase()===q)||title(a).localeCompare(title(b))});
   hits=all.slice(0,100);selectedIndex=0;
   $('#search-count').textContent=all.length?`${all.length} ${all.length===1?'resultado':'resultados'}${all.length>100?' · refine para ver mais':''}`:'Nenhum resultado';
-  $('#search-results').innerHTML=hits.length?hits.map((e,i)=>`<button role="option" aria-selected="${i===0}" tabindex="-1" class="result" id="search-option-${i}" data-hit="${i}">${icon('note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div><span class="result-enter" aria-hidden="true">↵</span></button>`).join(''):`<div class="search-empty">${icon('search')}<h2>${input.value?'Não encontramos essa ideia.':'Seu universo ainda está vazio.'}</h2><p>${input.value?'Experimente outro nome ou parte do caminho.':'Conecte uma pasta nos ajustes para explorar notas e skills.'}</p></div>`;
+  $('#search-results').innerHTML=hits.length?hits.map((e,i)=>`<button role="option" aria-selected="${i===0}" tabindex="-1" class="result" id="search-option-${i}" data-hit="${i}">${icon('note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div><span class="result-enter" aria-hidden="true">↵</span></button>`).join(''):`<div class="search-empty">${icon('search')}<h2>${input.value?'Não encontramos resultados.':'Seu universo ainda está vazio.'}</h2><p>${input.value?'Experimente outro nome ou parte do caminho.':'Conecte uma pasta nos ajustes para explorar notas e skills.'}</p></div>`;
   $$('[data-hit]').forEach(b=>{b.onclick=()=>open(Number(b.dataset.hit));b.onpointermove=()=>{selectedIndex=Number(b.dataset.hit);select()}});select();
  };
  input.oninput=search;input.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();selectedIndex=Math.max(0,Math.min(hits.length-1,selectedIndex+(e.key==='ArrowDown'?1:-1)));select()}else if(e.key==='Enter'){e.preventDefault();open(selectedIndex)}};

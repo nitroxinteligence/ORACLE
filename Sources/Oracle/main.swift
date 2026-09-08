@@ -84,7 +84,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             switch result {
             case .success: sender.reply(toApplicationShouldTerminate:true)
             case .failure:
-                let alert=NSAlert();alert.messageText="Não foi possível guardar seu rascunho";alert.informativeText="Volte ao editor e salve o documento ou descarte as alterações antes de sair.";alert.addButton(withTitle:"Voltar ao editor");alert.beginSheetModal(for:self.window){_ in sender.reply(toApplicationShouldTerminate:false)}
+                let alert=NSAlert();alert.messageText="Não foi possível guardar seu rascunho";alert.informativeText="Volte ao editor e salve o documento ou descarte as alterações antes de sair.";alert.addButton(withTitle:"Voltar ao editor");self.addAlertBreadcrumb(alert,"Oracle › Editor › Rascunho");alert.beginSheetModal(for:self.window){_ in sender.reply(toApplicationShouldTerminate:false)}
             }
         }
         return .terminateLater
@@ -105,7 +105,13 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         view.submenu!.addItem(withTitle:"Tela cheia",action:#selector(NSWindow.toggleFullScreen(_:)),keyEquivalent:"f")
         NSApp.mainMenu = bar
     }
-    @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.3.0"; a.informativeText = "Seu conhecimento, conectado. Codex e Obsidian, em um só universo."; a.runModal() }
+    func addAlertBreadcrumb(_ alert:NSAlert,_ path:String) {
+        let trail=NSTextField(labelWithString:path)
+        trail.font=NSFont.systemFont(ofSize:11);trail.textColor = .secondaryLabelColor
+        trail.setAccessibilityLabel("Caminho da janela: \(path)")
+        alert.accessoryView=trail
+    }
+    @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.3.0"; a.informativeText = "Seu conhecimento, conectado. Codex e Obsidian, em um só universo."; addAlertBreadcrumb(a,"Oracle › Sobre o Oracle");a.addButton(withTitle:"Voltar");a.runModal() }
     @objc func lockApp() {
         lockGeneration += 1;locked=true
         web?.evaluateJavaScript("window.oracleTakeDraftAndLock?.()") {value,_ in

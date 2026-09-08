@@ -15,9 +15,34 @@ function message(text){const e=$('[data-ob-message]');if(e){
  if(detailed){const d=document.createElement('details');d.dataset.obErrorDetail='';const s=document.createElement('summary');s.textContent='Detalhes do erro';const p=document.createElement('pre');p.textContent=text;d.append(s,p);e.after(d)}
  }else api.toast?.(text)}
 function action(fn){return async e=>{const b=e?.currentTarget;if(b)b.disabled=true;try{await fn(e)}catch(err){message(err.message)}finally{if(b?.isConnected)b.disabled=false}}}
+function backStep(){
+ saveInputs();
+ if(stage==='identity'&&group>0){group--;render();return}
+ const previous={vault:'connection',identity:'vault',review:draft.attach?'vault':'identity',readback:'progress',request:'progress'}[stage];
+ if(previous){if(stage==='review'&&!draft.attach)group=2;navigate(previous);return}
+ close();if(fromSettings)api.openSettings?.();
+}
+function breadcrumbs(){
+ const steps=[['connection','Codex'],['vault','Obsidian'],['identity','Identidade'],['review','Revisão']];
+ const names={license:'Acesso',connection:'Codex',vault:'Obsidian',identity:['Identidade','Objetivos','Preferências'][group],review:'Revisão',progress:'Progresso',readback:'Confirmação',request:'Solicitação do Codex'};
+ const path=[{label:'Universo',go:close}];
+ if(fromSettings)path.push({label:'Ajustes',go:()=>{close();api.openSettings?.()}});
+ path.push({label:'Configuração',go:()=>navigate(current.runID?'progress':!current.licensed&&!current.legacyAccess?'license':'connection')});
+ if(['readback','request'].includes(stage))path.push({label:'Progresso',go:()=>navigate('progress')});
+ else if(!current.runID){
+  const end=steps.findIndex(([id])=>id===stage);
+  for(const [id,label] of steps.slice(0,Math.max(0,end))){if(id==='identity'&&draft.attach)continue;path.push({label,go:()=>{saveInputs();if(id==='identity')group=0;navigate(id)}})}
+  if(stage==='identity')for(let i=0;i<group;i++)path.push({label:['Identidade','Objetivos','Preferências'][i],go:()=>{saveInputs();group=i;render()}});
+ }
+ const nav=document.createElement('nav');nav.className='modal-breadcrumb';nav.setAttribute('aria-label','Caminho da configuração');
+ const back=document.createElement('button');back.type='button';back.id='ob-breadcrumb-back';back.textContent='← Voltar';back.setAttribute('aria-label','Voltar');back.onclick=backStep;nav.append(back);
+ const list=document.createElement('ol');
+ for(const item of [...path,{label:names[stage]||'Progresso'}]){const li=document.createElement('li'),el=document.createElement(item.go?'button':'span');el.textContent=item.label;if(item.go){el.type='button';el.onclick=item.go}else el.setAttribute('aria-current','page');li.append(el);list.append(li)}
+ nav.append(list);return nav;
+}
 function frame(title,body,buttons=''){
- dialog.innerHTML=`<div class="ob-heading"><div><img class="ob-brand" src="brand/lockup-white.svg" alt="Oracle" width="143"></div><button type="button" class="ob-close" aria-label="Fechar configuração">×</button></div><div class="ob-body">${fromSettings?'<nav class="modal-breadcrumb"><button type="button" id="ob-settings-back">← Ajustes</button><span>/ Configuração</span></nav>':''}<h1 id="ob-title" tabindex="-1">${title}</h1>${body}<p data-ob-message role="alert" hidden></p></div><footer>${buttons}</footer>`;
- dialog.querySelector('.ob-close').onclick=close;if($('#ob-settings-back'))$('#ob-settings-back').onclick=()=>{close();api.openSettings?.()};
+ dialog.innerHTML=`<div class="ob-heading"><div><img class="ob-brand" src="brand/lockup-white.svg" alt="Oracle" width="143"></div><button type="button" class="ob-close" aria-label="Fechar configuração">×</button></div><div class="ob-body"><h1 id="ob-title" tabindex="-1">${title}</h1>${body}<p data-ob-message role="alert" hidden></p></div><footer>${buttons}</footer>`;
+ dialog.querySelector('.ob-close').onclick=close;const navigation=document.createElement('div');navigation.className='ob-navigation';navigation.append(breadcrumbs());dialog.querySelector('.ob-heading').after(navigation);
  for(const b of dialog.querySelectorAll('[data-ob-back]'))b.onclick=()=>navigate(b.dataset.obBack);
  (dialog.querySelector('input:not([type=checkbox]),textarea')||dialog.querySelector('h1'))?.focus({preventScroll:true});
 }

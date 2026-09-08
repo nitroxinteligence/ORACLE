@@ -12,28 +12,62 @@ let state={entries:[],collections:[],events:[],config:{}},selected=null,view='ma
 const colors=['#dba17c','#91b5ed','#7bc8b4','#d9c276','#b29bd7','#92c399','#d49cae'];
 const positions=[[292,132],[564,130],[678,313],[164,310],[248,491],[600,485],[424,574]];
 let modalOrigin=null, modalRevision=0, modalDirty=false, settingsTrail=false;
+let modalSequence=0,modalHistory=[],modalPage=null;
 function toast(text){
  if(!$('#lock-screen').hidden)return;
  if($('#modal').open){let notice=$('.modal-notice');if(!notice){notice=document.createElement('div');notice.className='modal-notice';notice.setAttribute('role','alert');$('.modal-body').prepend(notice)}notice.textContent=text;return}
  $('#toast').textContent=text;$('#toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').hidden=true,6000);
 }
-function safe(fn){return async(...a)=>{const button=a[0]?.currentTarget instanceof HTMLButtonElement?a[0].currentTarget:null;if(button)button.disabled=true;try{return await fn(...a)}catch(e){toast(e.message)}finally{if(button?.isConnected)button.disabled=false}}}
+function safe(fn){return async(...a)=>{const button=a[0]?.currentTarget instanceof HTMLButtonElement?a[0].currentTarget:null;if(button)button.disabled=true;try{return await fn(...a)}catch(e){toast(e.message)}finally{if(button)button.disabled=false}}}
+function modalBreadcrumb(){
+ const nav=document.createElement('nav');nav.className='modal-breadcrumb';nav.setAttribute('aria-label','Caminho desta janela');
+ const back=document.createElement('button');back.id='modal-back';back.type='button';back.setAttribute('aria-label','Voltar');back.innerHTML=icon('back')+'<span>Voltar</span>';back.onclick=()=>modalBack();nav.append(back);
+ const list=document.createElement('ol');
+ const item=(label,index,current=false)=>{const li=document.createElement('li');const el=document.createElement(current?'span':'button');el.textContent=label;el.title=label;if(current)el.setAttribute('aria-current','page');else{el.type='button';el.onclick=()=>modalBack(index)}li.append(el);list.append(li)};
+ item('Universo',-1);modalHistory.forEach((page,index)=>item(page.title,index));item(modalPage.title,0,true);nav.append(list);return nav;
+}
+function modalBack(index=modalHistory.length-1){
+ const prior=modalHistory[index];
+ const restore=()=>{
+  if(!prior){closeModal(true);return}
+  modalHistory=modalHistory.slice(0,index);modalPage=prior;modalRevision=prior.revision;
+  readDocument=prior.document;editorSession=prior.editor;settingsTrail=prior.settings;
+  modalDirty=prior.dirty;hideTooltip();
+  $('#modal-content').replaceChildren(...prior.nodes);$('#modal').dataset.family=prior.family;
+  $('.modal-breadcrumb').replaceWith(modalBreadcrumb());
+  const body=$('.modal-body');if(body)body.scrollTop=prior.scroll;
+  const focus=prior.focus?.isConnected?prior.focus:$('#modal-title');focus?.focus({preventScroll:true});
+ };
+ // Review -> editor preserves the same draft; leaving that draft uses the existing exit guard.
+ if(modalDirty&&!(prior?.family==='editor'&&prior.editor===editorSession)){requestEditorExit(false,restore);return}
+ restore();
+}
 function modal(html,options={}){
  if(!$('#lock-screen').hidden)return;
  const dialog=$('#modal'), content=$('#modal-content');
- if(!dialog.open)modalOrigin=document.activeElement;
- modalRevision++;modalDirty=false;hideTooltip();atlasController?.setPaused(true);
  const template=document.createElement('template');template.innerHTML=html;
  const heading=template.content.querySelector('h1')||document.createElement('h1');heading.id='modal-title';heading.tabIndex=-1;
+ const key=options.key||heading.textContent;
+ if(!dialog.open){modalOrigin=document.activeElement;modalHistory=[];modalPage=null}
+ if(modalPage){
+  const ancestor=modalHistory.findIndex(page=>page.key===key);
+  if(ancestor>=0)modalHistory=modalHistory.slice(0,ancestor);
+  else if(modalPage.key!==key){
+   modalHistory.push({...modalPage,nodes:[...content.childNodes],dirty:modalDirty,scroll:$('.modal-body')?.scrollTop||0,focus:document.activeElement});
+   if(modalHistory.length>24)modalHistory.shift();
+  }
+ }
+ modalRevision=++modalSequence;modalDirty=false;hideTooltip();atlasController?.setPaused(true);
  template.content.querySelectorAll('.step-label').forEach(e=>e.remove());
  const footers=[...template.content.children].filter(e=>e.classList.contains('actions'));const footer=footers.at(-1)||document.createElement('div');footer.className='modal-footer';
- // One shared close control; intermediate action groups stay in the scrollable body.
  footer.querySelectorAll('[data-close]').forEach(e=>e.remove());
- const head=document.createElement('div');head.className='modal-header';const titles=document.createElement('div');if(options.breadcrumb){const crumb=document.createElement('nav');crumb.className='modal-breadcrumb';crumb.setAttribute('aria-label','Navegação dos plugins');crumb.innerHTML='<button id=modal-back aria-label=Voltar data-tooltip=Voltar>'+icon('back')+'</button><span>'+options.breadcrumb.map(esc).join(' / ')+'</span>';titles.append(crumb)}else if(settingsTrail){const crumb=document.createElement('nav');crumb.className='modal-breadcrumb';crumb.setAttribute('aria-label','Navegação dos ajustes');crumb.innerHTML='<button id=modal-back>'+icon('back')+(heading.textContent==='Ajustes do Oracle'?' Voltar':' Ajustes')+'</button>'+(heading.textContent==='Ajustes do Oracle'?'':'<span> / '+esc(heading.textContent)+'</span>');titles.append(crumb)}titles.append(heading);head.append(titles);
+ const family=options.family||(template.content.querySelector('.editor')?'editor':template.content.querySelector('.markdown-reader')?'reader':'standard');
+ modalPage={key,title:heading.textContent,revision:modalRevision,family,document:readDocument,editor:editorSession,settings:settingsTrail};
+ const head=document.createElement('div');head.className='modal-header';const titles=document.createElement('div');titles.append(modalBreadcrumb(),heading);head.append(titles);
  const close=document.createElement('button');close.className='icon-button modal-close';close.dataset.close='';close.setAttribute('aria-label','Fechar janela');close.dataset.tooltip='Fechar · Esc';close.innerHTML=icon('close');head.append(close);
  footer.remove();const body=document.createElement('div');body.className='modal-body';body.append(template.content);
  if(!footer.children.length){const done=document.createElement('button');done.className='secondary';done.dataset.close='';done.textContent='Concluído';footer.append(done)}
- content.replaceChildren(head,body,footer);$('#modal-back')?.addEventListener('click',()=>{if(modalDirty){closeModal();return}if(options.onBack){options.onBack();return}if(heading.textContent==='Ajustes do Oracle')closeModal();else settings()});dialog.dataset.family=options.family||(body.querySelector('.editor')?'editor':body.querySelector('.markdown-reader')?'reader':'standard');
+ content.replaceChildren(head,body,footer);dialog.dataset.family=family;
  dialog.append($('#tooltip'));if(!dialog.open)dialog.showModal();
  const focus=options.focus?content.querySelector(options.focus):body.querySelector('input:not([type=checkbox]),textarea,select');(focus||heading).focus({preventScroll:true});
 }
@@ -46,7 +80,7 @@ let backdropDown=false;$('#modal').addEventListener('pointerdown',e=>{backdropDo
 $('#modal').addEventListener('click',e=>{if(e.target.closest('[data-close]')||(e.target===$('#modal')&&backdropDown))closeModal();backdropDown=false});
 $('#modal').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeModal()}});
 $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal()});
-$('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));modalRevision++;modalDirty=false;settingsTrail=false;hideTooltip();const origin=modalOrigin;modalOrigin=null;if(origin?.isConnected&&!$('#app').inert)origin.focus({preventScroll:true});atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused)});
+$('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));modalRevision=++modalSequence;modalDirty=false;settingsTrail=false;modalHistory=[];modalPage=null;hideTooltip();const origin=modalOrigin;modalOrigin=null;if(origin?.isConnected&&!$('#app').inert)origin.focus({preventScroll:true});atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused)});
 function skills(id){return visibleEntries().filter(e=>!e.directory&&e.path.startsWith(`SISTEMA/skills/${id}/`)&&e.name==='SKILL.md')}
 function title(e){return e.name==='SKILL.md'?e.path.split('/').slice(-2,-1)[0]:e.name.replace(/\.md$/,'')}
 function entryLocation(e){const collection=state.collections.find(c=>e.path.startsWith(`SISTEMA/skills/${c.id}/`));return collection?`${collection.name} · ${e.name==='SKILL.md'?'Skill':'Documento'}`:e.path.split('/').slice(0,-1).slice(-2).join(' / ')||'Pasta principal'}
@@ -113,7 +147,7 @@ async function openNote(path){
  const revision=modalRevision,document=await call('read',{path});if(revision!==modalRevision)return;
  readDocument={...document,relative:path};editorSession=null;
  const name=path.endsWith('/SKILL.md')?path.split('/').at(-2).replace(/-/g,' '):path.split('/').at(-1).replace(/\.md$/i,'');
- modal(`<h1>${esc(name)}</h1>${document.draft&&document.draft.text!==document.text?'<div class="editor-recovery"><p>Há um rascunho que ainda não foi salvo no documento.</p><button class="secondary" id="recover-draft">Retomar</button></div>':''}<article class="markdown-reader">${markdown(document.text)}</article><details class="source-details"><summary>Detalhes do arquivo</summary><div class="source">${esc(document.path)}<br>SHA-256 ${document.hash}</div></details>${actions(`<button class="secondary" id="reveal-note">Mostrar no Finder</button>${document.editable!==false?'<button class="primary" id="edit-note">Editar</button>':''}`)}`,{family:'reader'});
+ modal(`<h1>${esc(name)}</h1>${document.draft&&document.draft.text!==document.text?'<div class="editor-recovery"><p>Há um rascunho que ainda não foi salvo no documento.</p><button class="secondary" id="recover-draft">Retomar</button></div>':''}<article class="markdown-reader">${markdown(document.text)}</article><details class="source-details"><summary>Detalhes do arquivo</summary><div class="source">${esc(document.path)}<br>SHA-256 ${document.hash}</div></details>${actions(`<button class="secondary" id="reveal-note">Mostrar no Finder</button>${document.editable!==false?'<button class="primary" id="edit-note">Editar</button>':''}`)}`,{family:'reader',key:'document:'+path});
  bindMarkdown($('#modal-content'));$('#reveal-note').onclick=safe(()=>call('reveal',{path}));$('#edit-note')?.addEventListener('click',()=>editNote());
  $('#recover-draft')?.addEventListener('click',()=>{editNote(document.draft.text,document.draft.originalHash);if(document.draft.originalHash!==document.hash)showEditorConflict(document)});
 }
@@ -121,7 +155,7 @@ function editNote(draft=readDocument.text,baseHash=readDocument.hash){
  const current=editorSession;
  editorSession=current&&current.path===readDocument.relative?current:{path:readDocument.relative,hash:baseHash,base:readDocument.text,text:draft,revision:0,saved:false};
  const session=editorSession;session.text=draft;
- modal(`<h1>Editar ${esc(session.path.endsWith('/SKILL.md')?session.path.split('/').at(-2).replace(/-/g,' '):session.path.split('/').at(-1))}</h1><div class="editor-status"><span id="draft-status">${session.saved?'Rascunho guardado neste Mac':'O arquivo será salvo na sua pasta do Obsidian'}</span><button id="reload-note">Reler arquivo</button></div><div id="editor-conflict"></div><textarea class="editor" id="editor" aria-label="Conteúdo do documento" autocorrect="off" autocapitalize="off" spellcheck="false" writingsuggestions="false">${esc(draft)}</textarea>${actions('<button class="secondary" id="discard-edit">Descartar</button><button class="secondary" id="diff">Ver alterações</button><button class="primary" id="save-note">Salvar</button>')}`,{family:'editor',focus:'#editor'});
+ modal(`<h1>Editar ${esc(session.path.endsWith('/SKILL.md')?session.path.split('/').at(-2).replace(/-/g,' '):session.path.split('/').at(-1))}</h1><div class="editor-status"><span id="draft-status">${session.saved?'Rascunho guardado neste Mac':'O arquivo será salvo na sua pasta do Obsidian'}</span><button id="reload-note">Reler arquivo</button></div><div id="editor-conflict"></div><textarea class="editor" id="editor" aria-label="Conteúdo do documento" autocorrect="off" autocapitalize="off" spellcheck="false" writingsuggestions="false">${esc(draft)}</textarea>${actions('<button class="secondary" id="discard-edit">Descartar</button><button class="secondary" id="diff">Ver alterações</button><button class="primary" id="save-note">Salvar</button>')}`,{family:'editor',focus:'#editor',key:'editor:'+session.path});
  modalDirty=session.text!==session.base;
  $('#editor').oninput=()=>{session.text=$('#editor').value;session.revision++;session.saved=false;modalDirty=session.text!==session.base;$('#draft-status').textContent=modalDirty?'Guardando rascunho…':'Sem alterações';clearTimeout(draftTimer);if(modalDirty)draftTimer=setTimeout(()=>safe(persistEditorDraft)(),450)};
  $('#discard-edit').onclick=()=>requestEditorExit(true);
@@ -149,19 +183,20 @@ async function saveEditor(){
 function reviewEdit(session){
  const old=session.base.split('\n'),now=session.text.split('\n');let lines='';
  for(let i=0;i<Math.max(old.length,now.length);i++){if(old[i]===now[i])lines+='  '+esc(old[i]??'')+'\n';else{if(old[i]!==undefined)lines+=`<span class="diff-remove">− ${esc(old[i])}</span>\n`;if(now[i]!==undefined)lines+=`<span class="diff-add">+ ${esc(now[i])}</span>\n`}}
- modal(`<h1>Suas alterações</h1><p>Salvar atualiza o arquivo original na sua pasta do Obsidian.</p><pre>${lines}</pre>${actions('<button class="secondary" id="back-editor">Voltar ao editor</button><button class="primary" id="save-note">Salvar</button>')}`,{family:'editor'});
+ modal(`<h1>Suas alterações</h1><p>Salvar atualiza o arquivo original na sua pasta do Obsidian.</p><pre>${lines}</pre>${actions('<button class="secondary" id="back-editor">Voltar ao editor</button><button class="primary" id="save-note">Salvar</button>')}`,{family:'editor',key:'diff:'+session.path});
  modalDirty=session.text!==session.base;$('#back-editor').onclick=()=>editNote(session.text);$('#save-note').onclick=safe(saveEditor);
 }
-function requestEditorExit(discardOnly=false){
- if(!editorSession){closeModal(true);return}
- if(!modalDirty){closeModal(true);return}
+function requestEditorExit(discardOnly=false,onExit=null){
+ const leave=onExit||(()=>closeModal(true));
+ if(!editorSession){leave();return}
+ if(!modalDirty){leave();return}
  let notice=$('.editor-exit');if(notice){notice.querySelector('button')?.focus();return}
  notice=document.createElement('div');notice.className='editor-exit editor-recovery';notice.setAttribute('role','alert');
- notice.innerHTML=`<p>${discardOnly?'Descartar suas alterações?':'Há alterações que ainda não foram salvas no arquivo.'}</p><button class="secondary" id="keep-editing">Continuar editando</button>${discardOnly?'':'<button class="secondary" id="keep-draft-close">Guardar rascunho e fechar</button>'}<button class="secondary" id="confirm-discard">Descartar</button>`;
+ notice.innerHTML=`<p>${discardOnly?'Descartar suas alterações?':'Há alterações que ainda não foram salvas no arquivo.'}</p><button class="secondary" id="keep-editing">Continuar editando</button>${discardOnly?'':'<button class="secondary" id="keep-draft-close">Guardar rascunho e '+(onExit?'voltar':'fechar')+'</button>'}<button class="secondary" id="confirm-discard">Descartar</button>`;
  $('.modal-body').prepend(notice);notice.scrollIntoView({block:'nearest'});
  $('#keep-editing').onclick=()=>{notice.remove();$('#editor')?.focus()};
- $('#keep-draft-close')?.addEventListener('click',safe(async()=>{await persistEditorDraft();closeModal(true);editorSession=null}));
- $('#confirm-discard').onclick=safe(async()=>{clearTimeout(draftTimer);await call('discardDraft',{path:editorSession.path});editorSession=null;closeModal(true)});
+ $('#keep-draft-close')?.addEventListener('click',safe(async()=>{const draft=editorSession;await persistEditorDraft();editorSession=null;modalDirty=false;leave();if($('#modal').open&&$('#modal').dataset.family==='reader'&&readDocument?.relative===draft.path){let recovery=$('#recover-draft');if(!recovery){const box=document.createElement('div');box.className='editor-recovery';box.innerHTML='<p>Seu rascunho continua guardado.</p><button class=secondary id=recover-draft>Retomar</button>';$('.modal-body').prepend(box);recovery=$('#recover-draft')}recovery.onclick=()=>editNote(draft.text,draft.hash)}}));
+ $('#confirm-discard').onclick=safe(async()=>{clearTimeout(draftTimer);await call('discardDraft',{path:editorSession.path});editorSession=null;modalDirty=false;leave()});
  $('#keep-editing').focus();
 }
 window.oraclePrepareToClose=async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();return true};
@@ -307,7 +342,7 @@ async function memory(){
 async function memoryPage(slug,source){
  const revision=modalRevision,page=await call('gbrainRead',{operation:'get',source,slug});if(revision!==modalRevision)return;if(!page)throw Error('Nota não encontrada');
  const links=await call('gbrainRead',{operation:'graph',source,slug});if(revision!==modalRevision)return;
- modal(`<h1>${esc(page.title||slug)}</h1><article class="markdown-reader">${markdown(page.compiled_truth||'')}</article><details class="source-details"><summary>Origem e conexões</summary><div class="source">${esc(source)} / ${esc(slug)}<br>${esc(page.canonical_path||page.frontmatter?.canonical_path||page.frontmatter?.origin_source_path||'Caminho de origem não informado')}</div><pre>${esc(JSON.stringify(links,null,2))}</pre></details>${actions()}`,{family:'reader'});bindMarkdown($('#modal-content'));
+ modal(`<h1>${esc(page.title||slug)}</h1><article class="markdown-reader">${markdown(page.compiled_truth||'')}</article><details class="source-details"><summary>Origem e conexões</summary><div class="source">${esc(source)} / ${esc(slug)}<br>${esc(page.canonical_path||page.frontmatter?.canonical_path||page.frontmatter?.origin_source_path||'Caminho de origem não informado')}</div><pre>${esc(JSON.stringify(links,null,2))}</pre></details>${actions()}`,{family:'reader',key:'memory:'+source+':'+slug});bindMarkdown($('#modal-content'));
 }
 async function reviewGBrain(){const revision=modalRevision;const r=await call('gbrainReadback');if(revision!==modalRevision)return;if(!r.upstream_hash)throw Error('Seu contexto ainda não foi preparado. Continue pela configuração do Oracle.');modal(`<span class="step-label">REVISÃO OFICIAL GBRAIN</span><h1>Revisar contexto</h1><p>Confira se estas informações refletem suas respostas.</p><pre>${esc(window.OracleOnboarding?.formatReadback?.(r.readback)||r.readback)}</pre>${actions('<button class="primary" id="confirm-official">Confirmar contexto</button>')}`);$('#confirm-official').onclick=safe(async()=>{await call('confirmGBrain',{hash:r.upstream_hash});toast('Contexto confirmado. Continue a configuração no Codex.');closeModal()})}
 

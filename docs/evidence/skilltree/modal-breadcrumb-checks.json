@@ -1,0 +1,23 @@
+{
+  "onboarding": [
+    "Vault has current breadcrumb and back",
+    "Vault back reaches Codex",
+    "Identidade breadcrumb",
+    "Objetivos breadcrumb",
+    "Prefer\u00eancias breadcrumb",
+    "Review breadcrumb",
+    "Review returns to preferences preserving answers",
+    "Progresso breadcrumb and back",
+    "Confirma\u00e7\u00e3o breadcrumb and back",
+    "Solicita\u00e7\u00e3o do Codex breadcrumb and back",
+    "Acesso breadcrumb and back",
+    "No install, approval, or external calls in onboarding checks"
+  ],
+  "general": [
+    "Settings > Codex and plugins > Plugins back chain",
+    "Search text and results restored after document back",
+    "Dirty draft preserved from diff to editor",
+    "Leaving dirty editor invokes existing draft guard",
+    "Save draft and back exposes recovery; recover restores the exact draft text"
+  ]
+}

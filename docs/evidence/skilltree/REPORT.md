@@ -40,7 +40,7 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `d1dd2f8a8c9c98f2ff344e0e085db30f5aa939c7874038b53c2aa3212738d102`
+- SHA-256 do DMG: `6c2d5ceb9f463bb27a2f20b5f443ac22052730aebda03af1b7071fab3f9b09fc`
 
 Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 
@@ -61,3 +61,5 @@ O app pessoal em `/Applications` não foi substituído. Não houve push, publica
 `a7efb59`: busca renomeada para Encontre uma skill; contorno interno removido do campo composto, com uma única borda externa. Foco de campos, editor e configuração padronizado sem contornos extras; botões/links mantêm indicação fina de teclado.
 
 `b28da20` + `5bcff2e`: foco visual separado por mouse/teclado. Cliques e fechamento de painéis não deixam contorno preso; teclado usa indicação interna fina. Aplicado a controles, links, configuração e indicadores de foco do mapa, sem remover seleção real.
+
+`02b5fad`: canvas/SVG ocupam a janela inteira; controles flutuam sobre o gráfico, sem faixas de recorte no topo/base. Área de enquadramento separada da área de desenho, respeitando painéis. WKWebView confirmou canvas 1200×760 em (0,0), área útil reduzida pelo inspetor sem reduzir canvas e nó focal centralizado nessa área. [Pan no topo](full-canvas-top.png) · [Pan na base](full-canvas-bottom.png). Medições de FPS anteriores precedem a ampliação do canvas.

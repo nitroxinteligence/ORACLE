@@ -40,7 +40,7 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `35612587b6e53bb52f9c7e8116ff2566b1f1b5caf8efc8a15ae38f6d3b25b6ba`
+- SHA-256 do DMG: `a293da8eb3f1f22183065e52e76cfc59578ddc2efa9c43681f8597856c97159c`
 
 Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 
@@ -73,3 +73,5 @@ O app pessoal em `/Applications` não foi substituído. Não houve push, publica
 `e0e27fb`: órbita externa de conhecimento Pessoal/Profissional baseada em arquivos reais; pastas abrem cenas dedicadas, notas abrem o leitor e páginas têm no máximo 50 itens. Ícone branco padrão para plugins sem arte e filtro de três utilitários internos apenas na órbita. Novos planos de onboarding criam/reaproveitam as duas áreas preservando arquivos e confirmação do plano. Skills distribuídas atualizadas. [Detalhes](../../KNOWLEDGE-ORBITS.md) · [Verificação nativa](knowledge-native.json). 18 verificações de geometria, 23 contratos Core, 28 de onboarding, 16 de ciclo de execução e 15 verificações nativas; app e DMG atualizados. Prévia usa notas sintéticas, não incluídas no pacote.
 
 `f2df723`: Meu Universo e Observatório com fundo translúcido, blur e borda suave; plugins em disclosure nativo recolhido por padrão e a cada reabertura do Observatório. Conferidos no WKWebView o estado inicial, expansão, atualização da lista sem fechar a seção manualmente aberta e reabertura recolhida. Preferência de redução de transparência preservada. [Prévia](translucent-sidebars-collapsed-plugins.png). App e DMG atualizados.
+
+`b94b360`: plugins e círculos de conhecimento em movimento orbital, com logos na vertical e separação geométrica. Pastas/notas também se movem nas cenas dedicadas. Hover/foco pausa o anel inteiro; pausa da atmosfera, redução de movimento e janela oculta congelam as fases. Usa o agendador existente. Dois testes de espaçamento e [nove verificações nativas](orbit-motion-native.json) passaram. App e DMG atualizados.

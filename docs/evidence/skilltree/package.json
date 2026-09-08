@@ -15,22 +15,23 @@
     "ec95d0e",
     "1f1baea",
     "a3a89d4",
-    "8a1568e"
+    "8a1568e",
+    "e0e27fb"
   ],
   "localOnly": true,
   "personalAppReplaced": false,
   "app": "/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app",
   "dmg": "/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg",
   "appBinarySHA256": "4799f3e2515d71f63d3659119bfdc94c09fc6f3015def4ddf600ed5dddfdc389",
-  "dmgSHA256": "722b8e164e1fda1787334b85f3e3f7bb3e19a2ff618444bfba26a8b96c345a1a",
+  "dmgSHA256": "449741758780383c71d5a8c3f186fe378c8cebccfdfac32b4a1160285bfa4010",
   "webSHA256": {
     "index.html": "e5953e3e631776e9964439a4dc972e0aba7980b6e60f080301f526d4818478ee",
-    "atlas.js": "3ec95b480ad9b2e1a25723811f52ac603e5ffcca72d94ff035bbc4fac25b837c",
-    "universe.js": "bdddc61ba0d9fceac13c4f82b6f42deac479c96ade48b7a559a174d4a032ce02",
-    "app.js": "3d273267b2d3cc245c6b38bc1314f8f0fdab0f1b9a18c379f5051bbd9fdb2e78",
+    "atlas.js": "1acce510e798b1ca351b089f502c9c0c4a20a36875ac727a61db46b6e66a550e",
+    "universe.js": "6961fcc730d6a3ee16a3162d0cbc90495702752ae3f2ab5a4bee7c61d8c0e00d",
+    "app.js": "7e5a4f42ef4805125c5189f2d2cfb882ab69e351b62192cf8747a955c52c470e",
     "style.css": "516341950fdef52a530c310c45980a747353a145e7de814c929a29c195128c6f",
-    "atlas-motion.css": "b917dc75f9dfacd1a57d7cc0b31c366319dc110af8f173c21ce57479f961cd30",
-    "onboarding.js": "c144221d11e76fa69e04f09f9614e525b3ade2c4a93aefbca73514c2357ec81a",
+    "atlas-motion.css": "69560b6c292ee41e8c7e55d119517ddff4929a8dd7a82c1aea008a3d89932b94",
+    "onboarding.js": "aee2166b65c9bb6883f3beefcd985b9fd60357730f062f9012b25acb95e6c4db",
     "installation-visual.js": "9642f68f127e2b9aefeb1fd9ae283b20536b91c1d13414c35026e1f3112815bb",
     "status-badges.js": "4bf3f7fbaf0bf694b580e4757f6bfa9f9e8f76f8a564c97803a6fbbdd4886360",
     "onboarding.css": "358c0ad0a9eb755a1c2394818a15f66537b27304ab9e67b9d692be3b0d4b64f7"
@@ -41,5 +42,9 @@
   "packagedFilesVerified": 4933,
   "gbrainSourceCommit": "2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d",
   "note": "UI follow-ups repackaged since mounted-DMG verification; signature and updated resources checked.",
-  "appExecutableSHA256": "7e2c31c56a47cee85dc4e36d5df883282ff8e6cc5ef3eb2fba4f4a6d56bb97c8"
+  "appExecutableSHA256": "2b5862c55e3109f54a19969f8c9e118a9db0f8d51d4bafce2daef8148efa5326",
+  "skillsSHA256": {
+    "oracle-setup": "ece8c58406a67b8a3857139ca80fe14b1ee9bd98d7e9884ba1fc5cdbbfc17b26",
+    "oracle-onboarding": "cbb63a310cb9d81adb51f7d97222f3502871592cdc050e8f16cad3c07a43b323"
+  }
 }

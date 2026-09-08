@@ -38,7 +38,7 @@ for _ in range(100):
 else:raise TimeoutError('Oracle did not load')
 call("window.OracleOnboarding?.suspend();closeModal(true);live();selected=null;selectedSkill=null;$('#motion').checked=false;$('#density').value=3;renderAtlas();atlasController.fit();atlasController.setFormation({progress:1,playing:false});true");settle()
 check('isolated native fixture is pinned','state.config.fixture===true && state.config.vault.includes("/.work/")')
-check('monochrome floating controls and collapsed initial panels','!document.querySelector("footer") && getComputedStyle(document.querySelector("main")).position==="absolute" && $("#observatory-panel").hidden && $("#replay-panel").hidden')
+check('monochrome floating controls and collapsed initial panels','!document.querySelector("#app > footer") && getComputedStyle(document.querySelector("main")).position==="absolute" && $("#observatory-panel").hidden && $("#replay-panel").hidden')
 check('real WebGL shaders compile','!atlasController.diagnostics().error && atlasController.el.querySelectorAll("canvas").length===1')
 check('V3 planetary wordmark loads','document.querySelector(".brand-lockup").naturalWidth>0')
 original=files()

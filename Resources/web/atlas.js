@@ -51,14 +51,14 @@ class OracleAtlas {
     this.reduced=!!data.reduced||!!this.motionPreference?.matches;
     this.el.classList.toggle('motion-reduced',this.reduced);this.setPaused(document.hidden||data.hidden||data.paused);
     if(!this.loadedLayout&&data.layout){this.layout=structuredClone({nodes:data.layout.nodes||{},leaves:data.layout.leaves||{}});this.loadedLayout=true}
-    const key=JSON.stringify([(data.collections||[]).map(c=>[c.id,c.name,c.icon]),(data.entries||[]).filter(e=>e.name==='SKILL.md'&&!e.directory).map(e=>e.path),data.detail,this.selected,Object.keys(this.layout.nodes),Object.keys(this.layout.leaves)]);
+    const key=JSON.stringify([(data.collections||[]).map(c=>[c.id,c.name,c.icon]),(data.entries||[]).filter(e=>e.name==='SKILL.md'&&!e.directory).map(e=>e.path),data.detail,this.selected,Object.keys(this.layout.nodes),Object.keys(this.layout.leaves),(data.plugins||[]).filter(p=>p.status==='connected').map(p=>p.id).sort()]);
     if(key!==this.topologyKey){const hadGeometry=!!this.geometry,ratio=this.target.k/this.baseScale;this.topologyKey=key;this.relayout();if(hadGeometry&&ratio>.5&&!data.replay)this.fit()}
     this.updatePlugins(data.plugins||[]);this.updateConnectors(data.connectors||[]);this.el.classList.toggle('installation-waiting',data.coreReady===false);this.selection();this.draw();
     if(data.events?.length)this.universe?.signalReceipt(data.events.at(-1));
   }
   relayout(){
     const oldBase=this.baseScale,ratio=this.target.k/oldBase||1,anchor={x:(this.width/2-this.target.x)/this.target.k,y:((this.height+this.contentTop)/2-this.target.y)/this.target.k};
-    this.geometry=OracleLayout.plan(this.data.collections||[],this.data.entries||[],this.selected,this.data.detail,this.layout);
+    this.geometry=OracleLayout.plan(this.data.collections||[],this.data.entries||[],this.selected,this.data.detail,this.layout,Math.max(105,(this.data.plugins||[]).filter(p=>p.status==='connected').length*3.8)+140);
     const present=new Set(this.geometry.nodes.map(n=>n.id));
     for(const[id,n]of this.nodes)if(!present.has(id)){n.g.remove();n.edge.remove();n.flow.remove();this.nodes.delete(id)}
     if(this.selected&&!present.has(this.selected)){this.selected=null;this.selectedLeaf=null}
@@ -125,7 +125,7 @@ class OracleAtlas {
     const key=JSON.stringify(connectors.map(c=>[c.id,c.label]));if(key===this.connectorKey)return;this.connectorKey=key;
     this.connectorLayer?.remove();this.connectorLayer=this.make('g',{class:'verified-connectors'},this.world);
     connectors.forEach((c,i)=>{
-      const angle=-Math.PI/2+i*Math.PI*2/Math.max(3,connectors.length),radius=158;
+      const angle=-Math.PI/2+i*Math.PI*2/Math.max(3,connectors.length),radius=Math.max(158,(this.pluginRadius||105)+38);
       const g=this.make('g',{class:'verified-connector',role:'button',tabindex:0,'data-connector':c.id,transform:`translate(${Math.cos(angle)*radius} ${Math.sin(angle)*radius})`,'aria-label':c.id==='gbrain'?'Second Brain conectado':'Obsidian conectado'},this.connectorLayer);
       g.dataset.tooltip=c.id==='gbrain'?'Second Brain · verificado':'Obsidian · '+c.label;
       this.make('circle',{r:16,fill:'#191919',stroke:'#ffffff40','stroke-width':.8},g);

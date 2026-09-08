@@ -17,10 +17,10 @@ export function visibleCount(total, selected, detail=3, zoom=1) {
   const extra=Math.max(0,Math.min(6,Number(detail)||0)-3);
   return Math.min(total,(selected?50:10)+extra*(selected?12:4));
 }
-export function plan(collections,entries,selected,detail=3,manual={}) {
+export function plan(collections,entries,selected,detail=3,manual={},minimumRadius=248) {
   const sorted=[...collections].sort((a,b)=>identity(a.id).angle-identity(b.id).angle||a.id.localeCompare(b.id));
   const known=sorted.every(c=>identities[c.id])&&sorted.length<=7;
-  const radius=Math.max(248,sorted.length*23);
+  const radius=Math.max(248,sorted.length*23,minimumRadius);
   const nodes=sorted.map((c,i)=>{
     const angle=(known?identity(c.id).angle:(-140+i*360/sorted.length))*Math.PI/180;
     const source=entries.filter(e=>!e.directory&&e.name==='SKILL.md'&&e.path.startsWith(`SISTEMA/skills/${c.id}/`)).sort((a,b)=>a.path.localeCompare(b.path));

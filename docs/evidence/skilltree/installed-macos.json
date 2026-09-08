@@ -8,5 +8,10 @@
   "searchableApplications": [
     "/Applications/Oracle.app"
   ],
-  "developmentBundle": ".work/build/Oracle.app"
+  "developmentBundle": ".work/build/Oracle.app",
+  "primaryAppLaunched": true,
+  "launchServicesOracleBundles": [
+    "/Applications/Oracle.app"
+  ],
+  "unregisteredDevelopmentBundles": 13
 }

@@ -18,7 +18,7 @@
 }
 
 /* Context navigation stays at screen scale while the galaxy moves beneath it. */
-.atlas-context{position:absolute;z-index:2;top:5px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;max-width:calc(100% - 20px);padding:5px;border:1px solid var(--line);border-radius:13px;background:#141414d9;box-shadow:0 5px 22px #0003;font-size:11px;white-space:nowrap}
+.atlas-context{position:absolute;z-index:2;top:5px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;max-width:calc(100% - 20px);padding:5px;border:1px solid var(--line);border-radius:13px;background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);box-shadow:0 5px 22px #0003;font-size:11px;white-space:nowrap}
 .atlas-context[hidden],.atlas-page[hidden]{display:none}
 .atlas-context button{min-width:29px;height:28px;padding:0 8px;border-radius:8px;color:#b6b6b6}
 .atlas-context button:hover,.atlas-context button:focus-visible{background:#ffffff0c;color:white}

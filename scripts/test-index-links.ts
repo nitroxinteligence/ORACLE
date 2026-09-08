@@ -1,0 +1,20 @@
+import {strict as assert} from 'node:assert';
+import {canonicalizeLocalLinks,hasKnownEndpoints} from '../packages/gbrain-adapter/link-resolution.ts';
+import {extractPageLinks,makeResolver} from '../vendor/gbrain/src/core/link-extraction.ts';
+const source='SISTEMA/skills/customer-finder/first-customer-finder/SKILL.md',target='SISTEMA/skills/customer-finder/first-customer-finder/references/research-framework.md';
+const byPath=new Map([[source,'sistema/skills/customer-finder/first-customer-finder/skill'],[target,'sistema/skills/customer-finder/first-customer-finder/references/research-framework'],['WIKI/Nota com espaço.md','wiki/nota-com-espaco']]);
+const origin=byPath.get(source)!,known=new Set(byPath.values());let checks=0;
+function check(label:string,ok:boolean){assert(ok,label);checks++;console.log('PASS '+label)}
+const rewritten=canonicalizeLocalLinks('[Read](references/research-framework.md)',source,byPath);
+check('nested skill reference resolves through canonical source path',rewritten==='[Read]('+byPath.get(target)+')');
+check('relative parent and URI encoding',canonicalizeLocalLinks('[Note](../../../../WIKI/Nota%20com%20espa%C3%A7o.md#Title)',source,byPath).includes('wiki/nota-com-espaco'));
+check('angle-bracket paths',canonicalizeLocalLinks('[Note](</WIKI/Nota com espaço.md>)',source,byPath)==='[Note](wiki/nota-com-espaco)');
+check('unknown references stay unresolved',canonicalizeLocalLinks('[Missing](references/missing.md)',source,byPath)==='[Missing](references/missing.md)');
+check('external URLs are not turned into files',canonicalizeLocalLinks('[Web](https://example.com/a.md)',source,byPath)==='[Web](https://example.com/a.md)');
+check('foreign source qualifiers cannot create local edges',!canonicalizeLocalLinks('[[private:wiki/nota-com-espaco]]',source,byPath).includes('wiki/nota-com-espaco'));
+check('missing link target is safely skipped',!hasKnownEndpoints({targetSlug:'missing'},origin,known));
+check('missing link source is safely skipped',!hasKnownEndpoints({targetSlug:origin,fromSlug:'missing'},origin,known));
+const engine:any={resolveSlugsByPaths:async()=>new Map(),getAllSlugs:async()=>[],getPage:async()=>null,resolveSlugs:async()=>new Map()};
+const links=await extractPageLinks(origin,rewritten,{},'note',makeResolver(engine,{mode:'batch',sourceId:'oracle-vault'}),{globalBasename:false});
+check('pinned GBrain extractor yields an existing endpoint',links.candidates.some(c=>c.targetSlug===byPath.get(target)&&hasKnownEndpoints(c,origin,known)));
+console.log('Index links: '+checks+' checks passed');

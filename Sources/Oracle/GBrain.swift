@@ -10,7 +10,10 @@ func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:
     try process.run()
     if let input { stdin.fileHandleForWriting.write(input) }; try? stdin.fileHandleForWriting.close()
     let deadline=Date().addingTimeInterval(timeout)
-    while process.isRunning && Date()<deadline { Thread.sleep(forTimeInterval:0.03) }
+    while process.isRunning && Date()<deadline {
+        if let path=environment["ORACLE_CANCEL_FILE"],fm.fileExists(atPath:path) {process.terminate();throw failure("Instalação cancelada. Os avanços confirmados foram preservados.")}
+        Thread.sleep(forTimeInterval:0.03)
+    }
     if process.isRunning { process.terminate(); throw failure("GBrain excedeu o tempo de resposta; confira o estado antes de retomar") }
     process.waitUntilExit(); output.fileHandleForReading.readabilityHandler=nil; errors.fileHandleForReading.readabilityHandler=nil
     let tail=output.fileHandleForReading.readDataToEndOfFile(), errorTail=errors.fileHandleForReading.readDataToEndOfFile()
@@ -25,6 +28,7 @@ extension Core {
     func engineEnvironment(existing:Bool=false)->[String:String] {
         // Intentionally no inherited API keys, DATABASE_URL, proxy, or model settings.
         var env=["PATH":"/usr/bin:/bin:/usr/sbin:/sbin","HOME":fm.homeDirectoryForCurrentUser.path,"LANG":"en_US.UTF-8","GBRAIN_SKIP_UPDATE_CHECK":"1","GBRAIN_HOOKS":"0"]
+        env["ORACLE_CANCEL_FILE"]=home.appendingPathComponent("onboarding/cancel").path
         if !existing { env["GBRAIN_HOME"]=home.appendingPathComponent("gbrain/profile").path }
         return env
     }

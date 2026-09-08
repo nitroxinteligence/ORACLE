@@ -1,0 +1,22 @@
+{
+  "status": "available",
+  "checkedAt": "2026-09-08T04:48:59Z",
+  "connected": [
+    "Canva",
+    "Codex Document Control",
+    "Figma",
+    "Firecrawl",
+    "GitHub",
+    "Hotline",
+    "OpenAI Platform",
+    "Plugin Management",
+    "Safety Settings",
+    "Sites"
+  ],
+  "icons": [
+    "Figma",
+    "Firecrawl"
+  ],
+  "icons_are_png": true,
+  "scope": "Public Codex app-server; icons downloaded without account credentials and rasterized natively"
+}

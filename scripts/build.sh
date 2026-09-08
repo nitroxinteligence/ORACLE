@@ -2,6 +2,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 bun run build:atlas
+# Rebuild the adapter whenever its source changes; never ship a stale indexer.
+bun build --compile packages/gbrain-adapter/read.ts --outfile Resources/engine/oracle-gbrain-read
 bun build packages/contracts/replay.js --target browser --format iife --outfile Resources/web/replay.js
 swift build -c release
 # Use the confirmed planetary direction and requested solid-color correction.

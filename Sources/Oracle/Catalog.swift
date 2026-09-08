@@ -47,6 +47,7 @@ extension Core {
         if verifyOnly && items.contains(where:{$0.absent}) { throw failure("Catálogo incompleto. Retome o mesmo plano com --setup apply.") }
         let total=items.count
         for start in stride(from:0,to:total,by:50) {
+            try checkOnboardingCancellation()
             let batch=Array(items[start..<min(total,start+50)])
             for item in batch where item.absent { owned[item.path]=item.hash }
             journal["created_files"]=owned;journal["created_dirs"]=Array(directories);journal["total"]=total;try writeJSON(journal,journalURL)

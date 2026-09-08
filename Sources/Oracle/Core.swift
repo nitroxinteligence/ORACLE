@@ -14,6 +14,8 @@ let templateFolders = ["INBOX/oracle","INBOX/oracle-history/conversations","INBO
 final class Core {
     let home: URL
     var config: [String: Any]
+    var scopedVaultURL:URL?
+    deinit {scopedVaultURL?.stopAccessingSecurityScopedResource()}
     var lastSequence:Int64 = 0
     var configBaseline:[String:Any] = [:]
     init(home: URL? = nil) throws {
@@ -33,7 +35,7 @@ final class Core {
         for piece in relative.split(separator: "/") { current.appendPathComponent(String(piece)); if (try? current.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true { throw failure("Links simbólicos não são acessados") } }
         return url
     }
-    func vault() throws -> URL { guard let path = config["vault"] as? String, fm.fileExists(atPath: path) else { throw failure("Selecione uma pasta de conhecimento acessível") }; return URL(fileURLWithPath: path) }
+    func vault() throws -> URL { guard let path = config["vault"] as? String else { throw failure("Selecione uma pasta de conhecimento acessível") };let root=URL(fileURLWithPath:path);try beginVaultAccess(root);guard fm.fileExists(atPath:path) else{throw failure("A pasta do Obsidian está indisponível. Escolha a pasta novamente.")};return root }
     func scan(root: URL, instructionsOnly: Bool = false) throws -> [[String: Any]] {
         var output = [[String: Any]]()
         guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey,.isSymbolicLinkKey,.fileSizeKey,.contentModificationDateKey], options: [.skipsHiddenFiles], errorHandler: { _, _ in false }) else { throw failure("Não foi possível ler a pasta") }
@@ -58,6 +60,8 @@ final class Core {
         value["collections"] = discoveredCollections(value["entries"] as? [[String:Any]] ?? [])
         value["operations"] = ["setup":operationIsRunning("setup"),"gbrain":operationIsRunning("gbrain")]
         value["home"] = home.path
+        value["onboarding"] = try onboardingSnapshot()
+        value["codexPlugins"] = codexPluginSnapshot()
         value["catalog"] = catalogSummary()
         if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["vault"] as? String==config["vault"] as? String { value["setup"]=["plan_id":plan["id"] ?? "", "confirmed":plan["confirmed_hash"] != nil] }
         value["setupBaselinePaths"] = installationBaselinePaths()
@@ -195,6 +199,7 @@ final class Core {
             return journal
         }
         for path in plan["folders"] as? [String] ?? [] {
+            try checkOnboardingCancellation()
             let url = try scoped(path,root:root)
             if !fm.fileExists(atPath:url.path) {
                 if verifyOnly { throw failure("Pasta ausente: \(path)") }

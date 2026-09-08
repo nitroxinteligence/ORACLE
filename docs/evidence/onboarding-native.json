@@ -1,0 +1,35 @@
+{
+  "checks": [
+    "new profile opens license gate",
+    "invalid code stays locked with explanation",
+    "issuer code activates native validator",
+    "no progress invented before Codex start",
+    "Escape route closes setup",
+    "setup reopens without losing activation",
+    "real Codex account handshake",
+    "real inventory has provenance",
+    "no hardcoded Gmail connection"
+  ],
+  "passed": 9,
+  "connected": [
+    "Canva",
+    "Codex Document Control",
+    "Figma",
+    "Firecrawl",
+    "GitHub",
+    "Hotline",
+    "OpenAI Platform",
+    "Plugin Management",
+    "Safety Settings",
+    "Sites"
+  ],
+  "installed": [
+    "Build iOS Apps",
+    "Cloudflare",
+    "Deep Research",
+    "Default templates",
+    "Investment Banking",
+    "Product Design"
+  ],
+  "scope": "Native app, synthetic isolated profile, real Codex account/installed runtime; no personal installation changes"
+}

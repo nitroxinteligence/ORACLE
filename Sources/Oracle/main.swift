@@ -25,6 +25,9 @@ if let operation = argument("--setup") {
     do { let result = try core.applyPlan(rollback:operation == "rollback",verifyOnly:operation == "verify"); print(String(decoding:try jsonData(result),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
 if arguments.contains("--self-test-editor") { do { try runEditorTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
+if arguments.contains("--codex-inventory") { do {let bridge=CodexBridge();defer{bridge.stop()};try bridge.start(cwd:core.home);let account=try bridge.account();guard account["connected"] as? Bool==true else{throw failure("Conecte sua conta no Codex primeiro.")};print(String(decoding:try jsonData(bridge.inventory()),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)} }
+if arguments.contains("--onboarding-verify") { do { print(String(decoding:try jsonData(core.onboardingFinalVerification()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
+if arguments.contains("--self-test-onboarding") { do { try runOnboardingTests();try runOnboardingLifecycleTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-updates") { do { try runUpdateTests(releasePath:argument("--test-release"));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test") { do { try runTests(); exit(0) } catch { fputs("FAIL: \(error)\n",stderr); exit(1) } }
 
@@ -33,6 +36,7 @@ if let operation = argument("--update") {
 }
 
 final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSWindowDelegate {
+    var onboardingController:OnboardingController?
     var window: NSWindow!
     var web: WKWebView!
     var locked = true
@@ -45,6 +49,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var updating = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        onboardingController=try? OnboardingController(home:core.home)
+        onboardingController?.openLogin={ url in DispatchQueue.main.async { NSWorkspace.shared.open(url) } }
         let content = WKUserContentController(); content.add(self,name:"oracle")
         let cfg = WKWebViewConfiguration(); cfg.userContentController = content
         cfg.websiteDataStore = .nonPersistent()
@@ -84,6 +90,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         return .terminateLater
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {NSApp.terminate(nil);return false}
+    func applicationWillTerminate(_ notification:Notification) {onboardingController?.shutdown()}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication) -> Bool { true }
     func buildMenu() {
         let bar = NSMenu()
@@ -128,6 +135,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         if method == "boot" { reply(id,["locked":locked,"accessibility":["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]]); return }
         if method == "unlock" { authenticate { ok,error in if ok { self.locked = false }; self.reply(id,ok,error) }; return }
         guard !locked else { reply(id,nil,"Oracle bloqueado"); return }
+        if handleOnboarding(id,method:method,params:p) { return }
+        if !core.onboardingLegacyAccess() && core.activeLicense()==nil && !["snapshot","copy","openExternal","openCodex"].contains(method) {reply(id,nil,"Ative seu código para continuar.");return}
         if method == "chooseVault" || method == "chooseProject" || method == "chooseGBrain" {
             let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
             panel.message = method == "chooseVault" ? "Escolha o vault. Oracle lê os documentos e salva os arquivos que você editar nesta pasta." : method == "chooseProject" ? "Autorize somente a descoberta de AGENTS.md e AGENTS.override.md neste projeto." : "Escolha o workspace GBrain existente. Apenas operações oficiais de consulta serão usadas."
@@ -135,7 +144,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 guard response == .OK, let url = panel.url else { self.reply(id,NSNull()); return }
                 self.queue.async { do {
                     let lock=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(lock)};let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)};core.refreshConfig()
-                    if method == "chooseVault" { core.config["vault"] = url.path }
+                    if method == "chooseVault" { core.config["vault"] = url.path;core.config.removeValue(forKey:"vaultBookmark") }
                     else if method == "chooseGBrain" { core.config["gbrainWorkspace"] = url.path;core.config["gbrainAccess"] = true }
                     else { var roots = core.config["projects"] as? [String] ?? []; if !roots.contains(url.path) { roots.append(url.path) }; core.config["projects"] = roots }
                     try core.persist(); DispatchQueue.main.async { self.reply(id,url.path) }
@@ -199,7 +208,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 case "conversations": result = (try? readJSON(core.home.appendingPathComponent("conversations.json")))?["conversations"] ?? []
                 case "instructions": result = try (core.config["projects"] as? [String] ?? []).flatMap { try core.scan(root:URL(fileURLWithPath:$0),instructionsOnly:true).filter { $0["directory"] as? Bool != true } }
                 case "readInstruction": guard let root = p["source"] as? String,(core.config["projects"] as? [String] ?? []).contains(root),let path = p["path"] as? String,["AGENTS.md","AGENTS.override.md"].contains(URL(fileURLWithPath:path).lastPathComponent) else { throw failure("Fonte não autorizada") }; let url = try core.scoped(path,root:URL(fileURLWithPath:root)); result = ["text":try String(contentsOf:url,encoding:.utf8),"path":url.path]
-                case "revoke": core.config.removeValue(forKey:"vault"); core.config.removeValue(forKey:"projects"); core.config.removeValue(forKey:"gbrainWorkspace");core.config["gbrainAccess"] = false; try core.persist(); result = true
+                case "revoke": core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark"); core.config.removeValue(forKey:"projects"); core.config.removeValue(forKey:"gbrainWorkspace");core.config["gbrainAccess"] = false; try core.persist(); result = true
                 default: throw failure("Operação não suportada")
                 }
                 DispatchQueue.main.async { self.reply(id,result) }

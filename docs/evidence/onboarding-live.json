@@ -1,0 +1,65 @@
+{
+  "status": "completed",
+  "real_codex_execution": true,
+  "upstream_readback_confirmed_for_synthetic_fixture": true,
+  "elapsed_seconds": 86,
+  "confirmed": [
+    {
+      "evidence": "Codex turn/start",
+      "id": "sol",
+      "kind": "core",
+      "label": "Oracle"
+    },
+    {
+      "evidence": "vault readback",
+      "id": "obsidian",
+      "kind": "connector",
+      "label": "synthetic-vault"
+    },
+    {
+      "evidence": "GBrain identity and index readback",
+      "id": "gbrain",
+      "kind": "connector",
+      "label": "Memory"
+    },
+    {
+      "evidence": "file hash verified",
+      "id": "SISTEMA/skills/customer-finder/first-customer-finder/SKILL.md",
+      "kind": "skill",
+      "label": "first-customer-finder",
+      "path": "SISTEMA/skills/customer-finder/first-customer-finder/SKILL.md"
+    }
+  ],
+  "verification": {
+    "hooksTrusted": false,
+    "memory": true,
+    "skill": true,
+    "skillDiscoveredByCodex": true,
+    "structure": true
+  },
+  "phases": [
+    [
+      "running",
+      "preparing",
+      3
+    ],
+    [
+      "running",
+      "installing",
+      3
+    ],
+    [
+      "running",
+      "installing",
+      4
+    ],
+    [
+      "completed",
+      "ready",
+      4
+    ]
+  ],
+  "scope": "Fresh isolated fixture. Existing personal profile and vault untouched. No hook-trust bypass.",
+  "resumed_same_plan_after_relative_link_fix": true,
+  "elapsed_seconds_scope": "Successful resume only, after an earlier paused attempt"
+}

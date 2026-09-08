@@ -1,5 +1,7 @@
 # Oracle
 
+**Versão consolidada 0.2.1:** interface, atualizador, animações do atlas e identidade Órbita solar integrados. [Relatório da consolidação](docs/implementation/consolidation-0.2.1.md).
+
 Aplicativo macOS instalável para explorar conhecimento local, memória e procedimentos em um universo Three.js. AppKit hospeda a janela e as operações nativas; o frontend usa assets locais em WKWebView.
 
 A versão **0.2.0** refina os painéis, reúne o timelapse no topo, padroniza os modais e acrescenta busca imediata e atualizações com compatibilidade e recuperação. O sol permanece animado. As sete coleções são Ads, Code, Contents, Customer Finder, Cybersecurity, Marketing e Personal Branding; skills são suas folhas.

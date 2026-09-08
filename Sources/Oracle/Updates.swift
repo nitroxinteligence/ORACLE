@@ -106,11 +106,13 @@ extension Core {
         return try verifiedRuntime(readJSON(current))
     }
     func activateRuntime(binary: Data, release: [String: Any], validate: ((URL) throws -> Void)? = nil) throws -> [String: Any] {
-        guard let expected = release["sha256"] as? String, digest(binary) == expected,
+        let manifest = try updateManifest()
+        guard let oracleVersion = manifest["oracle_version"] as? String,
+              let expected = release["sha256"] as? String, digest(binary) == expected,
               let version = release["version"] as? String, let commit = release["commit"] as? String,
               release["platform"] as? String == "darwin-arm64",
-              let minimum = release["minimum_oracle"] as? String, minimum.compare("0.2.0", options:.numeric) != .orderedDescending,
-              let gbrain = try updateManifest()["gbrain"] as? [String: Any], commit == gbrain["adapter_commit"] as? String,
+              let minimum = release["minimum_oracle"] as? String, minimum.compare(oracleVersion, options:.numeric) != .orderedDescending,
+              let gbrain = manifest["gbrain"] as? [String: Any], commit == gbrain["adapter_commit"] as? String,
               (gbrain["compatible_releases"] as? [[String: Any]] ?? []).contains(where: { $0["version"] as? String == version && $0["sha256"] as? String == expected }) else { throw failure("Pacote sem integridade ou compatibilidade aprovada") }
         let currentURL = try updatePath("runtime/current.json")
         let previous = try fm.fileExists(atPath: currentURL.path) ? readJSON(currentURL) : ["bundled": true, "version": gbrain["bundled_version"] ?? ""]

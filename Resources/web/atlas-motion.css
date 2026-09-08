@@ -1,0 +1,18 @@
+/* Renderer-only overrides. No panel, modal, search or replay-control layout. */
+.oracle-core .core-word { display: none; }
+.three-enabled .category-node { animation: none; }
+.three-enabled .category-node .selection-ring { stroke-opacity: 0; }
+.three-enabled .category-node:focus-visible .selection-ring { stroke-opacity: .75; }
+.three-enabled .skill-node { animation: none; }
+.three-enabled .skill-selection { stroke-opacity: 0; }
+.three-enabled .skill-node:focus-visible .skill-selection { stroke-opacity: .9; }
+.category-node, .skill-node { transition: opacity 180ms ease; }
+.atlas-camera { will-change: auto; }
+.dragging .atlas-camera { will-change: transform; }
+.motion-reduced .category-node, .motion-reduced .skill-node,
+.motion-reduced .skill-name, .motion-reduced .selection-ring { transition: none; }
+.window-hidden .category-node, .window-hidden .skill-node,
+.ambient-paused .category-node, .ambient-paused .skill-node { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .category-node, .skill-node, .skill-name, .selection-ring { transition: none !important; }
+}

@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Oracle — proposta de identidade</title>
+  <style>
+    @font-face{font-family:Manrope;src:url('fonts/Manrope-Variable.ttf') format('truetype');font-weight:200 800;font-display:swap}
+    :root{--paper:#f3f1eb;--ink:#20252a;--muted:#65716e;--line:#d6d9d1;--card:#fff}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.65 Manrope,Arial,sans-serif}a{color:inherit;text-underline-offset:4px}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #467794;outline-offset:5px}header{display:flex;gap:28px;align-items:center;justify-content:space-between;padding:22px 5%;border-bottom:1px solid var(--line)}header img{width:119px;height:35px;object-fit:contain}nav{display:flex;gap:24px;font-size:13px}nav a{text-decoration:none}main{max-width:1320px;margin:auto;padding:56px 30px 70px}.eyebrow{font-size:11px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--muted)}h1{font-size:clamp(35px,5.3vw,64px);line-height:1.1;letter-spacing:-2px;font-weight:500;max-width:850px;margin:20px 0 24px}h2{font-size:32px;font-weight:500;line-height:1.25;letter-spacing:-.8px}h3{font-size:20px;line-height:1.3;font-weight:600}p{max-width:790px}.intro{font-size:20px;color:var(--muted);max-width:780px}.status{display:inline-block;font-size:12px;color:#545e4c;background:#e2e7da;border:1px solid #ccd4c1;border-radius:20px;padding:6px 12px}.hero{display:block;width:100%;height:auto;margin:34px 0 12px;border-radius:18px}.caption{font-size:12px;color:var(--muted);margin:8px 0 26px}section{padding-top:64px;scroll-margin-top:20px}.section-head{display:flex;align-items:baseline;justify-content:space-between;gap:20px}.section-head a{font-size:13px}figure{margin:22px 0}.comparison{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px}.switches{display:flex;flex-wrap:wrap;justify-content:space-between;gap:20px;margin:24px 0 16px}.segmented{display:flex;flex-wrap:wrap;gap:6px}.segmented button{border:1px solid #cad0c7;border-radius:8px;padding:10px 16px;background:transparent;color:var(--ink);font-size:14px}.segmented button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}.testbed{display:grid;grid-template-columns:1.3fr 1fr;gap:34px;min-height:360px;border-radius:20px;padding:42px;background:#fff;color:#20252a;border:1px solid #d6d9d1}.testbed.dark{background:#171c20;color:#fff;border-color:#171c20}.testbed .signature{width:100%;max-width:440px;height:auto;display:block}.signature-wrap{display:flex;align-items:center;justify-content:center;min-height:200px}.icon-wrap{display:flex;align-items:center;justify-content:center;gap:32px}.big-icon{width:144px;height:144px}.mono-icon{width:96px;height:96px}.sizes{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:26px;align-items:end;border-top:1px solid #88948a55;padding-top:24px}.sample{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:44px}.sample span{font-size:11px;opacity:.7}.smallword{margin-left:auto}.smallword img{width:100px;height:auto}.smallword span{display:block;font-size:11px;opacity:.7}.recommendation{display:grid;grid-template-columns:1fr 1fr;gap:34px;align-items:start;margin:24px 0}.note{padding:24px 26px;background:#e4e8de;border-radius:14px}.note h3{margin-top:0}.file-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin:26px 0}.file-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:24px}.file-card p{font-size:14px;color:var(--muted)}.file-card a{display:block;padding:5px 0;font-size:14px}.research{border-top:1px solid var(--line);padding-top:24px}.research li{margin:9px 0}.subtle{color:var(--muted);font-size:14px}footer{border-top:1px solid var(--line);padding:26px 5%;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;gap:20px}details{border-bottom:1px solid var(--line);padding:17px 0}summary{cursor:pointer;font-weight:600}details p{font-size:14px;color:var(--muted)}@media(max-width:740px){header{align-items:flex-start;gap:15px}nav{flex-wrap:wrap;gap:8px 16px;font-size:12px}main{padding:30px 18px 50px}h1{letter-spacing:-1.2px}.intro{font-size:17px}.testbed{grid-template-columns:1fr;padding:22px;gap:20px}.signature-wrap{min-height:110px}.signature{max-width:320px!important}.icon-wrap{gap:30px}.big-icon{width:110px;height:110px}.mono-icon{width:80px;height:80px}.recommendation,.file-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column;gap:0}.smallword{margin-left:0}section{padding-top:42px}footer{flex-direction:column}}@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}@media print{header,nav,.switches{display:none}main{max-width:none;padding:0}.hero,.comparison{border-radius:0}section{break-inside:avoid}.file-grid{grid-template-columns:repeat(3,1fr)}body{font-size:12px}}
+  </style>
+</head>
+<body>
+<header><a href="#inicio" aria-label="Oracle — início"><img src="recommended/wordmark-black.svg" alt="Oracle"></a><nav aria-label="Nesta apresentação"><a href="#comparar">Comparar</a><a href="#experimentar">Experimentar</a><a href="#arquivos">Arquivos</a><a href="#pesquisa">Pesquisa</a></nav></header>
+<main id="inicio">
+  <span class="eyebrow">Identidade visual / Estudo 01</span>
+  <h1>Seu universo,<br>em perspectiva.</h1>
+  <p class="intro">Três caminhos para representar o Oracle. Uma marca simples para um aplicativo que torna seu conhecimento, suas coleções e sua atividade compreensíveis.</p>
+  <span class="status">Proposta · aguardando escolha de Mateus</span>
+  <img class="hero" src="boards/02-recommendation.png" width="1600" height="1040" alt="Direção recomendada Órbita solar: um sol na abertura de um O, wordmark Oracle e ícones claros e escuros.">
+  <p class="caption">A / Órbita solar. Aplicações conceituais; os tamanhos mostrados na imagem acompanham a escala da prancha.</p>
+
+  <section id="comparar">
+    <div class="section-head"><h2>Três direções, a mesma comparação.</h2><a href="boards/01-comparison.pdf">Abrir prancha em PDF ↗</a></div>
+    <p>Símbolo, palavra, inversão, ícone e redução seguem a mesma escala nominal. A é solar; B, cartográfica; C, editorial.</p>
+    <a href="boards/01-comparison.png"><img class="comparison" src="boards/01-comparison.png" width="1800" height="1400" alt="Prancha comparativa: A Órbita solar, B Azimute, C Fólio solar, em claro, escuro, mono e tamanhos pequenos."></a>
+  </section>
+
+  <section id="experimentar">
+    <h2>Veja o desenho de perto.</h2>
+    <p>Troque a direção e o fundo. Os símbolos abaixo de 16–48 px estão em tamanho CSS real; o ícone do aplicativo aparece ao lado, em cor e mono.</p>
+    <div class="switches">
+      <div class="segmented" role="group" aria-label="Direção visual"><button type="button" data-direction="a" aria-pressed="true">A · Órbita solar</button><button type="button" data-direction="b" aria-pressed="false">B · Azimute</button><button type="button" data-direction="c" aria-pressed="false">C · Fólio solar</button></div>
+      <div class="segmented" role="group" aria-label="Fundo da prévia"><button type="button" data-theme="light" aria-pressed="true">Claro</button><button type="button" data-theme="dark" aria-pressed="false">Escuro</button></div>
+    </div>
+    <div id="testbed" class="testbed">
+      <div class="signature-wrap"><img id="signature" class="signature" src="directions/a/lockup-black.svg" alt="Assinatura da direção A"></div>
+      <div class="icon-wrap"><img id="bigIcon" class="big-icon" src="directions/a/icon-light.svg" alt="Ícone claro da direção A"><img id="monoIcon" class="mono-icon" src="directions/a/icon-mono-light.svg" alt="Ícone monocromático da direção A"></div>
+      <div class="sizes" aria-label="Comparação de tamanhos">
+        <div class="sample"><img data-size="16" width="16" height="16" src="recommended/symbol-micro-black.svg" alt="Símbolo a 16 pixels"><span>16 px</span></div>
+        <div class="sample"><img data-size="24" width="24" height="24" src="recommended/symbol-micro-black.svg" alt="Símbolo a 24 pixels"><span>24 px</span></div>
+        <div class="sample"><img data-size="32" width="32" height="32" src="directions/a/symbol-black.svg" alt="Símbolo a 32 pixels"><span>32 px</span></div>
+        <div class="sample"><img data-size="48" width="48" height="48" src="directions/a/symbol-black.svg" alt="Símbolo a 48 pixels"><span>48 px</span></div>
+        <div class="smallword"><img id="smallWord" src="directions/a/wordmark-black.svg" alt="Wordmark a 100 pixels de largura"><span>Palavra / 100 px</span></div>
+      </div>
+    </div>
+    <p id="previewStatus" class="caption" aria-live="polite">A · Órbita solar · fundo claro. Esta prévia não registra aprovação.</p>
+  </section>
+
+  <section id="recomendacao">
+    <h2>Recomendação: Órbita solar.</h2>
+    <div class="recommendation"><div><p>Um arco e um disco desenham o O de Oracle. O sol ocupa a abertura da órbita e conserva sua presença quando toda a marca passa para uma cor.</p><p>Essa direção acompanha o universo do app com duas formas. A palavra em Manrope 600 mantém a leitura calma e direta; a cor solar relaciona o ícone ao núcleo luminoso do atlas.</p><p class="subtle">A avaliação favoreceu simplicidade, leitura e relação com o produto. Reconhecimento e diferenciação ainda precisam de revisão humana e testes de uso.</p></div><div class="note"><h3>O que ainda precisa de escolha</h3><p>A direção visual e sua cor não estão aprovadas. O nome Oracle já foi mantido por decisão do produto.</p><p>O nome coincide com marcas de software e IA existentes. A forma proposta se distancia dos exemplos examinados; isso não equivale a liberação jurídica.</p><a href="RESEARCH.md">Ler pesquisa e critérios ↗</a></div></div>
+    <details><summary>Construção e margens</summary><p>Setor anular e sol separados. Sem autotrace. Um master óptico preserva o respiro a 16–24 px.</p><a href="boards/03-construction.png"><img class="comparison" src="boards/03-construction.png" width="1600" height="900" loading="lazy" alt="Grade de construção da órbita solar e teste de redução"></a></details>
+    <details><summary>Verificação nativa dos arquivos ICNS</summary><p>Quatro pacotes, dez representações cada e 48 amostras rasterizadas pelo AppKit. A prancha mostra os arquivos lidos pelo macOS; o ícone não foi aplicado ao aplicativo.</p><a href="boards/04-native-icns.png"><img class="comparison" src="boards/04-native-icns.png" width="1600" height="1050" loading="lazy" alt="Amostras nativas dos ICNS em claro, escuro e mono, a 1x e 2x"></a><a href="qa/verification.json">Abrir recibo de verificação ↗</a></details>
+  </section>
+
+  <section id="arquivos">
+    <h2>Arquivos para revisar e integrar depois.</h2>
+    <p>SVG e PDF preservam as curvas. PNGs acompanham os masters. O pacote de produção técnica permanece marcado como proposta até a aprovação.</p>
+    <div class="file-grid">
+      <article class="file-card"><h3>Marca</h3><p>Direção A em vetor, preto e branco.</p><a href="recommended/symbol-black.svg" download>Símbolo SVG</a><a href="recommended/wordmark-black.svg" download>Wordmark SVG</a><a href="recommended/lockup-black.svg" download>Assinatura horizontal SVG</a><a href="recommended/lockup-white.svg" download>Assinatura branca SVG</a><a href="recommended/symbol-black.pdf">Símbolo PDF</a></article>
+      <article class="file-card"><h3>Ícone macOS</h3><p>Exports clássicos; camadas modernas documentadas.</p><a href="recommended/icon-dark.png" download>PNG 1024 · escuro</a><a href="recommended/icon-light.png" download>PNG 1024 · claro</a><a href="recommended/legacy/Oracle-dark.icns" download>ICNS · escuro</a><a href="recommended/legacy/Oracle-light.icns" download>ICNS · claro</a><a href="INTEGRATION.md">Camadas e integração futura</a></article>
+      <article class="file-card"><h3>Apresentação</h3><p>Comparação, critérios e especificação.</p><a href="oracle-identity-v1.zip" download>Pacote completo · ZIP</a><a href="boards/01-comparison.pdf">Três direções · PDF</a><a href="boards/02-recommendation.pdf">Recomendação · PDF</a><a href="SPECIFICATION.md">Especificação do desenho</a><a href="RESEARCH.md">Brief e pesquisa com fontes</a><a href="README.md">Índice completo dos arquivos</a></article>
+    </div>
+  </section>
+
+  <section id="pesquisa">
+    <h2>Pesquisa aplicada.</h2>
+    <div class="research"><p>Seis referências principais: <a href="https://obsidian.md/blog/new-obsidian-icon/">Obsidian</a>, <a href="https://bear.app/">Bear</a>, <a href="https://culturedcode.com/things/">Things</a>, <a href="https://www.raycast.com/">Raycast</a>, <a href="https://stellarium.org/">Stellarium</a> e <a href="https://qgis.org/">QGIS</a>. A pesquisa distingue princípios aproveitáveis das aparências a preservar como propriedade de outras marcas.</p><p>As <a href="https://developer.apple.com/design/human-interface-guidelines/app-icons">orientações atuais da Apple</a> apontam para camadas de 1024 × 1024, sem máscara embutida. Foram preparadas camadas SVG para Default, Dark e Mono; o projeto Icon Composer e as aparências clear/tinted ainda dependem de validação.</p><p>Manrope e Newsreader são distribuídas sob SIL Open Font License 1.1, com os arquivos originais e licenças no pacote. Nenhum serviço pago foi usado.</p><a href="RESEARCH.md">Abrir a pesquisa completa com fontes e limites ↗</a></div>
+  </section>
+</main>
+<footer><span>Oracle · proposta de identidade · 07 setembro 2026</span><span>Arquivos locais · sem publicação ou alteração do aplicativo</span></footer>
+<script>
+  let direction='a', theme='light';
+  const names={a:'Órbita solar',b:'Azimute',c:'Fólio solar'};
+  function updatePreview(){
+    const ink=theme==='dark'?'white':'black';
+    document.getElementById('testbed').classList.toggle('dark',theme==='dark');
+    document.getElementById('signature').src=`directions/${direction}/lockup-${ink}.svg`;
+    document.getElementById('signature').alt=`Assinatura ${names[direction]}`;
+    document.getElementById('bigIcon').src=`directions/${direction}/icon-${theme}.svg`;
+    document.getElementById('bigIcon').alt=`Ícone ${names[direction]}, ${theme==='dark'?'escuro':'claro'}`;
+    document.getElementById('monoIcon').src=`directions/${direction}/icon-mono-${theme}.svg`;
+    document.getElementById('monoIcon').alt=`Ícone monocromático ${names[direction]}`;
+    document.getElementById('smallWord').src=`directions/${direction}/wordmark-${ink}.svg`;
+    document.querySelectorAll('[data-size]').forEach(img=>{img.src=direction==='a'&&Number(img.dataset.size)<=24?`recommended/symbol-micro-${ink}.svg`:`directions/${direction}/symbol-${ink}.svg`;});
+    document.querySelectorAll('[data-direction]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.direction===direction)));
+    document.querySelectorAll('[data-theme]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.theme===theme)));
+    document.getElementById('previewStatus').textContent=`${direction.toUpperCase()} · ${names[direction]} · fundo ${theme==='dark'?'escuro':'claro'}. Esta prévia não registra aprovação.`;
+  }
+  document.querySelectorAll('[data-direction]').forEach(b=>b.addEventListener('click',()=>{direction=b.dataset.direction;updatePreview();}));
+  document.querySelectorAll('[data-theme]').forEach(b=>b.addEventListener('click',()=>{theme=b.dataset.theme;updatePreview();}));
+</script>
+</body>
+</html>

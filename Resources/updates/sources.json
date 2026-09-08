@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "oracle_version": "0.2.0",
+  "oracle_version": "0.2.1",
   "gbrain": {
     "repository": "https://github.com/garrytan/gbrain",
     "bundled_version": "0.48.4.0",
@@ -17,6 +17,13 @@
       }
     ]
   },
-  "cognee": {"repository": "https://github.com/topoteretes/cognee", "adopted": false},
-  "skills": {"repository": null, "manifest_asset": "oracle-skills.json", "schema_version": 1}
+  "cognee": {
+    "repository": "https://github.com/topoteretes/cognee",
+    "adopted": false
+  },
+  "skills": {
+    "repository": null,
+    "manifest_asset": "oracle-skills.json",
+    "schema_version": 1
+  }
 }

@@ -6,12 +6,13 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
   <title>Oracle</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="atlas-motion.css">
 </head>
 <body>
 <div id="app" inert>
   <div id="installation-progress" class="installation-progress" role="progressbar" aria-label="Instalação do Second Brain" hidden><div id="progress-fill"></div></div>
   <header class="app-header">
-    <a class="wordmark" href="#" aria-label="Oracle, enquadrar meu universo">ORACLE</a>
+    <a class="wordmark" href="#" aria-label="Oracle, enquadrar meu universo"><img class="brand-lockup" src="brand/lockup-white.svg" alt="Oracle"></a>
     <div class="header-actions">
       <div class="replay-controls" role="group" aria-label="Timelapse visual">
         <button id="play" class="icon-button" aria-label="Iniciar timelapse" data-tooltip="Iniciar timelapse · formação do universo"><span data-icon="play"></span></button>
@@ -73,6 +74,6 @@
 <dialog id="modal" aria-labelledby="modal-title"><div id="modal-content"></div></dialog>
 <div id="tooltip" role="tooltip" hidden></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
-<div id="lock-screen" hidden><div class="lock-card"><div class="wordmark">ORACLE</div><h1>Seu universo, reservado.</h1><p>Use Touch ID ou a senha do macOS para continuar.</p><button id="unlock" class="primary">Desbloquear Oracle</button><small>A proteção bloqueia esta interface. Seu vault continua acessível pelo Obsidian.</small></div></div>
+<div id="lock-screen" hidden><div class="lock-card"><div class="wordmark"><img class="brand-lockup" src="brand/lockup-white.svg" alt="Oracle"></div><h1>Seu universo, reservado.</h1><p>Use Touch ID ou a senha do macOS para continuar.</p><button id="unlock" class="primary">Desbloquear Oracle</button><small>A proteção bloqueia esta interface. Seu vault continua acessível pelo Obsidian.</small></div></div>
 <script src="preview.js"></script><script src="universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="app.js"></script>
 </body></html>

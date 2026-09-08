@@ -1,0 +1,86 @@
+{
+  "passed": 20,
+  "tests": [
+    {
+      "test": "all shaders compiled in native WebKit and all seven collections remain collections",
+      "passed": true
+    },
+    {
+      "test": "seven GPU draw calls; no postprocessing framebuffer allocation",
+      "passed": true
+    },
+    {
+      "test": "input preempts a pending ambient timer instead of throttling canvas gestures",
+      "passed": true
+    },
+    {
+      "test": "solar mark is absent while the accessible core remains focusable",
+      "passed": true
+    },
+    {
+      "test": "hover changes illumination without moving targets or replacing geometry buffers",
+      "passed": true
+    },
+    {
+      "test": "anchored zoom preserves world position at the pointer",
+      "passed": true
+    },
+    {
+      "test": "focus and skill selection preserve the source hierarchy and accessible state",
+      "passed": true
+    },
+    {
+      "test": "keyboard Enter selects a skill without opening or executing it",
+      "passed": true
+    },
+    {
+      "test": "keyboard layout movement reaches the real native persistence bridge",
+      "passed": true
+    },
+    {
+      "test": "formation seek starts from the sun and hides unrevealed collection labels",
+      "passed": true
+    },
+    {
+      "test": "paused scrub does not advance or execute journal actions",
+      "passed": true
+    },
+    {
+      "test": "formation completes and restores normal selection opacity",
+      "passed": true
+    },
+    {
+      "test": "decorative motion rejects stale, future, duplicated and replay receipts",
+      "passed": true
+    },
+    {
+      "test": "reduced motion settles completely, with an immediately complete formation",
+      "passed": true
+    },
+    {
+      "test": "native minimization stops both renderer and controller frames",
+      "passed": true
+    },
+    {
+      "test": "native restoration resumes rendering",
+      "passed": true
+    },
+    {
+      "test": "lost WebGL context exposes the interactive SVG fallback",
+      "passed": true
+    },
+    {
+      "test": "context restoration rebuilds GPU resources without duplicating the canvas",
+      "passed": true
+    },
+    {
+      "test": "dispose is idempotent and releases frames, timers, observers and canvas",
+      "passed": true
+    },
+    {
+      "test": "remount creates one working scene after disposal",
+      "passed": true
+    }
+  ],
+  "scope": "Real App/Core loaded from repository with a test-only evaluation bridge. Synthetic 63-document profile. DOM keyboard events test handlers; native pointer capture is validated separately."
+}

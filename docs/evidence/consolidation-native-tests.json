@@ -1,0 +1,16 @@
+{
+  "passed": 10,
+  "checks": [
+    "integrated identity loads in the native webview",
+    "new top controls and animation stylesheet coexist without old UI",
+    "search modal finds a skill in the merged interface",
+    "top timelapse starts with only the solar core",
+    "all specialists precede their leaves",
+    "final replay stage restores skills with motion renderer intact",
+    "replay cannot move or persist the live layout",
+    "return to live restores the unchanged layout and controls",
+    "locking disposes both renderer and controller listeners",
+    "unlock remounts exactly one renderer with the integrated brand"
+  ],
+  "scope": "Combined native App/Core with opt-in QA bridge and synthetic fixture; no personal vault modified"
+}

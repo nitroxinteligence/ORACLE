@@ -4,9 +4,8 @@ cd "$(dirname "$0")/.."
 bun run build:atlas
 bun build packages/contracts/replay.js --target browser --format iife --outfile Resources/web/replay.js
 swift build -c release
-mkdir -p .work/Oracle.iconset
-swift scripts/make-icon.swift .work/Oracle.iconset
-iconutil -c icns .work/Oracle.iconset -o Resources/Oracle.icns
+# Keep the integrated identity reproducible; do not regenerate the former icon.
+cp identity/oracle-v1/recommended/legacy/Oracle-dark.icns Resources/Oracle.icns
 APP="dist/Oracle.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Oracle "$APP/Contents/MacOS/Oracle"
@@ -26,8 +25,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Oracle</string>
 <key>CFBundleDisplayName</key><string>Oracle</string>
 <key>CFBundleIdentifier</key><string>com.oraclecompanion.macos</string>
-<key>CFBundleVersion</key><string>2</string>
-<key>CFBundleShortVersionString</key><string>0.2.0</string>
+<key>CFBundleVersion</key><string>3</string>
+<key>CFBundleShortVersionString</key><string>0.2.1</string>
 <key>CFBundleExecutable</key><string>Oracle</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleIconFile</key><string>Oracle</string>

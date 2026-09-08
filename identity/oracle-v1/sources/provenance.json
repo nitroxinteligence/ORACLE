@@ -1,0 +1,37 @@
+{
+  "status": "proposal_not_approved",
+  "date_local": "2026-09-07",
+  "timezone": "America/Recife",
+  "base_commit": "065cdb4b85a55cbb96d7cd9b43017add115f74d7",
+  "method": "Original analytic SVG geometry; font outlines; no generative images or autotrace",
+  "fonts": [
+    {
+      "family": "Manrope",
+      "license": "SIL OFL 1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/manrope",
+      "latest_directory_commit_observed": "fb629caaa15ad25c051089c98f09cf6c8e30a86b",
+      "download_sha256": "d0639be45d0af36e798172419d7bd173c4bd4f29e2b76cbb69db1d11bf8b0a40"
+    },
+    {
+      "family": "Newsreader",
+      "license": "SIL OFL 1.1",
+      "source": "https://github.com/google/fonts/tree/main/ofl/newsreader",
+      "latest_directory_commit_observed": "8b0a1d0f5983c89bc2b93f1b5fb55f9e252744b5",
+      "download_sha256": "8a08d13f8a6c0d51be379a60af84f945f65369a67e509ee3c3bdcc421254d7c1"
+    }
+  ],
+  "primary_sample": [
+    "https://obsidian.md/blog/new-obsidian-icon/",
+    "https://bear.app/",
+    "https://culturedcode.com/things/",
+    "https://www.raycast.com/",
+    "https://stellarium.org/",
+    "https://qgis.org/"
+  ],
+  "apple_specification": [
+    "https://developer.apple.com/design/human-interface-guidelines/app-icons",
+    "https://developer.apple.com/documentation/xcode/creating-your-app-icon-using-icon-composer",
+    "https://developer.apple.com/library/archive/documentation/Xcode/Reference/xcode_ref-Asset_Catalog_Format/IconSetType.html"
+  ],
+  "research_engine": "Agent Reach / Exa, then Jina and primary webpages; no paid API configured"
+}

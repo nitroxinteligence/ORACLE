@@ -1,0 +1,27 @@
+{
+  "version": "0.2.1",
+  "sources": {
+    "ui_updates": "567b381",
+    "atlas_motion": "1640b3c",
+    "identity": "A / Órbita solar"
+  },
+  "tests": {
+    "core_contracts": 19,
+    "updater_contracts": 27,
+    "native_atlas": 20,
+    "cross_front_native": 10,
+    "motion_unit": 6,
+    "formation_positions": 15,
+    "gbrain_roundtrip": "passed",
+    "mcp_roundtrip": "passed"
+  },
+  "bundle_resources_verified": true,
+  "signing": "ad hoc; notarization pending",
+  "personal_vault_modified": false,
+  "dmg_sha256": "8fbe8544f43352ee0128f804b930cef1b7cdfadcd62001de57a5e123d7b51d72",
+  "pending": [
+    "central skills repository URL",
+    "Cognee adoption decision",
+    "Apple notarization and independent clean Mac validation"
+  ]
+}

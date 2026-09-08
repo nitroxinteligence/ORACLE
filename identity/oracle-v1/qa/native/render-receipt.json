@@ -1,0 +1,386 @@
+[
+  {
+    "file" : "dark-16pt-1x.png",
+    "mode" : "dark",
+    "pixels" : 16,
+    "points" : 16,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "dark-16pt-2x.png",
+    "mode" : "dark",
+    "pixels" : 32,
+    "points" : 16,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "dark-32pt-1x.png",
+    "mode" : "dark",
+    "pixels" : 32,
+    "points" : 32,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "dark-32pt-2x.png",
+    "mode" : "dark",
+    "pixels" : 64,
+    "points" : 32,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "dark-64pt-1x.png",
+    "mode" : "dark",
+    "pixels" : 64,
+    "points" : 64,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "dark-64pt-2x.png",
+    "mode" : "dark",
+    "pixels" : 128,
+    "points" : 64,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "dark-128pt-1x.png",
+    "mode" : "dark",
+    "pixels" : 128,
+    "points" : 128,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "dark-128pt-2x.png",
+    "mode" : "dark",
+    "pixels" : 256,
+    "points" : 128,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "dark-256pt-1x.png",
+    "mode" : "dark",
+    "pixels" : 256,
+    "points" : 256,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "dark-256pt-2x.png",
+    "mode" : "dark",
+    "pixels" : 512,
+    "points" : 256,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "dark-512pt-1x.png",
+    "mode" : "dark",
+    "pixels" : 512,
+    "points" : 512,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "dark-512pt-2x.png",
+    "mode" : "dark",
+    "pixels" : 1024,
+    "points" : 512,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "light-16pt-1x.png",
+    "mode" : "light",
+    "pixels" : 16,
+    "points" : 16,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "light-16pt-2x.png",
+    "mode" : "light",
+    "pixels" : 32,
+    "points" : 16,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "light-32pt-1x.png",
+    "mode" : "light",
+    "pixels" : 32,
+    "points" : 32,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "light-32pt-2x.png",
+    "mode" : "light",
+    "pixels" : 64,
+    "points" : 32,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "light-64pt-1x.png",
+    "mode" : "light",
+    "pixels" : 64,
+    "points" : 64,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "light-64pt-2x.png",
+    "mode" : "light",
+    "pixels" : 128,
+    "points" : 64,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "light-128pt-1x.png",
+    "mode" : "light",
+    "pixels" : 128,
+    "points" : 128,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "light-128pt-2x.png",
+    "mode" : "light",
+    "pixels" : 256,
+    "points" : 128,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "light-256pt-1x.png",
+    "mode" : "light",
+    "pixels" : 256,
+    "points" : 256,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "light-256pt-2x.png",
+    "mode" : "light",
+    "pixels" : 512,
+    "points" : 256,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "light-512pt-1x.png",
+    "mode" : "light",
+    "pixels" : 512,
+    "points" : 512,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "light-512pt-2x.png",
+    "mode" : "light",
+    "pixels" : 1024,
+    "points" : 512,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-dark-16pt-1x.png",
+    "mode" : "mono-dark",
+    "pixels" : 16,
+    "points" : 16,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-dark-16pt-2x.png",
+    "mode" : "mono-dark",
+    "pixels" : 32,
+    "points" : 16,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-dark-32pt-1x.png",
+    "mode" : "mono-dark",
+    "pixels" : 32,
+    "points" : 32,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-dark-32pt-2x.png",
+    "mode" : "mono-dark",
+    "pixels" : 64,
+    "points" : 32,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-dark-64pt-1x.png",
+    "mode" : "mono-dark",
+    "pixels" : 64,
+    "points" : 64,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-dark-64pt-2x.png",
+    "mode" : "mono-dark",
+    "pixels" : 128,
+    "points" : 64,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-dark-128pt-1x.png",
+    "mode" : "mono-dark",
+    "pixels" : 128,
+    "points" : 128,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-dark-128pt-2x.png",
+    "mode" : "mono-dark",
+    "pixels" : 256,
+    "points" : 128,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-dark-256pt-1x.png",
+    "mode" : "mono-dark",
+    "pixels" : 256,
+    "points" : 256,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-dark-256pt-2x.png",
+    "mode" : "mono-dark",
+    "pixels" : 512,
+    "points" : 256,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-dark-512pt-1x.png",
+    "mode" : "mono-dark",
+    "pixels" : 512,
+    "points" : 512,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-dark-512pt-2x.png",
+    "mode" : "mono-dark",
+    "pixels" : 1024,
+    "points" : 512,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-light-16pt-1x.png",
+    "mode" : "mono-light",
+    "pixels" : 16,
+    "points" : 16,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-light-16pt-2x.png",
+    "mode" : "mono-light",
+    "pixels" : 32,
+    "points" : 16,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-light-32pt-1x.png",
+    "mode" : "mono-light",
+    "pixels" : 32,
+    "points" : 32,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-light-32pt-2x.png",
+    "mode" : "mono-light",
+    "pixels" : 64,
+    "points" : 32,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-light-64pt-1x.png",
+    "mode" : "mono-light",
+    "pixels" : 64,
+    "points" : 64,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-light-64pt-2x.png",
+    "mode" : "mono-light",
+    "pixels" : 128,
+    "points" : 64,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-light-128pt-1x.png",
+    "mode" : "mono-light",
+    "pixels" : 128,
+    "points" : 128,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-light-128pt-2x.png",
+    "mode" : "mono-light",
+    "pixels" : 256,
+    "points" : 128,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-light-256pt-1x.png",
+    "mode" : "mono-light",
+    "pixels" : 256,
+    "points" : 256,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-light-256pt-2x.png",
+    "mode" : "mono-light",
+    "pixels" : 512,
+    "points" : 256,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  },
+  {
+    "file" : "mono-light-512pt-1x.png",
+    "mode" : "mono-light",
+    "pixels" : 512,
+    "points" : 512,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 1
+  },
+  {
+    "file" : "mono-light-512pt-2x.png",
+    "mode" : "mono-light",
+    "pixels" : 1024,
+    "points" : 512,
+    "renderer" : "NSImage.draw \/ NSBitmapImageRep",
+    "scale" : 2
+  }
+]

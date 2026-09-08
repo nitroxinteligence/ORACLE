@@ -1,4 +1,4 @@
-Oracle 0.2.0 — versão de desenvolvimento para Apple Silicon, macOS 13+
+Oracle 0.2.1 — versão de desenvolvimento para Apple Silicon, macOS 13+
 
 Arraste Oracle.app para Aplicativos e abra. A seleção de vault é explícita.
 Não exige Swift, Bun ou Python para executar o pacote pronto.

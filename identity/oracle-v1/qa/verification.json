@@ -1,0 +1,241 @@
+{
+  "status": "pass",
+  "scope": "identity/oracle-v1 only",
+  "iconsets": [
+    {
+      "mode": "dark",
+      "representations": 10,
+      "png_dimensions": "pass",
+      "iconutil_roundtrip_alpha": "identical",
+      "max_straight_rgb_delta": 1,
+      "composited_black_white_pixels": "identical",
+      "png_payload_representations": 8,
+      "premultiplied_argb_representations": 2,
+      "chunks": [
+        {
+          "type": "ic04",
+          "bytes": 1044
+        },
+        {
+          "type": "ic11",
+          "bytes": 1627
+        },
+        {
+          "type": "ic05",
+          "bytes": 4140
+        },
+        {
+          "type": "ic12",
+          "bytes": 3370
+        },
+        {
+          "type": "ic07",
+          "bytes": 6696
+        },
+        {
+          "type": "ic13",
+          "bytes": 13814
+        },
+        {
+          "type": "ic08",
+          "bytes": 13814
+        },
+        {
+          "type": "ic14",
+          "bytes": 28790
+        },
+        {
+          "type": "ic09",
+          "bytes": 28790
+        },
+        {
+          "type": "ic10",
+          "bytes": 61248
+        }
+      ]
+    },
+    {
+      "mode": "light",
+      "representations": 10,
+      "png_dimensions": "pass",
+      "iconutil_roundtrip_alpha": "identical",
+      "max_straight_rgb_delta": 1,
+      "composited_black_white_pixels": "identical",
+      "png_payload_representations": 8,
+      "premultiplied_argb_representations": 2,
+      "chunks": [
+        {
+          "type": "ic04",
+          "bytes": 1044
+        },
+        {
+          "type": "ic11",
+          "bytes": 1736
+        },
+        {
+          "type": "ic05",
+          "bytes": 4140
+        },
+        {
+          "type": "ic12",
+          "bytes": 3650
+        },
+        {
+          "type": "ic07",
+          "bytes": 7387
+        },
+        {
+          "type": "ic13",
+          "bytes": 14915
+        },
+        {
+          "type": "ic08",
+          "bytes": 14915
+        },
+        {
+          "type": "ic14",
+          "bytes": 31279
+        },
+        {
+          "type": "ic09",
+          "bytes": 31279
+        },
+        {
+          "type": "ic10",
+          "bytes": 66005
+        }
+      ]
+    },
+    {
+      "mode": "mono-dark",
+      "representations": 10,
+      "png_dimensions": "pass",
+      "iconutil_roundtrip_alpha": "identical",
+      "max_straight_rgb_delta": 1,
+      "composited_black_white_pixels": "identical",
+      "png_payload_representations": 8,
+      "premultiplied_argb_representations": 2,
+      "chunks": [
+        {
+          "type": "ic04",
+          "bytes": 1044
+        },
+        {
+          "type": "ic11",
+          "bytes": 1399
+        },
+        {
+          "type": "ic05",
+          "bytes": 4140
+        },
+        {
+          "type": "ic12",
+          "bytes": 2839
+        },
+        {
+          "type": "ic07",
+          "bytes": 5578
+        },
+        {
+          "type": "ic13",
+          "bytes": 11396
+        },
+        {
+          "type": "ic08",
+          "bytes": 11396
+        },
+        {
+          "type": "ic14",
+          "bytes": 24150
+        },
+        {
+          "type": "ic09",
+          "bytes": 24150
+        },
+        {
+          "type": "ic10",
+          "bytes": 52274
+        }
+      ]
+    },
+    {
+      "mode": "mono-light",
+      "representations": 10,
+      "png_dimensions": "pass",
+      "iconutil_roundtrip_alpha": "identical",
+      "max_straight_rgb_delta": 1,
+      "composited_black_white_pixels": "identical",
+      "png_payload_representations": 8,
+      "premultiplied_argb_representations": 2,
+      "chunks": [
+        {
+          "type": "ic04",
+          "bytes": 1044
+        },
+        {
+          "type": "ic11",
+          "bytes": 1478
+        },
+        {
+          "type": "ic05",
+          "bytes": 4140
+        },
+        {
+          "type": "ic12",
+          "bytes": 3025
+        },
+        {
+          "type": "ic07",
+          "bytes": 5995
+        },
+        {
+          "type": "ic13",
+          "bytes": 12252
+        },
+        {
+          "type": "ic08",
+          "bytes": 12252
+        },
+        {
+          "type": "ic14",
+          "bytes": 26199
+        },
+        {
+          "type": "ic09",
+          "bytes": 26199
+        },
+        {
+          "type": "ic10",
+          "bytes": 56608
+        }
+      ]
+    }
+  ],
+  "svg": {
+    "checked": 19,
+    "external_resources": 0,
+    "raster_images": 0,
+    "live_text": 0,
+    "filters": 0,
+    "all_parse": true
+  },
+  "limitations": [
+    "No recognition study or legal clearance",
+    "No integration into Oracle.app",
+    "Composer layers are prepared, not an exported or tested .icon project",
+    "Clear/tinted material previews require Icon Composer and target Xcode"
+  ],
+  "composer_layers": {
+    "count": 6,
+    "canvas": "1024x1024",
+    "premasked": false,
+    "native_composer_validation": false
+  },
+  "native_appkit_samples": 48,
+  "contrast_reference_only": {
+    "white_on_dark": 15.52,
+    "amber_on_dark": 8.77,
+    "ink_on_light": 13.08,
+    "ochre_on_light": 3.18
+  }
+}

@@ -29,10 +29,10 @@ export function catalogGroups(collection, entries) {
     const semanticFolder = folder && parts.at(-3) !== 'skills';
     const first = skillName(entry).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().charCodeAt(0);
     const band = first >= 65 && first <= 90 ? Math.min(7, Math.floor((first - 65) / 3)) : 8;
-    const key = semanticFolder ? `folder:${folder}` : `alphabet:${folder}:${band}`;
+    const key = semanticFolder ? `folder:${folder}` : `alphabet:${band}`;
     if (!groups.has(key)) groups.set(key, { id: `${collection}/${key}`, parent: collection,
       name: semanticFolder ? folder : alphabet[band], kind: semanticFolder ? 'folder' : 'alphabet',
-      originPath: folder ? root + folder : root.slice(0, -1), skills: [] });
+      originPath: semanticFolder ? root + folder : root.slice(0, -1), skills: [] });
     groups.get(key).skills.push(entry);
   }
   const ordered=[...groups.values()].sort((a,b)=>a.id.localeCompare(b.id)),seen=new Map();
@@ -84,13 +84,14 @@ function specialistPlan(collection, entries, context) {
   }
   const visible=candidates.filter(g=>chosen.get(g.id).length);
   const groups=[], leaves=[], tau=Math.PI*2;
-  const weight=visible.reduce((sum,g)=>sum+Math.max(3,chosen.get(g.id).length),0);
+  // Equal sectors prevent a large group wrapping behind the root and crossing it.
   const radius=Math.max(180,visible.length*27);
   let cursor=-Math.PI/2;
   for(const [gi,g] of visible.entries()) {
     const members=chosen.get(g.id);
-    const share=tau*Math.max(3,members.length)/Math.max(1,weight), angle=cursor+share/2;
-    const group={...g,x:Math.cos(angle)*radius,y:Math.sin(angle)*radius,angle,index:gi,
+    const share=tau/Math.max(1,visible.length), angle=cursor+share/2;
+    const rootMembership=visible.length===1;
+    const group={...g,x:rootMembership?0:Math.cos(angle)*radius,y:rootMembership?0:Math.sin(angle)*radius,rootMembership,angle,index:gi,
       focused:g.id===context.group,source:root.id,visibleCount:members.length};
     groups.push(group);
     let slot=0,ring=0,radial=radius+120;

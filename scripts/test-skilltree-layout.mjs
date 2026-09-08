@@ -17,7 +17,7 @@ test('real folder provenance survives, packaging folders are honestly alphabetic
   const groups=catalogGroups('marketing',entries);
   const folder=groups.find(g=>g.kind==='folder');assert.equal(folder.name,'research');assert.equal(folder.originPath,'SISTEMA/skills/marketing/research');assert.equal(folder.skills.length,2);
   assert.equal(groups.filter(g=>g.kind==='alphabet').length,2);
-  assert.ok(groups.some(g=>g.kind==='alphabet'&&g.originPath==='SISTEMA/skills/marketing/skills'));
+  assert.ok(groups.some(g=>g.kind==='alphabet'&&g.originPath==='SISTEMA/skills/marketing'));
 });
 test('every file in a growing group remains reachable through pages, including the last 18',()=>{
   const groups=catalogGroups('marketing',Array.from({length:818},(_,i)=>entry('',`alpha-${i}`)));
@@ -50,4 +50,19 @@ test('dedicated scenes cap the graph while retaining the entire catalog and sele
     const result=plan([{id:'marketing'}],entries,'marketing',3,{},248,context);
     assert.equal(result.leaves.length,50);assert.ok(result.leaves.some(l=>l.id===leaf));
   }
+});
+
+test('an uneven Ads catalog does not draw group-to-file edges through the specialist',()=>{
+  const entries=[{name:'SKILL.md',path:'SISTEMA/skills/ads/ads/SKILL.md'},...Array.from({length:33},(_,i)=>({name:'SKILL.md',path:`SISTEMA/skills/ads/skills/ads-${i}/SKILL.md`}))];
+  const result=plan([{id:'ads'}],entries,'ads');
+  assert.equal(result.groups.length,1);assert.ok(result.groups[0].rootMembership);
+  const branched=plan([{id:'ads'}],entries.map((e,i)=>({...e,path:e.path.replace('ads/','ads/'+(i?'production/':'research/'))})),'ads');
+  for(const leaf of branched.leaves){
+    const g=branched.groups.find(g=>g.id===leaf.group),dx=leaf.x-g.x,dy=leaf.y-g.y;
+    const t=Math.max(0,Math.min(1,-(g.x*dx+g.y*dy)/(dx*dx+dy*dy)));
+    assert.ok(Math.hypot(g.x+t*dx,g.y+t*dy)>90);
+  }
+  const one=plan([{id:'ads'}],entries.slice(1),'ads');
+  assert.equal(one.groups.length,1);assert.equal(one.groups[0].rootMembership,true);
+  assert.equal(one.groups[0].x,0);assert.equal(one.groups[0].y,0);
 });

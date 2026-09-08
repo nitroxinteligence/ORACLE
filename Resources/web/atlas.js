@@ -123,6 +123,7 @@ class OracleAtlas {
       }
       Object.assign(group,{...p,x:group.x,y:group.y,tx:p.x,ty:p.y});
       group.g.style.setProperty('--node-accent',OracleLayout.identity(p.parent).color);group.edge.style.setProperty('--node-accent',OracleLayout.identity(p.parent).color);group.bus.style.setProperty('--node-accent',OracleLayout.identity(p.parent).color);
+      group.g.style.display=p.rootMembership?'none':'';group.g.setAttribute('aria-hidden',String(!!p.rootMembership));
       group.label.textContent=p.name.length>22?p.name.slice(0,20)+'…':p.name;
       const description=p.kind==='folder'?'Pasta':'Faixa alfabética';
       group.g.dataset.tooltip=`${description} ${p.name} · ${p.skills.length} skills`;

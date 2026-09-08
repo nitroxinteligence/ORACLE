@@ -60,3 +60,5 @@ html[data-input-mode=pointer] .oracle-core:not(:hover):focus-visible .core-outli
 html[data-input-mode=pointer] .atlas-group:not(.selected):not(:hover):focus-visible .group-junction{fill:#111;stroke:var(--node-accent)}
 html[data-input-mode=pointer] .orbital-plugin:not(:hover):focus-visible .plugin-disc{stroke:#ffffff33;stroke-width:.8}
 html[data-input-mode=pointer] .verified-connector:not(:hover):focus-visible>circle{stroke:#ffffff40;stroke-width:.8}
+
+html[data-input-mode=keyboard] :is(button,a,summary,input[type=checkbox],input[type=radio],input[type=range]):focus{outline:1px solid var(--focus-line);outline-offset:-1px}

@@ -1,0 +1,111 @@
+{
+  "diagnostics": {
+    "active": true,
+    "adaptiveEconomy": false,
+    "buffer": [
+      1329,
+      876
+    ],
+    "contextLost": false,
+    "cpuSubmitMedianMs": 0,
+    "cpuSubmitP95Ms": 1,
+    "drawCalls": 7,
+    "error": null,
+    "formation": {
+      "duration": 12000,
+      "phase": "complete",
+      "playing": false,
+      "progress": 1,
+      "rate": 1,
+      "visualOnly": true
+    },
+    "frameIntervalMedianMs": 33,
+    "frameIntervalP95Ms": 56,
+    "geometries": 6,
+    "interactionFrameMedianMs": 28,
+    "interactionFrameP95Ms": 55,
+    "interactionSamples": 180,
+    "note": "CPU submission is not GPU time. Interaction and formation target 60 Hz; ambient targets 24 Hz and economy 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.",
+    "paused": false,
+    "pendingFrames": 1,
+    "pendingTimers": 0,
+    "quality": "balanced",
+    "reduced": false,
+    "renderCount": 682,
+    "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+    "samples": 320,
+    "sceneUpdateCPU95Ms": 2,
+    "textures": 1,
+    "triangles": 3714
+  },
+  "documents": 940,
+  "frames": 321,
+  "selected": null,
+  "viewport": [
+    1200,
+    760
+  ],
+  "visible": true,
+  "seconds": 11.574,
+  "observedFPS": 27.73,
+  "hostCPUMedianPercent": 3.2,
+  "hostRSSPeakMB": 47.44,
+  "processSamples": [
+    {
+      "pid": 9728,
+      "cpu": 5.3,
+      "rssKB": 25040
+    },
+    {
+      "pid": 9728,
+      "cpu": 3.5,
+      "rssKB": 23472
+    },
+    {
+      "pid": 9728,
+      "cpu": 43.9,
+      "rssKB": 48576
+    },
+    {
+      "pid": 9728,
+      "cpu": 2.9,
+      "rssKB": 45568
+    },
+    {
+      "pid": 9728,
+      "cpu": 3.0,
+      "rssKB": 35296
+    },
+    {
+      "pid": 9728,
+      "cpu": 3.9,
+      "rssKB": 33280
+    },
+    {
+      "pid": 9728,
+      "cpu": 3.3,
+      "rssKB": 22960
+    },
+    {
+      "pid": 9728,
+      "cpu": 3.1,
+      "rssKB": 24080
+    },
+    {
+      "pid": 9728,
+      "cpu": 2.3,
+      "rssKB": 24080
+    },
+    {
+      "pid": 9728,
+      "cpu": 3.0,
+      "rssKB": 24016
+    },
+    {
+      "pid": 9728,
+      "cpu": 3.2,
+      "rssKB": 23920
+    }
+  ],
+  "scope": "Native public catalog, scripted specialist selection; raw interaction intervals. UI input temporarily inert. Host CPU/RSS excludes unattributable shared WebKit helpers. This is not a physical pinch measurement."
+}

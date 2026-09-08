@@ -1,0 +1,453 @@
+{
+  "source": "Native AppKit WKWebView takeSnapshot; public catalog; static reduced-motion captures with original visual styles",
+  "images": [
+    {
+      "file": "global-wide.png",
+      "sha256": "1fd75a4247cd36029ae32a47e6c1e7147a4f24dbf70ec18f65918b7569db680e",
+      "context": {
+        "group": null,
+        "kind": "global",
+        "page": 0
+      },
+      "groups": 29,
+      "leaves": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "renderCount": 711,
+      "rendererError": null,
+      "selected": null,
+      "viewport": [
+        1440,
+        870
+      ],
+      "visible": true,
+      "zoom": 1
+    },
+    {
+      "file": "marketing-50.png",
+      "sha256": "e93b3a96f7c59a28071b45918b7c69e3032af0b7fe0dbef1398a01d75bdedd38",
+      "context": {
+        "group": null,
+        "kind": "specialist",
+        "page": 0
+      },
+      "groups": 29,
+      "leaves": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "renderCount": 712,
+      "rendererError": null,
+      "selected": "marketing",
+      "viewport": [
+        1440,
+        870
+      ],
+      "visible": true,
+      "zoom": 1
+    },
+    {
+      "file": "security-818.png",
+      "sha256": "34a54677af2d6d61dc463fbddfce8cb481568d01f3808f0718d7eeb0e52185ca",
+      "context": {
+        "group": null,
+        "kind": "specialist",
+        "page": 0
+      },
+      "groups": 29,
+      "leaves": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "renderCount": 713,
+      "rendererError": null,
+      "selected": "cyber-security",
+      "viewport": [
+        1440,
+        870
+      ],
+      "visible": true,
+      "zoom": 1
+    },
+    {
+      "file": "group-50.png",
+      "sha256": "b3710c26221e17f4035669768ca7cf8d07d2f525f20ff67f4f13b51626d6485a",
+      "context": {
+        "group": "cyber-security/alphabet:skills:2",
+        "kind": "group",
+        "page": 0
+      },
+      "groups": 29,
+      "leaves": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 92,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "renderCount": 715,
+      "rendererError": null,
+      "selected": "cyber-security",
+      "viewport": [
+        1440,
+        870
+      ],
+      "visible": true,
+      "zoom": 1
+    },
+    {
+      "file": "skill-inspector.png",
+      "sha256": "941abc867ef7f63999793b2b419410c53aeb32d28bfb8a76f9f4ed34adfb3f71",
+      "context": {
+        "group": "cyber-security/alphabet:skills:2",
+        "kind": "skill",
+        "page": 0
+      },
+      "groups": 29,
+      "leaves": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 92,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "renderCount": 732,
+      "rendererError": null,
+      "selected": "cyber-security",
+      "viewport": [
+        1440,
+        870
+      ],
+      "visible": true,
+      "zoom": 1.35
+    },
+    {
+      "file": "logos-observatory-top.png",
+      "sha256": "e46e4dd1b1179bee3189ca2f4676367135ccc9dc047057ae9be74c5997030fe0",
+      "context": {
+        "group": null,
+        "kind": "global",
+        "page": 0
+      },
+      "groups": 29,
+      "leaves": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "renderCount": 734,
+      "rendererError": null,
+      "selected": null,
+      "viewport": [
+        1440,
+        870
+      ],
+      "visible": true,
+      "zoom": 1
+    },
+    {
+      "file": "logos-observatory-bottom.png",
+      "sha256": "028f84095d6e66f7f1f8e3ad5cf07c5091c69ea321780763610e2c35af5e5c58",
+      "context": {
+        "group": null,
+        "kind": "global",
+        "page": 0
+      },
+      "groups": 29,
+      "leaves": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "renderCount": 734,
+      "rendererError": null,
+      "selected": null,
+      "viewport": [
+        1440,
+        870
+      ],
+      "visible": true,
+      "zoom": 1
+    },
+    {
+      "file": "marketing-small.png",
+      "sha256": "a7252417055e19c67234ac221566aa4b1ac96b45149d399227aecb30188ad8f1",
+      "context": {
+        "group": null,
+        "kind": "specialist",
+        "page": 0
+      },
+      "groups": 29,
+      "leaves": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "renderCount": 749,
+      "rendererError": null,
+      "selected": "marketing",
+      "viewport": [
+        840,
+        620
+      ],
+      "visible": true,
+      "zoom": 1
+    }
+  ]
+}

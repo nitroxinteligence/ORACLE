@@ -1,0 +1,3437 @@
+{
+  "label": "skilltree-before",
+  "measuredAt": "2026-09-08T18:46:08.726765+00:00",
+  "hardware": "Apple M2",
+  "os": "26.6.2",
+  "phases": {
+    "idle": {
+      "area": [
+        886,
+        584
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1329,
+          876
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 1,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 17,
+        "frameIntervalP95Ms": 21,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Active cadence targets 60 Hz; economy targets 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 1,
+        "pendingTimers": 0,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 777,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 360,
+        "sceneUpdateCPU95Ms": 0,
+        "textures": 1,
+        "triangles": 2322
+      },
+      "frames": 696,
+      "leaves": 41,
+      "nodes": 7,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "elapsedSeconds": 12.595,
+      "observedFPS": 55.26,
+      "hostCPUMedianPercent": 3.2,
+      "hostRSSPeakMB": 37.83,
+      "processSamples": [
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.5,
+            "rssKB": 32432,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2944,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.2,
+            "rssKB": 36784,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.2,
+            "rssKB": 30208,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 47.8,
+            "rssKB": 34000,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5312,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.9,
+            "rssKB": 37856,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 31.6,
+            "rssKB": 31872,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.5,
+            "rssKB": 37264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.9,
+            "rssKB": 30688,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 44.9,
+            "rssKB": 32560,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5328,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.3,
+            "rssKB": 38064,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.8,
+            "rssKB": 31616,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 17.6,
+            "rssKB": 27296,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.5,
+            "rssKB": 27824,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 52.1,
+            "rssKB": 34016,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5424,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.7,
+            "rssKB": 31744,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 31.4,
+            "rssKB": 31856,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 18.2,
+            "rssKB": 26992,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 9.6,
+            "rssKB": 38736,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 48.7,
+            "rssKB": 36768,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6352,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 19.8,
+            "rssKB": 56784,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 28.5,
+            "rssKB": 32400,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2944,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 18.7,
+            "rssKB": 75040,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.0,
+            "rssKB": 34176,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 46.8,
+            "rssKB": 37568,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6320,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 15.1,
+            "rssKB": 46304,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.6,
+            "rssKB": 32480,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 14.9,
+            "rssKB": 61920,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.3,
+            "rssKB": 34800,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 49.2,
+            "rssKB": 38048,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6336,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.3,
+            "rssKB": 46304,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.2,
+            "rssKB": 31920,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.4,
+            "rssKB": 60992,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.2,
+            "rssKB": 33776,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 49.1,
+            "rssKB": 38064,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6336,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.7,
+            "rssKB": 45392,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.5,
+            "rssKB": 32016,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.1,
+            "rssKB": 61104,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.0,
+            "rssKB": 30816,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 46.8,
+            "rssKB": 37200,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5440,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.4,
+            "rssKB": 36016,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.4,
+            "rssKB": 32384,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 18.4,
+            "rssKB": 75984,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 25.5,
+            "rssKB": 35312,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 48.1,
+            "rssKB": 33504,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5440,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 15.4,
+            "rssKB": 35408,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.8,
+            "rssKB": 31760,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2944,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.8,
+            "rssKB": 55120,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 4.7,
+            "rssKB": 33376,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 50.1,
+            "rssKB": 34736,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.7,
+            "rssKB": 30464,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.6,
+            "rssKB": 31888,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.5,
+            "rssKB": 47632,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.9,
+            "rssKB": 32384,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 46.3,
+            "rssKB": 32224,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5280,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.7,
+            "rssKB": 35984,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.8,
+            "rssKB": 30832,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 17.0,
+            "rssKB": 29616,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.2,
+            "rssKB": 26032,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 50.8,
+            "rssKB": 34320,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5280,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.3,
+            "rssKB": 35312,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ]
+      ]
+    },
+    "expansion": {
+      "area": [
+        886,
+        584
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1329,
+          876
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 1,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 33,
+        "frameIntervalP95Ms": 41,
+        "geometries": 6,
+        "interactionFrameMedianMs": 34,
+        "interactionFrameP95Ms": 42,
+        "interactionSamples": 180,
+        "note": "CPU submission is not GPU time. Active cadence targets 60 Hz; economy targets 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 1,
+        "pendingTimers": 0,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 1243,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 360,
+        "sceneUpdateCPU95Ms": 1,
+        "textures": 1,
+        "triangles": 4242
+      },
+      "frames": 456,
+      "leaves": 81,
+      "nodes": 7,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "elapsedSeconds": 12.482,
+      "observedFPS": 36.53,
+      "hostCPUMedianPercent": 2.05,
+      "hostRSSPeakMB": 28.19,
+      "processSamples": [
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.3,
+            "rssKB": 31616,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 18.0,
+            "rssKB": 45056,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.5,
+            "rssKB": 28320,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 46.7,
+            "rssKB": 34480,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5280,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.1,
+            "rssKB": 36000,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 29.0,
+            "rssKB": 32304,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 17.0,
+            "rssKB": 45312,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 1.8,
+            "rssKB": 28864,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 45.5,
+            "rssKB": 38144,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5280,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 22.1,
+            "rssKB": 61760,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 27.7,
+            "rssKB": 32336,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 18.6,
+            "rssKB": 44832,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 1.7,
+            "rssKB": 27984,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 43.4,
+            "rssKB": 38368,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5392,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 16.6,
+            "rssKB": 62832,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 31.7,
+            "rssKB": 32160,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.0,
+            "rssKB": 44560,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 1.7,
+            "rssKB": 28288,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 42.0,
+            "rssKB": 39248,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5392,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 18.2,
+            "rssKB": 68784,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.1,
+            "rssKB": 31920,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.0,
+            "rssKB": 38736,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.8,
+            "rssKB": 26560,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 56.2,
+            "rssKB": 41200,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5392,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 23.3,
+            "rssKB": 70384,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 24.4,
+            "rssKB": 31312,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.6,
+            "rssKB": 45616,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.5,
+            "rssKB": 26688,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 50.9,
+            "rssKB": 38704,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5280,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 19.5,
+            "rssKB": 55824,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 25.4,
+            "rssKB": 31616,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 17.8,
+            "rssKB": 43888,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.0,
+            "rssKB": 27136,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 47.4,
+            "rssKB": 39328,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 18.7,
+            "rssKB": 56000,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 29.2,
+            "rssKB": 31728,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 17.0,
+            "rssKB": 44432,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 1.7,
+            "rssKB": 27152,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 42.7,
+            "rssKB": 40368,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 16.5,
+            "rssKB": 63776,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.5,
+            "rssKB": 31712,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.1,
+            "rssKB": 43584,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.6,
+            "rssKB": 27696,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 53.8,
+            "rssKB": 41552,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 21.1,
+            "rssKB": 67648,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 35.9,
+            "rssKB": 31760,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.3,
+            "rssKB": 37424,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.5,
+            "rssKB": 27392,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 47.6,
+            "rssKB": 42656,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 16.6,
+            "rssKB": 70608,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 29.9,
+            "rssKB": 30288,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 18.3,
+            "rssKB": 35904,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.1,
+            "rssKB": 26864,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 48.8,
+            "rssKB": 41760,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 21.8,
+            "rssKB": 65664,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.8,
+            "rssKB": 31360,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.3,
+            "rssKB": 45136,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 1.8,
+            "rssKB": 25904,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 42.9,
+            "rssKB": 41920,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 19.4,
+            "rssKB": 71520,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ]
+      ]
+    },
+    "timelapse": {
+      "area": [
+        886,
+        584
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1329,
+          876
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 1,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 12000,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 19,
+        "frameIntervalP95Ms": 28,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Active cadence targets 60 Hz; economy targets 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 1,
+        "pendingTimers": 0,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 1922,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 360,
+        "sceneUpdateCPU95Ms": 0,
+        "textures": 1,
+        "triangles": 2322
+      },
+      "frames": 613,
+      "leaves": 41,
+      "nodes": 7,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "elapsedSeconds": 13.536,
+      "observedFPS": 45.29,
+      "hostCPUMedianPercent": 2.2,
+      "hostRSSPeakMB": 35.0,
+      "processSamples": [
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.0,
+            "rssKB": 31360,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.5,
+            "rssKB": 45248,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.0,
+            "rssKB": 25984,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 40.5,
+            "rssKB": 42752,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 9.4,
+            "rssKB": 87360,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.6,
+            "rssKB": 31376,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.5,
+            "rssKB": 45264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 1.9,
+            "rssKB": 26000,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 39.7,
+            "rssKB": 42480,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 9.2,
+            "rssKB": 87184,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 35.2,
+            "rssKB": 31408,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.2,
+            "rssKB": 47280,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 1.9,
+            "rssKB": 25872,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 40.0,
+            "rssKB": 42432,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 8.4,
+            "rssKB": 87152,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.3,
+            "rssKB": 31440,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.8,
+            "rssKB": 47312,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.2,
+            "rssKB": 25744,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 41.7,
+            "rssKB": 39840,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 9.7,
+            "rssKB": 80304,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 35.4,
+            "rssKB": 31472,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.1,
+            "rssKB": 47376,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.0,
+            "rssKB": 25856,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 40.1,
+            "rssKB": 39392,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 8.9,
+            "rssKB": 77216,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 35.0,
+            "rssKB": 31504,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.1,
+            "rssKB": 47616,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.1,
+            "rssKB": 25856,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 40.4,
+            "rssKB": 39344,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 9.5,
+            "rssKB": 77264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 24.6,
+            "rssKB": 31760,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 29.7,
+            "rssKB": 86736,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 17.3,
+            "rssKB": 35840,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 49.0,
+            "rssKB": 38128,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.7,
+            "rssKB": 67856,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 35.1,
+            "rssKB": 32032,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 17.3,
+            "rssKB": 75344,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.4,
+            "rssKB": 32944,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 41.4,
+            "rssKB": 36544,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 10.2,
+            "rssKB": 55968,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.5,
+            "rssKB": 32096,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.1,
+            "rssKB": 68064,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 2.2,
+            "rssKB": 33008,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 41.3,
+            "rssKB": 36576,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 12.2,
+            "rssKB": 56720,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 31.5,
+            "rssKB": 31952,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 17.0,
+            "rssKB": 64416,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 6.5,
+            "rssKB": 33888,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 45.5,
+            "rssKB": 35888,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 18.0,
+            "rssKB": 57104,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.5,
+            "rssKB": 31984,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.4,
+            "rssKB": 62176,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 4.5,
+            "rssKB": 34432,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 49.5,
+            "rssKB": 39328,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 16.1,
+            "rssKB": 58160,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.8,
+            "rssKB": 31904,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.7,
+            "rssKB": 62032,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.4,
+            "rssKB": 34384,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 48.8,
+            "rssKB": 39840,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.7,
+            "rssKB": 55920,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.0,
+            "rssKB": 31312,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2944,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.5,
+            "rssKB": 43728,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.2,
+            "rssKB": 27888,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 47.9,
+            "rssKB": 38544,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5248,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.4,
+            "rssKB": 47920,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ]
+      ]
+    },
+    "economy": {
+      "area": [
+        886,
+        584
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          886,
+          584
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 1,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 12000,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 18,
+        "frameIntervalP95Ms": 72,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Active cadence targets 60 Hz; economy targets 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 0,
+        "pendingTimers": 1,
+        "quality": "economy",
+        "reduced": false,
+        "renderCount": 2204,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 245,
+        "sceneUpdateCPU95Ms": 1,
+        "textures": 1,
+        "triangles": 2322
+      },
+      "frames": 245,
+      "leaves": 41,
+      "nodes": 7,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "elapsedSeconds": 8.352,
+      "observedFPS": 29.33,
+      "hostCPUMedianPercent": 4.5,
+      "hostRSSPeakMB": 29.06,
+      "processSamples": [
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 35.7,
+            "rssKB": 31312,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.9,
+            "rssKB": 39488,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 4.2,
+            "rssKB": 28224,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 49.8,
+            "rssKB": 40160,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.2,
+            "rssKB": 55744,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.4,
+            "rssKB": 31328,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.0,
+            "rssKB": 39456,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 4.8,
+            "rssKB": 28176,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 47.6,
+            "rssKB": 39504,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.1,
+            "rssKB": 53280,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.4,
+            "rssKB": 31248,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.0,
+            "rssKB": 39584,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.1,
+            "rssKB": 27984,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 48.3,
+            "rssKB": 39504,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.5,
+            "rssKB": 49760,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.8,
+            "rssKB": 31136,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.5,
+            "rssKB": 36464,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.5,
+            "rssKB": 27904,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 49.1,
+            "rssKB": 40128,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.6,
+            "rssKB": 49696,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.0,
+            "rssKB": 31552,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2944,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 18.3,
+            "rssKB": 35680,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 3.4,
+            "rssKB": 26624,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 47.2,
+            "rssKB": 37072,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5248,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.2,
+            "rssKB": 32176,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 32.3,
+            "rssKB": 30688,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.5,
+            "rssKB": 34704,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 6.3,
+            "rssKB": 29136,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 51.4,
+            "rssKB": 37424,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 16.6,
+            "rssKB": 37568,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 33.8,
+            "rssKB": 31488,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.2,
+            "rssKB": 35728,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 6.5,
+            "rssKB": 29664,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 51.1,
+            "rssKB": 38432,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 14.4,
+            "rssKB": 45328,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 34.2,
+            "rssKB": 31520,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2944,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.4,
+            "rssKB": 35712,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 5.1,
+            "rssKB": 29760,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 50.9,
+            "rssKB": 38336,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5248,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 13.7,
+            "rssKB": 43584,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ]
+      ]
+    },
+    "reduced": {
+      "area": [
+        886,
+        584
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1329,
+          876
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 1,
+        "cpuSubmitP95Ms": 1,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 12000,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": null,
+        "frameIntervalP95Ms": null,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Active cadence targets 60 Hz; economy targets 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 0,
+        "pendingTimers": 0,
+        "quality": "balanced",
+        "reduced": true,
+        "renderCount": 2207,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 0,
+        "sceneUpdateCPU95Ms": 0,
+        "textures": 1,
+        "triangles": 2322
+      },
+      "frames": 1,
+      "leaves": 41,
+      "nodes": 7,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "elapsedSeconds": 4.2,
+      "observedFPS": 0.24,
+      "hostCPUMedianPercent": 0.5,
+      "hostRSSPeakMB": 32.72,
+      "processSamples": [
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 30.1,
+            "rssKB": 30800,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2960,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 21.8,
+            "rssKB": 28160,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 0.1,
+            "rssKB": 31008,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 27536,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5264,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 26256,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 46.3,
+            "rssKB": 31312,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 4400,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.7,
+            "rssKB": 36432,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 0.1,
+            "rssKB": 31872,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 21216,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6576,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 0.1,
+            "rssKB": 29568,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 56.5,
+            "rssKB": 35216,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 4400,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 16.1,
+            "rssKB": 36432,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 0.9,
+            "rssKB": 28576,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 0.7,
+            "rssKB": 24992,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6512,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 0.3,
+            "rssKB": 31904,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 57.8,
+            "rssKB": 36112,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 3040,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 15.3,
+            "rssKB": 28624,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 4.4,
+            "rssKB": 33504,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 1.5,
+            "rssKB": 22448,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 5616,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 2.5,
+            "rssKB": 33568,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ]
+      ]
+    },
+    "minimized": {
+      "area": [
+        886,
+        584
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1329,
+          876
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": null,
+        "cpuSubmitP95Ms": null,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 12000,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": null,
+        "frameIntervalP95Ms": null,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Active cadence targets 60 Hz; economy targets 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.",
+        "paused": true,
+        "pendingFrames": 0,
+        "pendingTimers": 0,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 2211,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 0,
+        "sceneUpdateCPU95Ms": null,
+        "textures": 1,
+        "triangles": 2322
+      },
+      "frames": 0,
+      "leaves": 41,
+      "nodes": 7,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "elapsedSeconds": 4.171,
+      "observedFPS": 0.0,
+      "hostCPUMedianPercent": 0.1,
+      "hostRSSPeakMB": 29.39,
+      "processSamples": [
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 54.8,
+            "rssKB": 37040,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2976,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 14.1,
+            "rssKB": 35952,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 0.1,
+            "rssKB": 30096,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 0.1,
+            "rssKB": 29248,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6640,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 33072,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 53.9,
+            "rssKB": 36480,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2976,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 14.2,
+            "rssKB": 36320,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 0.1,
+            "rssKB": 29344,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 0.1,
+            "rssKB": 23680,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6640,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 28624,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 54.6,
+            "rssKB": 36336,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2976,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 14.2,
+            "rssKB": 36432,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 0.1,
+            "rssKB": 29472,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 23056,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6608,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 28848,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ],
+        [
+          {
+            "pid": 80144,
+            "ppid": 1,
+            "cpuPercent": 54.5,
+            "rssKB": 36176,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 80146,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 2976,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 80153,
+            "ppid": 1,
+            "cpuPercent": 14.4,
+            "rssKB": 36592,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          },
+          {
+            "pid": 95996,
+            "ppid": 83086,
+            "cpuPercent": 1.1,
+            "rssKB": 29888,
+            "command": ".work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+            "ownHost": true
+          },
+          {
+            "pid": 96042,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 19888,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+            "ownHost": false
+          },
+          {
+            "pid": 96044,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 6592,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+            "ownHost": false
+          },
+          {
+            "pid": 96047,
+            "ppid": 1,
+            "cpuPercent": 0.0,
+            "rssKB": 25600,
+            "command": "/System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+            "ownHost": false
+          }
+        ]
+      ]
+    }
+  },
+  "limitations": "Render cadence measures delivered WebGL draws, not GPU duration. CPU is ps OS average; ownHost is OracleAtlasQA only. WebKit helpers are launchd children shared across applications and are recorded separately, never attributed wholesale to Oracle. Mailbox overhead at 10 Hz applies to both runs."
+}

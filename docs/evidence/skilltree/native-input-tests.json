@@ -1,0 +1,20 @@
+{
+  "passed": 14,
+  "checks": [
+    "precise skill centre hit tests (840, 620) None 0.51",
+    "precise skill centre hit tests (840, 620) None 1",
+    "precise skill centre hit tests (840, 620) marketing 0.51",
+    "precise skill centre hit tests (840, 620) marketing 1",
+    "precise skill centre hit tests (1440, 900) None 0.51",
+    "precise skill centre hit tests (1440, 900) None 1",
+    "precise skill centre hit tests (1440, 900) marketing 0.51",
+    "precise skill centre hit tests (1440, 900) marketing 1",
+    "group has short file branches and semantic membership",
+    "new navigation honours Reduce Transparency",
+    "the UI accepts only rasterized artwork",
+    "original artwork has no CSS desaturation",
+    "WebGL loss preserves accessible SVG group targets",
+    "WebGL recovery keeps one canvas and working shaders"
+  ],
+  "scope": "WebKit native DOM hit testing, appearance and WebGL recovery; physical mouse and keyboard tested separately."
+}

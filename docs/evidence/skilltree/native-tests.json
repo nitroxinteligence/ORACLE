@@ -1,0 +1,2872 @@
+{
+  "checks": [
+    "public fixture isolated from the personal vault",
+    "WebGL compiles the new topology",
+    "all 818 security files remain indexed",
+    "every skill points to a group and no skill is a prerequisite",
+    "focal geometry fits (1200, 760) None",
+    "SOL is wholly framed (1200, 760) None",
+    "focal geometry fits (1200, 760) marketing",
+    "SOL is wholly framed (1200, 760) marketing",
+    "focal geometry fits (1200, 760) cyber-security",
+    "SOL is wholly framed (1200, 760) cyber-security",
+    "focal geometry fits (1200, 760) contents",
+    "SOL is wholly framed (1200, 760) contents",
+    "focal geometry fits (840, 620) None",
+    "SOL is wholly framed (840, 620) None",
+    "focal geometry fits (840, 620) marketing",
+    "SOL is wholly framed (840, 620) marketing",
+    "focal geometry fits (840, 620) cyber-security",
+    "SOL is wholly framed (840, 620) cyber-security",
+    "focal geometry fits (840, 620) contents",
+    "SOL is wholly framed (840, 620) contents",
+    "focal geometry fits (1440, 900) None",
+    "SOL is wholly framed (1440, 900) None",
+    "focal geometry fits (1440, 900) marketing",
+    "SOL is wholly framed (1440, 900) marketing",
+    "focal geometry fits (1440, 900) cyber-security",
+    "SOL is wholly framed (1440, 900) cyber-security",
+    "focal geometry fits (1440, 900) contents",
+    "SOL is wholly framed (1440, 900) contents",
+    "group is a distinct camera context",
+    "skill opens its inspector without being hidden behind it",
+    "back closes the map-owned inspector and restores the panned and zoomed group",
+    "back restores specialist camera",
+    "back restores global camera",
+    "pointer-anchored zoom keeps the same world coordinate",
+    "large groups page actual members",
+    "rapid navigation has one scene and no lingering retirees",
+    "formation reveals specialists before groups and skills",
+    "groups precede skills",
+    "pause is exact",
+    "resume advances the same scene",
+    "reduced motion settles without a render loop",
+    "minimized native window stops rendering",
+    "restoring native window resumes",
+    "all public Markdown hashes unchanged by navigation and timelapse"
+  ],
+  "passed": 44,
+  "matrix": [
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 1
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 2
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 1
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 2
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 1
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 2
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.48999999999999994
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.5000000000000001
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.5099999999999999
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 1.0000000000000002
+    },
+    {
+      "size": [
+        1200,
+        760
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 2
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 1
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 2
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 1
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 2
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 1
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 2
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 1
+    },
+    {
+      "size": [
+        840,
+        620
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 2
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 0.9999999999999999
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": null,
+      "zoom": 2
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 0.9999999999999999
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 50,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "marketing",
+      "zoom": 2
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.49
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.5
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 1
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 50,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "cyber-security",
+      "zoom": 2
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.49,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.49000000000000005
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.5,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 0,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 0,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 0,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 0,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 0,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.49999999999999994
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 0.51,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 0.51
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 1,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 1
+    },
+    {
+      "size": [
+        1440,
+        900
+      ],
+      "requestedZoom": 2,
+      "finite": true,
+      "groups": [
+        {
+          "id": "ads",
+          "shown": 10,
+          "total": 34
+        },
+        {
+          "id": "code",
+          "shown": 10,
+          "total": 37
+        },
+        {
+          "id": "contents",
+          "shown": 0,
+          "total": 0
+        },
+        {
+          "id": "customer-finder",
+          "shown": 1,
+          "total": 1
+        },
+        {
+          "id": "cyber-security",
+          "shown": 10,
+          "total": 818
+        },
+        {
+          "id": "marketing",
+          "shown": 10,
+          "total": 50
+        },
+        {
+          "id": "personal-branding",
+          "shown": 0,
+          "total": 0
+        }
+      ],
+      "selected": "contents",
+      "zoom": 2
+    }
+  ],
+  "source": "Real AppKit/WKWebView with isolated public catalog; state transitions tested through test-only native mailbox. Physical pointer/keyboard coverage documented separately."
+}

@@ -1,0 +1,160 @@
+{
+  "checkedAt": "2026-09-08T19:10:36Z",
+  "source": "Public Codex app-server inventory plus exact app/package artwork; no asset is a connection signal",
+  "plugins": [
+    {
+      "id": "build-ios-apps@openai-curated-remote",
+      "name": "Build iOS Apps",
+      "kind": "plugin",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "iconOrigin": "package:build-ios-apps/app-icon.png",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "eee9f55784548e37e1b4f3dd89627150b29714a36b2f0b3c5cdbeb346bc976a8"
+    },
+    {
+      "id": "connector_68df33b1a2d081918778431a9cfca8ba",
+      "name": "Canva",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "iconOrigin": "package:canva/app-icon.png",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "90baf8d9f6629acdf62e867b342af0c728da48a664f7810d57575b249edef28d"
+    },
+    {
+      "id": "cloudflare@openai-curated-remote",
+      "name": "Cloudflare",
+      "kind": "plugin",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "iconOrigin": "package:cloudflare/cloudflare.png",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "6fc7b82ec86652d938ae84673b58b77c043cf54370b3ad0a4f5fd8224a4031c3"
+    },
+    {
+      "id": "connector_openai_codex_document_control",
+      "name": "Codex Document Control",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasOriginalArtwork": false
+    },
+    {
+      "id": "deep-research-work@openai-curated-remote",
+      "name": "Deep Research",
+      "kind": "plugin",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "iconOrigin": "package:deep-research-work/deep-research.svg",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "08b0b1bd066471312e5d167deab4b206bc0b642387a40ec16b2d0f379059fbb3"
+    },
+    {
+      "id": "openai-templates@openai-curated-remote",
+      "name": "Default templates",
+      "kind": "plugin",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "iconOrigin": "package:openai-templates/icon.svg",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "0fb2bb469fd67636b95306b70be12c7c85bf6e62a65775ce2b2e702e3838c762"
+    },
+    {
+      "id": "connector_68df038e0ba48191908c8434991bbac2",
+      "name": "Figma",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "iconOrigin": "package:figma/logo-padded.png",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "109f6b751fa11a7f10f15c7cb0aa9ab53587ba3e9714af62b2e8719403bc4d71"
+    },
+    {
+      "id": "asdk_app_6a314a73f8ac819195b0d55e36b9c609",
+      "name": "Firecrawl",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "iconOrigin": "app-catalog",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "421ea5dc865f75410bdbd7dd7a68187f0c3acf54152dfd38907b903fe376309d"
+    },
+    {
+      "id": "connector_76869538009648d5b282a4bb21c3d157",
+      "name": "GitHub",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "iconOrigin": "package:github/github-dark.png",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "a7515b69fcc04036320984f718dd98b9720ddd8dcd861cc702c1eba0110da9e9"
+    },
+    {
+      "id": "connector_openai_hotline",
+      "name": "Hotline",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasOriginalArtwork": false
+    },
+    {
+      "id": "investment-banking@openai-curated-remote",
+      "name": "Investment Banking",
+      "kind": "plugin",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "iconOrigin": "package:investment-banking/logo.png",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "0578ee3542e266df18ac70303300832e5e77c651e1e820900d1b2bf0be3c2024"
+    },
+    {
+      "id": "connector_2de447f3f15448ebab48783d7e4f5d81",
+      "name": "OpenAI Platform",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "iconOrigin": "app-catalog",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "7a28fc30d01379d3c4c1ad0e85eb4387352bb02ecf04ac6c3a8e0f07acef423a"
+    },
+    {
+      "id": "connector_openai_plugin_management",
+      "name": "Plugin Management",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "iconOrigin": "package:plugin-management/plugin-management.svg",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "0c11e02766f9817af3ea31a1ad17b560139429e6f97b7799b8186348822a4f6c"
+    },
+    {
+      "id": "product-design@openai-curated-remote",
+      "name": "Product Design",
+      "kind": "plugin",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "iconOrigin": "package:product-design/logo.png",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "a32faed92203a97ea1be85306b9178cedea967456abf951af8366db242b26524"
+    },
+    {
+      "id": "connector_openai_safety_settings",
+      "name": "Safety Settings",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasOriginalArtwork": false
+    },
+    {
+      "id": "connector_20205bf7d4e99a89d7154bb849718324",
+      "name": "Sites",
+      "kind": "app",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "iconOrigin": "package:sites/logo.svg",
+      "hasOriginalArtwork": true,
+      "pngSHA256": "8aeb24ba5793ff15bc80f7385574500f2e6384ce345ad7ed5acad58b2e6a26c4"
+    }
+  ]
+}

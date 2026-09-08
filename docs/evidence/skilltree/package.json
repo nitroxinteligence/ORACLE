@@ -19,21 +19,22 @@
     "e0e27fb",
     "f2df723",
     "b94b360",
-    "08f07dc"
+    "08f07dc",
+    "66294f4"
   ],
   "localOnly": true,
   "personalAppReplaced": false,
   "app": "/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app",
   "dmg": "/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg",
   "appBinarySHA256": "4799f3e2515d71f63d3659119bfdc94c09fc6f3015def4ddf600ed5dddfdc389",
-  "dmgSHA256": "9b7766cf52d218f7487e53cd51f7546effa2aeb1db6a67b0c2f1116ba57f9446",
+  "dmgSHA256": "2cb306bc50760ac051d4fc5c043f9bb1bd9c060d83226c767d81584554f3d612",
   "webSHA256": {
     "index.html": "8c06392d7bb21725ecbcac8bcc8343da64763625c11dda86378e85b21bbb8672",
-    "atlas.js": "8b245637d6a8c3bab03faa6e13b4895e36d40478c99fcad2bf3c98d068317586",
-    "universe.js": "867d7201720911f14d5e95d9fe8f803563a0ceca6bf3dd7fda013f35f16dc6ba",
+    "atlas.js": "0664754b25fd5ed3729cd1306dfcbdf4a355b5a74b74e0db5de2c46ec47f9be7",
+    "universe.js": "e9efbb898d48c82dbfe7447fa94e4b6347f79d2e7ce8c41b8777957a8f4007bd",
     "app.js": "ae12ae4ccf5d4b2ff4d2ecda42f7e6e16924907b7d78da81b8938da4c8ff1fbd",
     "style.css": "58ddc08e9d6598d5748d4c828874f5b01659053fe10e4ab7fee8cb2a7c07f088",
-    "atlas-motion.css": "69560b6c292ee41e8c7e55d119517ddff4929a8dd7a82c1aea008a3d89932b94",
+    "atlas-motion.css": "34418975066e73b80bded8a551d97a5230cc24e2e18abd21c06028257daf0efe",
     "onboarding.js": "aee2166b65c9bb6883f3beefcd985b9fd60357730f062f9012b25acb95e6c4db",
     "installation-visual.js": "9642f68f127e2b9aefeb1fd9ae283b20536b91c1d13414c35026e1f3112815bb",
     "status-badges.js": "4bf3f7fbaf0bf694b580e4757f6bfa9f9e8f76f8a564c97803a6fbbdd4886360",
@@ -44,13 +45,13 @@
   "mountedDMGMatchesApp": false,
   "packagedFilesVerified": 4933,
   "gbrainSourceCommit": "2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d",
-  "note": "UI follow-ups repackaged since mounted-DMG verification; signature and updated resources checked.",
-  "appExecutableSHA256": "ab9e420fa290a547945dd9a8d3c86405ef3056928b8cdcac643462a3992ffdd3",
+  "note": "Signed bundle copied to the primary app; further functional tests stopped at user request.",
+  "appExecutableSHA256": "91ee94f7951d12f4e41aaea7230f203c6aa61d82f805eac24b395e723bd1d3fc",
   "skillsSHA256": {
     "oracle-setup": "ece8c58406a67b8a3857139ca80fe14b1ee9bd98d7e9884ba1fc5cdbbfc17b26",
     "oracle-onboarding": "cbb63a310cb9d81adb51f7d97222f3502871592cdc050e8f16cad3c07a43b323"
   },
   "localApp": ".work/build/Oracle.app",
   "installedApp": "/Applications/Oracle.app",
-  "installedFilesMatchLocalApp": true
+  "installedFilesMatchLocalApp": null
 }

@@ -40,7 +40,7 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `9b7766cf52d218f7487e53cd51f7546effa2aeb1db6a67b0c2f1116ba57f9446`
+- SHA-256 do DMG: `2cb306bc50760ac051d4fc5c043f9bb1bd9c060d83226c767d81584554f3d612`
 
 Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 

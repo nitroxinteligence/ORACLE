@@ -1,8 +1,7 @@
 {
   "installed": "/Applications/Oracle.app",
-  "verifiedFiles": 4934,
   "profilePreserved": true,
-  "appExecutableSHA256": "ab9e420fa290a547945dd9a8d3c86405ef3056928b8cdcac643462a3992ffdd3",
+  "appExecutableSHA256": "91ee94f7951d12f4e41aaea7230f203c6aa61d82f805eac24b395e723bd1d3fc",
   "retiredIndexedCopies": 2,
   "backupsPreserved": true,
   "searchableApplications": [
@@ -13,5 +12,8 @@
   "launchServicesOracleBundles": [
     "/Applications/Oracle.app"
   ],
-  "unregisteredDevelopmentBundles": 13
+  "unregisteredDevelopmentBundles": 13,
+  "previouslyVerifiedFiles": 4934,
+  "latestUpdate": "66294f4",
+  "additionalFunctionalTests": "Stopped at user request"
 }

@@ -62,3 +62,11 @@ html[data-input-mode=pointer] .orbital-plugin:not(:hover):focus-visible .plugin-
 html[data-input-mode=pointer] .verified-connector:not(:hover):focus-visible>circle{stroke:#ffffff40;stroke-width:.8}
 
 html[data-input-mode=keyboard] :is(button,a,summary,input[type=checkbox],input[type=radio],input[type=range]):focus{outline:1px solid var(--focus-line);outline-offset:-1px}
+
+/* Drawing covers the window. Only camera fitting reserves room for floating controls. */
+#app .stage{inset:0;transition:none}
+#atlas{inset:0}
+#app .app-header{background:transparent;border:0;box-shadow:none}
+#app .map-tools{left:var(--atlas-center-x,50%);bottom:22px;z-index:2;transition:left 240ms var(--ease-out)}
+#atlas .atlas-context{top:100px;left:var(--atlas-center-x,50%);max-width:calc(var(--atlas-safe-width,100vw) - 20px);transition:left 240ms var(--ease-out)}
+#results{inset:var(--atlas-safe-top,156px) var(--atlas-safe-right,24px) var(--atlas-safe-bottom,76px) var(--atlas-safe-left,24px)}

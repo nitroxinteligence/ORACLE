@@ -48,7 +48,7 @@ call('window.savedSpecialist={...atlasController.camera};window.testGroup=atlasC
 check('group is a distinct camera context','atlasController.context.kind==="group"&&atlasController.context.group===testGroup&&document.querySelector(".atlas-context").textContent.includes("Marketing")')
 call('atlasController.zoomAt(1.18);atlasController.target.x+=37;atlasController.target.y-=23;atlasController.invalidate();true');settle()
 call('window.savedGroup={...atlasController.camera};window.testLeaf=atlasController.geometry.leaves.find(l=>l.group===testGroup).id;atlasController.select("marketing",testLeaf);true');settle()
-check('skill opens its inspector without being hidden behind it','atlasController.context.kind==="skill"&&!$("#observatory-panel").hidden&&(()=>{const l=atlasController.leaves.get(testLeaf),c=atlasController.camera;return Math.abs(l.x*c.k+c.x-atlasController.width/2)<1&&Math.abs(l.y*c.k+c.y-(atlasController.height+atlasController.contentTop)/2)<1})()')
+check('skill opens its inspector without being hidden behind it','atlasController.context.kind==="skill"&&!$("#observatory-panel").hidden&&(()=>{const l=atlasController.leaves.get(testLeaf),c=atlasController.camera;return Math.abs(l.x*c.k+c.x-atlasController.viewCenter().x)<1&&Math.abs(l.y*c.k+c.y-atlasController.viewCenter().y)<1})()')
 call('atlasController.back();true');settle()
 check('back closes the map-owned inspector and restores the panned and zoomed group','$("#observatory-panel").hidden&&atlasController.context.kind==="group"&&Math.hypot(atlasController.camera.x-savedGroup.x,atlasController.camera.y-savedGroup.y)<1&&Math.abs(atlasController.camera.k-savedGroup.k)<.001')
 call('atlasController.back();true');settle()

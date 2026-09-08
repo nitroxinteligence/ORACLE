@@ -45,5 +45,8 @@ func runEditorTests() throws {
     try rejects("index mirror cannot be edited") { _ = try c.saveNote(path:"note.md",original:digest(Data(original.utf8)),text:edited) }
     c.config["vault"]=root.path
     try rejects("oversized draft rejected") { _ = try c.saveDraft(path:path,original:digest(Data(original.utf8)),text:String(repeating:"x",count:2_000_001)) }
+    let extraPath="SISTEMA/skills/research/team/SKILL.md"
+    let extraURL=try c.scoped(extraPath,root:root);try fm.createDirectory(at:extraURL.deletingLastPathComponent(),withIntermediateDirectories:true);try Data(original.utf8).write(to:extraURL)
+    try expect(c.discoveredCollections(try c.scan(root:root)).contains{$0["id"]=="research"},"new specialist folders are discovered from actual skills")
     print("Editor: \(passed) checks passed, isolated temporary vault.")
 }

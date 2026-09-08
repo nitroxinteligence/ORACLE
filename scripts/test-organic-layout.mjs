@@ -14,7 +14,7 @@ test('required zoom boundary and minimum counts across empty, small and large re
 });
 test('geometry keeps identity and leaf paths stable under source reordering',()=>{
  const docs=ids.flatMap(id=>entries(id,55));const a=plan(collections,docs,'marketing'),b=plan([...collections].reverse(),[...docs].reverse(),'marketing');
- assert.deepEqual(a,b);for(const id of ids)assert.equal(a.nodes.find(n=>n.id===id).color,identity(id).color);
+ assert.deepEqual(a,b);assert.deepEqual(a.nodes.map(n=>n.id),['marketing']);assert.equal(a.nodes[0].color,identity('marketing').color);
 });
 test('group branches avoid overlapping specialists or dense leaf clumps',()=>{
  const docs=ids.flatMap(id=>entries(id,id==='contents'?0:818));
@@ -34,11 +34,11 @@ test('new specialists retain unique positions and stable colors',()=>{
   assert.ok(result.nodes.every(n=>n.color===identity(n.id).color));
  }
 });
-test('density adds actual leaves and never removes the required floor',()=>{
+test('dedicated specialist caps rendered files across density settings',()=>{
  const docs=entries('marketing',818);
  assert.equal(plan(collections,docs,'marketing',0).leaves.length,50);
  assert.equal(plan(collections,docs,'marketing',3).leaves.length,50);
- assert.equal(plan(collections,docs,'marketing',6).leaves.length,86);
+ assert.equal(plan(collections,docs,'marketing',6).leaves.length,50);
 });
 test('formation finishes every leaf for large catalogs and arbitrary specialist counts',()=>{
  for(const groups of [1,7,10,128])for(let group=0;group<groups;group++){

@@ -37,3 +37,17 @@ test('fit reserves navigation space and contains focal geometry on small and wid
     assert.ok(Number.isFinite(c.k)&&c.k>0);
   }
 });
+
+test('dedicated scenes cap the graph while retaining the entire catalog and selected file',()=>{
+  const entries=Array.from({length:818},(_,i)=>entry('',`alpha-${String(i).padStart(4,'0')}`));
+  for(const detail of [0,3,6]){
+    const result=plan([{id:'marketing',name:'Marketing'},{id:'code',name:'Code'}],entries,'marketing',detail);
+    assert.equal(result.leaves.length,50);assert.equal(result.nodes[0].skills.length,818);
+    assert.deepEqual(result.nodes.map(n=>n.id),['marketing']);assert.equal(result.nodes[0].x,0);assert.equal(result.nodes[0].y,0);
+  }
+  const groups=catalogGroups('marketing',entries),leaf=entries.at(-1).path;
+  for(const context of [{leaf},{group:groups[0].id,page:0,leaf}]){
+    const result=plan([{id:'marketing'}],entries,'marketing',3,{},248,context);
+    assert.equal(result.leaves.length,50);assert.ok(result.leaves.some(l=>l.id===leaf));
+  }
+});

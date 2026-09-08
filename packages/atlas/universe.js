@@ -162,6 +162,8 @@ class OracleUniverse {
   sync(model) {
     if (!this.active) return;
     this.model = model;
+    const showSun=!model.selected;
+    if(this.sun.visible!==showSun){this.sun.visible=showSun;this.orbits.visible=showSun;this.dirty=true;}
     this.u.uGroupCount.value = Math.max(1, model.nodes.size);
     let changed = false;
     const width = Math.round(model.width), height = Math.round(model.height);
@@ -256,14 +258,14 @@ class OracleUniverse {
       changed = write(node.center, row, n.x, -n.y) || changed;
       changed = write(node.tint, row, color.r, color.g, color.b) || changed;
       changed = write(node.order, row, n.index) || changed;
-      edgeTo(0, 0, n.x, n.y, color, 0, n.index, -1, -3);
+      if(!model.selected)edgeTo(0, 0, n.x, n.y, color, 0, n.index, -1, -3);
       row++;
     }
     let clusterRow = 0;
     for (const g of model.groups.values()) {
       this.clusterRows.set(g.id, clusterRow++);
       const parent = model.nodes.get(g.parent), color = this.colors[parent.index];
-      if(g.id!==model.context?.group)edgeTo(parent.x, parent.y, g.x, g.y, color, .5, parent.index, this.clusterRows.get(g.id), -3);
+      edgeTo(parent.x, parent.y, g.x, g.y, color, .5, parent.index, this.clusterRows.get(g.id), -3);
     }
     let leafRow = 0;
     for (const l of model.leaves.values()) {
@@ -277,7 +279,7 @@ class OracleUniverse {
       changed = write(leaf.leafCluster, leafRow, this.clusterRows.get(l.group) ?? -2) || changed;
       changed = write(leaf.leafLife, leafRow, l.life ?? 1) || changed;
       const source=l.route&&!l.retiring?{x:l.x-l.route.offset,y:l.y}:model.groups.get(l.group)||parent;
-      edgeTo(source.x, source.y, l.x, l.y, color, 1, parent.index, this.clusterRows.get(l.group) ?? -2, leafRow, l.life ?? 1);
+      edgeTo(source.x, source.y, l.x, l.y, color, 1, parent.index, this.clusterRows.get(l.group) ?? -2, leafRow, (l.life ?? 1)*(model.selected&&model.leaves.size>150?.24:1));
       leafRow++;
     }
     if (this.nodeGeometry.instanceCount !== row || this.edgeGeometry.instanceCount !== edgeRow || this.leafGeometry.drawRange.count !== leafRow) changed = true;

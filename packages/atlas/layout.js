@@ -70,7 +70,50 @@ export function fitCamera(bounds, width, height, top = 48, padding = 18, maximum
   return { x: width / 2 - (bounds.minX + bounds.maxX) * k / 2,
     y: (height + top) / 2 - (bounds.minY + bounds.maxY) * k / 2, k };
 }
+// A specialist is a separate constellation: its root stays at the origin and
+// at most 50 actual files surround it; the complete catalog stays in navigation.
+function specialistPlan(collection, entries, context) {
+  const catalog = catalogGroups(collection.id, entries);
+  const root = {...collection, x:0, y:0, angle:-Math.PI/2, color:identity(collection.id).color,
+    skills:catalog.flatMap(g=>g.skills), groups:catalog};
+  const candidates = context.group ? catalog.filter(g=>g.id===context.group) : catalog;
+  const chosen=sampleGroups(candidates,50,context.group,context.page||0,50);
+  if(context.leaf&&!Array.from(chosen.values()).flat().some(e=>e.path===context.leaf)){
+    const owner=candidates.find(g=>g.skills.some(e=>e.path===context.leaf));
+    if(owner){const rows=Array.from(chosen.values());if(rows.flat().length>=50)rows.findLast(items=>items.length)?.pop();chosen.get(owner.id).push(owner.skills.find(e=>e.path===context.leaf));}
+  }
+  const visible=candidates.filter(g=>chosen.get(g.id).length);
+  const groups=[], leaves=[], tau=Math.PI*2;
+  const weight=visible.reduce((sum,g)=>sum+Math.max(3,chosen.get(g.id).length),0);
+  const radius=Math.max(180,visible.length*27);
+  let cursor=-Math.PI/2;
+  for(const [gi,g] of visible.entries()) {
+    const members=chosen.get(g.id);
+    const share=tau*Math.max(3,members.length)/Math.max(1,weight), angle=cursor+share/2;
+    const group={...g,x:Math.cos(angle)*radius,y:Math.sin(angle)*radius,angle,index:gi,
+      focused:g.id===context.group,source:root.id,visibleCount:members.length};
+    groups.push(group);
+    let slot=0,ring=0,radial=radius+120;
+    for(const [i,entry] of members.entries()) {
+      const capacity=Math.max(1,Math.floor(radial*Math.max(.08,share-.12)/65));
+      if(slot>=capacity){slot=0;ring++;radial+=85;}
+      const ringCapacity=Math.max(1,Math.floor(radial*Math.max(.08,share-.12)/65));
+      const remaining=members.length-i+slot,count=Math.min(ringCapacity,remaining);
+      const a=angle+(slot-(count-1)/2)*(share-.12)/Math.max(1,count);
+      leaves.push({id:entry.path,parent:root.id,group:g.id,source:g.id,x:Math.cos(a)*radial,y:Math.sin(a)*radial,
+        custom:false,name:skillName(entry),index:leaves.length,localIndex:i,depth:2,route:null,angle:a,dir:Math.cos(a)>=0?1:-1});
+      slot++;
+    }
+    cursor+=share;
+  }
+  const points=[root,...groups,...leaves];
+  const extent=Math.max(220,...points.map(p=>Math.max(Math.abs(p.x),Math.abs(p.y))))+90;
+  const bounds={minX:-extent,maxX:extent,minY:-extent,maxY:extent};
+  return {nodes:[root],groups,leaves,bounds,focusBounds:bounds,dedicated:true};
+}
 export function plan(collections, entries, selected, detail = 3, manual = {}, minimumRadius = 248, context = {}) {
+  const specialist=collections.find(c=>c.id===selected);
+  if(specialist)return specialistPlan(specialist,entries,context);
   const sorted = [...collections].sort((a, b) => identity(a.id).angle - identity(b.id).angle || a.id.localeCompare(b.id));
   const known = sorted.every(c => identities[c.id]) && sorted.length <= 7;
   const radius = Math.max(270, sorted.length * 34, minimumRadius);

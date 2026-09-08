@@ -55,3 +55,8 @@
 .routing-edge{stroke:var(--node-accent);stroke-width:.65;fill:none;vector-effect:non-scaling-stroke;pointer-events:none}
 
 body.reduce-transparency .atlas-context{background:#1c1c1c;backdrop-filter:none;-webkit-backdrop-filter:none}
+
+/* Dedicated specialist scenes retain the same edge-to-edge universe. */
+#atlas:not([data-context="global"]) .category-edge,#atlas:not([data-context="global"]) .edge-flow{display:none}
+#atlas.scene-travelling .atlas-scene{pointer-events:none}
+#atlas:not([data-context="global"]) .category-name{display:block;opacity:1;fill:#eee}

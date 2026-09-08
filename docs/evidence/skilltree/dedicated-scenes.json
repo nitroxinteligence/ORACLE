@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "Code: 37 skills, dedicated root",
+    "Cybersecurity: 50 rendered out of 818 catalog files",
+    "Back restores Code",
+    "Universe restores SOL and seven specialists",
+    "Reduced motion skips slide",
+    "Rapid navigation settles without errors",
+    "Selection outside the initial sample is included without exceeding 50 nodes"
+  ],
+  "passed": 7,
+  "source": "native AppKit/WKWebView, public catalog"
+}

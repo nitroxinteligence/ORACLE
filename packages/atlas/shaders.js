@@ -59,13 +59,14 @@ void main(){
 }`;
 
 export const nodeVertex = `
+uniform float uScale;uniform float uContext;
 attribute vec2 center;
 attribute vec3 tint;
 attribute vec4 nodeState;
 attribute float order;
 varying vec2 vUv;varying vec3 vTint;varying vec4 vState;varying float vOrder;
 void main(){vUv=uv;vTint=tint;vState=nodeState;vOrder=order;
-gl_Position=projectionMatrix*modelViewMatrix*vec4(position.xy*86.+center,1.,1.);}`;
+gl_Position=projectionMatrix*modelViewMatrix*vec4(position.xy*(uContext>0.?max(86.,74./uScale):86.)+center,1.,1.);}`;
 
 export const nodeFragment = `
 ${shared}

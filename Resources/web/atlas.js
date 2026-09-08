@@ -63,8 +63,9 @@ class OracleAtlas {
     }
     this.lastZoom=null;this.invalidate();
   }
-  update(data){
+  update(data,immediate=false){
     const routeChanged=this.data&&(this.selected!==data.selected||this.selectedLeaf!==(data.selectedLeaf||null));
+    if(routeChanged&&!immediate&&this.selected!==(data.selected||null)){this.transitionScene(()=>this.update(data,true),data.selected?1:-1);return}
     if(routeChanged)this.remember();
     this.data=data;this.selected=data.selected||null;this.selectedLeaf=data.selectedLeaf||null;
     if(routeChanged||!this.context.kind)this.context={kind:this.selectedLeaf?'skill':this.selected?'specialist':'global',group:this.selectedLeaf?OracleLayout.catalogGroups(this.selected,data.entries||[]).find(g=>g.skills.some(e=>e.path===this.selectedLeaf))?.id:null,page:0};
@@ -85,6 +86,7 @@ class OracleAtlas {
     const oldBase=this.baseScale,ratio=this.target.k/oldBase||1,anchor={x:(this.viewCenter().x-this.target.x)/this.target.k,y:(this.viewCenter().y-this.target.y)/this.target.k};
     this.geometry=OracleLayout.plan(this.data.collections||[],this.data.entries||[],this.selected,this.data.detail,this.layout,Math.max(105,(this.data.plugins||[]).filter(p=>p.status==='connected').length*3.8)+150,{...this.context,leaf:this.selectedLeaf});
     const present=new Set(this.geometry.nodes.map(n=>n.id));
+    for(const[id,l]of this.leaves)if(!present.has(l.parent)){l.g.remove();l.edge.remove();this.leaves.delete(id)}
     for(const[id,n]of this.nodes)if(!present.has(id)){n.g.remove();n.edge.remove();n.flow.remove();this.nodes.delete(id)}
     if(this.selected&&!present.has(this.selected)){this.selected=null;this.selectedLeaf=null}
     // Keep rendering order keyed to identity, independent of source enumeration order.
@@ -101,6 +103,7 @@ class OracleAtlas {
         const label=this.make('text',{y:60,'text-anchor':'middle',class:'category-name'},g),count=this.make('text',{y:77,'text-anchor':'middle',class:'category-count'},g);
         n={id:p.id,x:p.x,y:p.y,edge,flow,g,label,count};this.nodes.set(p.id,n);
       }
+      if(!this.selected){n.g.querySelector('.category-symbol').removeAttribute('transform');n.g.querySelector('.selection-ring').setAttribute('r',31);n.g.querySelector('.planet-surface').setAttribute('r',25)}
       Object.assign(n,{name:p.name,tx:p.x,ty:p.y,index:i,skills:p.skills,angle:p.angle});this.palette[i]=p.color;
       n.g.style.setProperty('--node-accent',p.color);n.edge.style.setProperty('--node-accent',p.color);n.label.textContent=p.name;n.count.textContent=`${p.skills.length} skills`;
       n.g.dataset.tooltip=`${p.name} · ${p.skills.length} ${p.skills.length===1?'skill':'skills'}`;
@@ -131,6 +134,7 @@ class OracleAtlas {
   buildLeaves(level=this.camera.k/this.baseScale){
     if(!this.geometry)return;
     const visible=(this.contextTravelling?this.target.k/this.baseScale:level)>.500001,rows=visible?this.geometry.leaves:[],wanted=new Set(rows.map(l=>l.id));
+    for(const[id,l]of this.leaves)if(!wanted.has(id)&&this.selected){l.g.remove();l.edge.remove();this.leaves.delete(id)}
     for(const[id,l]of this.leaves)if(!wanted.has(id)&&!l.retiring){
       if(l.g.contains(document.activeElement))this.groups.get(l.group)?.g.focus({preventScroll:true});
       l.retiring=true;l.lifeTarget=0;l.g.setAttribute('tabindex','-1');l.g.style.pointerEvents='none';
@@ -188,10 +192,11 @@ class OracleAtlas {
     const detail=Number(this.data?.detail??3),level=this.camera.k/this.baseScale;
     const key=[this.selected,this.selectedLeaf,this.context.group,this.context.page,Math.round(level*10),this.leaves.size,this.nodes.size,detail].join('|');if(key===this.lastSelectionKey)return;this.lastSelectionKey=key;
     this.el.dataset.context=this.context.kind;
+    for(const layer of this.el.querySelectorAll('.oracle-core,.plugin-orbit-layer,.verified-connectors,.orbital-scaffolding')){layer.style.display=this.selected?'none':'';layer.setAttribute('aria-hidden',String(!!this.selected))}
     for(const n of this.nodes.values()){const active=n.id===this.selected;n.g.classList.toggle('selected',active);n.g.classList.toggle('subdued',!!this.selected&&!active);n.edge.classList.toggle('selected',active);n.edge.classList.toggle('subdued',!!this.selected&&!active);n.flow.classList.toggle('flow-visible',active||!this.selected);n.g.setAttribute('aria-pressed',String(active))}
     for(const g of this.groups.values()){
       const active=g.id===this.context.group,member=g.parent===this.selected,dim=!!this.selected&&!member||!!this.context.group&&!active;
-      g.g.classList.toggle('selected',active);g.g.classList.toggle('member',member);g.g.classList.toggle('subdued',dim);g.edge.classList.toggle('subdued',dim);g.edge.style.visibility=active?'hidden':'';g.g.setAttribute('aria-pressed',String(active));
+      g.g.classList.toggle('selected',active);g.g.classList.toggle('member',member);g.g.classList.toggle('subdued',dim);g.edge.classList.toggle('subdued',dim);g.edge.style.visibility='';g.g.setAttribute('aria-pressed',String(active));
     }
     for(const l of this.leaves.values()){const member=l.parent===this.selected,dim=!!this.selected&&!member||!!this.context.group&&l.group!==this.context.group;l.g.classList.toggle('selected',l.id===this.selectedLeaf);l.g.classList.toggle('subdued',dim);l.edge.classList.toggle('selected',l.id===this.selectedLeaf);l.edge.classList.toggle('member',member);l.g.setAttribute('aria-pressed',String(l.id===this.selectedLeaf))}
     this.renderContext();
@@ -213,6 +218,7 @@ class OracleAtlas {
     if(this.disposed)return;const started=performance.now(),{x,y,k}=this.camera;
     this.world.setAttribute('transform',`translate(${x} ${y}) scale(${k})`);
     for(const n of this.nodes.values())if(n._x!==n.x||n._y!==n.y){n.g.setAttribute('transform',`translate(${n.x} ${n.y})`);const d=this.edgePath(0,0,n.x,n.y);n.edge.setAttribute('d',d);n.flow.setAttribute('d',d);n._x=n.x;n._y=n.y}
+    if(this.selected&&k!==this.lastLabelK)for(const n of this.nodes.values()){n.label.style.fontSize=`${13/k}px`;n.label.setAttribute('y',38/k);n.g.querySelector('.category-symbol').setAttribute('transform',`scale(${Math.max(1,1/k)})`);n.g.querySelector('.selection-ring').setAttribute('r',Math.max(31,31/k));n.g.querySelector('.planet-surface').setAttribute('r',Math.max(25,25/k))}
     for(const group of this.groups.values()){
       const parent=this.nodes.get(group.parent);
       if(group._x!==group.x||group._y!==group.y||group._px!==parent.x||group._py!==parent.y){
@@ -258,7 +264,7 @@ class OracleAtlas {
       const limit=l.route?Math.max(9,Math.min(34,Math.floor((205*k-29)/5.7))):34;
       const label=l.name.length>limit?l.name.slice(0,limit-1)+'…':l.name;
       if(l.label.textContent!==label)l.label.textContent=label;
-      const eligible=!l.retiring&&(l.id===this.selectedLeaf||detail>0&&(this.context.group?l.group===this.context.group:l.parent===this.selected||level>1.35)&&count<(this.context.group?detail*18:detail*3));
+      const eligible=!l.retiring&&(!this.selected||this.leaves.size<=150||level>1.5||l.id===this.selectedLeaf)&&(l.id===this.selectedLeaf||detail>0&&(this.context.group?l.group===this.context.group:l.parent===this.selected||level>1.35)&&count<(this.selected?Math.max(24,detail*24):detail*3));
       const sx=x+l.x*k,sy=y+l.y*k,width=Math.min(190,l.label.textContent.length*5.7),height=16;
       let dir=l.dir;if(sx+9+width>this.width-8)dir=-1;if(sx-9-width<8)dir=1;
       const box={left:dir===1?sx+9:sx-9-width,right:dir===1?sx+9+width:sx-9,top:sy-height/2,bottom:sy+height/2};
@@ -288,11 +294,45 @@ class OracleAtlas {
     this.target=this.fittedCamera();
     this.baseScale=this.target.k;this.lastZoom=null;this.invalidate();
   }
+  transitionScene(change,direction=1){
+    const token=(this.sceneToken||0)+1;this.sceneToken=token;
+    for(const animation of this.sceneAnimations||[])animation.cancel();
+    const layers=[this.svg,this.el.querySelector('.universe-webgl')].filter(Boolean);
+    const settle=()=>{
+      if(this.disposed||token!==this.sceneToken)return false;
+      change();this.camera={...this.target};this.lastLabelK=null;
+      if(this.selected&&!this.reduced){
+        const now=performance.now();
+        for(const g of this.groups.values()){g.x=0;g.y=0;g.arriveAt=now+50+Math.min(g.index*12,120)}
+        for(const l of this.leaves.values())if(!l.retiring){l.x=0;l.y=0;l.life=0;l.arriveAt=now+100+Math.min(l.localIndex*8,200)}
+        this.geometryMoving=true;
+      }
+      this.draw();this.invalidate();return true;
+    };
+    if(this.reduced||document.hidden){this.el.classList.remove('scene-travelling');settle();return}
+    this.el.classList.add('scene-travelling');
+    this.sceneAnimations=layers.map(layer=>layer.animate([
+      {opacity:1,transform:'translateX(0)'},{opacity:0,transform:`translateX(${-direction*90}px)`}
+    ],{duration:180,easing:'cubic-bezier(.4,0,1,1)',fill:'forwards'}));
+    Promise.all(this.sceneAnimations.map(a=>a.finished)).then(()=>{
+      if(!settle())return;
+      for(const animation of this.sceneAnimations)animation.cancel();
+      this.sceneAnimations=layers.map(layer=>layer.animate([
+        {opacity:0,transform:`translateX(${direction*120}px)`},{opacity:1,transform:'translateX(0)'}
+      ],{duration:560,easing:'cubic-bezier(.16,1,.3,1)',fill:'both'}));
+      return Promise.all(this.sceneAnimations.map(a=>a.finished));
+    }).then(()=>{
+      if(token!==this.sceneToken)return;
+      for(const animation of this.sceneAnimations||[])animation.cancel();
+      this.sceneAnimations=[];this.el.classList.remove('scene-travelling');
+    }).catch(error=>{if(token!==this.sceneToken)return;for(const a of this.sceneAnimations||[])a.cancel();this.sceneAnimations=[];this.el.classList.remove('scene-travelling');if(error.name!=='AbortError'){this.sceneError=String(error);console.error(error)}});
+  }
   remember(){
     this.history.push({selected:this.selected,leaf:this.selectedLeaf,context:{...this.context},camera:{...this.target},base:this.baseScale,width:this.width,height:this.height,center:this.viewCenter(),autoFit:this.autoFit});
     if(this.history.length>32)this.history.shift();
   }
-  back(){
+  back(immediate=false){
+    if(!immediate&&this.history.length){this.transitionScene(()=>this.back(true),-1);return}
     this.finishFormationForInput();let prior=this.history.pop();while(prior&&prior.selected&&!(this.data.collections||[]).some(c=>c.id===prior.selected))prior=this.history.pop();
     if(!prior){if(this.selected)this.select(null);else this.fit();return}
     this.selected=prior.selected;this.selectedLeaf=prior.leaf;this.context={...prior.context};
@@ -302,19 +342,20 @@ class OracleAtlas {
     this.target={x:this.viewCenter().x-center.x*k,y:this.viewCenter().y-center.y*k,k};this.autoFit=prior.autoFit;
     this.lastSelectionKey=null;this.selection();this.invalidate();this.cb.onSelect?.(this.selected,this.selectedLeaf);
   }
-  navigate(category,group=null,leaf=null,page=0,keyboard=false){
+  navigate(category,group=null,leaf=null,page=0,keyboard=false,immediate=false){
     this.finishFormationForInput();
     const kind=leaf?'skill':group?'group':category?'specialist':'global';
     if(this.selected===category&&this.context.group===group&&this.selectedLeaf===leaf&&this.context.page===page){this.fit();return}
+    if(!immediate&&(this.selected!==category||this.context.group!==group)){this.transitionScene(()=>this.navigate(category,group,leaf,page,keyboard,true),category?1:-1);return}
     this.remember();const level=this.target.k/this.baseScale;
     this.selected=category;this.selectedLeaf=leaf;this.context={kind,group,page};this.contextTravelling=true;
     if(this.data){this.data.selected=category;this.data.selectedLeaf=leaf}
     this.topologyKey=null;this.relayout();this.fit();
-    if(level<=.500001){this.zoomAt(level);this.autoFit=false}
+    if(level<=.500001&&!category){this.zoomAt(level);this.autoFit=false}
     if(leaf){const p=this.geometry.leaves.find(l=>l.id===leaf);if(p){const k=this.baseScale*1.35;this.target={x:this.viewCenter().x-p.x*k,y:this.viewCenter().y-p.y*k,k};this.autoFit=false}}
     this.lastSelectionKey=null;this.selection();this.invalidate();this.cb.onSelect?.(category,leaf,keyboard);
   }
-  focus(id){if(this.nodes.has(id))this.navigate(id)}
+  focus(id){if(this.data?.collections.some(c=>c.id===id))this.navigate(id)}
   focusGroup(id){const group=this.groups.get(id);if(group)this.navigate(group.parent,id)}
   pageGroup(delta){const group=this.groups.get(this.context.group);if(!group)return;const page=Math.max(0,Math.min(Math.ceil(group.skills.length/50)-1,this.context.page+delta));if(page!==this.context.page)this.navigate(group.parent,group.id,null,page)}
   select(category,leaf=null,keyboard=false){
@@ -354,10 +395,10 @@ class OracleAtlas {
     this.listen(this.el,'keydown',e=>{if(e.target.closest('.atlas-context'))return;const group=e.target.closest('[data-group]')?.dataset.group;if(group&&['Enter',' '].includes(e.key)){e.preventDefault();this.focusGroup(group);return}const connector=e.target.closest('[data-connector]')?.dataset.connector;if(connector&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onConnector?.(connector);return}const plugin=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(plugin&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onPlugin?.(plugin);return}const cat=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;const node=skill?this.leaves.get(skill):cat?this.nodes.get(cat):null;
       if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.back();return}if(e.key==='+'||e.key==='='){e.preventDefault();this.zoomAt(1.2);return}if(e.key==='-'){e.preventDefault();this.zoomAt(1/1.2);return}if(e.key==='0'){e.preventDefault();this.fit();return}
       if(node&&e.altKey&&!this.data?.replay&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();const delta=e.shiftKey?25:8;this.translateNode(node,e.key==='ArrowLeft'?-delta:e.key==='ArrowRight'?delta:0,e.key==='ArrowUp'?-delta:e.key==='ArrowDown'?delta:0,cat);this.layout[skill?'leaves':'nodes'][skill||cat]={x:node.x,y:node.y};this.draw();this.persistSoon();return}
-      if(!e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)&&this.selected){e.preventDefault();const ids=[...this.nodes.keys()],index=ids.indexOf(this.selected);this.focus(ids[(index+(e.key==='ArrowLeft'?-1:1)+ids.length)%ids.length]);return}if(e.key==='Enter'&&e.target.closest('[data-core]')){e.preventDefault();this.select(null);return}
+      if(!e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)&&this.selected){e.preventDefault();const ids=this.data.collections.map(c=>c.id),index=ids.indexOf(this.selected);this.focus(ids[(index+(e.key==='ArrowLeft'?-1:1)+ids.length)%ids.length]);return}if(e.key==='Enter'&&e.target.closest('[data-core]')){e.preventDefault();this.select(null);return}
       if(e.key==='Enter'&&node){e.preventDefault();this.select(skill?node.parent:cat,skill,true)}if(e.key===' '){e.preventDefault();if(skill)this.cb.onOpen?.(skill);else if(cat)this.focus(cat);else this.fit()}
     });
   }
-  dispose(){if(this.disposed)return;this.disposed=true;this.abort.abort();this.observer.disconnect();cancelAnimationFrame(this.frame);clearTimeout(this.saveTimer);clearTimeout(this.eventTimer);this.frame=0;this.universe?.dispose();this.nodes.clear();this.groups.clear();this.leaves.clear();this.el.replaceChildren()}
+  dispose(){if(this.disposed)return;this.disposed=true;this.sceneToken=(this.sceneToken||0)+1;for(const a of this.sceneAnimations||[])a.cancel();this.abort.abort();this.observer.disconnect();cancelAnimationFrame(this.frame);clearTimeout(this.saveTimer);clearTimeout(this.eventTimer);this.frame=0;this.universe?.dispose();this.nodes.clear();this.groups.clear();this.leaves.clear();this.el.replaceChildren()}
 }
 window.OracleAtlas=OracleAtlas;

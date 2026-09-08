@@ -61,3 +61,11 @@ export class QualityGovernor {
     return degrade;
   }
 }
+
+/** Rigid motion per ring preserves neighbour spacing; logos only translate. */
+export function pluginOrbitRadius(count) { return Math.max(105,Math.max(0,count)*5.4); }
+export function orbitalPosition(radius,angle,seconds,period=90,direction=1,breathing=0) {
+  const phase=angle+seconds*Math.PI*2/period*direction;
+  const r=radius+Math.sin(seconds*Math.PI*2/37)*breathing;
+  return {x:Math.cos(phase)*r,y:Math.sin(phase)*r,radius:r};
+}

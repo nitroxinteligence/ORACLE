@@ -1,0 +1,15 @@
+{
+  "passed": 9,
+  "checks": [
+    "Plugins and every knowledge ring move",
+    "Hover pauses the entire plugin ring, leaving others moving",
+    "Keyboard focus holds its knowledge ring",
+    "Pause atmosphere stops all orbital motion",
+    "Reduce motion freezes all rings without resetting positions",
+    "Hidden window does not advance orbit phases",
+    "Folders and notes move in dedicated knowledge scenes",
+    "Knowledge item remains still for inspection and clicking",
+    "No navigation or renderer errors"
+  ],
+  "scope": "Native WKWebView with synthetic public-gallery state; one existing ambient render scheduler"
+}

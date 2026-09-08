@@ -2,7 +2,7 @@
 
 A órbita de plugins conserva os logos próprios. Quando não há arte válida, usa o mesmo símbolo branco de órbita na galáxia, no Observatório e nos modais. Codex Document Control, Hotline e Safety Settings ficam fora dessa órbita: o catálogo público do Codex os descreve como controle de sessões de documentos, consulta de linhas de apoio e controles parentais/contato de confiança, respectivamente. O filtro é de apresentação e não altera permissões ou instalações. [Metadados consultados](evidence/skilltree/internal-connectors.json).
 
-Ao redor dos plugins, círculos preenchidos representam Pessoal, Profissional e até 48 notas/subpastas reais. Cores são estáveis por área/caminho. O tooltip identifica o caminho, o tipo de item e a quantidade de notas nas pastas. As duas áreas principais mantêm posições fixas; o restante se distribui em anéis externos.
+Ao redor dos plugins, círculos preenchidos representam Pessoal, Profissional e até 48 notas/subpastas reais. Cores são estáveis por área/caminho. O tooltip identifica o caminho, o tipo de item e a quantidade de notas nas pastas. As duas áreas principais permanecem em lados opostos do mesmo anel; os demais itens se distribuem em anéis externos.
 
 Clicar numa pasta abre uma cena dedicada com transição lateral e apenas seus filhos diretos. Clicar numa nota abre o leitor Markdown existente. Breadcrumb, Voltar, teclado, pan e zoom continuam disponíveis. Há até 50 filhos por página e todas as páginas são acessíveis. A barra lateral permite navegar nas duas áreas, e a busca mantém acesso ao catálogo inteiro. A releitura periódica/ação Reler pasta atualiza o conteúdo a partir do Obsidian.
 
@@ -23,3 +23,9 @@ As skills distribuídas orientam novas notas duráveis autorizadas para a área 
 - Clique físico na órbita Pessoal, subpasta Saúde e nota Rotina. As notas da prévia são sintéticas e não fazem parte do pacote distribuído.
 
 [Órbita](evidence/skilltree/knowledge-orbit.png) · [Tooltip](evidence/skilltree/knowledge-tooltip.png) · [Pessoal](evidence/skilltree/knowledge-personal.png) · [Empresa](evidence/skilltree/knowledge-company.png)
+
+## Movimento orbital
+
+Plugins se deslocam pelo mesmo anel com espaçamento constante e logos sempre na vertical. Os anéis pessoais/profissionais alternam o sentido de rotação e têm uma oscilação radial discreta. Dentro de uma pasta, seus filhos também orbitam o centro. Hover ou foco de teclado pausa o anel inteiro, evitando que um vizinho alcance o item parado. Pausa da atmosfera, redução de movimento, janela oculta e transições suspendem o avanço. Tudo usa o agendador ambiental existente, sem um novo loop de animação.
+
+Verificação: dois testes de espaçamento, incluindo até 80 plugins, e [nove verificações nativas de movimento e pausa](evidence/skilltree/orbit-motion-native.json). O movimento é decorativo e não representa execução de tarefas.

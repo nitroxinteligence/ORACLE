@@ -5,12 +5,12 @@ import {
   LinearFilter, RepeatWrapping, DynamicDrawUsage, SRGBColorSpace,
 } from 'three';
 import * as shaders from './shaders.js';
-import { FormationTimeline, revealAt, Samples, QualityGovernor, pixelRatio } from './motion.js';
+import { FormationTimeline, revealAt, Samples, QualityGovernor, pixelRatio, pluginOrbitRadius, orbitalPosition } from './motion.js';
 import * as layout from './layout.js';
 import * as knowledge from './knowledge.js';
 window.OracleKnowledge = knowledge;
 window.OracleLayout = layout;
-window.OracleMotion = { FormationTimeline, revealAt };
+window.OracleMotion = { FormationTimeline, revealAt, pluginOrbitRadius, orbitalPosition };
 
 const uniform = value => ({ value });
 const seed = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -325,6 +325,7 @@ class OracleUniverse {
       this.host.querySelector('.oracle-core').style.opacity = p === 1 ? '' : String(revealAt(p, 'sun'));
       if(this.model.connectorLayer)this.model.connectorLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       if(this.model.pluginLayer)this.model.pluginLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
+      if(this.model.knowledgeLayer)this.model.knowledgeLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       for(const n of this.model.nodes.values()){const visible=p===1||revealAt(p,'collection',n.index,0,this.model.nodes.size)>.15;n.g.style.pointerEvents=visible?'':'none';n.g.setAttribute('tabindex',visible?'0':'-1')}
       for(const l of this.model.leaves.values()){const visible=!l.retiring&&(p===1||revealAt(p,'skill',this.model.nodes.get(l.parent)?.index??0,l.index,this.model.nodes.size)>.15);l.g.style.pointerEvents=visible?'':'none';l.g.setAttribute('tabindex',visible?'0':'-1')}
       this.lastLabelProgress = p;
@@ -395,6 +396,7 @@ class OracleUniverse {
       } else if (state.array[i] !== this.nodeTargets[i]) { state.array[i] = this.nodeTargets[i]; stateChanged = true; }
     }
     if (stateChanged) state.needsUpdate = true;
+    if(this.model.animateOrbits?.(delta))this.syncGeometry(this.model);
     this.renderer.render(this.scene, this.camera);
     this.renderCount++; this.last = now; this.dirty = false;
     const cpu = performance.now() - started;

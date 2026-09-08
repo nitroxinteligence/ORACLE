@@ -5,7 +5,7 @@ class OracleAtlas {
     this.el=element;this.cb=callbacks;this.abort=new AbortController();this.disposed=false;this.ns='http://www.w3.org/2000/svg';
     this.defaults=[[-188,-177],[184,-188],[322,8],[-314,-3],[-208,184],[238,187],[14,277]];
     this.palette=['#dba17c','#91b5ed','#7bc8b4','#d9c276','#b29bd7','#92c399','#d49cae'];
-    this.nodes=new Map();this.groups=new Map();this.leaves=new Map();this.context={kind:'global',group:null,page:0};this.knowledge=null;this.history=[];this.layout={nodes:{},leaves:{}};
+    this.nodes=new Map();this.groups=new Map();this.leaves=new Map();this.context={kind:'global',group:null,page:0};this.knowledge=null;this.orbitTracks=new Map();this.history=[];this.layout={nodes:{},leaves:{}};
     this.camera={x:0,y:0,k:1};this.target={...this.camera};this.baseScale=1;this.frame=0;this.selected=null;this.selectedLeaf=null;this.first=true;this.lastDetail='';this.interactionFrames=[];this.updateCosts=[];this.suppressClick=false;
     this.el.innerHTML=`<svg class="atlas-scene" aria-label="Atlas do conhecimento" role="group" tabindex="0"><defs>
       <radialGradient id="oracle-core-fill"><stop offset="0" stop-color="#252628"/><stop offset=".55" stop-color="#101112"/><stop offset="1" stop-color="#030405"/></radialGradient>
@@ -85,10 +85,10 @@ class OracleAtlas {
     if(this.context.group){const group=OracleLayout.catalogGroups(this.selected,this.data.entries||[]).find(g=>g.id===this.context.group);if(!group){this.context={kind:this.selected?'specialist':'global',group:null,page:0};this.selectedLeaf=null;recovered=true}else this.context.page=Math.min(this.context.page,Math.max(0,Math.ceil(group.skills.length/50)-1))}
     if(recovered){this.data.selected=this.selected;this.data.selectedLeaf=this.selectedLeaf;this.autoFit=true;this.cb.onSelect?.(this.selected,this.selectedLeaf)}
     const oldBase=this.baseScale,ratio=this.target.k/oldBase||1,anchor={x:(this.viewCenter().x-this.target.x)/this.target.k,y:(this.viewCenter().y-this.target.y)/this.target.k};
-    const pluginRadius=Math.max(105,OracleKnowledge.orbitPlugins(this.data.plugins||[]).length*3.8);
+    const pluginRadius=OracleMotion.pluginOrbitRadius(OracleKnowledge.orbitPlugins(this.data.plugins||[]).length);
     this.knowledgeOrbit=OracleKnowledge.orbit(this.data.entries||[],pluginRadius);
     this.geometry=this.knowledge?OracleKnowledge.plan(this.data.entries||[],this.knowledge):OracleLayout.plan(this.data.collections||[],this.data.entries||[],this.selected,this.data.detail,this.layout,this.knowledgeOrbit.radius+110,{...this.context,leaf:this.selectedLeaf});
-    if(this.knowledge)this.knowledge={...this.geometry.route};
+    if(this.knowledge){this.knowledge={...this.geometry.route};this.knowledgeOrbitTimes=[0,0,0];}
     const present=new Set(this.geometry.nodes.map(n=>n.id));
     for(const[id,l]of this.leaves)if(!present.has(l.parent)){l.g.remove();l.edge.remove();this.leaves.delete(id)}
     for(const[id,n]of this.nodes)if(!present.has(id)){n.g.remove();n.edge.remove();n.flow.remove();this.nodes.delete(id)}
@@ -163,7 +163,7 @@ class OracleAtlas {
       Object.assign(l,{knowledge:!!p.knowledge,directory:!!p.directory,area:p.area,color:p.color});
       l.g.classList.toggle('knowledge-node',!!p.knowledge);l.g.classList.toggle('knowledge-folder',!!p.directory);
       l.g.dataset.tooltip=p.tooltip||p.name;
-      if(p.knowledge){l.g.setAttribute('aria-label',p.tooltip);l.g.querySelector('.skill-dot').style.fill=p.color;l.g.querySelector('.skill-glyph').setAttribute('d',p.directory?'M-4 -2h3l1 1h4v5h-8z M-4 -2v-2h3l1 2':'M-2.5 -4h3l2 2v6h-5z M.5 -4v2h2 M-1 0h2 M-1 2h2')}
+      if(p.knowledge){l.orbitAngle=p.angle;l.orbitRadius=Math.hypot(p.x,p.y);l.orbitRing=Math.round((l.orbitRadius-260)/105);l.g.dataset.orbitTrack=`scene-${l.orbitRing}`;l.g.setAttribute('aria-label',p.tooltip);l.g.querySelector('.skill-dot').style.fill=p.color;l.g.querySelector('.skill-glyph').setAttribute('d',p.directory?'M-4 -2h3l1 1h4v5h-8z M-4 -2v-2h3l1 2':'M-2.5 -4h3l2 2v6h-5z M.5 -4v2h2 M-1 0h2 M-1 2h2')}
       l.g.style.pointerEvents='';l.g.setAttribute('tabindex','0');
       l.g.style.setProperty('--node-accent',this.palette[n.index]);l.edge.style.setProperty('--node-accent',this.palette[n.index]);
       l.label.setAttribute('text-anchor',p.dir===1?'start':'end');
@@ -174,28 +174,61 @@ class OracleAtlas {
     const connected=OracleKnowledge.orbitPlugins(plugins);
     const key=JSON.stringify(connected.map(p=>[p.id,p.name,p.iconDataURL]));if(key===this.pluginKey)return;this.pluginKey=key;
     this.lastSelectionKey=null;this.pluginLayer?.remove();this.pluginLayer=this.make('g',{class:'plugin-orbit-layer'},this.world);
-    const radius=Math.max(105,connected.length*3.8);this.pluginRadius=radius;
+    const radius=OracleMotion.pluginOrbitRadius(connected.length);this.pluginRadius=radius;
+    const track=this.setOrbitTrack('plugins',radius,72,1,0);
     this.make('circle',{r:radius,class:'plugin-orbit-ring'},this.pluginLayer);
     this.make('circle',{r:radius,class:'plugin-orbit-current ambient'},this.pluginLayer);
     connected.forEach((p,i)=>{
       const angle=-Math.PI/2+i*Math.PI*2/connected.length;
-      const g=this.make('g',{class:'orbital-plugin',role:'button',tabindex:0,'data-orbit-plugin':p.id,transform:`translate(${Math.cos(angle)*radius} ${Math.sin(angle)*radius})`,'aria-label':`${p.name}, conectado`},this.pluginLayer);
+      const g=this.make('g',{class:'orbital-plugin',role:'button',tabindex:0,'data-orbit-plugin':p.id,'data-orbit-track':'plugins',transform:`translate(${Math.cos(angle)*radius} ${Math.sin(angle)*radius})`,'aria-label':`${p.name}, conectado`},this.pluginLayer);
+      track.nodes.push({el:g,angle});
       g.dataset.tooltip=p.name+' · conectado';this.make('circle',{r:13,class:'plugin-disc'},g);
       if(/^data:image\/(png|jpeg|webp);base64,/.test(p.iconDataURL||''))this.make('image',{x:-8,y:-8,width:16,height:16,href:p.iconDataURL},g);
       else{const symbol=this.make('svg',{x:-8,y:-8,width:16,height:16,viewBox:'0 0 24 24',fill:'none',stroke:'#fff','stroke-width':1.3,'aria-hidden':'true'},g);this.make('path',{d:paths.orbit},symbol)}
     });
+    this.drawOrbitTrack(track);
   }
   updateKnowledge(entries){
     const plan=this.knowledgeOrbit||OracleKnowledge.orbit(entries,this.pluginRadius||105);
     const key=JSON.stringify(plan.points.map(p=>[p.path,p.x,p.y,p.color,p.tooltip]));if(key===this.knowledgeOrbitKey)return;this.knowledgeOrbitKey=key;
     this.knowledgeLayer?.remove();this.knowledgeLayer=this.make('g',{class:'knowledge-orbit-layer'},this.world);
-    for(const radius of plan.rings)this.make('circle',{r:radius,class:'knowledge-orbit-ring'},this.knowledgeLayer);
+    for(const key of this.orbitTracks.keys())if(key.startsWith('knowledge-')&&Number(key.slice(10))>=plan.rings.length)this.orbitTracks.delete(key);
+    plan.rings.forEach((radius,index)=>{const track=this.setOrbitTrack(`knowledge-${index}`,radius,96+index*24,index%2?-1:1,2.5);track.guide=this.make('circle',{r:radius,class:'knowledge-orbit-ring'},this.knowledgeLayer)});
     for(const p of plan.points){
-      const g=this.make('g',{class:'knowledge-orbit-node',role:'button',tabindex:0,'data-knowledge-path':p.path,'data-knowledge-area':p.area,transform:`translate(${p.x} ${p.y})`,'aria-label':p.tooltip},this.knowledgeLayer);g.dataset.tooltip=p.tooltip;
+      const index=plan.rings.findIndex(r=>Math.abs(r-Math.hypot(p.x,p.y))<.01),key=`knowledge-${index}`,track=this.orbitTracks.get(key);
+      const g=this.make('g',{class:'knowledge-orbit-node',role:'button',tabindex:0,'data-knowledge-path':p.path,'data-knowledge-area':p.area,'data-orbit-track':key,transform:`translate(${p.x} ${p.y})`,'aria-label':p.tooltip},this.knowledgeLayer);g.dataset.tooltip=p.tooltip;track.nodes.push({el:g,angle:Math.atan2(p.y,p.x)});
       this.make('circle',{r:p.r+5,fill:'transparent',class:'knowledge-orbit-hit'},g);
       this.make('circle',{r:p.r,fill:p.color,class:'knowledge-orbit-dot'},g);
     }
+    for(const track of this.orbitTracks.values())if(track.key.startsWith('knowledge-'))this.drawOrbitTrack(track);
     this.lastSelectionKey=null;
+  }
+  setOrbitTrack(key,radius,period,direction,breathing){
+    const track=this.orbitTracks.get(key)||{key,seconds:0};Object.assign(track,{radius,period,direction,breathing,nodes:[],guide:null});this.orbitTracks.set(key,track);return track;
+  }
+  drawOrbitTrack(track){
+    for(const node of track.nodes){const p=OracleMotion.orbitalPosition(track.radius,node.angle,track.seconds,track.period,track.direction,track.breathing);node.el.setAttribute('transform',`translate(${p.x} ${p.y})`)}
+    if(track.guide)track.guide.setAttribute('r',OracleMotion.orbitalPosition(track.radius,0,track.seconds,track.period,track.direction,track.breathing).radius);
+  }
+  animateOrbits(delta){
+    if(this.disposed||this.paused||this.reduced||document.hidden||window.oracleWindowVisible===false||this.selected||this.drag||this.geometryMoving||this.contextTravelling||this.el.classList.contains('scene-travelling'))return;
+    const keyboard=document.documentElement.dataset.inputMode!=='pointer'?this.keyboardFocus?.orbit:null;
+    if(this.knowledge){
+      const deltaSeconds=Math.min(100,Math.max(0,delta))/1000;
+      for(let ring=0;ring<3;ring++)if(this.hovered?.orbit!==`scene-${ring}`&&keyboard!==`scene-${ring}`)this.knowledgeOrbitTimes[ring]+=deltaSeconds;
+      let changed=false;
+      for(const l of this.leaves.values())if(l.knowledge&&!l.retiring){
+        const p=OracleMotion.orbitalPosition(l.orbitRadius,l.orbitAngle,this.knowledgeOrbitTimes[l.orbitRing],120+l.orbitRing*30,l.orbitRing%2?-1:1);
+        if(l.x!==p.x||l.y!==p.y){l.x=l.tx=p.x;l.y=l.ty=p.y;l.dir=p.x>=0?1:-1;changed=true;}
+      }
+      if(changed)this.draw(false);
+      return changed;
+    }
+    for(const track of this.orbitTracks.values()){
+      // Freeze the whole ring during inspection: a paused item can never be overtaken.
+      if(track.key===this.hovered?.orbit||track.key===keyboard)continue;
+      track.seconds+=Math.min(100,Math.max(0,delta))/1000;this.drawOrbitTrack(track);
+    }
   }
   updateConnectors(connectors){
     const key=JSON.stringify([connectors.map(c=>[c.id,c.label]),this.knowledgeOrbit?.radius]);if(key===this.connectorKey)return;this.connectorKey=key;
@@ -249,7 +282,7 @@ class OracleAtlas {
     if(group){const total=Math.ceil(group.skills.length/50);page.querySelector('span').textContent=`${this.context.page+1} / ${total}`;page.querySelector('[data-map-page="-1"]').disabled=this.context.page===0;page.querySelector('[data-map-page="1"]').disabled=this.context.page>=total-1}
   }
   edgePath(x1,y1,x2,y2,bend=.035){const dx=x2-x1,dy=y2-y1;return `M${x1} ${y1} C${x1+dx*.34-dy*bend} ${y1+dy*.34+dx*bend},${x1+dx*.72-dy*bend*.5} ${y1+dy*.72+dx*bend*.5},${x2} ${y2}`}
-  draw(){
+  draw(syncUniverse=true){
     if(this.disposed)return;const started=performance.now(),{x,y,k}=this.camera;
     this.world.setAttribute('transform',`translate(${x} ${y}) scale(${k})`);
     for(const n of this.nodes.values())if(n._x!==n.x||n._y!==n.y){n.g.setAttribute('transform',`translate(${n.x} ${n.y})`);const d=this.edgePath(0,0,n.x,n.y);n.edge.setAttribute('d',d);n.flow.setAttribute('d',d);n._x=n.x;n._y=n.y}
@@ -276,9 +309,9 @@ class OracleAtlas {
       if(l._x!==l.x||l._y!==l.y||l._px!==parent.x||l._py!==parent.y){l.g.setAttribute('transform',`translate(${l.x} ${l.y})`);l.edge.setAttribute('d',this.edgePath(parent.x,parent.y,l.x,l.y,.035));l._x=l.x;l._y=l.y;l._px=parent.x;l._py=parent.y}
       if(k!==this.lastLabelK){l.g.querySelector('.skill-glyph').setAttribute('transform',`scale(${1/k})`);if(l.knowledge)l.g.querySelector('.skill-dot').setAttribute('r',(l.directory?10:8)/k);l.label.style.fontSize=`${11/k}px`;l.label.setAttribute('x',l.dir*9/k);l.label.setAttribute('y',3/k)}
     }
-    if(k!==this.lastLabelK||this.geometryMoving||this.drag)this.layoutTargets();
+    if(k!==this.lastLabelK||this.geometryMoving||this.drag||!syncUniverse)this.layoutTargets();
     this.lastLabelK=k;if(this.lastZoom!==k){this.cb.onZoom?.((this.contextTravelling?this.target.k:k)/this.baseScale);this.lastZoom=k}
-    this.selection();this.layoutLabels();this.universe?.sync(this);this.updateCosts.push(performance.now()-started);if(this.updateCosts.length>180)this.updateCosts.shift();
+    this.selection();this.layoutLabels();if(syncUniverse)this.universe?.sync(this);this.updateCosts.push(performance.now()-started);if(this.updateCosts.length>180)this.updateCosts.shift();
   }
   layoutTargets(){
     // Dense overview targets must not cover a neighbouring point's centre.
@@ -289,6 +322,7 @@ class OracleAtlas {
     for(const p of points){const cx=Math.floor(p.x/size),cy=Math.floor(p.y/size);let radius=(p.group?12:14)/k;
       for(let x=cx-1;x<=cx+1;x++)for(let y=cy-1;y<=cy+1;y++)for(const other of cells.get(`${x},${y}`)||[])if(other!==p)radius=Math.min(radius,Math.hypot(p.x-other.x,p.y-other.y)*.46);
       p.hit.setAttribute('r',Math.max(.5/k,radius));
+      if(p.knowledge)p.g.querySelector('.skill-dot').setAttribute('r',Math.min((p.directory?10:8)/k,radius*.78));
     }
   }
   layoutLabels(){
@@ -425,7 +459,7 @@ class OracleAtlas {
     if(document.hidden||window.oracleWindowVisible===false||this.data?.hidden){cancelAnimationFrame(this.frame);this.frame=0;this.lastTick=0}
     else if(!paused)this.invalidate();this.el.classList.toggle('ambient-paused',this.paused);this.universe?.setPaused(this.paused);if(this.svg.pauseAnimations){if(this.paused)this.svg.pauseAnimations();else this.svg.unpauseAnimations()}}
   bind(){
-    const targetState=element=>({category:element?.closest?.('[data-category]')?.dataset.category,skill:element?.closest?.('[data-skill]')?.dataset.skill,group:element?.closest?.('[data-group]')?.dataset.group,core:!!element?.closest?.('[data-core]')});
+    const targetState=element=>({category:element?.closest?.('[data-category]')?.dataset.category,skill:element?.closest?.('[data-skill]')?.dataset.skill,group:element?.closest?.('[data-group]')?.dataset.group,orbit:element?.closest?.('[data-orbit-track]')?.dataset.orbitTrack,core:!!element?.closest?.('[data-core]')});
     this.listen(this.el,'pointerover',e=>{if(!this.drag){this.hovered=targetState(e.target);this.universe?.sync(this)}});
     this.listen(this.el,'pointerleave',()=>{this.hovered=null;this.universe?.sync(this)});
     this.listen(this.el,'focusin',e=>{this.finishFormationForInput();this.keyboardFocus=targetState(e.target);this.universe?.sync(this)});
@@ -446,6 +480,6 @@ class OracleAtlas {
       if(e.key==='Enter'&&node){e.preventDefault();this.select(skill?node.parent:cat,skill,true)}if(e.key===' '){e.preventDefault();if(skill){if(node?.knowledge&&node.directory)this.navigateKnowledge(node.area,node.id);else this.cb.onOpen?.(skill)}else if(cat)this.focus(cat);else this.fit()}
     });
   }
-  dispose(){if(this.disposed)return;this.disposed=true;this.sceneToken=(this.sceneToken||0)+1;for(const a of this.sceneAnimations||[])a.cancel();this.abort.abort();this.observer.disconnect();cancelAnimationFrame(this.frame);clearTimeout(this.saveTimer);clearTimeout(this.eventTimer);this.frame=0;this.universe?.dispose();this.nodes.clear();this.groups.clear();this.leaves.clear();this.el.replaceChildren()}
+  dispose(){if(this.disposed)return;this.disposed=true;this.sceneToken=(this.sceneToken||0)+1;for(const a of this.sceneAnimations||[])a.cancel();this.abort.abort();this.observer.disconnect();cancelAnimationFrame(this.frame);clearTimeout(this.saveTimer);clearTimeout(this.eventTimer);this.frame=0;this.universe?.dispose();this.nodes.clear();this.groups.clear();this.leaves.clear();this.orbitTracks.clear();this.el.replaceChildren()}
 }
 window.OracleAtlas=OracleAtlas;

@@ -462,6 +462,7 @@ async function showUpdates(operation=null){
 // Panels expand from their own controls. The stage's ResizeObserver preserves camera scale.
 let autoHiddenNavigation=false;
 function toggleObservatory(open=!document.body.classList.contains('observatory-open')){
+ if(open&&!document.body.classList.contains('observatory-open'))$('#observatory-plugins').open=false;
  if(open&&innerWidth<=1050&&!document.body.classList.contains('navigation-closed')){autoHiddenNavigation=true;toggleNavigation(false)}
  document.body.classList.toggle('observatory-open',open);$('#observatory-panel').hidden=!open;$('#observatory-toggle').setAttribute('aria-expanded',String(open));
  if(!open){if(autoHiddenNavigation){autoHiddenNavigation=false;toggleNavigation(true)}$('#observatory-toggle').focus({preventScroll:true})}

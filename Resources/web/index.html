@@ -64,8 +64,11 @@
       <div class="connection"><span data-icon="code"></span><div><strong>Codex</strong><small id="codex-status">Conexão não verificada</small></div></div>
       <div class="connection"><span data-icon="brain"></span><div><strong>Second Brain</strong><small id="gbrain-status">Conexão não verificada</small></div></div>
       <div class="divider"></div>
-      <div class="section-heading"><h3>Plugins</h3><button id="plugins-refresh" class="icon-button" aria-label="Atualizar plugins" data-tooltip="Atualizar plugins"><span data-icon="refresh"></span></button></div>
-      <div id="plugin-list" class="plugin-list"><small>Conecte o Codex para ver seus plugins.</small></div>
+      <details id="observatory-plugins" class="plugins-disclosure">
+        <summary aria-controls="plugin-list"><span>Plugins</span><span data-icon="chevron"></span></summary>
+        <div class="plugins-list-toolbar"><button id="plugins-refresh" class="icon-button" aria-label="Atualizar plugins" data-tooltip="Atualizar plugins"><span data-icon="refresh"></span></button></div>
+        <div id="plugin-list" class="plugin-list"><small>Conecte o Codex para ver seus plugins.</small></div>
+      </details>
       <div class="divider"></div>
       <label class="control">Detalhes do mapa<input id="density" type="range" min="0" max="6" value="3"></label>
       <label class="check"><input id="motion" type="checkbox"> Reduzir movimento</label>

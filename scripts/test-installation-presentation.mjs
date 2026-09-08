@@ -8,3 +8,5 @@ test('receipt admits the exact original path',()=>{const p=visual.projection({..
 test('restart uses persisted baseline and never treats unverified current files as historical',()=>{visual.reset();assert.deepEqual(visual.projection(state).entries,[old])});
 test('baseline from another plan is ignored',()=>{visual.reset();const p=visual.projection({...state,setup:{plan_id:'different'}});assert.deepEqual(p.entries,[])});
 test('completion shows current vault; no progress creates no components',()=>{const p=visual.projection({...state,onboarding:{status:'completed',runID:'run-one',confirmed:[]}});assert.deepEqual(p.entries,[old,added]);assert.equal(p.forming,false);assert.deepEqual(p.connectors,[])});
+
+test('fresh onboarding does not depict a completed universe before authorization and installation',()=>{visual.reset();const p=visual.projection({...state,onboarding:{status:'not_started',licensed:false,legacyAccess:false,confirmed:[]}});assert.equal(p.coreReady,false);assert.deepEqual(p.collections,[]);assert.deepEqual(p.connectors,[])});

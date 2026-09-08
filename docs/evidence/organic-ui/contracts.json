@@ -2,7 +2,7 @@
   "scope": "Consolidated native binary, isolated temporary profiles. Official GBrain release SHA matched the pinned public release before execution.",
   "swift_checks": 115,
   "link_checks": 9,
-  "visual_unit_tests": 17,
+  "visual_unit_tests": 18,
   "files": {
     "core-tests": {
       "pass_lines": 19,

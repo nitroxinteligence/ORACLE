@@ -4,7 +4,7 @@ Escopo: briefing de 08/09/2026, oito referências visuais inspecionadas, interfa
 
 ## Verificações executadas
 
-O binário consolidado passou em **115 verificações Swift**, **9 verificações do indexador** e **17 testes de geometria/movimento/projeção**. O atualizador foi testado com o binário oficial cujo SHA-256 foi conferido no release fixado. A consulta real `check-only` preservou os hashes de todos os arquivos da fixture.
+O binário consolidado passou em **115 verificações Swift**, **9 verificações do indexador** e **18 testes de geometria/movimento/projeção**. O atualizador foi testado com o binário oficial cujo SHA-256 foi conferido no release fixado. A consulta real `check-only` preservou os hashes de todos os arquivos da fixture.
 
 A interface A passou em **38 verificações nativas e 72 cenários de zoom**, antes da união final. A tarefa B passou no onboarding nativo e na instalação real do GBrain pelo Codex, com retomada do mesmo plano. O inventário consolidado foi consultado novamente por API e forneceu ícones reais para Codex Document Control, Figma, Firecrawl, GitHub, OpenAI Platform e Sites.
 

@@ -27,3 +27,5 @@ body.navigation-closed .ob-progress-card{left:24px}body.observatory-open .ob-pro
 .oracle-onboarding .ob-dialog{background:linear-gradient(145deg,#252525f5,#151515fa);border-color:var(--line-strong);box-shadow:0 30px 100px #0009}
 .oracle-onboarding .ob-dialog::backdrop{backdrop-filter:none;background:#0008}
 .oracle-onboarding .ob-body h1{font-size:25px}.oracle-onboarding .ob-heading>div{font-size:15px}.oracle-onboarding .ob-body p{font-size:13px}
+
+body.setup-pending #app main,body.setup-pending .header-actions{visibility:hidden}body.setup-pending .ob-progress-card{left:24px;right:24px}

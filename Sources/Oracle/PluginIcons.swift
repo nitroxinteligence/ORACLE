@@ -17,14 +17,36 @@ final class PluginIconLoader:NSObject,URLSessionDataDelegate {
     static func dataURL(_ text:String)->String? {
         guard let url=catalogURL(text) else{return nil}
         lock.lock();let prior=cache[text];lock.unlock();if let prior{return prior}
-        let loader=PluginIconLoader();guard let data=loader.fetch(url),let source=CGImageSourceCreateWithData(data as CFData,nil),let properties=CGImageSourceCopyPropertiesAtIndex(source,0,nil) as? [CFString:Any],let width=properties[kCGImagePropertyPixelWidth] as? Int,let height=properties[kCGImagePropertyPixelHeight] as? Int,width>0,height>0,width<=4096,height<=4096 else{return nil}
+        let loader=PluginIconLoader();guard let data=loader.fetch(url),let value=rasterDataURL(data) else{return nil}
+        lock.lock();if cache.count>200{cache.removeAll()};cache[text]=value;lock.unlock();return value
+    }
+    static func rasterDataURL(_ data:Data)->String? {
+        guard data.count<=400_000,let source=CGImageSourceCreateWithData(data as CFData,nil),let properties=CGImageSourceCopyPropertiesAtIndex(source,0,nil) as? [CFString:Any],let width=properties[kCGImagePropertyPixelWidth] as? Int,let height=properties[kCGImagePropertyPixelHeight] as? Int,width>0,height>0,width<=4096,height<=4096 else{return nil}
         let options:[CFString:Any]=[kCGImageSourceCreateThumbnailFromImageAlways:true,kCGImageSourceThumbnailMaxPixelSize:96,kCGImageSourceCreateThumbnailWithTransform:true,kCGImageSourceShouldCacheImmediately:false]
         guard let image=CGImageSourceCreateThumbnailAtIndex(source,0,options as CFDictionary) else{return nil}
         let out=NSMutableData();guard let dest=CGImageDestinationCreateWithData(out,UTType.png.identifier as CFString,1,nil) else{return nil};CGImageDestinationAddImage(dest,image,nil);guard CGImageDestinationFinalize(dest) else{return nil}
-        let value="data:image/png;base64,"+(out as Data).base64EncodedString();lock.lock();if cache.count>200{cache.removeAll()};cache[text]=value;lock.unlock();return value
+        return "data:image/png;base64,"+(out as Data).base64EncodedString()
     }
+    // Branding lookup only: exact connector ID from a cached package manifest. Never a connection signal.
+    private static let localBrands:[String:String] = {
+        let root=fm.homeDirectoryForCurrentUser.appendingPathComponent(".codex/plugins/cache")
+        func directories(_ url:URL)->[URL]{((try? fm.contentsOfDirectory(at:url,includingPropertiesForKeys:[.isDirectoryKey],options:[.skipsHiddenFiles])) ?? []).filter{(try? $0.resourceValues(forKeys:[.isDirectoryKey]).isDirectory)==true}}
+        var result=[String:String]()
+        for marketplace in directories(root) {for package in directories(marketplace) {for version in directories(package).sorted(by:{$0.lastPathComponent.compare($1.lastPathComponent,options:.numeric) == .orderedDescending}) {
+            guard version.resolvingSymlinksInPath().path.hasPrefix(root.resolvingSymlinksInPath().path+"/") else{continue}
+            guard let appDocument=try? readJSON(version.appendingPathComponent(".app.json")),let apps=appDocument["apps"] as? [String:[String:Any]],let manifest=try? readJSON(version.appendingPathComponent(".codex-plugin/plugin.json")),let ui=manifest["interface"] as? [String:Any] else{continue}
+            for name in ["logoDark","logo","composerIcon"] {
+                guard let path=ui[name] as? String else{continue}
+                let url=version.appendingPathComponent(path).resolvingSymlinksInPath()
+                guard url.path.hasPrefix(version.resolvingSymlinksInPath().path+"/"),["png","jpg","jpeg","webp"].contains(url.pathExtension.lowercased()),let data=try? Data(contentsOf:url),let icon=rasterDataURL(data) else{continue}
+                for app in apps.values {if let id=app["id"] as? String,result[id]==nil{result[id]=icon}}
+                break
+            }
+        }}}
+        return result
+    }()
     static func decorate(_ inventory:[String:Any])->[String:Any] {
-        var result=inventory;let rows=inventory["plugins"] as? [[String:Any]] ?? []
+        var result=inventory;let rows=(inventory["plugins"] as? [[String:Any]] ?? []).map{r in var row=r;if row["iconDataURL"]==nil,let id=row["id"] as? String,let local=localBrands[id]{row["iconDataURL"]=local};return row}
         let group=DispatchGroup(),limit=DispatchSemaphore(value:4),resultsLock=NSLock();var icons=[Int:String]()
         for(i,row) in rows.enumerated() where i<64 && row["iconDataURL"]==nil {
             guard let text=row["iconURL"] as? String,catalogURL(text) != nil else{continue}

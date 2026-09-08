@@ -1,0 +1,119 @@
+{
+  "status": "available",
+  "checkedAt": "2026-09-08T07:32:06Z",
+  "plugins": [
+    {
+      "id": "build-ios-apps@openai-curated-remote",
+      "name": "Build iOS Apps",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "hasIcon": false
+    },
+    {
+      "id": "connector_68df33b1a2d081918778431a9cfca8ba",
+      "name": "Canva",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": false
+    },
+    {
+      "id": "cloudflare@openai-curated-remote",
+      "name": "Cloudflare",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "hasIcon": false
+    },
+    {
+      "id": "connector_openai_codex_document_control",
+      "name": "Codex Document Control",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": true
+    },
+    {
+      "id": "deep-research-work@openai-curated-remote",
+      "name": "Deep Research",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "hasIcon": false
+    },
+    {
+      "id": "openai-templates@openai-curated-remote",
+      "name": "Default templates",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "hasIcon": false
+    },
+    {
+      "id": "connector_68df038e0ba48191908c8434991bbac2",
+      "name": "Figma",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": true
+    },
+    {
+      "id": "asdk_app_6a314a73f8ac819195b0d55e36b9c609",
+      "name": "Firecrawl",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": true
+    },
+    {
+      "id": "connector_76869538009648d5b282a4bb21c3d157",
+      "name": "GitHub",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": true
+    },
+    {
+      "id": "connector_openai_hotline",
+      "name": "Hotline",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": false
+    },
+    {
+      "id": "investment-banking@openai-curated-remote",
+      "name": "Investment Banking",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "hasIcon": false
+    },
+    {
+      "id": "connector_2de447f3f15448ebab48783d7e4f5d81",
+      "name": "OpenAI Platform",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": true
+    },
+    {
+      "id": "connector_openai_plugin_management",
+      "name": "Plugin Management",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": false
+    },
+    {
+      "id": "product-design@openai-curated-remote",
+      "name": "Product Design",
+      "status": "installed",
+      "evidence": "plugin/installed",
+      "hasIcon": false
+    },
+    {
+      "id": "connector_openai_safety_settings",
+      "name": "Safety Settings",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": false
+    },
+    {
+      "id": "connector_20205bf7d4e99a89d7154bb849718324",
+      "name": "Sites",
+      "status": "connected",
+      "evidence": "app/installed.enabled+callable",
+      "hasIcon": true
+    }
+  ],
+  "scope": "Public read-only Codex app-server inventory. No service operation executed."
+}

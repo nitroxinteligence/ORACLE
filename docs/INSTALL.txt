@@ -1,21 +1,12 @@
-Oracle 0.2.1 — versão de desenvolvimento para Apple Silicon, macOS 13+
+ORACLE 0.3 — macOS Apple Silicon
 
-Arraste Oracle.app para Aplicativos e abra. A seleção de vault é explícita.
-Não exige Swift, Bun ou Python para executar o pacote pronto.
+Abra Oracle.app. Para instalar, você também pode copiar Oracle.app para Aplicativos.
+Esta é uma distribuição local de desenvolvimento, com assinatura ad hoc. Não foi notarizada pela Apple.
 
-Esta versão tem assinatura ad hoc, sem notarização Apple. O macOS pode bloquear
-uma cópia baixada. Revise a origem antes de autorizar em Ajustes do Sistema >
-Privacidade e Segurança. Não desative o Gatekeeper globalmente.
+Primeiro acesso: cole o código recebido de Mateus, conecte o Codex, escolha a pasta original do Obsidian e revise a configuração. Instalar Oracle envia a skill ao Codex e acompanha verificações reais. Se uma etapa precisar de sua confirmação, a interface apresentará a solicitação. Cancelar conserva o que já foi confirmado; Retomar continua o mesmo plano.
 
-O Codex Desktop executa a configuração pelo pedido que o app prepara. O passo
-de confiança dos hooks é feito no próprio Codex. GBrain usa perfil isolado.
-Não há atualização automática. Feche o app antes de substituir a versão.
+A opção Editar salva o Markdown original da pasta escolhida. Rascunhos e cópias de recuperação ficam no perfil local do Oracle. Um conflito com uma edição externa exige revisão da nova base antes de salvar. O bloqueio protege a interface, sem criptografar o vault.
 
-Dados próprios: ~/Library/Application Support/OracleCompanion
-O vault escolhido permanece separado. Apagar o aplicativo não apaga seu vault.
-O bloqueio protege a interface e não criptografa os arquivos.
+A licença é verificada offline. A instalação pelo Codex precisa de acesso normal à conta e internet. O código não possui revogação remota instantânea nem contagem central de assentos. A confiança de hooks continua sendo controlada pelo Codex.
 
-Limites desta entrega: sem notarização, sem teste em outro Mac limpo, sem
-restauração integrada de backup, sem updater automático. Integração com uma
-instalação pessoal preexistente de GBrain não foi validada neste lançamento.
-Hooks/MCP preparados precisam ser habilitados e verificados na tarefa Codex.
+Atualizações são verificadas sem instalar ao clicar em Verificar. Apenas uma versão aprovada e conferida habilita a ação de instalação. Personalizações dos documentos são preservadas pelo atualizador.

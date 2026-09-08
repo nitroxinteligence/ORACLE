@@ -1,0 +1,74 @@
+PASS release bundle decoded without filesystem extraction
+PASS incompatible skill release rejected
+PASS duplicate bundle targets rejected
+PASS checksum rejects before mutation
+PASS skill path traversal rejected
+PASS unknown collection rejected
+PASS symlink destination rejected
+PASS new files installed and verified
+PASS unowned personal source preserved
+PASS owned version upgraded
+PASS rollback restores exact preimage
+PASS rollback preserves later user edits
+PASS intentional deletion preserved
+PASS interrupted transaction recovered by durable intent
+PASS read-only availability detects an eligible new file
+PASS availability check never installs the file
+PASS unowned edits do not produce false availability
+PASS deleted owned skills do not produce false availability
+PASS availability rejects invalid checksum
+PASS status exposes verified availability
+PASS current result clears availability
+PASS concurrent update excluded
+PASS source with credentials rejected
+PASS non-HTTPS source rejected
+PASS future source configured without changing global settings
+PASS blocked recovery does not hide independent source results
+PASS runtime requires matching adapter commit
+PASS runtime rejects corrupt binary
+PASS official runtime activated only after version and SHA256 checks
+PASS interrupted staging preserves active runtime
+PASS modified runtime fails closed
+PASS runtime rollback restores bundled release
+PASS rollback retains modified runtime for inspection
+PASS runtime update and rollback never mutate database
+UPDATE_RECEIPT {
+  "checks" : [
+    "release bundle decoded without filesystem extraction",
+    "incompatible skill release rejected",
+    "duplicate bundle targets rejected",
+    "checksum rejects before mutation",
+    "skill path traversal rejected",
+    "unknown collection rejected",
+    "symlink destination rejected",
+    "new files installed and verified",
+    "unowned personal source preserved",
+    "owned version upgraded",
+    "rollback restores exact preimage",
+    "rollback preserves later user edits",
+    "intentional deletion preserved",
+    "interrupted transaction recovered by durable intent",
+    "read-only availability detects an eligible new file",
+    "availability check never installs the file",
+    "unowned edits do not produce false availability",
+    "deleted owned skills do not produce false availability",
+    "availability rejects invalid checksum",
+    "status exposes verified availability",
+    "current result clears availability",
+    "concurrent update excluded",
+    "source with credentials rejected",
+    "non-HTTPS source rejected",
+    "future source configured without changing global settings",
+    "blocked recovery does not hide independent source results",
+    "runtime requires matching adapter commit",
+    "runtime rejects corrupt binary",
+    "official runtime activated only after version and SHA256 checks",
+    "interrupted staging preserves active runtime",
+    "modified runtime fails closed",
+    "runtime rollback restores bundled release",
+    "rollback retains modified runtime for inspection",
+    "runtime update and rollback never mutate database"
+  ],
+  "count" : 34,
+  "real_release_tested" : true
+}

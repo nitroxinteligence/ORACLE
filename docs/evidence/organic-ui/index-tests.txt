@@ -1,0 +1,10 @@
+PASS nested skill reference resolves through canonical source path
+PASS relative parent and URI encoding
+PASS angle-bracket paths
+PASS unknown references stay unresolved
+PASS external URLs are not turned into files
+PASS foreign source qualifiers cannot create local edges
+PASS missing link target is safely skipped
+PASS missing link source is safely skipped
+PASS pinned GBrain extractor yields an existing endpoint
+Index links: 9 checks passed

@@ -23,7 +23,7 @@ class OracleAtlas {
       <g class="core-orbit reverse ambient"><ellipse rx="76" ry="28" fill="none" stroke="#bfc2c5" stroke-opacity=".18" stroke-width=".7" transform="rotate(-31)"/><circle cx="-65" cy="-14" r="1.4" fill="#9fa4ac"/></g>
       <circle r="49" fill="url(#oracle-core-fill)" stroke="#a9afb6" stroke-opacity=".65" stroke-width=".8"/>
       <circle r="45" fill="none" stroke="#d9dcdd" stroke-opacity=".08" stroke-width=".6"/>
-      <path d="M-7 -17L0-21 7-17V-9L0-5-7-9Z M0-21V-13 M-7-17L0-13 7-17 M0-13V-5" fill="none" stroke="#d5d7db" stroke-width=".8" opacity=".7"/>
+      <image x="-21" y="-21" width="42" height="42" href="brand/symbol-white.svg" aria-hidden="true"/>
       <circle r="55" fill="transparent" class="core-hit"/>
     </g></g></svg><div class="atlas-caption"><span class="atlas-instruction">Arraste para explorar · scroll para aproximar</span></div><div class="atlas-selection-hint" hidden></div>`;
     this.svg=this.el.querySelector('svg');this.world=this.el.querySelector('.atlas-camera');this.edgeLayer=this.el.querySelector('.atlas-edges');this.nodeLayer=this.el.querySelector('.atlas-nodes');this.leafLayer=this.el.querySelector('.atlas-leaves');

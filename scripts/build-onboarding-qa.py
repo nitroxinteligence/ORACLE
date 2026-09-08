@@ -8,7 +8,7 @@ if not (state/'config.json').exists():(state/'config.json').write_text(json.dump
 assert json.loads((state/'config.json').read_text()).get('fixture') is True
 for p in (root/'Sources/Oracle').glob('*.swift'):shutil.copy2(p,src/p.name)
 p=src/'main.swift';s=p.read_text().replace('window.setFrameAutosaveName("OracleUniverse");','').replace('        buildMenu()','        AtlasQA.attach(web, window)\n        buildMenu()',1).replace('window.title = "Oracle"','window.title = "Oracle · Onboarding QA"');s=s.replace('NSApp.activate(ignoringOtherApps:true)','if ProcessInfo.processInfo.environment["ORACLE_QA_BACKGROUND"] != "1" { NSApp.activate(ignoringOtherApps:true) }');s=s.replace('window.makeKeyAndOrderFront(nil)','if ProcessInfo.processInfo.environment["ORACLE_QA_BACKGROUND"] != "1" { window.makeKeyAndOrderFront(nil) } else { window.orderBack(nil) }');p.write_text(s)
-qa=(root/'scripts/atlas-qa.swift').read_text().replace('        case "hide":','        case "resize": window.setContentSize(NSSize(width:object["width"] as? Double ?? 1200,height:object["height"] as? Double ?? 760));reply(["resized":true])\n        case "hide":')
+qa=(root/'scripts/atlas-qa.swift').read_text()
 qa=qa.replace('window.level = .floating //', 'window.level = ProcessInfo.processInfo.environment["ORACLE_QA_BACKGROUND"] == "1" ? .normal : .floating //')
 (src/'AtlasQA.swift').write_text(qa)
 app=work/'Oracle Onboarding QA.app';(app/'Contents/MacOS').mkdir(parents=True,exist_ok=True)

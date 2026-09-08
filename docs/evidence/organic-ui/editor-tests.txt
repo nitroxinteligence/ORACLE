@@ -17,4 +17,5 @@ PASS symlink document excluded
 PASS non-Markdown excluded
 PASS index mirror cannot be edited
 PASS oversized draft rejected
-Editor: 19 checks passed, isolated temporary vault.
+PASS new specialist folders are discovered from actual skills, including aliased vault roots
+Editor: 20 checks passed, isolated temporary vault.

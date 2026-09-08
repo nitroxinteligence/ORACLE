@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "id": "gbrain",
+      "message": "Release novo encontrado. Aguardando validação do adaptador Oracle e do formato do banco.",
+      "status": "compatibility_required",
+      "version": "v0.48.5.0"
+    },
+    {
+      "id": "cognee",
+      "message": "Avaliado, ainda não adotado.",
+      "status": "not_adopted"
+    },
+    {
+      "id": "skills",
+      "message": "Fonte indisponível (HTTP 404). Tente novamente.",
+      "status": "error"
+    }
+  ],
+  "available": false,
+  "at": "2026-09-08T07:31:51Z",
+  "fixtureFilesUnchanged": true,
+  "fileCount": 947
+}

@@ -47,6 +47,7 @@ func runEditorTests() throws {
     try rejects("oversized draft rejected") { _ = try c.saveDraft(path:path,original:digest(Data(original.utf8)),text:String(repeating:"x",count:2_000_001)) }
     let extraPath="SISTEMA/skills/research/team/SKILL.md"
     let extraURL=try c.scoped(extraPath,root:root);try fm.createDirectory(at:extraURL.deletingLastPathComponent(),withIntermediateDirectories:true);try Data(original.utf8).write(to:extraURL)
-    try expect(c.discoveredCollections(try c.scan(root:root)).contains{$0["id"]=="research"},"new specialist folders are discovered from actual skills")
+    let extraScan=try c.scan(root:root);let extraCollections=c.discoveredCollections(extraScan)
+    try expect(extraCollections.contains{$0["id"]=="research"},"new specialist folders are discovered from actual skills, including aliased vault roots")
     print("Editor: \(passed) checks passed, isolated temporary vault.")
 }

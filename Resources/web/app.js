@@ -50,7 +50,7 @@ $('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));mo
 function skills(id){return visibleEntries().filter(e=>!e.directory&&e.path.startsWith(`SISTEMA/skills/${id}/`)&&e.name==='SKILL.md')}
 function title(e){return e.name==='SKILL.md'?e.path.split('/').slice(-2,-1)[0]:e.name.replace(/\.md$/,'')}
 async function refresh(){state=await call('snapshot');render();if(!updateBusy)call('updateStatus').then(reflectUpdateStatus).catch(()=>{});if(state.scanError)toast(state.scanError)}
-function mountOnboarding(){return window.ORACLE_PREVIEW?Promise.resolve():window.OracleOnboarding?.mount({call,refresh,getState:()=>state,toast})}
+function mountOnboarding(){return window.ORACLE_PREVIEW?Promise.resolve():window.OracleOnboarding?.mount({call,refresh,getState:()=>state,toast,openSettings:settings})}
 function render(){
  renderTree();renderAtlas();renderResults();renderProgress();renderInspector();renderPlugins();
  $('#footer-status').textContent=state.scanError?'Fonte indisponível · consulte os ajustes':'';
@@ -161,7 +161,7 @@ function requestEditorExit(discardOnly=false){
  $('#confirm-discard').onclick=safe(async()=>{clearTimeout(draftTimer);await call('discardDraft',{path:editorSession.path});editorSession=null;closeModal(true)});
  $('#keep-editing').focus();
 }
-window.oraclePrepareToClose=async()=>{await persistEditorDraft();return true};
+window.oraclePrepareToClose=async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();return true};
 function showSetup(){if(window.OracleOnboarding&&!window.ORACLE_PREVIEW){closeModal();OracleOnboarding.open()}else toast('A configuração funciona no aplicativo para macOS.')}
 const pluginStates={connected:'Conectado',installed:'Instalado',needs_auth:'Conectar conta',unavailable:'Indisponível'};
 function pluginIcon(p){const url=p.iconDataURL;return url&&/^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(url)?`<span class="plugin-icon"><img src="${esc(url)}" alt=""></span>`:`<span class="plugin-icon plugin-monogram" aria-hidden="true">${esc(p.name.slice(0,2).toUpperCase())}</span>`}
@@ -202,7 +202,7 @@ function settings(){
  ${row('graphics-diagnostics','Desempenho do mapa','Medidas desta janela')}
  ${row('activity-settings','Histórico técnico','Consultar registros de atividade')}
  </div><div class="source">${window.ORACLE_PREVIEW||state.config.fixture?'Ambiente de validação · dados sintéticos':'Instalação local'}<br>Pasta: ${esc(state.config.vault||'Não selecionada')}<br>Oracle 0.3.0 · distribuição de desenvolvimento</div></details>${actions()}`,{family:'settings'});
- $('#restart-setup').onclick=()=>{if(window.OracleOnboarding){closeModal();OracleOnboarding.open()}else showSetup(0)};
+ $('#restart-setup').onclick=()=>{if(window.OracleOnboarding){closeModal();OracleOnboarding.open({fromSettings:true})}else showSetup(0)};
  $('#gbrain-memory').onclick=safe(memory);$('#gbrain-review').onclick=safe(reviewGBrain);$('#bridge-review').onclick=safe(reviewBridge);
  $('#graphics-diagnostics').onclick=graphicsDiagnostics;$('#activity-settings').onclick=activity;$('#updates-settings').onclick=safe(()=>showUpdates(false));
  $('#export-view').onclick=safe(async()=>{closeModal();const path=await call('exportSnapshot');if(path)toast('Imagem salva.')});
@@ -264,7 +264,7 @@ $('#speed').onclick=()=>{speed=speed===4?1:speed*2;$('#speed').textContent=speed
 $('.wordmark').onclick=e=>{e.preventDefault();setView('map');atlasController?.fit()};
 $('#updates').onclick=safe(()=>showUpdates(false));
 function setZoom(factor){atlasController?.zoomAt(factor)}$('#zoom-in').onclick=()=>setZoom(1.2);$('#zoom-out').onclick=()=>setZoom(1/1.2);$('#zoom-reset').onclick=()=>atlasController?.fit();$('#context-back').onclick=()=>atlasController?.back();$('#reset-layout').onclick=()=>{atlasController?.reset();toast('Posições restauradas. Nenhum arquivo foi movido.')};$('#economy').onchange=renderAtlas;
-window.oracleLock=()=>{window.OracleOnboarding?.suspend();OracleInstallationVisual.reset();for(const p of pending.values())p.reject(Error('Oracle bloqueado'));pending.clear();replay=false;replayProjection=null;replaySession=null;closeModal(true);if(atlasController){atlasController.dispose();atlasController=null};$('#lock-screen').hidden=false;$('#app').inert=true;state={entries:[],collections:[],events:[],config:{}};readDocument=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null};$('#lock').onclick=safe(async()=>{await persistEditorDraft();if(!window.ORACLE_PREVIEW)await call('lock');window.oracleLock()});$('#unlock').onclick=safe(async()=>{await call('unlock');$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();await mountOnboarding()});
+window.oracleLock=()=>{window.OracleOnboarding?.suspend();OracleInstallationVisual.reset();for(const p of pending.values())p.reject(Error('Oracle bloqueado'));pending.clear();replay=false;replayProjection=null;replaySession=null;closeModal(true);if(atlasController){atlasController.dispose();atlasController=null};$('#lock-screen').hidden=false;$('#app').inert=true;state={entries:[],collections:[],events:[],config:{}};readDocument=null;editorSession=null;clearTimeout(draftTimer);$('#tree').oracleHTML=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null};$('#lock').onclick=safe(async()=>{await persistEditorDraft();if(!window.ORACLE_PREVIEW)await call('lock');window.oracleLock()});$('#unlock').onclick=safe(async()=>{await call('unlock');$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();await mountOnboarding()});
 // Deterministic ambient dust; it never represents an agent or event.
 for(let i=0;i<46;i++){const e=document.createElement('i');e.className='star';e.style.cssText=`left:${(Math.sin(i*12.9898)*43758.5453%1+1)%1*100}%;top:${(Math.sin(i*78.233)*12731.7%1+1)%1*100}%;width:${i%7===0?2:1}px;height:${i%7===0?2:1}px;opacity:${i%5/18+.04}`;$('#galaxy').append(e)}
 call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked)window.oracleLock();else{await refresh();$('#app').inert=false;await mountOnboarding()}}).catch(e=>{if($('#lock-screen').hidden)$('#app').inert=false;toast(e.message)});

@@ -1,0 +1,112 @@
+TAP version 13
+# Subtest: formation can be scrubbed, paused and resumed without any execution dependency
+ok 1 - formation can be scrubbed, paused and resumed without any execution dependency
+  ---
+  duration_ms: 0.9285
+  type: 'test'
+  ...
+# Subtest: every collection and skill is fully revealed at completion; the sun arrives first
+ok 2 - every collection and skill is fully revealed at completion; the sun arrives first
+  ---
+  duration_ms: 0.226458
+  type: 'test'
+  ...
+# Subtest: invalid external timeline input never produces NaN or an unbounded loop
+ok 3 - invalid external timeline input never produces NaN or an unbounded loop
+  ---
+  duration_ms: 1.825792
+  type: 'test'
+  ...
+# Subtest: diagnostics retain bounded recent samples and reset without stale percentiles
+ok 4 - diagnostics retain bounded recent samples and reset without stale percentiles
+  ---
+  duration_ms: 0.239792
+  type: 'test'
+  ...
+# Subtest: quality remains stable under occasional jitter but downgrades sustained slow frames
+ok 5 - quality remains stable under occasional jitter but downgrades sustained slow frames
+  ---
+  duration_ms: 0.12725
+  type: 'test'
+  ...
+# Subtest: Retina and external displays stay within the explicit pixel budgets
+ok 6 - Retina and external displays stay within the explicit pixel budgets
+  ---
+  duration_ms: 0.054708
+  type: 'test'
+  ...
+# Subtest: new files stay absent until verified; preexisting files remain visible
+ok 7 - new files stay absent until verified; preexisting files remain visible
+  ---
+  duration_ms: 0.743667
+  type: 'test'
+  ...
+# Subtest: receipt admits the exact original path
+ok 8 - receipt admits the exact original path
+  ---
+  duration_ms: 0.079541
+  type: 'test'
+  ...
+# Subtest: restart uses persisted baseline and never treats unverified current files as historical
+ok 9 - restart uses persisted baseline and never treats unverified current files as historical
+  ---
+  duration_ms: 0.059167
+  type: 'test'
+  ...
+# Subtest: baseline from another plan is ignored
+ok 10 - baseline from another plan is ignored
+  ---
+  duration_ms: 0.884
+  type: 'test'
+  ...
+# Subtest: completion shows current vault; no progress creates no components
+ok 11 - completion shows current vault; no progress creates no components
+  ---
+  duration_ms: 0.260833
+  type: 'test'
+  ...
+# Subtest: required zoom boundary and minimum counts across empty, small and large real catalogs
+ok 12 - required zoom boundary and minimum counts across empty, small and large real catalogs
+  ---
+  duration_ms: 0.910458
+  type: 'test'
+  ...
+# Subtest: geometry keeps identity and leaf paths stable under source reordering
+ok 13 - geometry keeps identity and leaf paths stable under source reordering
+  ---
+  duration_ms: 22.820833
+  type: 'test'
+  ...
+# Subtest: tentacles fit their sectors without overlapping specialists or dense leaf clumps
+ok 14 - tentacles fit their sectors without overlapping specialists or dense leaf clumps
+  ---
+  duration_ms: 60.239542
+  type: 'test'
+  ...
+# Subtest: new specialists retain unique positions and stable colors
+ok 15 - new specialists retain unique positions and stable colors
+  ---
+  duration_ms: 25.330792
+  type: 'test'
+  ...
+# Subtest: density adds actual leaves and never removes the required floor
+ok 16 - density adds actual leaves and never removes the required floor
+  ---
+  duration_ms: 2.530541
+  type: 'test'
+  ...
+# Subtest: formation finishes every leaf for large catalogs and arbitrary specialist counts
+ok 17 - formation finishes every leaf for large catalogs and arbitrary specialist counts
+  ---
+  duration_ms: 0.580625
+  type: 'test'
+  ...
+1..17
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 171.03475

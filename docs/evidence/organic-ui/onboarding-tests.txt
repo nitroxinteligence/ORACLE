@@ -1,0 +1,44 @@
+PASS signed valid code
+PASS outer whitespace is accepted
+PASS invalid code
+PASS tampered payload
+PASS untrusted signer
+PASS expired code
+PASS different device
+PASS device-bound code
+PASS clock before issue
+PASS removed public key
+PASS non-expiring code
+PASS connected requires runtime evidence
+PASS catalog availability is not installation
+PASS skill package is not a connected app
+PASS disabled app is not connected
+PASS cached MCP tools and accessible metadata do not prove runtime connection
+PASS official catalog icon origin accepted
+PASS local and insecure icon URLs rejected
+PASS lookalike and credential-bearing icon URLs rejected
+PASS new profile is locked
+PASS picking a vault cannot bypass activation
+PASS unlicensed selection denied
+PASS unlicensed install denied
+PASS cancel marker stops deterministic phases
+PASS no progress before verified run
+PASS existing personal profile is preserved
+Onboarding: 26 checks passed
+PASS selected vault permission survives readback
+PASS permission denial preserves selected vault
+PASS symlink cannot widen vault access
+PASS Codex acknowledged start
+PASS skill executes through real protocol entrypoints
+PASS permission remains pending
+PASS denial sent to Codex
+PASS denied permissions grant nothing
+PASS cancel waits for interrupt event
+PASS cancellation marker persists
+PASS resume uses same Codex thread
+PASS explicit resume clears cancellation
+PASS late completion from old turn is ignored
+PASS turn completion does not prove installation
+PASS disconnect preserves recoverable state
+PASS disconnect invalidates connected flag
+Onboarding lifecycle: 16 checks passed

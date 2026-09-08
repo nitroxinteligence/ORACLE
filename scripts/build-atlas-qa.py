@@ -37,6 +37,9 @@ shutil.rmtree(app / 'Resources/web', ignore_errors=True)
 shutil.copytree(web, app / 'Resources/web')
 shutil.copytree(root / 'Resources/catalog', app / 'Resources/catalog', dirs_exist_ok=True)
 shutil.copytree(root / 'Resources/updates', app / 'Resources/updates', dirs_exist_ok=True)
+shutil.copytree(root / 'Resources/engine', app / 'Resources/engine', dirs_exist_ok=True)
+shutil.copytree(root / 'Resources/licensing', app / 'Resources/licensing', dirs_exist_ok=True)
+shutil.copytree(root / 'skills', app / 'Resources/skills', dirs_exist_ok=True)
 (app / 'Info.plist').write_text('''<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict><key>CFBundleExecutable</key><string>OracleAtlasQA</string>

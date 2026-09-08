@@ -5,7 +5,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const active=new Set(['starting','running','cancelling']);
 const labels={AGENT_NAME:'Nome do seu companheiro',PRINCIPAL_NAME:'Como podemos chamar você?',AGENT_PURPOSE:'Para que o Oracle deve servir?',AGENT_TOP_JOBS:'Quais tarefas são mais importantes?',PRINCIPAL_CONTEXT:'Conte um pouco sobre seu trabalho e seus projetos',VOICE_REGISTER:'Como prefere que o Oracle se comunique?',PRINCIPAL_TIMEZONE:'Fuso horário'};
 const limits={AGENT_NAME:64,PRINCIPAL_NAME:128,AGENT_PURPOSE:2048,AGENT_TOP_JOBS:2048,PRINCIPAL_CONTEXT:4096,VOICE_REGISTER:1024};
-let api=null,root=null,dialog=null,card=null,current={},draft={answers:{AGENT_NAME:'Oracle',PRINCIPAL_TIMEZONE:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'},catalogCollections:[],newVault:false,attach:false},stage='',review=null,timer=null,polling=false,open=false,origin=null,suspended=false,group=0,lastSignature='',lastCardSignature='';
+let api=null,root=null,dialog=null,card=null,current={},draft={answers:{AGENT_NAME:'Oracle',PRINCIPAL_TIMEZONE:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'},catalogCollections:[],newVault:false,attach:false},stage='',review=null,timer=null,polling=false,open=false,origin=null,suspended=false,group=0,lastSignature='',lastCardSignature='',fromSettings=false;
 const $=s=>root?.querySelector(s);
 async function invoke(method,params={}){return api.call(method,params)}
 function message(text){const e=$('[data-ob-message]');if(e){
@@ -16,8 +16,8 @@ function message(text){const e=$('[data-ob-message]');if(e){
  }else api.toast?.(text)}
 function action(fn){return async e=>{const b=e?.currentTarget;if(b)b.disabled=true;try{await fn(e)}catch(err){message(err.message)}finally{if(b?.isConnected)b.disabled=false}}}
 function frame(title,body,buttons=''){
- dialog.innerHTML=`<div class="ob-heading"><div><img src="brand/symbol-white.svg" alt="" width="30" height="30"><span>Oracle</span></div><button type="button" class="ob-close" aria-label="Fechar configuração">×</button></div><div class="ob-body"><h1 id="ob-title" tabindex="-1">${title}</h1>${body}<p data-ob-message role="alert" hidden></p></div><footer>${buttons}</footer>`;
- dialog.querySelector('.ob-close').onclick=close;
+ dialog.innerHTML=`<div class="ob-heading"><div><img class="ob-brand" src="brand/lockup-white.svg" alt="Oracle" width="143"></div><button type="button" class="ob-close" aria-label="Fechar configuração">×</button></div><div class="ob-body">${fromSettings?'<nav class="modal-breadcrumb"><button type="button" id="ob-settings-back">← Ajustes</button><span>/ Configuração</span></nav>':''}<h1 id="ob-title" tabindex="-1">${title}</h1>${body}<p data-ob-message role="alert" hidden></p></div><footer>${buttons}</footer>`;
+ dialog.querySelector('.ob-close').onclick=close;if($('#ob-settings-back'))$('#ob-settings-back').onclick=()=>{close();api.openSettings?.()};
  for(const b of dialog.querySelectorAll('[data-ob-back]'))b.onclick=()=>navigate(b.dataset.obBack);
  (dialog.querySelector('input:not([type=checkbox]),textarea')||dialog.querySelector('h1'))?.focus({preventScroll:true});
 }
@@ -107,6 +107,6 @@ async function mount(options){
  if(!timer)timer=setInterval(async()=>{await poll();if(open&&stage==='connection'&&!current.codexConnected){try{const r=await invoke('onboardingCheckConnection');if(r.connected){current.codexConnected=true;render();invoke('codexPlugins').then(()=>api.refresh?.()).catch(()=>{})}}catch{}}},1800);
  if(!current.legacyAccess&&current.status==='not_started'){stage=resolveStage();reveal()}
 }
-function suspend(){saveInputs();suspended=true;open=false;dialog?.close();if(card)card.hidden=true;clearInterval(timer);timer=null;draft={answers:{AGENT_NAME:'Oracle',PRINCIPAL_TIMEZONE:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'},catalogCollections:[],newVault:false,attach:false};current={};review=null;stage='';}
-window.OracleOnboarding={mount,open(){stage=resolveStage();reveal()},suspend,poll,getState:()=>({...current})};
+function suspend(){saveInputs();suspended=true;open=false;dialog?.close();dialog?.replaceChildren();if(card)card.hidden=true;clearInterval(timer);timer=null;draft={answers:{AGENT_NAME:'Oracle',PRINCIPAL_TIMEZONE:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'},catalogCollections:[],newVault:false,attach:false};current={};review=null;stage='';}
+window.OracleOnboarding={mount,open(options={}){fromSettings=!!options.fromSettings;stage=resolveStage();reveal()},async prepareToClose(){if(open){saveInputs();if(current.licensed||current.legacyAccess)await invoke('onboardingDraft',draft)}},suspend,poll,getState:()=>({...current})};
 })();

@@ -1,0 +1,20 @@
+PASS path traversal
+PASS symlink escape
+PASS unconfirmed installation
+PASS plan confirmation binds all settings
+PASS cross-process preferences preserve independent fields
+PASS progress observes live operation lock
+PASS concurrent installation excluded
+PASS stopped operation never remains live
+PASS all planned folders verified
+PASS idempotent setup
+PASS vendor source preserved
+PASS personal version provenance
+PASS external edit conflict
+PASS hook deduplication
+PASS hook payload minimization
+PASS turn end never means objective complete
+PASS rollback preserves user files
+PASS scan omits symlinks
+PASS rollback removes owned empty parent folders
+All contract tests passed

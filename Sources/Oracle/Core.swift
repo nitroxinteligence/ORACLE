@@ -36,18 +36,22 @@ final class Core {
         return url
     }
     func vault() throws -> URL { guard let path = config["vault"] as? String else { throw failure("Selecione uma pasta de conhecimento acessível") };let root=URL(fileURLWithPath:path);try beginVaultAccess(root);guard fm.fileExists(atPath:path) else{throw failure("A pasta do Obsidian está indisponível. Escolha a pasta novamente.")};return root }
-    func scan(root: URL, instructionsOnly: Bool = false) throws -> [[String: Any]] {
+    func scan(root inputRoot: URL, instructionsOnly: Bool = false) throws -> [[String: Any]] {
+        let root=inputRoot.resolvingSymlinksInPath()
         var output = [[String: Any]]()
         guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey,.isSymbolicLinkKey,.fileSizeKey,.contentModificationDateKey], options: [.skipsHiddenFiles], errorHandler: { _, _ in false }) else { throw failure("Não foi possível ler a pasta") }
         for case let file as URL in walker {
             let values = try file.resourceValues(forKeys: [.isDirectoryKey,.isSymbolicLinkKey,.fileSizeKey,.contentModificationDateKey])
             if values.isSymbolicLink == true { walker.skipDescendants(); continue }
             if ["node_modules","vendor","dist","build"].contains(file.lastPathComponent), values.isDirectory == true { walker.skipDescendants(); continue }
-            let rel = String(file.path.dropFirst(root.path.count + 1))
+            let prefix=root.path.hasSuffix("/") ? root.path : root.path+"/"
+            let canonical=file.path.hasPrefix(prefix) ? file.path : file.resolvingSymlinksInPath().path
+            guard canonical.hasPrefix(prefix) else { throw failure("A pasta mudou durante a leitura. Selecione-a novamente.") }
+            let rel = String(canonical.dropFirst(prefix.count))
             if instructionsOnly && values.isDirectory != true && !["AGENTS.md","AGENTS.override.md"].contains(file.lastPathComponent) { continue }
             if values.isDirectory != true && file.pathExtension.lowercased() != "md" { continue }
             if values.isDirectory != true && (values.fileSize ?? 0) > 2_000_000 { continue }
-            output.append(["path":rel,"name":file.lastPathComponent,"directory":values.isDirectory == true,"size":values.fileSize ?? 0,"modified":values.contentModificationDate?.timeIntervalSince1970 ?? 0,"source":root.path])
+            output.append(["path":rel,"name":file.lastPathComponent,"directory":values.isDirectory == true,"size":values.fileSize ?? 0,"modified":values.contentModificationDate?.timeIntervalSince1970 ?? 0,"source":inputRoot.path])
             if output.count >= 60000 { throw failure("Limite de 60 mil entradas: selecione uma pasta menor") }
         }
         return output.sorted { ($0["path"] as! String) < ($1["path"] as! String) }

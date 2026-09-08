@@ -1,33 +1,42 @@
 {
   "version": "0.3.0",
-  "commit": "06fd03c79a7fd92be7e41a31e21f4d2f36d4fd68",
-  "createdAt": "2026-09-08T08:36:16.359394+00:00",
-  "dmgSHA256": "4d19dfff8486dc88967deaa1f33020540dbcfc42878aca8968bfb2b78a554260",
-  "dmgBytes": 116064168,
+  "commit": "4ca2c0491e255f533166910d4d889869fcedbccc",
+  "createdAt": "2026-09-08T11:08:55.016727+00:00",
+  "dmgSHA256": "1ec395e20d8bf62537522b885eeac6a5c4832fb8ea1acae10a5eadf59fb1a9dc",
+  "dmgBytes": 117292701,
   "readOnlyMountedBundleMatches": {
     "Contents/MacOS/Oracle": true,
     "Contents/Resources/web/app.js": true,
     "Contents/Resources/web/atlas.js": true,
     "Contents/Resources/web/onboarding.js": true,
-    "Contents/Resources/web/installation-visual.js": true,
     "Contents/Resources/licensing/public-keys.json": true,
     "Contents/Resources/engine/oracle-gbrain-read": true
   },
   "codesign": "ad hoc; deep strict verification passed",
   "notarized": false,
   "privateIssuerKeyIncluded": false,
-  "finalNativeInspection": "pending_mac_manually_locked",
+  "finalNativeInspection": "passed_consolidated_A_B",
   "automatedChecks": {
-    "swift": 115,
+    "swift": 116,
     "indexLinks": 9,
-    "visualUnitTests": 18
+    "visualUnitTests": 18,
+    "nativeInterface": 38,
+    "nativeOnboarding": 9,
+    "zoomScenarios": 72
   },
-  "priorNativeUI": {
-    "checks": 38,
-    "zoomScenarios": 72,
-    "scope": "A interface before final merge"
+  "realConsolidatedInstallation": {
+    "passed": true,
+    "seconds": 138,
+    "hooksTrusted": false,
+    "fixtureOnly": true
   },
-  "BRealInstallation": "passed on isolated synthetic vault; see onboarding-live.json",
-  "standaloneApp": "/Users/mateusmpz/.codex/worktrees/8581/ORACLE/dist/Oracle.app",
-  "looseCopyInDocuments": "omitted because copied Finder metadata failed strict signing validation; verified app is available in the DMG and dist"
+  "performanceFPS": {
+    "ambient": 59.74,
+    "repeatedExpansion": 50.42,
+    "timelapse": 60,
+    "economy": 14.98,
+    "reduced": 0,
+    "minimized": 0
+  },
+  "standaloneApp": "/Users/mateusmpz/.codex/worktrees/8581/ORACLE/dist/Oracle.app"
 }

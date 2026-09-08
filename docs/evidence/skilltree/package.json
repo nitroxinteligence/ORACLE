@@ -3,20 +3,21 @@
   "implementationCommits": [
     "bf75b80",
     "9488aed",
-    "a0a6617"
+    "a0a6617",
+    "355fe02"
   ],
   "localOnly": true,
   "personalAppReplaced": false,
   "app": "/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app",
   "dmg": "/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg",
   "appBinarySHA256": "4799f3e2515d71f63d3659119bfdc94c09fc6f3015def4ddf600ed5dddfdc389",
-  "dmgSHA256": "e6afbda2e54edef01a6dd06f9900552b5478bd50064ec252cd0fd59668fb2fb8",
+  "dmgSHA256": "4a04b049440c591694ceb3aa414501e56f7014f5435beca9b40a49be26b25d3f",
   "webSHA256": {
-    "index.html": "ad371a66cd1b110a904ca1b88b94f639f66e32ad5aa2515776488cd36bded446",
+    "index.html": "d90705f5297b10c372e87e7541b396124f09aa3b987b405c1b12b2e7feb1b55e",
     "atlas.js": "ca3a1a26e8a0281e26a6855a5c05d74ce31c8d5b87da8adbf651407afc8bbcd2",
     "universe.js": "ac21d6732c25a2bc9f6772d60f4efb7c0b0b9fc8514d66bb7b75b9b357ead4ff",
     "app.js": "e04cbb1ad2fa9670dcc13e247126daf1c23e5a6bb2dcc2f0bc306c6f3e852371",
-    "style.css": "0726f6858c02d284e393342b05d2b7c61465398e692ae3606fcd6a0cb488628d",
+    "style.css": "557e00cf89d85a75624e935bbc920c2ffb41af3f13b61145b33f308ff2327fd2",
     "atlas-motion.css": "e98df27c24af37e56904a85fb36fb3e21ab2e1d71162cdb67063ba2534ea1993",
     "onboarding.js": "c0d97d60268c271ff5014e90dad0b8e06c22fae1ecc0f7c472e568f80f246195",
     "installation-visual.js": "9642f68f127e2b9aefeb1fd9ae283b20536b91c1d13414c35026e1f3112815bb"
@@ -26,5 +27,5 @@
   "mountedDMGMatchesApp": false,
   "packagedFilesVerified": 4933,
   "gbrainSourceCommit": "2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d",
-  "note": "Sidebar follow-up repackaged after the previous mounted-DMG verification; app signature and changed resources checked."
+  "note": "UI follow-ups repackaged since mounted-DMG verification; signature and updated resources checked."
 }

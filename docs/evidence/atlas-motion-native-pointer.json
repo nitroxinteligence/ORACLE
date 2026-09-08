@@ -1,0 +1,21 @@
+{
+  "input": "Native CUA click, Space to focus, pointer drag from (553,445) to (596,463) in the 1200x760 app window",
+  "before": {
+    "x": 184,
+    "y": -188
+  },
+  "after": {
+    "drag": null,
+    "leafCount": 24,
+    "node": {
+      "x": 230.02717167558666,
+      "y": -168.73281185673116
+    },
+    "selected": "code"
+  },
+  "persisted": {
+    "x": 230.02717167558666,
+    "y": -168.73281185673116
+  },
+  "visualCheck": "Node and attached branches moved together; selection and source inspector remained Code; pointer capture released."
+}

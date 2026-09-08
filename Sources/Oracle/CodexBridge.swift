@@ -127,8 +127,9 @@ final class CodexBridge:CodexConnection {
             let connected=enabled && live?["enabled"] as? Bool==true && live?["callable"] as? Bool==true
             let status=connected ? "connected" : !enabled ? "unavailable" : app["isAccessible"] as? Bool==false ? "needs_auth" : "installed"
             let displayNames=app["pluginDisplayNames"] as? [String] ?? [];claimed.formUnion(displayNames)
-            var row:[String:Any]=["id":id,"name":name,"kind":"app","status":status,"detail":connected ? "Ferramentas disponíveis no Codex" : "Conexão ainda não confirmada","evidence":connected ? "app/installed.enabled+callable" : "app/list","iconURL":app["iconUrlDark"] ?? app["iconUrl"] ?? NSNull()]
-            if let plugin=packages.first(where:{p in let ui=p["interface"] as? [String:Any] ?? [:];return (ui["displayName"] as? String)?.caseInsensitiveCompare(name) == .orderedSame}),let ui=plugin["interface"] as? [String:Any]{row["iconURL"]=ui["logoUrlDark"] ?? ui["logoUrl"] ?? row["iconURL"];if let icon=localIcon(ui["logoDark"] as? String ?? ui["logo"] as? String ?? ui["composerIcon"] as? String){row["iconDataURL"]=icon}}
+            let ownInterface=packages.first{p in let ui=p["interface"] as? [String:Any] ?? [:];return (ui["displayName"] as? String)?.caseInsensitiveCompare(name) == .orderedSame}?["interface"] as? [String:Any]
+            let iconURL=(app["iconUrlDark"] as? String) ?? (app["iconUrl"] as? String) ?? (ownInterface?["logoUrlDark"] as? String) ?? (ownInterface?["logoUrl"] as? String) ?? ""
+            let row:[String:Any]=["id":id,"name":name,"kind":"app","status":status,"detail":connected ? "Ferramentas disponíveis no Codex" : "Conexão ainda não confirmada","evidence":connected ? "app/installed.enabled+callable" : "app/list","iconURL":iconURL]
             rows.append(row)
         }
         for plugin in packages where plugin["installed"] as? Bool==true {
@@ -138,14 +139,9 @@ final class CodexBridge:CodexConnection {
             let connected=enabled && linked.contains{$0["runtimeStatus"] as? String=="connected" && !($0["tools"] as? [String:Any] ?? [:]).isEmpty}
             let needsAuth=linked.contains{$0["runtimeStatus"] as? String=="authenticationRequired"}
             var row:[String:Any]=["id":id,"name":name,"kind":"plugin","status":connected ? "connected" : !enabled ? "unavailable" : needsAuth ? "needs_auth" : "installed","detail":connected ? "Conexão ativa no Codex" : enabled ? "Instalado no Codex" : "Desativado no Codex","evidence":connected ? "mcpServerStatus.runtimeStatus+tools" : "plugin/installed"]
-            row["iconURL"]=ui["logoUrlDark"] ?? ui["logoUrl"]
-            if let data=localIcon(ui["logoDark"] as? String ?? ui["logo"] as? String ?? ui["composerIcon"] as? String){row["iconDataURL"]=data}
+            row["iconURL"]=(ui["logoUrl"] as? String) ?? (ui["logoUrlDark"] as? String)
             rows.append(row)
         }
         return ["status":rows.isEmpty && !issues.isEmpty ? "unavailable" : "available","checkedAt":ISO8601DateFormatter().string(from:Date()),"plugins":rows.sorted{($0["name"] as! String)<($1["name"] as! String)},"reason":issues.joined(separator:". "),"scope":"Conexão Oracle ao Codex; presença de pacote não comprova autorização"]
-    }
-    private static func localIcon(_ path:String?)->String? {
-        guard let path,path.hasPrefix(fm.homeDirectoryForCurrentUser.appendingPathComponent(".codex/plugins/").path),["png","jpg","jpeg","webp"].contains(URL(fileURLWithPath:path).pathExtension.lowercased()),let data=try? Data(contentsOf:URL(fileURLWithPath:path)),data.count<200_000 else{return nil}
-        let ext=URL(fileURLWithPath:path).pathExtension.lowercased();return "data:image/\(ext=="jpg" ? "jpeg" : ext);base64,"+data.base64EncodedString()
     }
 }

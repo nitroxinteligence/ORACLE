@@ -128,7 +128,7 @@ final class CodexBridge:CodexConnection {
             let status=connected ? "connected" : !enabled ? "unavailable" : app["isAccessible"] as? Bool==false ? "needs_auth" : "installed"
             let displayNames=app["pluginDisplayNames"] as? [String] ?? [];claimed.formUnion(displayNames)
             var row:[String:Any]=["id":id,"name":name,"kind":"app","status":status,"detail":connected ? "Ferramentas disponíveis no Codex" : "Conexão ainda não confirmada","evidence":connected ? "app/installed.enabled+callable" : "app/list","iconURL":app["iconUrlDark"] ?? app["iconUrl"] ?? NSNull()]
-            if let plugin=packages.first(where:{p in let ui=p["interface"] as? [String:Any] ?? [:];return displayNames.contains(ui["displayName"] as? String ?? "") || ui["displayName"] as? String==name}),let ui=plugin["interface"] as? [String:Any]{row["iconURL"]=ui["logoUrlDark"] ?? ui["logoUrl"] ?? row["iconURL"];if let icon=localIcon(ui["logoDark"] as? String ?? ui["logo"] as? String ?? ui["composerIcon"] as? String){row["iconDataURL"]=icon}}
+            if let plugin=packages.first(where:{p in let ui=p["interface"] as? [String:Any] ?? [:];return (ui["displayName"] as? String)?.caseInsensitiveCompare(name) == .orderedSame}),let ui=plugin["interface"] as? [String:Any]{row["iconURL"]=ui["logoUrlDark"] ?? ui["logoUrl"] ?? row["iconURL"];if let icon=localIcon(ui["logoDark"] as? String ?? ui["logo"] as? String ?? ui["composerIcon"] as? String){row["iconDataURL"]=icon}}
             rows.append(row)
         }
         for plugin in packages where plugin["installed"] as? Bool==true {

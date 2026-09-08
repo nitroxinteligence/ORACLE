@@ -46,6 +46,8 @@ Saídas: `dist/Oracle.app`, `dist/Oracle-0.3.0-arm64.dmg` e SHA-256. O build rec
 - [Materiais, zoom, edição e limites técnicos](docs/implementation/organic-ui-design.md).
 - [Onboarding, contratos Codex e instalação real em fixture](docs/implementation/onboarding-2026-09-08.md).
 - [Contratos consolidados](docs/evidence/organic-ui/contracts.json).
-- [Matriz nativa de 72 cenários de zoom da interface A](docs/evidence/organic-ui/native-matrix.json).
+- [Desempenho antes/depois](docs/benchmarks/organic-report.md).
+- [Capturas da versão consolidada](docs/evidence/organic-ui/gallery.json).
+- [Matriz nativa consolidada de 72 cenários de zoom](docs/evidence/organic-ui/native-matrix.json).
 
 As validações usam perfis isolados e notas sintéticas. A configuração pessoal não é reinstalada pelos testes. A confiança de hooks permanece no mecanismo oficial do Codex; nenhum teste habilita essa confiança automaticamente. O código não lê bancos privados do Codex nem usa tokens da assinatura como uma API paralela.

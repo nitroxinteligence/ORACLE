@@ -4,11 +4,13 @@ Escopo: briefing de 08/09/2026, oito referências visuais inspecionadas, interfa
 
 ## Verificações executadas
 
-O binário consolidado passou em **115 verificações Swift**, **9 verificações do indexador** e **18 testes de geometria/movimento/projeção**. O atualizador foi testado com o binário oficial cujo SHA-256 foi conferido no release fixado. A consulta real `check-only` preservou os hashes de todos os arquivos da fixture.
+O binário consolidado passou em **116 verificações Swift**, **9 verificações do indexador** e **18 testes de geometria/movimento/projeção**. O atualizador foi testado com o binário oficial cujo SHA-256 foi conferido no release fixado. A consulta real `check-only` preservou os hashes de todos os arquivos da fixture.
 
-A interface A passou em **38 verificações nativas e 72 cenários de zoom**, antes da união final. A tarefa B passou no onboarding nativo e na instalação real do GBrain pelo Codex, com retomada do mesmo plano. O inventário consolidado foi consultado novamente por API e forneceu ícones reais para Codex Document Control, Figma, Firecrawl, GitHub, OpenAI Platform e Sites.
+A interface consolidada passou em **38 verificações nativas e 72 cenários de zoom**. A tarefa B passou no onboarding nativo e na instalação real do GBrain pelo Codex, com retomada do mesmo plano. O inventário consolidado foi consultado novamente por API. A revisão corrigiu uma associação indevida de imagens de plugins dependentes; o ícone do app passa a exigir correspondência de identidade. Os ícones são monocromáticos, com iniciais quando não há imagem própria disponível.
 
-**Pendente nesta execução:** repetir a inspeção da janela e a medição de desempenho após a integração final. O macOS bloqueou a sessão durante essa etapa; a ferramenta de inspeção solicitou desbloqueio manual. O bloqueio foi respeitado. As métricas `organic-before.json` são baseline, e não prova de 60 FPS na versão consolidada.
+A inspeção foi retomada após o desbloqueio manual do Mac. A versão integrada passou nos 38 testes nativos e nos 72 cenários de zoom. Foram inspecionados mapa, expansão, painéis e modais em janela pequena e grande. A medição final registrou 59,7 FPS em ambiente, 50,4 FPS em expansões repetidas e 60,0 FPS no timelapse. O modo econômico ficou em 15 FPS; movimento reduzido e minimização cessaram a renderização. Detalhes e limites: `docs/benchmarks/organic-report.md`.
+
+A repetição ponta a ponta da instalação no pacote integrado concluiu em 138 segundos, com confirmação sintética da identidade, índice, consulta à memória e descoberta da skill pelo Codex. Nenhuma permissão de hooks foi concedida automaticamente. A memória abriu a biblioteca Obsidian recém-indexada e retornou cinco documentos.
 
 ## Método
 
@@ -54,3 +56,5 @@ A assinatura ad hoc não substitui Developer ID/notarização. A confiança dos 
 Coordenação de arquivo e releitura reduzem conflitos, mas não constituem uma transação universal com editores externos que ignorem as APIs do macOS. Os detalhes desse limite e a fonte Apple dos materiais estão em `organic-ui-design.md`.
 
 O relatório de desempenho registra cadência de desenhos entregues pelo WebGL, CPU do host Oracle e processos WebKit separadamente. Não atribui todos os processos WebKit do Mac ao Oracle, nem confunde custo de submissão CPU com tempo de GPU.
+
+As capturas finais do mapa usam as 940 skills públicas distribuídas no catálogo, copiadas para outro vault de teste e verificadas por SHA-256 (4.902 arquivos). A matriz automatizada usa documentos sintéticos. Nenhuma das amostras lê o vault pessoal. O macOS limitou a janela grande solicitada de 1440×900 a 1440×870 de conteúdo; as imagens registram as dimensões reais.

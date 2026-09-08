@@ -17,6 +17,7 @@ PASS cached MCP tools and accessible metadata do not prove runtime connection
 PASS official catalog icon origin accepted
 PASS local and insecure icon URLs rejected
 PASS lookalike and credential-bearing icon URLs rejected
+PASS dependent plugin artwork never replaces app identity
 PASS new profile is locked
 PASS picking a vault cannot bypass activation
 PASS unlicensed selection denied
@@ -24,7 +25,7 @@ PASS unlicensed install denied
 PASS cancel marker stops deterministic phases
 PASS no progress before verified run
 PASS existing personal profile is preserved
-Onboarding: 26 checks passed
+Onboarding: 27 checks passed
 PASS selected vault permission survives readback
 PASS permission denial preserves selected vault
 PASS symlink cannot widen vault access

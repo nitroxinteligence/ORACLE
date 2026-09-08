@@ -2,7 +2,7 @@
   "status": "completed",
   "real_codex_execution": true,
   "upstream_readback_confirmed_for_synthetic_fixture": true,
-  "elapsed_seconds": 86,
+  "elapsed_seconds": 138,
   "confirmed": [
     {
       "evidence": "Codex turn/start",
@@ -20,7 +20,7 @@
       "evidence": "GBrain identity and index readback",
       "id": "gbrain",
       "kind": "connector",
-      "label": "Memory"
+      "label": "Second Brain"
     },
     {
       "evidence": "file hash verified",
@@ -38,6 +38,26 @@
     "structure": true
   },
   "phases": [
+    [
+      "running",
+      "preparing",
+      1
+    ],
+    [
+      "running",
+      "installing",
+      1
+    ],
+    [
+      "running",
+      "installing",
+      3
+    ],
+    [
+      "waiting_user",
+      "identity",
+      3
+    ],
     [
       "running",
       "preparing",
@@ -59,7 +79,5 @@
       4
     ]
   ],
-  "scope": "Fresh isolated fixture. Existing personal profile and vault untouched. No hook-trust bypass.",
-  "resumed_same_plan_after_relative_link_fix": true,
-  "elapsed_seconds_scope": "Successful resume only, after an earlier paused attempt"
+  "scope": "Fresh isolated fixture. Existing personal profile and vault untouched. No hook-trust bypass."
 }

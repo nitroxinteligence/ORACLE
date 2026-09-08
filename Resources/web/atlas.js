@@ -8,7 +8,7 @@ class OracleAtlas {
     this.nodes=new Map();this.leaves=new Map();this.layout={nodes:{},leaves:{}};
     this.camera={x:0,y:0,k:1};this.target={...this.camera};this.baseScale=1;this.frame=0;this.selected=null;this.selectedLeaf=null;this.first=true;this.lastDetail='';this.interactionFrames=[];this.updateCosts=[];this.suppressClick=false;
     this.el.innerHTML=`<svg class="atlas-scene" aria-label="Atlas do conhecimento" role="group" tabindex="0"><defs>
-      <radialGradient id="oracle-core-fill"><stop offset="0" stop-color="#252628"/><stop offset=".55" stop-color="#101112"/><stop offset="1" stop-color="#030405"/></radialGradient>
+      <filter id="plugin-monochrome"><feColorMatrix type="saturate" values="0"/></filter><radialGradient id="oracle-core-fill"><stop offset="0" stop-color="#252628"/><stop offset=".55" stop-color="#101112"/><stop offset="1" stop-color="#030405"/></radialGradient>
       <radialGradient id="oracle-core-halo"><stop stop-color="#eeeeec" stop-opacity=".09"/><stop offset=".35" stop-color="#b5bbc3" stop-opacity=".035"/><stop offset="1" stop-color="#b5bbc3" stop-opacity="0"/></radialGradient>
       <linearGradient id="orbit-silver" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f2f2ef" stop-opacity=".5"/><stop offset=".45" stop-color="#8c929b" stop-opacity=".04"/><stop offset="1" stop-color="#dddeda" stop-opacity=".32"/></linearGradient>
       <radialGradient id="planet-fill" cx=".3" cy=".15" r=".9"><stop stop-color="#232526"/><stop offset=".7" stop-color="#0c0e0f"/><stop offset="1" stop-color="#07090a"/></radialGradient>

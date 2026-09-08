@@ -39,14 +39,14 @@ final class PluginIconLoader:NSObject,URLSessionDataDelegate {
                 guard let path=ui[name] as? String else{continue}
                 let url=version.appendingPathComponent(path).resolvingSymlinksInPath()
                 guard url.path.hasPrefix(version.resolvingSymlinksInPath().path+"/"),["png","jpg","jpeg","webp"].contains(url.pathExtension.lowercased()),let data=try? Data(contentsOf:url),let icon=rasterDataURL(data) else{continue}
-                for app in apps.values {if let id=app["id"] as? String,result[id]==nil{result[id]=icon}}
+                for app in apps.values {if let id=app["id"] as? String,let name=ui["displayName"] as? String {let key=id+"|"+name.lowercased();if result[key]==nil{result[key]=icon}}}
                 break
             }
         }}}
         return result
     }()
     static func decorate(_ inventory:[String:Any])->[String:Any] {
-        var result=inventory;let rows=(inventory["plugins"] as? [[String:Any]] ?? []).map{r in var row=r;if row["iconDataURL"]==nil,let id=row["id"] as? String,let local=localBrands[id]{row["iconDataURL"]=local};return row}
+        var result=inventory;let rows=(inventory["plugins"] as? [[String:Any]] ?? []).map{r in var row=r;if let id=row["id"] as? String,let name=row["name"] as? String,let local=localBrands[id+"|"+name.lowercased()]{row["iconDataURL"]=local};return row}
         let group=DispatchGroup(),limit=DispatchSemaphore(value:4),resultsLock=NSLock();var icons=[Int:String]()
         for(i,row) in rows.enumerated() where i<64 && row["iconDataURL"]==nil {
             guard let text=row["iconURL"] as? String,catalogURL(text) != nil else{continue}

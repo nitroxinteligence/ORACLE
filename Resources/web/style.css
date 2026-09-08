@@ -29,3 +29,5 @@ body.navigation-closed .ob-progress-card{left:24px}body.observatory-open .ob-pro
 .oracle-onboarding .ob-body h1{font-size:25px}.oracle-onboarding .ob-heading>div{font-size:15px}.oracle-onboarding .ob-body p{font-size:13px}
 
 body.setup-pending #app main,body.setup-pending .header-actions{visibility:hidden}body.setup-pending .ob-progress-card{left:24px;right:24px}
+
+.orbital-plugin image{filter:url(#plugin-monochrome)}

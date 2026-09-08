@@ -48,13 +48,13 @@ for size in [(1200,760),(840,620),(1440,900)]:
         call(f'selected={json.dumps(selected)};selectedSkill=null;renderAtlas();atlasController.fit();true');settle()
         for level in [.49,.50,.51,.74,.90,1,1.12,2.59]:
             zoom(level)
-            row=call('({selected,zoom:atlasController.camera.k/atlasController.baseScale,leaves:[...atlasController.nodes.values()].map(n=>({id:n.id,total:n.skills.length,shown:[...atlasController.leaves.values()].filter(l=>l.parent===n.id).length})),gpu:atlasController.universe.leafGeometry.drawRange.count,finite:[...atlasController.leaves.values()].every(l=>Number.isFinite(l.x)&&Number.isFinite(l.y))})')
+            row=call('({viewport:[innerWidth,innerHeight],selected,zoom:atlasController.camera.k/atlasController.baseScale,leaves:[...atlasController.nodes.values()].map(n=>({id:n.id,total:n.skills.length,shown:[...atlasController.leaves.values()].filter(l=>l.parent===n.id).length})),gpu:atlasController.universe.leafGeometry.drawRange.count,finite:[...atlasController.leaves.values()].every(l=>Number.isFinite(l.x)&&Number.isFinite(l.y))})')
             assert abs(row['zoom']-level)<.0001,(size,level,row['zoom'])
             for group in row['leaves']:
                 expected=0 if level<=.5 else min(group['total'],50 if group['id']==selected else 10)
                 assert group['shown']==expected,(size,selected,level,group,expected)
             assert row['gpu']==sum(x['shown'] for x in row['leaves']) and row['finite']
-            matrix.append({'viewport':size,'selected':selected,'requestedZoom':level,**row})
+            matrix.append({'requestedViewport':size,'selected':selected,'requestedZoom':level,**row})
         zoom(1)
         check(f'all nodes fit at 100%, {size}, {selected}', '([...atlasController.nodes.values(),...atlasController.leaves.values()]).every(p=>{const c=atlasController.camera;return p.x*c.k+c.x>=0&&p.x*c.k+c.x<=atlasController.width&&p.y*c.k+c.y>=0&&p.y*c.k+c.y<=atlasController.height})')
     print('PASS zoom matrix',size,flush=True)
@@ -120,6 +120,6 @@ call('window.matrixExtension=atlasController.universe.renderer.getContext().getE
 check('WebGL loss keeps an accessible SVG fallback','atlasController.el.classList.contains("svg-fallback") && atlasController.nodes.get("marketing").g.tabIndex===0')
 call('matrixExtension.restoreContext();true');time.sleep(.6)
 check('WebGL restoration retains a single canvas','atlasController.el.classList.contains("three-enabled") && atlasController.el.querySelectorAll("canvas").length===1 && !atlasController.diagnostics().error')
-result={'passed':len(checks),'checks':checks,'zoomMatrix':matrix,'scope':'Real AppKit/WKWebView app; isolated synthetic vault; runtime plugin and availability fixture assertions are explicitly synthetic, never live integration evidence.'}
+result={'phase':'consolidated_A_B','sourceSHA256':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in ['Resources/web/app.js','Resources/web/atlas.js','Resources/web/style.css','Resources/web/onboarding.js','Resources/web/installation-visual.js']},'passed':len(checks),'checks':checks,'zoomMatrix':matrix,'scope':'Real AppKit/WKWebView app; isolated synthetic vault; runtime plugin and availability fixture assertions are explicitly synthetic, never live integration evidence.'}
 (ROOT/'docs/evidence/organic-ui/native-matrix.json').write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n')
 print('TOTAL',len(checks),'checks and',len(matrix),'zoom scenarios',flush=True)

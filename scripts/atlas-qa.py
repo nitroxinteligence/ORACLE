@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Local mailbox client for the opt-in synthetic macOS test build."""
 import json
+import fcntl
 import os
 import pathlib
 import sys
@@ -10,6 +11,11 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 MAILBOX = pathlib.Path(os.environ.get('ORACLE_ATLAS_QA_DIR', ROOT / '.work/atlas-qa/mailbox'))
 
 def call(js=None, *, op='eval', name=None, timeout=15, **parameters):
+    with (MAILBOX / 'client.lock').open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return _call_locked(js, op=op, name=name, timeout=timeout, **parameters)
+
+def _call_locked(js=None, *, op='eval', name=None, timeout=15, **parameters):
     response = MAILBOX / 'response.json'
     response.unlink(missing_ok=True)
     temp = MAILBOX / 'request.tmp'

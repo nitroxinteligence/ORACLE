@@ -38,6 +38,8 @@ func runOnboardingTests() throws {
     try check(PluginIconLoader.catalogURL("https://files.openai.com/content?id=fixture") != nil,"official catalog icon origin accepted")
     try check(PluginIconLoader.catalogURL("http://127.0.0.1/private") == nil && PluginIconLoader.catalogURL("file:///etc/passwd") == nil,"local and insecure icon URLs rejected")
     try check(PluginIconLoader.catalogURL("https://files.openai.com.attacker.example/a.png") == nil && PluginIconLoader.catalogURL("https://user@files.openai.com/a.png") == nil,"lookalike and credential-bearing icon URLs rejected")
+    let branded=CodexBridge.projectInventory(apps:[["id":"github","name":"GitHub","isAccessible":true,"isEnabled":true,"pluginDisplayNames":["Analytics","GitHub"]]],runtime:[],packages:[["interface":["displayName":"Analytics","logoUrl":"https://files.openai.com/analytics.png"]],["interface":["displayName":"GitHub","logoUrl":"https://files.openai.com/github.png"]]],servers:[])
+    try check((branded["plugins"] as? [[String:Any]])?.first?["iconURL"] as? String=="https://files.openai.com/github.png","dependent plugin artwork never replaces app identity")
     let home=fm.temporaryDirectory.appendingPathComponent("OracleOnboarding-"+UUID().uuidString);defer{try? fm.removeItem(at:home)}
     let core=try Core(home:home);let snapshot=try core.onboardingSnapshot()
     try check(snapshot["legacyAccess"] as? Bool==false && snapshot["licensed"] as? Bool==false,"new profile is locked")

@@ -1,6 +1,6 @@
 {
   "scope": "Consolidated native binary, isolated temporary profiles. Official GBrain release SHA matched the pinned public release before execution.",
-  "swift_checks": 115,
+  "swift_checks": 116,
   "link_checks": 9,
   "visual_unit_tests": 18,
   "files": {
@@ -13,7 +13,7 @@
       "file": "docs/evidence/organic-ui/editor-tests.txt"
     },
     "onboarding-tests": {
-      "pass_lines": 42,
+      "pass_lines": 43,
       "file": "docs/evidence/organic-ui/onboarding-tests.txt"
     },
     "update-tests": {

@@ -186,7 +186,7 @@ class OracleUniverse {
     changed = this.setQuality(manualEconomy || this.governor.degraded ? 'economy' : 'balanced') || changed;
     changed = this.syncGeometry(model) || changed;
     const groupIndex = id => model.nodes.get(id)?.index ?? -2;
-    const hover = model.hovered || model.keyboardFocus || {};
+    const hover = model.hovered || (document.documentElement.dataset.inputMode!=='pointer' && model.keyboardFocus) || {};
     const values = {
       uSelected: groupIndex(model.selected), uSelectedLeaf: this.leafRows.get(model.selectedLeaf) ?? -2,
       uHovered: groupIndex(hover.category), uHoveredLeaf: this.leafRows.get(hover.skill) ?? -2,

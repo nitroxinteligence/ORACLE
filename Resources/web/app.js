@@ -378,6 +378,11 @@ document.addEventListener('pointerover',e=>{const target=e.target.closest('[data
 document.addEventListener('pointerout',e=>{if(tooltipTarget&&!tooltipTarget.contains(e.relatedTarget))hideTooltip()});
 document.addEventListener('focusin',e=>{const target=e.target.closest('[data-tooltip]');if(target)showTooltip(target,true);else hideTooltip()});
 document.addEventListener('pointerdown',hideTooltip);
+// Keep logical focus for navigation, but distinguish pointer focus from keyboard focus.
+document.documentElement.dataset.inputMode='keyboard';
+function setInputMode(mode){if(document.documentElement.dataset.inputMode===mode)return;document.documentElement.dataset.inputMode=mode;if(atlasController)atlasController.universe?.sync(atlasController)}
+document.addEventListener('pointerdown',()=>setInputMode('pointer'),true);
+document.addEventListener('keydown',e=>{if(!['Shift','Control','Alt','Meta'].includes(e.key))setInputMode('keyboard')},true);
 // WebKit on macOS does not focus every clicked control by default. Keep the
 // native app's modal origin and keyboard controls consistent with the browser.
 document.addEventListener('click',e=>{const control=e.target.closest('button,input[type=range],summary');if(control&&!control.disabled)control.focus({preventScroll:true})},true);

@@ -40,7 +40,7 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `4535c535ed46cc82f1d4c0bbe77aa62fc5d6e6a8345dc56ca1f72a587fb10186`
+- SHA-256 do DMG: `42bbb8e99a37d13d656541f77126f28809b8e358a484dc303db08047222cb38b`
 
 Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 
@@ -65,3 +65,5 @@ O app pessoal em `/Applications` não foi substituído. Não houve push, publica
 `02b5fad`: canvas/SVG ocupam a janela inteira; controles flutuam sobre o gráfico, sem faixas de recorte no topo/base. Área de enquadramento separada da área de desenho, respeitando painéis. WKWebView confirmou canvas 1200×760 em (0,0), área útil reduzida pelo inspetor sem reduzir canvas e nó focal centralizado nessa área. [Pan no topo](full-canvas-top.png) · [Pan na base](full-canvas-bottom.png). Medições de FPS anteriores precedem a ampliação do canvas.
 
 `ec95d0e`: laterais sem fundo, borda, sombra ou blur; cards e controles com superfície branca translúcida leve. Verificação visual em WKWebView com ambas as laterais abertas; estilos computados confirmam fundo transparente e borda zero nas duas laterais. App local e DMG atualizados, assinatura local verificada pelo empacotamento. [Resultado](floating-inspector.png).
+
+`1f1baea` / `a3a89d4`: áreas dedicadas por especialista, transição lateral de saída/entrada e expansão radial; SOL e demais especialistas reaparecem ao voltar ao universo. Gráfico limitado a 50 arquivos, mantendo catálogo integral na navegação e incluindo seleções fora da amostra sem exceder o teto. Grupos alfabéticos equivalentes de empacotamento são unificados; setores separados impedem que grupos desiguais cruzem o centro. Em Ads, 34 arquivos partem diretamente do especialista. Validação: 12 checks de geometria/catálogo, 7 checks nativos de navegação/limite e inspeção visual com janela visível. [Checks](dedicated-scenes.json) · [Ads corrigido](dedicated-ads-fixed.png) · [Cybersecurity limitado](dedicated-cybersecurity.png). Sem nova alegação de FPS.

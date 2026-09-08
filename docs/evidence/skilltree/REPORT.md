@@ -40,8 +40,12 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `b14bb02d5c0131b7850734763053324e67c06915ec3970100584910b281af41c`
+- SHA-256 do DMG: `e6afbda2e54edef01a6dd06f9900552b5478bd50064ec252cd0fd59668fb2fb8`
 
-Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. Os 4933 arquivos conferem com o app. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
+Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 
 O app pessoal em `/Applications` não foi substituído. Não houve push, publicação de release ou instalação de fontes externas. A versão de pacote permanece 0.3.0 para a tarefa principal decidir a versão consolidada.
+
+## Ajuste final da barra lateral
+
+`a0a6617`: título Meu universo removido; busca à esquerda e botão de reler pasta à direita, alinhados na mesma linha. App e DMG locais atualizados.

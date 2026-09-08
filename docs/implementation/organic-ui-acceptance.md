@@ -2,6 +2,14 @@
 
 Escopo: briefing de 08/09/2026, oito referências visuais inspecionadas, interface A e integração final B. Perfil de QA separado do vault pessoal. Artefatos são locais; assinatura de desenvolvimento ad hoc, sem notarização ou publicação externa.
 
+## Verificações executadas
+
+O binário consolidado passou em **115 verificações Swift**, **9 verificações do indexador** e **17 testes de geometria/movimento/projeção**. O atualizador foi testado com o binário oficial cujo SHA-256 foi conferido no release fixado. A consulta real `check-only` preservou os hashes de todos os arquivos da fixture.
+
+A interface A passou em **38 verificações nativas e 72 cenários de zoom**, antes da união final. A tarefa B passou no onboarding nativo e na instalação real do GBrain pelo Codex, com retomada do mesmo plano. O inventário consolidado foi consultado novamente por API e forneceu ícones reais para Codex Document Control, Figma, Firecrawl, GitHub, OpenAI Platform e Sites.
+
+**Pendente nesta execução:** repetir a inspeção da janela e a medição de desempenho após a integração final. O macOS bloqueou a sessão durante essa etapa; a ferramenta de inspeção solicitou desbloqueio manual. O bloqueio foi respeitado. As métricas `organic-before.json` são baseline, e não prova de 60 FPS na versão consolidada.
+
 ## Método
 
 - macOS 26.6.2, hardware e dimensões registrados em `docs/benchmarks/`.

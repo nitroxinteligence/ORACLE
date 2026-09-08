@@ -243,6 +243,7 @@ async function scrub(){
  if(replaySession.kind==='journal'){cursor=value;projectReplay()}else{atlasController.setFormation({progress:value/1000,playing:false});renderPlayback()}
 }
 async function play(){
+ visualPaused=false;$('#ambient-toggle').textContent='Pausar atmosfera';atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||!!document.querySelector('dialog[open]'));
  if(replaySession?.kind==='journal'){
   if(timer){clearInterval(timer);timer=null;renderPlayback();return}
   const max=replaySession.events.length-1;if(cursor>=max)cursor=0;

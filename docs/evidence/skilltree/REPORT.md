@@ -40,7 +40,7 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `1178e5e33256468d8d05a9564437aa91ae3b80deffbdfc8056b1089a159da4ec`
+- SHA-256 do DMG: `d24ef102dfd116d4dd69f94418dc67573a8f790d070ce1d1ee85ded0e1bfa2d9`
 
 Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 
@@ -53,3 +53,5 @@ O app pessoal em `/Applications` não foi substituído. Não houve push, publica
 `355fe02`: controles superiores reduzidos para 32 px, ícones de 16 px e Atualizações somente com ícone. App/DMG atualizados. As capturas acima precedem os ajustes finais dos controles.
 
 `69c077c`: rótulo lateral Conversas ChatGPT, conforme solicitado.
+
+`ce5be3f`: breadcrumb e retorno contextual nos plugins; detalhe retorna à lista e a lista retorna à origem.

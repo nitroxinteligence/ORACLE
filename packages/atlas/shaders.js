@@ -9,6 +9,8 @@ uniform float uClock;
 uniform float uFormation;
 uniform float uMotion;
 uniform float uEconomy;
+uniform float uSpotlight;uniform float uSpotlightAmount;
+float spotlightBlur(float group){return uSpotlightAmount*step(0.,uSpotlight)*step(.1,abs(group-uSpotlight));}
 uniform float uGroupCount;
 uniform float uFocusedCluster;uniform float uHoveredCluster;uniform float uContext;
 float groupPhase(float index){return clamp(index/max(1.,uGroupCount-1.),0.,1.);}
@@ -55,7 +57,7 @@ void main(){
  float hover=ring(r,.47,.002)*uHoverCore*.28;
  float alpha=clamp(body+corona+air+limb+echo+hover,0.,1.)*reveal(0.,.2);
  vec3 rgb=surface*body+light*breathe+vec3(.85,.89,.87)*(echo+hover);
- gl_FragColor=vec4(rgb/max(body+corona+air+limb+echo+hover,.001),alpha);
+ gl_FragColor=vec4(rgb/max(body+corona+air+limb+echo+hover,.001),alpha*mix(1.,.42,uSpotlightAmount));
 }`;
 
 export const nodeVertex = `
@@ -73,7 +75,8 @@ ${shared}
 varying vec2 vUv;varying vec3 vTint;varying vec4 vState;varying float vOrder;
 void main(){
  vec2 p=(vUv-.5)*2.;float r=length(p),a=atan(p.y,p.x);if(r>.99)discard;
- float disk=1.-smoothstep(.582,.598,r),rim=ring(r,.592,.004);
+ float soft=spotlightBlur(vOrder);
+ float disk=1.-smoothstep(.582-soft*.10,.598+soft*.12,r),rim=mix(ring(r,.592,.004),exp(-pow((r-.592)/.10,2.))*.15,soft);
  float selected=vState.x,hover=vState.y,drag=vState.z,dim=vState.w;
  float light=pow(max(0.,dot(normalize(vec3(p,.6)),normalize(vec3(-.6,.8,.8)))),3.);
  vec3 surface=vec3(.018,.022,.024)+vTint*(.05+light*.12);
@@ -86,12 +89,14 @@ void main(){
  float alpha=clamp(disk+rim*.6+atmosphere+arc+focus+grip,0.,1.);
  vec3 rgb=surface*disk+vTint*(rim*(.28+caustic+hover*.35)+atmosphere+arc+focus+grip);
  rgb*=mix(1.,.48,dim);
- gl_FragColor=vec4(rgb/max(alpha,.001),alpha*reveal(.23+groupPhase(vOrder)*.20,.12));
+ gl_FragColor=vec4(rgb/max(alpha,.001),alpha*reveal(.23+groupPhase(vOrder)*.20,.12)*mix(1.,.4,soft));
  #include <colorspace_fragment>
 }`;
 
 export const edgeVertex = `
 uniform float uScale;uniform float uTime;uniform float uMotion;uniform float uEconomy;
+uniform float uSpotlight;uniform float uSpotlightAmount;
+float spotlightBlur(float group){return uSpotlightAmount*step(0.,uSpotlight)*step(.1,abs(group-uSpotlight));}
 attribute vec2 source;attribute vec2 target;attribute vec3 tint;attribute vec4 edgeMeta;attribute float edgeLife;
 varying vec2 vUv;varying vec3 vTint;varying vec4 vMeta;varying float vLife;
 void main(){
@@ -123,7 +128,8 @@ void main(){
  float drag=1.-step(.1,abs(group-uDragged));
  float dim=mix(1.,.18,step(0.,uSelected)*(1.-selected))*mix(1.,.16,step(0.,uFocusedCluster)*(1.-cluster)*step(.1,vMeta.x));
  float cross=abs(vUv.y-.5)*2.;
- float line=1.-smoothstep(.08,.40+selected*.13,cross);
+ float soft=spotlightBlur(group);
+ float line=mix(1.-smoothstep(.08,.40+selected*.13,cross),exp(-cross*cross*4.)*.45,soft);
  float phase=fract(uTime*(.075+vMeta.x*.045)-vMeta.z*.137-vMeta.w*.21);
  float head=exp(-pow((vUv.x-phase)*24.,2.));
  float tail=exp(-pow((vUv.x-phase+.04)*12.,2.))*.35;
@@ -132,7 +138,7 @@ void main(){
  float growth=reveal(start,.18);
  float revealed=1.-smoothstep(growth-.03,growth+.01,vUv.x);
  if(uFormation>=.999)revealed=1.;
- float alpha=((.15+selected*.12+exact*.25+hover*.22+uReconnect*.12)*line+energy*.14*(1.-smoothstep(.05,.9,cross)))*dim*revealed*vLife;
+ float alpha=((.15+selected*.12+exact*.25+hover*.22+uReconnect*.12)*line+energy*.14*(1.-smoothstep(.05,.9,cross)))*dim*revealed*vLife*mix(1.,.4,soft);
  gl_FragColor=vec4(mix(vTint,vec3(.93,.92,.85),head*.3+exact*.15),alpha);
  #include <colorspace_fragment>
 }`;
@@ -156,12 +162,13 @@ void main(){
  float cluster=1.-step(.1,abs(vCluster-uFocusedCluster));
  float dim=mix(1.,.18,step(0.,uSelected)*(1.-member))*mix(1.,.15,step(0.,uFocusedCluster)*(1.-cluster));
  float beat=.5+.5*sin(uTime*.7-vMeta.y-vMeta.x);
- float dot=1.-smoothstep(.22,.4+chosen*.08+hover*.06,r);
+ float soft=spotlightBlur(vMeta.x);
+ float dot=mix(1.-smoothstep(.22,.4+chosen*.08+hover*.06,r),exp(-r*r*5.)*.55,soft);
  float halo=exp(-r*5.)*(.08+beat*.035+chosen*.1);
  if(uContext>1.)dot=(1.-smoothstep(.61,.7,r))*.15+ring(r,.66,.025)*.7;
  float orbit=ring(r,.73,.035)*(chosen*.65+hover*.35);
  float arrival=mix(smoothstep(0.,.32,uClock-vMeta.w),1.,1.-uMotion);
- float alpha=(dot*.85+halo+orbit)*dim*reveal(.63+groupPhase(vMeta.x)*.09+vMeta.y/(vMeta.y+8.)*.14,.12)*arrival*vLife;
+ float alpha=(dot*.85+halo+orbit)*dim*reveal(.63+groupPhase(vMeta.x)*.09+vMeta.y/(vMeta.y+8.)*.14,.12)*arrival*vLife*mix(1.,.4,soft);
  gl_FragColor=vec4(mix(vTint,vec3(.96,.96,.92),chosen*.6),alpha);
  #include <colorspace_fragment>
 }`;

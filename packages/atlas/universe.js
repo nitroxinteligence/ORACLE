@@ -61,7 +61,7 @@ class OracleUniverse {
     this.u = {
       uTime: uniform(0), uClock: uniform(0), uFormation: uniform(1), uMotion: uniform(1), uEconomy: uniform(0),
       uScale: uniform(1), uDpr: uniform(pixelRatio(devicePixelRatio, false)),
-      uSelected: uniform(-2), uSelectedLeaf: uniform(-2), uHovered: uniform(-2),
+      uSpotlight: uniform(-2), uSpotlightAmount: uniform(0), uSelected: uniform(-2), uSelectedLeaf: uniform(-2), uHovered: uniform(-2),
       uHoveredLeaf: uniform(-2), uDragged: uniform(-2), uReceipt: uniform(-1), uHoverCore: uniform(0),
       uReconnect: uniform(0), uGroupCount: uniform(7), uFocusedCluster: uniform(-2), uHoveredCluster: uniform(-2), uContext: uniform(0),
     };
@@ -192,6 +192,9 @@ class OracleUniverse {
     changed = this.syncGeometry(model) || changed;
     const groupIndex = id => model.nodes.get(id)?.index ?? -2;
     const hover = model.hovered || (document.documentElement.dataset.inputMode!=='pointer' && model.keyboardFocus) || {};
+    const spotlightIndex=groupIndex(model.spotlight),spotlightTarget=spotlightIndex>=0?1:0;
+    if(this.spotlightTarget!==spotlightTarget){this.spotlightTarget=spotlightTarget;this.transitioning=true;changed=true;}
+    if(spotlightIndex>=0&&this.u.uSpotlight.value!==spotlightIndex){this.u.uSpotlight.value=spotlightIndex;changed=true;}
     const values = {
       uSelected: groupIndex(model.selected||(model.knowledge?[...model.nodes.keys()][0]:null)), uSelectedLeaf: this.leafRows.get(model.selectedLeaf) ?? -2,
       uHovered: groupIndex(hover.category), uHoveredLeaf: this.leafRows.get(hover.skill) ?? -2,
@@ -388,6 +391,8 @@ class OracleUniverse {
     const state = this.nodeGeometry.attributes.nodeState;
     const lerp = this.reduced ? 1 : 1 - Math.exp(-delta / 80);
     this.transitioning = false;
+    const spotlightDifference=(this.spotlightTarget||0)-this.u.uSpotlightAmount.value;
+    if(Math.abs(spotlightDifference)>.001){this.u.uSpotlightAmount.value+=spotlightDifference*lerp;this.transitioning=true;}else{this.u.uSpotlightAmount.value=this.spotlightTarget||0;if(!this.spotlightTarget)this.u.uSpotlight.value=-2;}
     let stateChanged = false;
     for (let i = 0; i < this.nodeGeometry.instanceCount * 4; i++) {
       const difference = this.nodeTargets[i] - state.array[i];

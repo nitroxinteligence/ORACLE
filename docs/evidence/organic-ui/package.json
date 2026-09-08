@@ -1,0 +1,33 @@
+{
+  "version": "0.3.0",
+  "commit": "06fd03c79a7fd92be7e41a31e21f4d2f36d4fd68",
+  "createdAt": "2026-09-08T08:36:16.359394+00:00",
+  "dmgSHA256": "4d19dfff8486dc88967deaa1f33020540dbcfc42878aca8968bfb2b78a554260",
+  "dmgBytes": 116064168,
+  "readOnlyMountedBundleMatches": {
+    "Contents/MacOS/Oracle": true,
+    "Contents/Resources/web/app.js": true,
+    "Contents/Resources/web/atlas.js": true,
+    "Contents/Resources/web/onboarding.js": true,
+    "Contents/Resources/web/installation-visual.js": true,
+    "Contents/Resources/licensing/public-keys.json": true,
+    "Contents/Resources/engine/oracle-gbrain-read": true
+  },
+  "codesign": "ad hoc; deep strict verification passed",
+  "notarized": false,
+  "privateIssuerKeyIncluded": false,
+  "finalNativeInspection": "pending_mac_manually_locked",
+  "automatedChecks": {
+    "swift": 115,
+    "indexLinks": 9,
+    "visualUnitTests": 18
+  },
+  "priorNativeUI": {
+    "checks": 38,
+    "zoomScenarios": 72,
+    "scope": "A interface before final merge"
+  },
+  "BRealInstallation": "passed on isolated synthetic vault; see onboarding-live.json",
+  "standaloneApp": "/Users/mateusmpz/.codex/worktrees/8581/ORACLE/dist/Oracle.app",
+  "looseCopyInDocuments": "omitted because copied Finder metadata failed strict signing validation; verified app is available in the DMG and dist"
+}

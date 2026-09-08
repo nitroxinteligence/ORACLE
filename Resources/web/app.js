@@ -73,8 +73,9 @@ function renderTree(){
 function bindPaths(container){container.querySelectorAll('[data-path]').forEach(e=>e.onclick=safe(()=>{const entry=visibleEntries().find(n=>n.path===e.dataset.path);if(entry?.directory){openSearch(entry.path)}else return openNote(e.dataset.path)}))}
 let atlasController=null, selectedSkill=null, visualPaused=false,replaySession=null,replayProjection=null;
 function renderAtlas(){
- if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onSelect:(id,leaf)=>{selected=id;selectedSkill=leaf;renderInspector()},onPlugin:id=>plugin(id),onOpen:safe(openNote),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
- atlasController.update({collections:replay&&replaySession?.kind==='formation'?replaySession.collections:state.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:visibleEntries(),plugins:state.codexPlugins?.plugins||[],selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false,paused:visualPaused||$('#modal').open});
+ const installation=OracleInstallationVisual.projection(state);
+ if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onSelect:(id,leaf)=>{selected=id;selectedSkill=leaf;renderInspector()},onPlugin:id=>plugin(id),onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpen:safe(openNote),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
+ atlasController.update({collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:state.codexPlugins?.plugins||[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false,paused:visualPaused||$('#modal').open});
 }
 function setView(next){view=next;$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#atlas').hidden=view!=='map';$('#results').hidden=view==='map';$('.map-tools').hidden=view!=='map';renderResults();atlasController?.setPaused(view!=='map'||document.hidden)}
 function renderResults(){if(view==='map')return;let entries=visibleEntries().filter(e=>(view==='folders'||!e.directory)&&(!query||(e.path+' '+title(e)).toLowerCase().includes(query)));$('#results').innerHTML=`<h2>${view==='list'?'Documentos':'Pastas e documentos'} <small>${entries.length} resultados · fonte local</small></h2>`+(entries.length?entries.slice(0,300).map(e=>`<button class="result" data-path="${esc(e.path)}">${icon(e.directory?'folder':'note')}<div><strong>${esc(title(e))}</strong><small>${esc(e.path)}</small></div></button>`).join('')+(entries.length>300?'<p class="empty">Mostrando 300 resultados. Refine a busca.</p>':''):'<p class="empty">Nenhum resultado nesta pasta e filtro.</p>');bindPaths($('#results'))}
@@ -267,7 +268,7 @@ $('#speed').onclick=()=>{speed=speed===4?1:speed*2;$('#speed').textContent=speed
 $('.wordmark').onclick=e=>{e.preventDefault();setView('map');atlasController?.fit()};
 $('#updates').onclick=safe(()=>showUpdates(false));
 function setZoom(factor){atlasController?.zoomAt(factor)}$('#zoom-in').onclick=()=>setZoom(1.2);$('#zoom-out').onclick=()=>setZoom(1/1.2);$('#zoom-reset').onclick=()=>atlasController?.fit();$('#context-back').onclick=()=>atlasController?.back();$('#reset-layout').onclick=()=>{atlasController?.reset();toast('Posições restauradas. Nenhum arquivo foi movido.')};$('#economy').onchange=renderAtlas;
-window.oracleLock=()=>{for(const p of pending.values())p.reject(Error('Oracle bloqueado'));pending.clear();replay=false;replayProjection=null;replaySession=null;closeModal(true);if(atlasController){atlasController.dispose();atlasController=null};$('#lock-screen').hidden=false;$('#app').inert=true;state={entries:[],collections:[],events:[],config:{}};readDocument=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null};$('#lock').onclick=safe(async()=>{await persistEditorDraft();if(!window.ORACLE_PREVIEW)await call('lock');window.oracleLock()});$('#unlock').onclick=safe(async()=>{await call('unlock');$('#lock-screen').hidden=true;$('#app').inert=false;await refresh()});
+window.oracleLock=()=>{OracleInstallationVisual.reset();for(const p of pending.values())p.reject(Error('Oracle bloqueado'));pending.clear();replay=false;replayProjection=null;replaySession=null;closeModal(true);if(atlasController){atlasController.dispose();atlasController=null};$('#lock-screen').hidden=false;$('#app').inert=true;state={entries:[],collections:[],events:[],config:{}};readDocument=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null};$('#lock').onclick=safe(async()=>{await persistEditorDraft();if(!window.ORACLE_PREVIEW)await call('lock');window.oracleLock()});$('#unlock').onclick=safe(async()=>{await call('unlock');$('#lock-screen').hidden=true;$('#app').inert=false;await refresh()});
 // Deterministic ambient dust; it never represents an agent or event.
 for(let i=0;i<46;i++){const e=document.createElement('i');e.className='star';e.style.cssText=`left:${(Math.sin(i*12.9898)*43758.5453%1+1)%1*100}%;top:${(Math.sin(i*78.233)*12731.7%1+1)%1*100}%;width:${i%7===0?2:1}px;height:${i%7===0?2:1}px;opacity:${i%5/18+.04}`;$('#galaxy').append(e)}
 call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked)window.oracleLock();else{await refresh();$('#app').inert=false}}).catch(e=>{if($('#lock-screen').hidden)$('#app').inert=false;toast(e.message)});
@@ -445,3 +446,19 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').open){
 document.addEventListener('pointerdown',e=>{if(!$('#replay-panel').hidden&&!e.target.closest('#replay-panel,#replay-toggle')&&!$('#modal').open)toggleReplayPanel(false)});
 
 window.oracleTakeDraftAndLock=()=>{const draft=editorSession&&modalDirty?{path:editorSession.path,hash:editorSession.hash,text:editorSession.text,vault:state.config.vault}:null;window.oracleLock();editorSession=null;clearTimeout(draftTimer);return draft};
+
+window.addEventListener('oracle:onboarding-progress',event=>{
+ if(!$('#lock-screen').hidden)return;
+ state.onboarding={...state.onboarding,...event.detail};
+ if(!replay)renderAtlas();
+});
+
+// Includes the onboarding dialog. Opening a modal pauses visual time, never the executor.
+function syncFloatingSurfaces(){
+ const anyModal=!!document.querySelector('dialog[open]');
+ const installationCard=document.querySelector('.ob-progress-card');
+ document.body.classList.toggle('has-installation-progress',!!installationCard&&!installationCard.hidden);
+ atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused||anyModal);
+}
+const floatingSurfaceObserver=new MutationObserver(records=>{if(records.some(r=>r.target instanceof Element&&(r.target.matches('dialog,.ob-progress-card')||r.type==='childList'&&[...r.addedNodes].some(n=>n instanceof Element&&n.matches('.oracle-onboarding')))))syncFloatingSurfaces()});
+floatingSurfaceObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['open','hidden'],childList:true});

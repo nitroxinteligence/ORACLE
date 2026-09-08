@@ -307,6 +307,7 @@ class OracleUniverse {
       for (const n of this.model.nodes.values()) n.g.style.opacity = p === 1 ? '' : String(revealAt(p, 'collection', n.index, 0, this.model.nodes.size));
       for (const l of this.model.leaves.values()) l.g.style.opacity = p === 1 ? '' : String(revealAt(p, 'skill', this.model.nodes.get(l.parent)?.index ?? 0, l.index, this.model.nodes.size));
       this.host.querySelector('.oracle-core').style.opacity = p === 1 ? '' : String(revealAt(p, 'sun'));
+      if(this.model.connectorLayer)this.model.connectorLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       if(this.model.pluginLayer)this.model.pluginLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       for(const n of this.model.nodes.values()){const visible=p===1||revealAt(p,'collection',n.index,0,this.model.nodes.size)>.15;n.g.style.pointerEvents=visible?'':'none';n.g.setAttribute('tabindex',visible?'0':'-1')}
       for(const l of this.model.leaves.values()){const visible=p===1||revealAt(p,'skill',this.model.nodes.get(l.parent)?.index??0,l.index,this.model.nodes.size)>.15;l.g.style.pointerEvents=visible?'':'none';l.g.setAttribute('tabindex',visible?'0':'-1')}

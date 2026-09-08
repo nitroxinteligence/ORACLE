@@ -50,6 +50,19 @@ func runUpdateTests(releasePath: String?) throws {
     ops[0]["applied"] = false;transaction["operations"] = ops;transaction["status"] = "applying";try writeJSON(transaction, transactionURL)
     _ = try c.rollbackSkills()
     try expect(!fm.fileExists(atPath: root.appendingPathComponent("SISTEMA/skills/code/new/SKILL.md").path), "interrupted transaction recovered by durable intent")
+    let availablePath="SISTEMA/skills/code/available/SKILL.md"
+    let availability=try c.previewSkillFiles([file(availablePath,"new release")],version:"5")
+    try expect(availability["status"] as? String=="available" && availability["changes"] as? Int==1,"read-only availability detects an eligible new file")
+    try expect(!fm.fileExists(atPath:root.appendingPathComponent(availablePath).path),"availability check never installs the file")
+    let customized=try c.previewSkillFiles([file(manual,"upstream change")],version:"5")
+    try expect(customized["status"] as? String=="preserved_edits" && customized["changes"] as? Int==0,"unowned edits do not produce false availability")
+    let deleted=try c.previewSkillFiles([file(skill,"version three")],version:"5")
+    try expect(deleted["changes"] as? Int==0,"deleted owned skills do not produce false availability")
+    try rejects("availability rejects invalid checksum") {_ = try c.previewSkillFiles([invalid],version:"5")}
+    try c.recordUpdate("complete","Verificado",results:[availability])
+    try expect(try c.updateStatus()["available"] as? Bool==true,"status exposes verified availability")
+    try c.recordUpdate("complete","Em dia",results:[["id":"skills","status":"current"]])
+    try expect(try c.updateStatus()["available"] as? Bool==false,"current result clears availability")
     let held = try c.acquireOperationLock("updates")
     try rejects("concurrent update excluded") { _ = try c.performUpdates() }
     c.releaseOperationLock(held)

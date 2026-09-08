@@ -53,7 +53,7 @@ class OracleAtlas {
     if(!this.loadedLayout&&data.layout){this.layout=structuredClone({nodes:data.layout.nodes||{},leaves:data.layout.leaves||{}});this.loadedLayout=true}
     const key=JSON.stringify([(data.collections||[]).map(c=>[c.id,c.name,c.icon]),(data.entries||[]).filter(e=>e.name==='SKILL.md'&&!e.directory).map(e=>e.path),data.detail,this.selected,Object.keys(this.layout.nodes),Object.keys(this.layout.leaves)]);
     if(key!==this.topologyKey){const hadGeometry=!!this.geometry,ratio=this.target.k/this.baseScale;this.topologyKey=key;this.relayout();if(hadGeometry&&ratio>.5&&!data.replay)this.fit()}
-    this.updatePlugins(data.plugins||[]);this.selection();this.draw();
+    this.updatePlugins(data.plugins||[]);this.updateConnectors(data.connectors||[]);this.el.classList.toggle('installation-waiting',data.coreReady===false);this.selection();this.draw();
     if(data.events?.length)this.universe?.signalReceipt(data.events.at(-1));
   }
   relayout(){
@@ -119,6 +119,18 @@ class OracleAtlas {
       g.dataset.tooltip=p.name+' · conectado';this.make('circle',{r:13,class:'plugin-disc'},g);
       if(/^data:image\/(png|jpeg|webp|svg\+xml);base64,/.test(p.iconDataURL||''))this.make('image',{x:-8,y:-8,width:16,height:16,href:p.iconDataURL},g);
       else{const text=this.make('text',{y:1},g);text.textContent=p.name.slice(0,2).toUpperCase()}
+    });
+  }
+  updateConnectors(connectors){
+    const key=JSON.stringify(connectors.map(c=>[c.id,c.label]));if(key===this.connectorKey)return;this.connectorKey=key;
+    this.connectorLayer?.remove();this.connectorLayer=this.make('g',{class:'verified-connectors'},this.world);
+    connectors.forEach((c,i)=>{
+      const angle=-Math.PI/2+i*Math.PI*2/Math.max(3,connectors.length),radius=158;
+      const g=this.make('g',{class:'verified-connector',role:'button',tabindex:0,'data-connector':c.id,transform:`translate(${Math.cos(angle)*radius} ${Math.sin(angle)*radius})`,'aria-label':c.id==='gbrain'?'Second Brain conectado':'Obsidian conectado'},this.connectorLayer);
+      g.dataset.tooltip=c.id==='gbrain'?'Second Brain · verificado':'Obsidian · '+c.label;
+      this.make('circle',{r:16,fill:'#191919',stroke:'#ffffff40','stroke-width':.8},g);
+      const symbol=this.make('svg',{x:-9,y:-9,width:18,height:18,viewBox:'0 0 24 24',fill:'none',stroke:'#ddd','stroke-width':1.2,'stroke-linecap':'round','stroke-linejoin':'round'},g);
+      this.make('path',{d:paths[c.id==='gbrain'?'brain':'folder']},symbol);
     });
   }
   selection(){
@@ -208,14 +220,14 @@ class OracleAtlas {
     this.listen(this.el,'focusout',e=>{this.keyboardFocus=targetState(e.relatedTarget);this.universe?.sync(this)});
     this.listen(this.el,'gesturestart',e=>{e.preventDefault();this.gestureScale=this.target.k});this.listen(this.el,'gesturechange',e=>{e.preventDefault();if(this.gestureScale)this.zoomAt((this.gestureScale*e.scale)/this.target.k,e.clientX,e.clientY)});
     this.listen(this.el,'wheel',e=>{if(e.target.closest('.atlas-caption'))return;e.preventDefault();this.zoomAt(Math.exp(-Math.max(-120,Math.min(120,e.deltaY))*.0028),e.clientX,e.clientY)},{passive:false});
-    this.listen(this.el,'pointerdown',e=>{this.finishFormationForInput();if(e.button!==0||this.drag)return;const category=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;if(e.target.closest('[data-core],[data-orbit-plugin]'))return;const node=this.data?.replay?null:skill?this.leaves.get(skill):category?this.nodes.get(category):null;this.camera={...this.target};this.drag={id:e.pointerId,sx:e.clientX,sy:e.clientY,start:this.pointerWorld(e.clientX,e.clientY),camera:{...this.camera},node,category,skill,moved:false,ox:node?.x,oy:node?.y};e.preventDefault();e.target.closest('[tabindex]')?.focus({preventScroll:true})});
+    this.listen(this.el,'pointerdown',e=>{this.finishFormationForInput();if(e.button!==0||this.drag)return;const category=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;if(e.target.closest('[data-core],[data-orbit-plugin],[data-connector]'))return;const node=this.data?.replay?null:skill?this.leaves.get(skill):category?this.nodes.get(category):null;this.camera={...this.target};this.drag={id:e.pointerId,sx:e.clientX,sy:e.clientY,start:this.pointerWorld(e.clientX,e.clientY),camera:{...this.camera},node,category,skill,moved:false,ox:node?.x,oy:node?.y};e.preventDefault();e.target.closest('[tabindex]')?.focus({preventScroll:true})});
     this.listen(this.el,'pointermove',e=>{const d=this.drag;if(!d||e.pointerId!==d.id)return;const dx=e.clientX-d.sx,dy=e.clientY-d.sy;if(!d.moved&&Math.hypot(dx,dy)<4)return;if(!d.moved){d.moved=true;this.el.setPointerCapture(e.pointerId)}this.el.classList.add('dragging');if(d.node){this.translateNode(d.node,d.ox+dx/this.camera.k-d.node.x,d.oy+dy/this.camera.k-d.node.y,d.category);this.invalidate()}else{this.target={x:d.camera.x+dx,y:d.camera.y+dy,k:this.camera.k};this.camera={...this.target};this.invalidate()}});
     const finish=e=>{const d=this.drag;if(!d||e.pointerId!==d.id)return;this.drag=null;this.el.classList.remove('dragging');this.universe?.sync(this);if(this.el.hasPointerCapture(e.pointerId))this.el.releasePointerCapture(e.pointerId);if(d.moved){if(d.node){const group=d.skill?'leaves':'nodes';this.layout[group][d.skill||d.category]={x:d.node.x,y:d.node.y};this.persistSoon()}this.suppressClick=true;this.lastDragAt=performance.now();setTimeout(()=>this.suppressClick=false,0)}else if(d.skill)this.select(this.leaves.get(d.skill)?.parent,d.skill);else if(d.category)this.select(d.category);else {this.select(null);this.cb.onSelect?.(null,null)}};
     this.listen(this.el,'pointerup',finish);this.listen(this.el,'pointercancel',e=>{if(this.drag?.id===e.pointerId){this.drag=null;this.el.classList.remove('dragging');if(this.el.hasPointerCapture(e.pointerId))this.el.releasePointerCapture(e.pointerId);this.universe?.sync(this)}});
     this.listen(this.el,'dblclick',e=>{if(this.suppressClick||performance.now()-(this.lastDragAt||0)<350)return;const cat=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;if(cat)this.focus(cat);else if(skill)this.cb.onOpen?.(skill);else this.fit()});
     this.listen(this.el.querySelector('[data-core]'),'click',()=>this.fit());
-    this.listen(this.el,'click',e=>{const id=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(id){e.stopPropagation();this.cb.onPlugin?.(id)}});
-    this.listen(this.el,'keydown',e=>{const plugin=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(plugin&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onPlugin?.(plugin);return}const cat=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;const node=skill?this.leaves.get(skill):cat?this.nodes.get(cat):null;
+    this.listen(this.el,'click',e=>{const connector=e.target.closest('[data-connector]')?.dataset.connector;if(connector){e.stopPropagation();this.cb.onConnector?.(connector);return}const id=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(id){e.stopPropagation();this.cb.onPlugin?.(id)}});
+    this.listen(this.el,'keydown',e=>{const connector=e.target.closest('[data-connector]')?.dataset.connector;if(connector&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onConnector?.(connector);return}const plugin=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(plugin&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onPlugin?.(plugin);return}const cat=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;const node=skill?this.leaves.get(skill):cat?this.nodes.get(cat):null;
       if(e.key==='Escape'){this.select(null);this.back();return}if(e.key==='+'||e.key==='='){e.preventDefault();this.zoomAt(1.2);return}if(e.key==='-'){e.preventDefault();this.zoomAt(1/1.2);return}if(e.key==='0'){e.preventDefault();this.fit();return}
       if(node&&!this.data?.replay&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();const delta=e.shiftKey?25:8;this.translateNode(node,e.key==='ArrowLeft'?-delta:e.key==='ArrowRight'?delta:0,e.key==='ArrowUp'?-delta:e.key==='ArrowDown'?delta:0,cat);this.layout[skill?'leaves':'nodes'][skill||cat]={x:node.x,y:node.y};this.draw();this.persistSoon();return}
       if(e.key==='Enter'&&e.target.closest('[data-core]')){e.preventDefault();this.fit();return}

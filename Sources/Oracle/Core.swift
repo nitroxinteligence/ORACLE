@@ -59,6 +59,7 @@ final class Core {
         value["home"] = home.path
         value["catalog"] = catalogSummary()
         if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["vault"] as? String==config["vault"] as? String { value["setup"]=["plan_id":plan["id"] ?? "", "confirmed":plan["confirmed_hash"] != nil] }
+        value["setupBaselinePaths"] = installationBaselinePaths()
         value["projects"] = config["projects"] ?? []
         return value
     }

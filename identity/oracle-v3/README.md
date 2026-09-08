@@ -1,8 +1,10 @@
+> Integração local de 08/09/2026: A aplicou o lockup V3 ao Oracle e gerou o ICNS por `scripts/package-identity.py`. O texto abaixo documenta a procedência da entrega de design anterior à integração. Não houve nova aprovação de variante depois da correção solicitada.
+
 # Oracle V3 — Michroma + planeta
 
 **Confirmado por Mateus:** fonte Michroma, direção do planeta e fundos dos ícones. Na revisão, Mateus gostou da proposta e pediu corrigir as cores/gradientes do planeta nos dois ícones. **Revisão atual:** planeta e órbita inteiramente em uma cor sólida; fundos, geometria e escala preservados. Nenhum asset foi aplicado ao aplicativo.
 
-Abra [a apresentação](index.html), [a prancha PNG](boards/oracle-planet-michroma.png), [o PDF](boards/oracle-planet-michroma.pdf) ou [o pacote ZIP](oracle-planet-michroma-v3.zip).
+Abra [a apresentação](index.html), [a prancha PNG](boards/oracle-planet-michroma.png), [o PDF](boards/oracle-planet-michroma.pdf).
 
 A proposta concentra a marca em uma esfera com órbita inclinada a −28°. Dois canais transparentes separam a faixa orbital das partes da esfera. A leitura de planeta se mantém em preto e branco. No ícone escuro, esfera e órbita usam branco sólido `#EFF7FF`; no claro, grafite sólido `#101E2C`. O gradiente metálico e a órbita azul foram removidos. Os gradientes originais dos fundos foram preservados.
 

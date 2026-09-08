@@ -6,23 +6,25 @@
     "a0a6617",
     "355fe02",
     "69c077c",
-    "ce5be3f"
+    "ce5be3f",
+    "d6db795"
   ],
   "localOnly": true,
   "personalAppReplaced": false,
   "app": "/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app",
   "dmg": "/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg",
   "appBinarySHA256": "4799f3e2515d71f63d3659119bfdc94c09fc6f3015def4ddf600ed5dddfdc389",
-  "dmgSHA256": "d24ef102dfd116d4dd69f94418dc67573a8f790d070ce1d1ee85ded0e1bfa2d9",
+  "dmgSHA256": "168f12d826c8628d79984e0b20f7ab9cecc120a3bf4d498cf1d0bfdd4629e55b",
   "webSHA256": {
-    "index.html": "e8302c801ce56ee6ecf5aa1e5f6b113b4c0f39a523aac2d6fa3aa2ef31a17a79",
+    "index.html": "e5953e3e631776e9964439a4dc972e0aba7980b6e60f080301f526d4818478ee",
     "atlas.js": "ca3a1a26e8a0281e26a6855a5c05d74ce31c8d5b87da8adbf651407afc8bbcd2",
     "universe.js": "ac21d6732c25a2bc9f6772d60f4efb7c0b0b9fc8514d66bb7b75b9b357ead4ff",
-    "app.js": "60bf83e1adc6dfadb931c6a5b1be98714b00d98b3f16ced8cb5d6cd2df0e127a",
-    "style.css": "557e00cf89d85a75624e935bbc920c2ffb41af3f13b61145b33f308ff2327fd2",
+    "app.js": "ef6830c007052cda68ed115129b7e5975b30696426c9c76008ba648855cba4b8",
+    "style.css": "2e0b55a6975409b7182685c0169ee67f1acd2cf04a39e1c5d26bceb410b1c24b",
     "atlas-motion.css": "e98df27c24af37e56904a85fb36fb3e21ab2e1d71162cdb67063ba2534ea1993",
-    "onboarding.js": "c0d97d60268c271ff5014e90dad0b8e06c22fae1ecc0f7c472e568f80f246195",
-    "installation-visual.js": "9642f68f127e2b9aefeb1fd9ae283b20536b91c1d13414c35026e1f3112815bb"
+    "onboarding.js": "f53af1ea22d7e70a3c2bdc4eec4f51018ca792150eaf62c6855d562d460c8d68",
+    "installation-visual.js": "9642f68f127e2b9aefeb1fd9ae283b20536b91c1d13414c35026e1f3112815bb",
+    "status-badges.js": "4bf3f7fbaf0bf694b580e4757f6bfa9f9e8f76f8a564c97803a6fbbdd4886360"
   },
   "testMailboxInProduction": false,
   "signing": "ad-hoc local; codesign deep strict verified",

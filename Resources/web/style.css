@@ -33,3 +33,16 @@ body.setup-pending #app main,body.setup-pending .header-actions{visibility:hidde
 .navigation-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:16px;min-width:0}.navigation-toolbar .search-trigger{flex:1;min-width:0;width:auto;margin:0;height:38px;gap:7px;padding:9px}.navigation-toolbar .search-trigger>span:nth-child(2){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.navigation-toolbar .search-trigger kbd{display:none}.navigation-toolbar>.icon-button{flex:none;width:32px;height:32px;padding:6px}
 
 .header-actions{gap:5px}.header-actions>.icon-button,.header-actions>.update-button{width:32px;height:32px;padding:7px;display:inline-grid;place-items:center;border-radius:10px}.header-actions>.icon-button svg,.header-actions>.update-button svg{width:16px;height:16px}
+
+/* Shared semantic status palette. Informational/category pills remain neutral. */
+.status-badge{--status-rgb:154,163,177;--status-ink:#b8bec8;--status-solid:#292c30;display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;padding:4px 9px;border:1px solid rgba(var(--status-rgb),.3);border-radius:20px;background:rgba(var(--status-rgb),.13);color:var(--status-ink);font-size:10px;font-weight:500;line-height:1.4;white-space:nowrap;vertical-align:middle}
+.status-badge::before{content:'';width:5px;height:5px;flex:none;border-radius:50%;background:currentColor}
+.status-badge[data-tone=positive]{--status-rgb:75,190,127;--status-ink:#91deb1;--status-solid:#22362b}
+.status-badge[data-tone=negative]{--status-rgb:232,100,108;--status-ink:#f5a0a5;--status-solid:#3b2528}
+.status-badge[data-tone=paused]{--status-rgb:236,151,72;--status-ink:#f5bb86;--status-solid:#3a2e22}
+.status-badge[data-tone=pending]{--status-rgb:224,191,72;--status-ink:#ecd58c;--status-solid:#383322}
+.status-badge[data-tone=info]{--status-rgb:104,163,228;--status-ink:#aacff4;--status-solid:#25313f}
+.plugin-row .status-badge{margin:4px 0 0}.plugin-row>.status-badge{margin:0}.connection small.status-badge{display:inline-flex;margin-top:5px}
+body.reduce-transparency .status-badge{background:var(--status-solid)}
+@media(prefers-reduced-transparency:reduce){.status-badge{background:var(--status-solid)}}
+@media(prefers-contrast:more){.status-badge{border-color:var(--status-ink)}}

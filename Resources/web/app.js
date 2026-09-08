@@ -55,8 +55,8 @@ function mountOnboarding(){return window.ORACLE_PREVIEW?Promise.resolve():window
 function render(){
  renderTree();renderAtlas();renderResults();renderProgress();renderInspector();renderPlugins();
  $('#footer-status').textContent=state.scanError?'Fonte indisponível · consulte os ajustes':'';
- $('#codex-status').textContent=state.codexPlugins?.status==='available'?'Conectado':state.events.some(e=>e.source==='codex-hook')?'Atividade recente':'Conexão não verificada';
- $('#gbrain-status').textContent=state.config.gbrainWorkspace?'Fonte selecionada':'Conectar nos ajustes';
+ OracleStatusBadge.apply($('#codex-status'),state.codexPlugins?.status==='available'?'connected':state.events.some(e=>e.source==='codex-hook')?'recent_activity':'unverified',state.codexPlugins?.status==='available'?'Conectado':state.events.some(e=>e.source==='codex-hook')?'Atividade recente':'Conexão não verificada');
+ OracleStatusBadge.apply($('#gbrain-status'),state.config.gbrainWorkspace?'selected':'pending',state.config.gbrainWorkspace?'Fonte selecionada':'Conectar nos ajustes');
  renderPlayback();
 }
 function renderTree(){
@@ -166,17 +166,18 @@ function requestEditorExit(discardOnly=false){
 }
 window.oraclePrepareToClose=async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();return true};
 function showSetup(){if(window.OracleOnboarding&&!window.ORACLE_PREVIEW){closeModal();OracleOnboarding.open()}else toast('A configuração funciona no aplicativo para macOS.')}
-const pluginStates={connected:'Conectado',installed:'Instalado',needs_auth:'Conectar conta',unavailable:'Indisponível'};
+const pluginStates={connected:'Conectado',disconnected:'Desconectado',installed:'Instalado',needs_auth:'Conectar conta',unavailable:'Indisponível',missing:'Ausente',absent:'Ausente',pending:'Pendente',inactive:'Inativo',disabled:'Inativo',paused:'Pausado',running:'Em execução',error:'Erro'};
+const statusBadge=(status,label)=>OracleStatusBadge.render(status,label);
 function pluginIcon(p){const url=p.iconDataURL;return url&&/^data:image\/(png|jpeg|webp);base64,/.test(url)?`<span class="plugin-icon"><img src="${esc(url)}" alt=""></span>`:`<span class="plugin-icon plugin-monogram" aria-hidden="true">${esc(p.name.slice(0,2).toUpperCase())}</span>`}
 function renderPlugins(){
  const inventory=state.codexPlugins;
- $('#plugin-list').innerHTML=inventory?.plugins?.length?inventory.plugins.map((p,i)=>`<button class="plugin-row" data-plugin-index="${i}">${pluginIcon(p)}<div><strong>${esc(p.name)}</strong><small>${pluginStates[p.status]||'Não verificado'}</small></div></button>`).join(''):`<small>${inventory?.status==='available'?'Nenhum plugin disponível.':'Conecte o Codex para ver seus plugins.'}</small>`;
+ $('#plugin-list').innerHTML=inventory?.plugins?.length?inventory.plugins.map((p,i)=>`<button class="plugin-row" data-plugin-index="${i}">${pluginIcon(p)}<div><strong>${esc(p.name)}</strong>${statusBadge(p.status,pluginStates[p.status]||'Não verificado')}</div></button>`).join(''):`<small>${inventory?.status==='available'?'Nenhum plugin disponível.':'Conecte o Codex para ver seus plugins.'}</small>`;
  $$('#plugin-list [data-plugin-index]').forEach(b=>b.onclick=()=>plugin(inventory.plugins[Number(b.dataset.pluginIndex)].id));
 }
 function plugin(id){
  const inventory=state.codexPlugins,p=inventory?.plugins?.find(p=>p.id===id),fromSettings=settingsTrail;
- modal(p?`<h1>${esc(p.name)}</h1><div class="plugin-row">${pluginIcon(p)}<span class="pill">${pluginStates[p.status]||'Não verificado'}</span></div><p>${p.status==='connected'?'As ferramentas deste plugin estão disponíveis no Codex.':'Gerencie a conexão e as permissões deste plugin no Codex.'}</p><details class="source-details"><summary>Detalhes da conexão</summary><pre>${esc(JSON.stringify({checkedAt:inventory.checkedAt,kind:p.kind,evidence:p.evidence},null,2))}</pre></details>${actions('<button class="primary" id="manage-plugin">Abrir Codex</button>')}`:`<h1>Plugins</h1><p>${inventory?.status==='available'?'Seus plugins e conexões no Codex.':'Conecte o Codex para acessar seus plugins.'}</p><div id="modal-plugins"></div>${actions('<button class="primary" id="manage-plugin">Abrir Codex</button>')}`,{breadcrumb:[...(fromSettings?['Ajustes','Codex e plugins']:[]),'Plugins',...(p?[p.name]:[])],onBack:p?()=>plugin():fromSettings?()=>reviewBridge():()=>closeModal()});
- if(!p&&inventory?.plugins?.length){$('#modal-plugins').innerHTML=inventory.plugins.map((p,i)=>`<button class="plugin-row" data-plugin="${i}">${pluginIcon(p)}<div><strong>${esc(p.name)}</strong><small>${pluginStates[p.status]}</small></div>${icon('chevron')}</button>`).join('');$$('[data-plugin]').forEach(b=>b.onclick=()=>plugin(inventory.plugins[Number(b.dataset.plugin)].id))}
+ modal(p?`<h1>${esc(p.name)}</h1><div class="plugin-row">${pluginIcon(p)}${statusBadge(p.status,pluginStates[p.status]||'Não verificado')}</div><p>${p.status==='connected'?'As ferramentas deste plugin estão disponíveis no Codex.':'Gerencie a conexão e as permissões deste plugin no Codex.'}</p><details class="source-details"><summary>Detalhes da conexão</summary><pre>${esc(JSON.stringify({checkedAt:inventory.checkedAt,kind:p.kind,evidence:p.evidence},null,2))}</pre></details>${actions('<button class="primary" id="manage-plugin">Abrir Codex</button>')}`:`<h1>Plugins</h1><p>${inventory?.status==='available'?'Seus plugins e conexões no Codex.':'Conecte o Codex para acessar seus plugins.'}</p><div id="modal-plugins"></div>${actions('<button class="primary" id="manage-plugin">Abrir Codex</button>')}`,{breadcrumb:[...(fromSettings?['Ajustes','Codex e plugins']:[]),'Plugins',...(p?[p.name]:[])],onBack:p?()=>plugin():fromSettings?()=>reviewBridge():()=>closeModal()});
+ if(!p&&inventory?.plugins?.length){$('#modal-plugins').innerHTML=inventory.plugins.map((p,i)=>`<button class="plugin-row" data-plugin="${i}">${pluginIcon(p)}<div><strong>${esc(p.name)}</strong>${statusBadge(p.status,pluginStates[p.status]||'Não verificado')}</div>${icon('chevron')}</button>`).join('');$$('[data-plugin]').forEach(b=>b.onclick=()=>plugin(inventory.plugins[Number(b.dataset.plugin)].id))}
  $('#manage-plugin').onclick=safe(()=>call('openCodex'));
 }
 async function conversations(){const revision=modalRevision;const items=await call('conversations');if(revision!==modalRevision)return;modal(`<span class="step-label">CONVERSAS / IMPORTAÇÃO DELIMITADA</span><h1>Conversas Codex</h1><p>Importe uma exportação de conversas para consultá-las aqui.</p><div id="conversation-list">${items.map((c,i)=>`<button class="result" data-conversation="${i}">${icon('chat')}<div><strong>${esc(c.title)}</strong><small>${esc(c.source)}</small></div></button>`).join('')||'<p class="empty">Nenhuma conversa importada.</p>'}</div>${actions('<button class="primary" id="import-conversations">Importar conversas…</button>')}`);$('#import-conversations').onclick=safe(async()=>{await call('importConversations');await conversations()});$$('[data-conversation]').forEach(e=>e.onclick=()=>{const c=items[Number(e.dataset.conversation)];modal(`<h1>${esc(c.title)}</h1><div class="source">${esc(c.source)} · conteúdo importado</div><pre>${esc(c.messages.map(m=>m.role.toUpperCase()+'\n'+m.text).join('\n\n'))}</pre>${actions()}`)})}
@@ -278,7 +279,7 @@ setInterval(()=>{if($('#lock-screen').hidden&&!document.hidden&&!$('#modal').ope
 async function memory(){
  modal('<h1>Memória</h1><p>Conectando à sua biblioteca…</p>'+actions());
  const revision=modalRevision;const status=await call('gbrainRead',{operation:'status'});if(revision!==modalRevision||!$('#modal').open)return;
- $('#gbrain-status').textContent='Conectada';
+ OracleStatusBadge.apply($('#gbrain-status'),'connected','Conectada');
  modal(`<span class="step-label">${window.ORACLE_PREVIEW?'MEMÓRIA / DADOS SINTÉTICOS':'MEMÓRIA / GBRAIN OFICIAL '+esc(status.version)}</span><h1>Memória</h1><p>Encontre suas notas e acompanhe suas conexões.</p><label class="field">Biblioteca<select id="memory-source">${status.sources.map(s=>`<option value="${esc(s.id)}">${esc(({default:'Geral','oracle-memory':'Memória do Oracle','oracle-vault':'Obsidian'})[s.id]||s.name||s.id)}</option>`).join('')}</select></label><label class="search"><input id="memory-query" placeholder="Buscar na memória" aria-label="Buscar na memória"></label><div id="memory-results"></div>${actions('<button class="primary" id="memory-search">Buscar</button>')}`);
  if(status.sources.some(s=>s.id==='oracle-vault'))$('#memory-source').value='oracle-vault';
  const source=()=>$('#memory-source').value;
@@ -335,7 +336,7 @@ function setupContinuation(){modal(`<h1>Continuar sua configuração</h1><p>O pl
 
 async function reviewBridge(){
  const connected=state.codexPlugins?.status==='available';
- modal(`<h1>Codex e plugins</h1><span class="pill">${connected?'Conectado':'Conexão não verificada'}</span><p>O Codex executa suas tarefas e gerencia as permissões dos plugins.</p>${actions('<button class="secondary" id="bridge-plugins">Ver plugins</button><button class="primary" id="bridge-codex">Abrir Codex</button>')}`);
+ modal(`<h1>Codex e plugins</h1>${statusBadge(connected?'connected':'unverified',connected?'Conectado':'Conexão não verificada')}<p>O Codex executa suas tarefas e gerencia as permissões dos plugins.</p>${actions('<button class="secondary" id="bridge-plugins">Ver plugins</button><button class="primary" id="bridge-codex">Abrir Codex</button>')}`);
  $('#bridge-plugins').onclick=()=>plugin();$('#bridge-codex').onclick=safe(()=>call('openCodex'));
 }
 
@@ -406,7 +407,7 @@ async function showUpdates(operation=null){
     $('#check-updates').disabled=updateBusy;$('#apply-updates').hidden=!status.available;$('#apply-updates').disabled=updateBusy;
     const results=status.results?.length?status.results:[{id:'gbrain',status:'not_checked',version:status.gbrain_version},{id:'cognee',status:'not_adopted'},{id:'skills',status:'not_checked'}];
     const descriptions={current:'Você já está usando a versão disponível.',updated:'A atualização foi instalada.',available:'Pronta para instalar.',external:'Gerenciada na instalação que você conectou.',compatibility_required:'Esta versão ainda precisa ser validada para o Oracle.',not_adopted:'Nenhuma integração ativa.',not_configured:'Nenhum pacote novo disponível.',not_checked:'Use Verificar para consultar novidades.',preserved_edits:'Suas alterações foram mantidas.',error:'Não foi possível concluir a consulta.'};
-    $('#update-results').innerHTML=results.map(r=>`<section class="update-result"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2><span class="pill">${updateStates[r.status]||'Não verificado'}</span></div><p>${descriptions[r.status]||'Confira os detalhes abaixo.'}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.message&&r.status!=='not_adopted'?`<details class="source-details"><summary>Detalhes</summary><p>${esc(r.message)}</p></details>`:''}</section>`).join('');
+    $('#update-results').innerHTML=results.map(r=>`<section class="update-result"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${descriptions[r.status]||'Confira os detalhes abaixo.'}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.message&&r.status!=='not_adopted'?`<details class="source-details"><summary>Detalhes</summary><p>${esc(r.message)}</p></details>`:''}</section>`).join('');
     $('#update-recovery').innerHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar skills anteriores</button>':'');
     $$('[data-rollback]').forEach(b=>{b.disabled=updateBusy;b.onclick=safe(()=>showUpdates(b.dataset.rollback))});
    }

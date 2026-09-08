@@ -10,6 +10,7 @@ uniform float uFormation;
 uniform float uMotion;
 uniform float uEconomy;
 uniform float uGroupCount;
+uniform float uFocusedCluster;uniform float uHoveredCluster;uniform float uContext;
 float groupPhase(float index){return clamp(index/max(1.,uGroupCount-1.),0.,1.);}
 float reveal(float start,float duration){return smoothstep(start,start+duration,uFormation);}
 float ring(float r,float radius,float width){return 1.-smoothstep(width,width+fwidth(r),abs(r-radius));}
@@ -64,7 +65,7 @@ attribute vec4 nodeState;
 attribute float order;
 varying vec2 vUv;varying vec3 vTint;varying vec4 vState;varying float vOrder;
 void main(){vUv=uv;vTint=tint;vState=nodeState;vOrder=order;
-gl_Position=projectionMatrix*modelViewMatrix*vec4(position.xy*132.+center,1.,1.);}`;
+gl_Position=projectionMatrix*modelViewMatrix*vec4(position.xy*86.+center,1.,1.);}`;
 
 export const nodeFragment = `
 ${shared}
@@ -90,17 +91,17 @@ void main(){
 
 export const edgeVertex = `
 uniform float uScale;uniform float uTime;uniform float uMotion;uniform float uEconomy;
-attribute vec2 source;attribute vec2 target;attribute vec3 tint;attribute vec4 edgeMeta;
-varying vec2 vUv;varying vec3 vTint;varying vec4 vMeta;
+attribute vec2 source;attribute vec2 target;attribute vec3 tint;attribute vec4 edgeMeta;attribute float edgeLife;
+varying vec2 vUv;varying vec3 vTint;varying vec4 vMeta;varying float vLife;
 void main(){
- vUv=uv;vTint=tint;vMeta=edgeMeta;
- float t=uv.x,q=1.-t,b=mix(.13,.16,edgeMeta.x);
+ vUv=uv;vTint=tint;vMeta=edgeMeta;vLife=edgeLife;
+ float t=uv.x,q=1.-t,b=.035;
  vec2 d=target-source,n=vec2(-d.y,d.x);
  vec2 c1=source+d*.34+n*b,c2=source+d*.72+n*b*.5;
  vec2 point=q*q*q*source+3.*q*q*t*c1+3.*q*t*t*c2+t*t*t*target;
  vec2 tangent=3.*q*q*(c1-source)+6.*q*t*(c2-c1)+3.*t*t*(target-c2);
  vec2 normal=vec2(-tangent.y,tangent.x)/max(length(tangent),.001);
- point+=normal*sin(t*3.14159265)*sin(uTime*.55+t*5.-edgeMeta.z*2.)*1.7*uMotion*(1.-uEconomy*.7);
+ point+=normal*sin(t*3.14159265)*sin(uTime*.55+t*5.-edgeMeta.z*2.)*.35*uMotion*(1.-uEconomy*.7);
  // Flipping world Y below also flips winding: invert the ribbon normal to keep its front face.
  point-=normal*(uv.y-.5)*5.5/max(uScale,.001);
  gl_Position=projectionMatrix*modelViewMatrix*vec4(point.x,-point.y,0.,1.);
@@ -111,51 +112,55 @@ ${shared}
 uniform float uSelected;uniform float uHovered;uniform float uDragged;
 uniform float uSelectedLeaf;uniform float uHoveredLeaf;
 uniform float uReconnect;
-varying vec2 vUv;varying vec3 vTint;varying vec4 vMeta;
+varying vec2 vUv;varying vec3 vTint;varying vec4 vMeta;varying float vLife;
 void main(){
  float group=vMeta.y,leaf=vMeta.w;
  float selected=1.-step(.1,abs(group-uSelected));
- float exact=(1.-step(.1,abs(leaf-uSelectedLeaf)))*vMeta.x;
- float hover=max(1.-step(.1,abs(group-uHovered)),(1.-step(.1,abs(leaf-uHoveredLeaf)))*vMeta.x);
+ float exact=(1.-step(.1,abs(leaf-uSelectedLeaf)))*step(.9,vMeta.x);
+ float cluster=1.-step(.1,abs(vMeta.z-uFocusedCluster));
+ float hover=max(1.-step(.1,abs(group-uHovered)),max((1.-step(.1,abs(leaf-uHoveredLeaf)))*step(.9,vMeta.x),(1.-step(.1,abs(vMeta.z-uHoveredCluster)))*(1.-step(.9,vMeta.x))));
  float drag=1.-step(.1,abs(group-uDragged));
- float dim=mix(1.,.26,step(0.,uSelected)*(1.-selected));
+ float dim=mix(1.,.18,step(0.,uSelected)*(1.-selected))*mix(1.,.16,step(0.,uFocusedCluster)*(1.-cluster)*step(.1,vMeta.x));
  float cross=abs(vUv.y-.5)*2.;
  float line=1.-smoothstep(.08,.40+selected*.13,cross);
- float phase=fract(uTime*(.075+vMeta.x*.045)-vMeta.z);
+ float phase=fract(uTime*(.075+vMeta.x*.045)-vMeta.z*.137-vMeta.w*.21);
  float head=exp(-pow((vUv.x-phase)*24.,2.));
  float tail=exp(-pow((vUv.x-phase+.04)*12.,2.))*.35;
  float energy=(head+tail)*uMotion*(1.-drag*.75);
- float start=mix(.18+groupPhase(group)*.20,.60+groupPhase(group)*.09,vMeta.x);
+ float start=vMeta.x<.1?.18+groupPhase(group)*.20:vMeta.x<.9?.43+groupPhase(group)*.12:.60+groupPhase(group)*.09;
  float growth=reveal(start,.18);
  float revealed=1.-smoothstep(growth-.03,growth+.01,vUv.x);
  if(uFormation>=.999)revealed=1.;
- float alpha=((.17+selected*.22+exact*.20+hover*.12+uReconnect*.12)*line+energy*.55*(1.-smoothstep(.05,.9,cross)))*dim*revealed;
+ float alpha=((.15+selected*.12+exact*.25+hover*.22+uReconnect*.12)*line+energy*.14*(1.-smoothstep(.05,.9,cross)))*dim*revealed*vLife;
  gl_FragColor=vec4(mix(vTint,vec3(.93,.92,.85),head*.3+exact*.15),alpha);
  #include <colorspace_fragment>
 }`;
 
 export const leafVertex = `
 uniform float uDpr;
-attribute vec3 tint;attribute vec4 leafMeta;
-varying vec3 vTint;varying vec4 vMeta;
-void main(){vTint=tint;vMeta=leafMeta;gl_PointSize=15.*uDpr;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
+attribute vec3 tint;attribute vec4 leafMeta;attribute float leafCluster;attribute float leafLife;
+varying vec3 vTint;varying vec4 vMeta;varying float vCluster;varying float vLife;
+uniform float uContext;
+void main(){vTint=tint;vMeta=leafMeta;vCluster=leafCluster;vLife=leafLife;gl_PointSize=(uContext>1.?23.:17.)*uDpr;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
 
 export const leafFragment = `
 ${shared}
 uniform float uSelected;uniform float uSelectedLeaf;uniform float uHoveredLeaf;
-varying vec3 vTint;varying vec4 vMeta;
+varying vec3 vTint;varying vec4 vMeta;varying float vCluster;varying float vLife;
 void main(){
  float r=length((gl_PointCoord-.5)*2.);if(r>.99)discard;
  float chosen=1.-step(.1,abs(vMeta.z-uSelectedLeaf));
  float hover=1.-step(.1,abs(vMeta.z-uHoveredLeaf));
  float member=1.-step(.1,abs(vMeta.x-uSelected));
- float dim=mix(1.,.28,step(0.,uSelected)*(1.-member));
+ float cluster=1.-step(.1,abs(vCluster-uFocusedCluster));
+ float dim=mix(1.,.18,step(0.,uSelected)*(1.-member))*mix(1.,.15,step(0.,uFocusedCluster)*(1.-cluster));
  float beat=.5+.5*sin(uTime*.7-vMeta.y-vMeta.x);
  float dot=1.-smoothstep(.22,.4+chosen*.08+hover*.06,r);
- float halo=exp(-r*5.)*(.17+beat*.13+chosen*.2);
+ float halo=exp(-r*5.)*(.08+beat*.035+chosen*.1);
+ if(uContext>1.)dot=(1.-smoothstep(.61,.7,r))*.15+ring(r,.66,.025)*.7;
  float orbit=ring(r,.73,.035)*(chosen*.65+hover*.35);
  float arrival=mix(smoothstep(0.,.32,uClock-vMeta.w),1.,1.-uMotion);
- float alpha=(dot*.85+halo+orbit)*dim*reveal(.63+groupPhase(vMeta.x)*.09+vMeta.y/(vMeta.y+8.)*.14,.12)*arrival;
+ float alpha=(dot*.85+halo+orbit)*dim*reveal(.63+groupPhase(vMeta.x)*.09+vMeta.y/(vMeta.y+8.)*.14,.12)*arrival*vLife;
  gl_FragColor=vec4(mix(vTint,vec3(.96,.96,.92),chosen*.6),alpha);
  #include <colorspace_fragment>
 }`;

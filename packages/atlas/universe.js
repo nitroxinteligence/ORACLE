@@ -52,7 +52,7 @@ class OracleUniverse {
     this.frameSamples = new Samples(); this.costSamples = new Samples();
     this.governor = new QualityGovernor();
     this.timeline = new FormationTimeline();
-    this.nodeRows = new Map(); this.leafRows = new Map(); this.leafBirths = new Map(); this.colors = []; this.colorByID = new Map();
+    this.clusterRows = new Map(); this.nodeRows = new Map(); this.leafRows = new Map(); this.leafBirths = new Map(); this.colors = []; this.colorByID = new Map();
     this.nodeCapacity = 8; this.edgeCapacity = 128; this.leafCapacity = 128;
     this.nodeTargets = new Float32Array(this.nodeCapacity * 4);
     this.receipts = new Set(); this.receiptAt = -100; this.transitioning = false;
@@ -61,7 +61,7 @@ class OracleUniverse {
       uScale: uniform(1), uDpr: uniform(pixelRatio(devicePixelRatio, false)),
       uSelected: uniform(-2), uSelectedLeaf: uniform(-2), uHovered: uniform(-2),
       uHoveredLeaf: uniform(-2), uDragged: uniform(-2), uReceipt: uniform(-1), uHoverCore: uniform(0),
-      uReconnect: uniform(0), uGroupCount: uniform(7),
+      uReconnect: uniform(0), uGroupCount: uniform(7), uFocusedCluster: uniform(-2), uHoveredCluster: uniform(-2), uContext: uniform(0),
     };
     const canvas = document.createElement('canvas');
     canvas.className = 'universe-webgl'; canvas.setAttribute('aria-hidden', 'true');
@@ -142,17 +142,17 @@ class OracleUniverse {
     this.orbits = this.mesh(orbitGeometry, shaders.orbitVertex, shaders.orbitFragment, LineSegments);
 
     this.edgeGeometry = instancedPlane(24);
-    attributes(this.edgeGeometry, { source: 2, target: 2, tint: 3, edgeMeta: 4 }, this.edgeCapacity);
+    attributes(this.edgeGeometry, { source: 2, target: 2, tint: 3, edgeMeta: 4, edgeLife: 1 }, this.edgeCapacity);
     this.edges = this.mesh(this.edgeGeometry, shaders.edgeVertex, shaders.edgeFragment);
     this.leafGeometry = new BufferGeometry();
-    attributes(this.leafGeometry, { position: 3, tint: 3, leafMeta: 4 }, this.leafCapacity, false);
+    attributes(this.leafGeometry, { position: 3, tint: 3, leafMeta: 4, leafCluster: 1, leafLife: 1 }, this.leafCapacity, false);
     this.leafGeometry.setDrawRange(0, 0);
     this.leafPoints = this.mesh(this.leafGeometry, shaders.leafVertex, shaders.leafFragment, Points);
     this.nodeGeometry = instancedPlane();
     attributes(this.nodeGeometry, { center: 2, tint: 3, nodeState: 4, order: 1 }, this.nodeCapacity);
     this.nodes = this.mesh(this.nodeGeometry, shaders.nodeVertex, shaders.nodeFragment);
     this.sun = this.mesh(this.plane, shaders.planeVertex, shaders.sunFragment);
-    this.sun.scale.set(330, 330, 1);
+    this.sun.scale.set(250, 250, 1);
   }
 
   unavailable() {
@@ -191,6 +191,7 @@ class OracleUniverse {
       uSelected: groupIndex(model.selected), uSelectedLeaf: this.leafRows.get(model.selectedLeaf) ?? -2,
       uHovered: groupIndex(hover.category), uHoveredLeaf: this.leafRows.get(hover.skill) ?? -2,
       uDragged: groupIndex(model.drag?.category || model.drag?.node?.parent), uHoverCore: hover.core ? 1 : 0,
+      uFocusedCluster: this.clusterRows.get(model.context?.group) ?? -2, uHoveredCluster: this.clusterRows.get(hover.group || model.leaves.get(hover.skill)?.group) ?? -2, uContext: ['global','specialist','group','skill'].indexOf(model.context?.kind),
     };
     for (const [key, value] of Object.entries(values)) {
       if (this.u[key].value !== value) { this.u[key].value = value; changed = true; }
@@ -229,23 +230,24 @@ class OracleUniverse {
       attributes(this.nodeGeometry, { center: 2, tint: 3, nodeState: 4, order: 1 }, this.nodeCapacity);
       this.nodeTargets = new Float32Array(this.nodeCapacity * 4); changed = true;
     }
-    const edgeCount = model.nodes.size + model.leaves.size;
+    const edgeCount = model.nodes.size + model.groups.size + model.leaves.size;
     if (edgeCount > this.edgeCapacity) {
       this.edgeCapacity = edgeCount * 2; this.edgeGeometry.dispose();
-      attributes(this.edgeGeometry, { source: 2, target: 2, tint: 3, edgeMeta: 4 }, this.edgeCapacity); changed = true;
+      attributes(this.edgeGeometry, { source: 2, target: 2, tint: 3, edgeMeta: 4, edgeLife: 1 }, this.edgeCapacity); changed = true;
     }
     if (model.leaves.size > this.leafCapacity) {
       this.leafCapacity = model.leaves.size * 2; this.leafGeometry.dispose();
-      attributes(this.leafGeometry, { position: 3, tint: 3, leafMeta: 4 }, this.leafCapacity, false); changed = true;
+      attributes(this.leafGeometry, { position: 3, tint: 3, leafMeta: 4, leafCluster: 1, leafLife: 1 }, this.leafCapacity, false); changed = true;
     }
     const node = this.nodeGeometry.attributes, edge = this.edgeGeometry.attributes, leaf = this.leafGeometry.attributes;
-    this.nodeRows.clear(); this.leafRows.clear();
+    this.nodeRows.clear(); this.clusterRows.clear(); this.leafRows.clear();
     let row = 0, edgeRow = 0;
-    const edgeTo = (x, y, tx, ty, color, branch, group, phase, leafID) => {
+    const edgeTo = (x, y, tx, ty, color, branch, group, phase, leafID, life = 1) => {
       changed = write(edge.source, edgeRow, x, y) || changed;
       changed = write(edge.target, edgeRow, tx, ty) || changed;
       changed = write(edge.tint, edgeRow, color.r, color.g, color.b) || changed;
       changed = write(edge.edgeMeta, edgeRow, branch, group, phase, leafID) || changed;
+      changed = write(edge.edgeLife, edgeRow, life) || changed;
       edgeRow++;
     };
     for (const n of model.nodes.values()) {
@@ -254,8 +256,14 @@ class OracleUniverse {
       changed = write(node.center, row, n.x, -n.y) || changed;
       changed = write(node.tint, row, color.r, color.g, color.b) || changed;
       changed = write(node.order, row, n.index) || changed;
-      edgeTo(0, 0, n.x, n.y, color, 0, n.index, n.index * .137, -3);
+      edgeTo(0, 0, n.x, n.y, color, 0, n.index, -1, -3);
       row++;
+    }
+    let clusterRow = 0;
+    for (const g of model.groups.values()) {
+      this.clusterRows.set(g.id, clusterRow++);
+      const parent = model.nodes.get(g.parent), color = this.colors[parent.index];
+      if(g.id!==model.context?.group)edgeTo(parent.x, parent.y, g.x, g.y, color, .5, parent.index, this.clusterRows.get(g.id), -3);
     }
     let leafRow = 0;
     for (const l of model.leaves.values()) {
@@ -266,8 +274,10 @@ class OracleUniverse {
       changed = write(leaf.position, leafRow, l.x, -l.y, 1) || changed;
       changed = write(leaf.tint, leafRow, color.r, color.g, color.b) || changed;
       changed = write(leaf.leafMeta, leafRow, parent.index, l.index, leafRow, this.leafBirths.get(l.id)) || changed;
-      const source=model.leaves.get(l.source)||parent;
-      edgeTo(source.x, source.y, l.x, l.y, color, 1, parent.index, parent.index * .137 + l.index * .21, leafRow);
+      changed = write(leaf.leafCluster, leafRow, this.clusterRows.get(l.group) ?? -2) || changed;
+      changed = write(leaf.leafLife, leafRow, l.life ?? 1) || changed;
+      const source=l.route&&!l.retiring?{x:l.x-l.route.offset,y:l.y}:model.groups.get(l.group)||parent;
+      edgeTo(source.x, source.y, l.x, l.y, color, 1, parent.index, this.clusterRows.get(l.group) ?? -2, leafRow, l.life ?? 1);
       leafRow++;
     }
     if (this.nodeGeometry.instanceCount !== row || this.edgeGeometry.instanceCount !== edgeRow || this.leafGeometry.drawRange.count !== leafRow) changed = true;
@@ -305,12 +315,13 @@ class OracleUniverse {
     const p = this.timeline.progress;
     if (p !== this.lastLabelProgress || notify) {
       for (const n of this.model.nodes.values()) n.g.style.opacity = p === 1 ? '' : String(revealAt(p, 'collection', n.index, 0, this.model.nodes.size));
+      for (const g of this.model.groups.values()) {g.bus.style.opacity=String((g.busOpacity||0)*revealAt(p,'group',this.model.nodes.get(g.parent)?.index??0,g.index,this.model.nodes.size));g.g.style.opacity=p===1?'':String(revealAt(p,'group',this.model.nodes.get(g.parent)?.index??0,g.index,this.model.nodes.size));const visible=p===1||revealAt(p,'group',this.model.nodes.get(g.parent)?.index??0,g.index,this.model.nodes.size)>.15;g.g.style.pointerEvents=visible?'':'none';g.g.setAttribute('tabindex',visible?'0':'-1')}
       for (const l of this.model.leaves.values()) l.g.style.opacity = p === 1 ? '' : String(revealAt(p, 'skill', this.model.nodes.get(l.parent)?.index ?? 0, l.index, this.model.nodes.size));
       this.host.querySelector('.oracle-core').style.opacity = p === 1 ? '' : String(revealAt(p, 'sun'));
       if(this.model.connectorLayer)this.model.connectorLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       if(this.model.pluginLayer)this.model.pluginLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       for(const n of this.model.nodes.values()){const visible=p===1||revealAt(p,'collection',n.index,0,this.model.nodes.size)>.15;n.g.style.pointerEvents=visible?'':'none';n.g.setAttribute('tabindex',visible?'0':'-1')}
-      for(const l of this.model.leaves.values()){const visible=p===1||revealAt(p,'skill',this.model.nodes.get(l.parent)?.index??0,l.index,this.model.nodes.size)>.15;l.g.style.pointerEvents=visible?'':'none';l.g.setAttribute('tabindex',visible?'0':'-1')}
+      for(const l of this.model.leaves.values()){const visible=!l.retiring&&(p===1||revealAt(p,'skill',this.model.nodes.get(l.parent)?.index??0,l.index,this.model.nodes.size)>.15);l.g.style.pointerEvents=visible?'':'none';l.g.setAttribute('tabindex',visible?'0':'-1')}
       this.lastLabelProgress = p;
     }
     if (notify || p === 1 && this.lastNotifiedProgress !== 1 || this.clock - (this.lastNotifyAt || 0) > .2) {
@@ -340,15 +351,15 @@ class OracleUniverse {
       this.timeout = 0;
       this.pending = requestAnimationFrame(now => { this.pending = 0; this.render(now); this.schedule(); });
     };
-    if (this.dirty || transient || this.quality !== 'economy') request();
+    if (this.dirty || transient || this.timeline.playing || this.model.geometryMoving || this.model.frame) request();
     else {
-      const cadence = 1000 / (this.quality === 'economy' ? 15 : 60);
+      const cadence = 1000 / (this.quality === 'economy' ? 15 : 24);
       this.timeout = setTimeout(request, Math.max(0, cadence - (performance.now() - this.last) - 4));
     }
   }
   render(now) {
     if (this.unavailable()) return;
-    const cadence = 1000 / (this.quality === 'economy' ? 15 : 60);
+    const cadence = 1000 / (this.timeline.playing || this.model.geometryMoving || this.model.frame ? 60 : this.quality === 'economy' ? 15 : 24);
     // WebKit timestamps may be quantized to 1ms. Tolerate 2ms so a 66ms economy frame
     // isn't rejected and delayed another whole display refresh.
     if (!this.dirty && !this.transitioning && this.clock >= (this.arrivalUntil || 0) && this.last && now - this.last < cadence - 2) return;
@@ -400,7 +411,7 @@ class OracleUniverse {
       paused: this.paused || this.unavailable(), reduced: this.reduced, active: this.active,
       pendingFrames: Number(!!this.pending), pendingTimers: Number(!!this.timeout),
       formation: this.getFormation(), contextLost: !!this.contextLost, error: this.error || null,
-      note: 'CPU submission is not GPU time. Active cadence targets 60 Hz; economy targets 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.'
+      note: 'CPU submission is not GPU time. Interaction and formation target 60 Hz; ambient targets 24 Hz and economy 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.'
     };
   }
   dispose() {
@@ -413,7 +424,7 @@ class OracleUniverse {
     this.scene.traverse(object => { if (object.geometry) geometries.add(object.geometry); if (object.material) materials.add(object.material); });
     geometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose());
     this.noiseTexture?.dispose(); this.renderer.dispose();
-    this.scene.clear(); this.nodeRows.clear(); this.leafRows.clear(); this.leafBirths.clear(); this.receipts.clear();
+    this.scene.clear(); this.nodeRows.clear(); this.clusterRows.clear(); this.leafRows.clear(); this.leafBirths.clear(); this.receipts.clear();
     this.host.classList.remove('three-enabled');
     if (this.model) {
       for (const n of this.model.nodes.values()) n.g.style.opacity = '';

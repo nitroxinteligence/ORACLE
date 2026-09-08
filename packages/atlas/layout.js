@@ -17,34 +17,146 @@ export function visibleCount(total, selected, detail=3, zoom=1) {
   const extra=Math.max(0,Math.min(6,Number(detail)||0)-3);
   return Math.min(total,(selected?50:10)+extra*(selected?12:4));
 }
-export function plan(collections,entries,selected,detail=3,manual={},minimumRadius=248) {
-  const sorted=[...collections].sort((a,b)=>identity(a.id).angle-identity(b.id).angle||a.id.localeCompare(b.id));
-  const known=sorted.every(c=>identities[c.id])&&sorted.length<=7;
-  const radius=Math.max(248,sorted.length*23,minimumRadius);
-  const nodes=sorted.map((c,i)=>{
-    const angle=(known?identity(c.id).angle:(-140+i*360/sorted.length))*Math.PI/180;
-    const source=entries.filter(e=>!e.directory&&e.name==='SKILL.md'&&e.path.startsWith(`SISTEMA/skills/${c.id}/`)).sort((a,b)=>a.path.localeCompare(b.path));
-    const saved=manual.nodes?.[c.id];
-    return {...c,angle,color:identity(c.id).color,x:saved?.x??Math.cos(angle)*radius,y:saved?.y??Math.sin(angle)*radius,skills:source};
+// These are alphabetical browsing ranges, not subject areas or prerequisites.
+const alphabet = ['A–C', 'D–F', 'G–I', 'J–L', 'M–O', 'P–R', 'S–U', 'V–Z', '#'];
+export function skillName(entry) { return entry.path.split('/').at(-2).replace(/-/g, ' '); }
+export function catalogGroups(collection, entries) {
+  const root = `SISTEMA/skills/${collection}/`, groups = new Map();
+  for (const entry of entries) {
+    if (entry.directory || entry.name !== 'SKILL.md' || !entry.path.startsWith(root)) continue;
+    const parts = entry.path.slice(root.length).split('/');
+    const folder = parts.slice(0, -2).join('/');
+    const semanticFolder = folder && parts.at(-3) !== 'skills';
+    const first = skillName(entry).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().charCodeAt(0);
+    const band = first >= 65 && first <= 90 ? Math.min(7, Math.floor((first - 65) / 3)) : 8;
+    const key = semanticFolder ? `folder:${folder}` : `alphabet:${folder}:${band}`;
+    if (!groups.has(key)) groups.set(key, { id: `${collection}/${key}`, parent: collection,
+      name: semanticFolder ? folder : alphabet[band], kind: semanticFolder ? 'folder' : 'alphabet',
+      originPath: folder ? root + folder : root.slice(0, -1), skills: [] });
+    groups.get(key).skills.push(entry);
+  }
+  const ordered=[...groups.values()].sort((a,b)=>a.id.localeCompare(b.id)),seen=new Map();
+  return ordered.map(group=>{const total=ordered.filter(g=>g.name===group.name).length,index=(seen.get(group.name)||0)+1;seen.set(group.name,index);return {...group,name:total>1?`${group.name} · ${index}`:group.name,skills:group.skills.sort((a,b)=>a.path.localeCompare(b.path))}});
+}
+// Round-robin samples represent every nonempty range before adding a second leaf.
+// Every point is an actual file and all remaining members can be paged in group view.
+export function sampleGroups(groups, limit, focus = null, page = 0, pageSize = 50, selectedLeaf = null) {
+  const chosen = new Map(groups.map(g => [g.id, []]));
+  let count = 0;
+  for (let row = 0; count < limit; row++) {
+    let added = false;
+    for (const g of groups) if (count < limit && row < g.skills.length) {
+      chosen.get(g.id).push(g.skills[row]); count++; added = true;
+    }
+    if (!added) break;
+  }
+  const group = groups.find(g => g.id === focus);
+  if (group) { const start=Math.min(page * pageSize,Math.max(0,group.skills.length-pageSize)); chosen.set(group.id, group.skills.slice(start,start+pageSize)); }
+  if (selectedLeaf) {
+    const owner = groups.find(g => g.skills.some(s => s.path === selectedLeaf));
+    if (owner && !chosen.get(owner.id).some(s => s.path === selectedLeaf))
+      chosen.get(owner.id).push(owner.skills.find(s => s.path === selectedLeaf));
+  }
+  return chosen;
+}
+export function boundsOf(points, padding = 30) {
+  if (!points.length) points = [{ x: 0, y: 0 }];
+  return { minX: Math.min(...points.map(p => p.x)) - padding, maxX: Math.max(...points.map(p => p.x)) + padding,
+    minY: Math.min(...points.map(p => p.y)) - padding, maxY: Math.max(...points.map(p => p.y)) + padding };
+}
+export function fitCamera(bounds, width, height, top = 48, padding = 18, maximum = Infinity) {
+  const k = Math.max(.025, Math.min(maximum, (width - padding * 2) / Math.max(1, bounds.maxX - bounds.minX),
+    (height - top - padding * 2) / Math.max(1, bounds.maxY - bounds.minY)));
+  return { x: width / 2 - (bounds.minX + bounds.maxX) * k / 2,
+    y: (height + top) / 2 - (bounds.minY + bounds.maxY) * k / 2, k };
+}
+export function plan(collections, entries, selected, detail = 3, manual = {}, minimumRadius = 248, context = {}) {
+  const sorted = [...collections].sort((a, b) => identity(a.id).angle - identity(b.id).angle || a.id.localeCompare(b.id));
+  const known = sorted.every(c => identities[c.id]) && sorted.length <= 7;
+  const radius = Math.max(270, sorted.length * 34, minimumRadius);
+  const nodes = sorted.map((c, i) => {
+    const angle = (known ? identity(c.id).angle : -140 + i * 360 / sorted.length) * Math.PI / 180;
+    const groups = catalogGroups(c.id, entries), saved = manual.nodes?.[c.id];
+    return { ...c, angle, color: identity(c.id).color, x: saved?.x ?? Math.cos(angle) * radius,
+      y: saved?.y ?? Math.sin(angle) * radius, skills: groups.flatMap(g => g.skills), groups };
   });
-  const leaves=[];
-  for(const n of nodes){
-    const count=visibleCount(n.skills.length,n.id===selected,detail,1);
-    const nearest=nodes.filter(o=>o!==n).map(o=>Math.abs(Math.atan2(Math.sin(o.angle-n.angle),Math.cos(o.angle-n.angle))));
-    const fan=Math.min(1.25,(nearest.length?Math.min(...nearest):1.6)*.76);
-    const lanes=Math.min(7,Math.max(1,Math.ceil(Math.sqrt(count))));
-    for(let i=0;i<count;i++){
-      const lane=i%lanes,depth=Math.floor(i/lanes),fraction=lanes===1?0:lane/(lanes-1)-.5;
-      const angle=n.angle+fraction*fan+Math.sin(depth*.85+lane*1.7)*.025;
-      const distance=86+depth*33+(lane%2)*11;
-      const radiusAlong=radius+distance;
-      const saved=manual.leaves?.[n.skills[i].path];
-      const offsetX=n.x-Math.cos(n.angle)*radius,offsetY=n.y-Math.sin(n.angle)*radius;
-      leaves.push({id:n.skills[i].path,parent:n.id,x:saved?.x??Math.cos(angle)*radiusAlong+offsetX,y:saved?.y??Math.sin(angle)*radiusAlong+offsetY,
-        index:i,depth,lane,angle,custom:!!saved,source:depth?n.skills[i-lanes].path:null,dir:Math.cos(angle)>=0?1:-1});
+  const groups = [], leaves = [];
+  for (const n of nodes) {
+    const active = n.id === selected, limit = visibleCount(n.skills.length, active, detail, 1);
+    const chosen = sampleGroups(n.groups, limit, active ? context.group : null, context.page || 0, 50, context.leaf);
+    const nearby = nodes.filter(o => o !== n).map(o => Math.abs(Math.atan2(Math.sin(o.angle - n.angle), Math.cos(o.angle - n.angle))));
+    const sector = Math.min(1.25, (nearby.length ? Math.min(...nearby) : 1.8) * .82);
+    // Global groups share a compact silhouette. Focus opens a separate, legible fan.
+    const span = active ? 3.45 : sector, count = n.groups.length;
+    const weight=n.groups.reduce((sum,g)=>sum+Math.max(2,chosen.get(g.id).length),0);let cursor=-span/2;
+    const groupRadius = active ? Math.max(235, count * 24) : radius + 102;
+    n.groups.forEach((g, gi) => {
+      const share=span*Math.max(2,chosen.get(g.id).length)/Math.max(1,weight);
+      const fraction = count < 2 ? 0 : gi / (count - 1) - .5, angle = n.angle + (active?cursor+share/2:fraction*span);cursor+=share;
+      const focused = g.id === context.group && active;
+      let x = active ? n.x + Math.cos(angle) * groupRadius : n.x + Math.cos(angle) * groupRadius - Math.cos(n.angle) * radius;
+      let y = active ? n.y + Math.sin(angle) * groupRadius : n.y + Math.sin(angle) * groupRadius - Math.sin(n.angle) * radius;
+      const members = chosen.get(g.id);
+      if(focused){
+        const columns=Math.min(5,Math.max(1,Math.ceil(members.length/8))),width=175+(columns-1)*205+145;
+        // The reading constellation stays outside the global galaxy. A fixed
+        // left-to-right reading direction must not cross back through the SOL.
+        x=n.x+Math.cos(n.angle)*1400-width/2;y=n.y+Math.sin(n.angle)*1400;
+      }
+      const group = { ...g, x, y, angle, index: gi, focused, source: n.id, visibleCount: chosen.get(g.id).length };
+      groups.push(group);
+      members.forEach((entry, i) => {
+        let lx, ly;
+        if (focused) {
+          const columns = Math.min(5,Math.max(1,Math.ceil(members.length/8)));
+          const rows = Math.ceil(members.length/columns), col = Math.floor(i/rows), row = i%rows;
+          // Short lateral file branches off unlabelled routing spines. The spines
+          // are drawing geometry only; every semantic edge still belongs to g.id.
+          lx=x+175+col*205;ly=y+(row-(rows-1)/2)*66;
+        } else if (active) {
+          let slot=i,ring=0,radial=groupRadius+105;
+          let capacity=Math.max(1,Math.floor(radial*Math.max(.12,share-.06)/43));
+          while(slot>=capacity){slot-=capacity;ring++;radial+=56;capacity=Math.max(1,Math.floor(radial*Math.max(.12,share-.06)/43))}
+          const consumed=i-slot,actual=Math.min(capacity,members.length-consumed);
+          const offset=(slot-(actual-1)/2)*Math.min(43/radial,(share-.06)/Math.max(1,actual));
+          const leafAngle=angle+offset;
+          lx=n.x+Math.cos(leafAngle)*radial;ly=n.y+Math.sin(leafAngle)*radial;
+        } else {
+          const spread=Math.min(1.8,sector*3.4),leafAngle=angle+(members.length<2?0:i/Math.max(1,members.length-1)-.5)*spread;
+          const distance=50+(i%2)*14;
+          lx=x+Math.cos(leafAngle)*distance;ly=y+Math.sin(leafAngle)*distance;
+        }
+        const saved = manual.leaves?.[entry.path];
+        leaves.push({ id: entry.path, parent: n.id, group: g.id, source: g.id,
+          x: saved?.x ?? lx, y: saved?.y ?? ly, custom: !!saved, name: skillName(entry),
+          index: leaves.filter(l => l.parent === n.id).length, localIndex: i, depth: 2,
+          route: focused ? {column:Math.floor(i/Math.ceil(members.length/Math.min(5,Math.max(1,Math.ceil(members.length/8))))),offset:34} : null,
+          angle, dir: focused ? 1 : Math.cos(n.angle) >= 0 ? 1 : -1 });
+      });
+    });
+  }
+  // Rare intersections with the dimmed context are resolved only in view geometry.
+  // A spatial grid keeps catalog growth from turning this into an all-pairs solver.
+  for(let pass=0;pass<4;pass++){
+    const cells=new Map(),size=19;
+    const ordered=[...leaves].sort((a,b)=>Number(b.parent===selected)-Number(a.parent===selected)||a.id.localeCompare(b.id));
+    for(const leaf of ordered){
+      if(!leaf.custom)for(let step=0;step<3;step++){
+        const cx=Math.floor(leaf.x/size),cy=Math.floor(leaf.y/size);let moved=false;
+        for(let ix=cx-1;ix<=cx+1;ix++)for(let iy=cy-1;iy<=cy+1;iy++)for(const other of cells.get(`${ix},${iy}`)||[]){
+          const dx=leaf.x-other.x,dy=leaf.y-other.y,d=Math.hypot(dx,dy);
+          if(d<size){const angle=d>.001?Math.atan2(dy,dx):hash(leaf.id)*.001;leaf.x+=Math.cos(angle)*(size-d+.1);leaf.y+=Math.sin(angle)*(size-d+.1);moved=true}
+        }
+        if(!moved)break;
+      }
+      const key=`${Math.floor(leaf.x/size)},${Math.floor(leaf.y/size)}`;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(leaf);
     }
   }
-  const points=[{x:-105,y:-105},{x:105,y:105},...nodes,...leaves];
-  const bounds={minX:Math.min(...points.map(p=>p.x))-58,maxX:Math.max(...points.map(p=>p.x))+58,minY:Math.min(...points.map(p=>p.y))-58,maxY:Math.max(...points.map(p=>p.y))+58};
-  return {nodes,leaves,bounds};
+  const core = [{ x: -150, y: -150 }, { x: 150, y: 150 }];
+  const bounds = boundsOf([...core, ...nodes, ...groups, ...leaves], 35);
+  // Keep the SOL whole when a specialist opens. Group and skill contexts travel beyond it.
+  const focusPoints = context.group ? [...groups.filter(g => g.id === context.group), ...leaves.filter(l => l.group === context.group)] :
+    selected ? [...core, ...nodes.filter(n => n.id === selected), ...groups.filter(g => g.parent === selected), ...leaves.filter(l => l.parent === selected)] : [...core, ...nodes, ...groups, ...leaves];
+  if(context.group){const members=leaves.filter(l=>l.group===context.group);if(members.length)focusPoints.push({x:Math.max(...members.map(l=>l.x))+145,y:Math.min(...members.map(l=>l.y))-62})}
+  return { nodes, groups, leaves, bounds, focusBounds: boundsOf(focusPoints, context.group ? 42 : 38) };
 }

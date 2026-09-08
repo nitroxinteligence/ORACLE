@@ -16,3 +16,42 @@
 @media (prefers-reduced-motion: reduce) {
   .category-node, .skill-node, .skill-name, .selection-ring { transition: none !important; }
 }
+
+/* Context navigation stays at screen scale while the galaxy moves beneath it. */
+.atlas-context{position:absolute;z-index:2;top:5px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;max-width:calc(100% - 20px);padding:5px;border:1px solid var(--line);border-radius:13px;background:#141414d9;box-shadow:0 5px 22px #0003;font-size:11px;white-space:nowrap}
+.atlas-context[hidden],.atlas-page[hidden]{display:none}
+.atlas-context button{min-width:29px;height:28px;padding:0 8px;border-radius:8px;color:#b6b6b6}
+.atlas-context button:hover,.atlas-context button:focus-visible{background:#ffffff0c;color:white}
+.atlas-context button[aria-current]{color:#eee;pointer-events:none}
+.atlas-context button:disabled{opacity:.25}
+.atlas-breadcrumb{display:flex;align-items:center;min-width:0;overflow:hidden}
+.atlas-breadcrumb button{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.atlas-breadcrumb button+button:before{content:'›';padding-right:12px;color:#656565}
+.atlas-page{display:flex;gap:2px;align-items:center;border-left:1px solid var(--line);padding-left:4px;font-variant-numeric:tabular-nums}
+.category-node,.skill-node,.atlas-group{cursor:pointer}
+#atlas .category-symbol{width:20px;height:20px}
+.category-node.subdued{opacity:.26}
+.atlas-group{outline:none;transition:opacity 240ms ease}
+.group-junction{fill:#111;stroke:var(--node-accent);stroke-width:1.15;vector-effect:non-scaling-stroke;transition:fill 180ms}
+.atlas-group.selected .group-junction,.atlas-group:hover .group-junction,.atlas-group:focus-visible .group-junction{fill:var(--node-accent);stroke:#fff}
+.group-name{fill:#c7c7c7;letter-spacing:.8px;pointer-events:none;opacity:0;transition:opacity 220ms}
+.atlas-group.member .group-name,.atlas-group:hover .group-name,.atlas-group:focus-visible .group-name{opacity:.85}
+.atlas-group.subdued{opacity:.19}
+.group-edge{stroke:var(--node-accent);stroke-width:.7;stroke-opacity:.36;vector-effect:non-scaling-stroke}
+.group-edge.subdued{stroke-opacity:.12}
+.three-enabled .group-edge{opacity:0}
+.skill-glyph{stroke:#dedede;stroke-width:.65;fill:none;opacity:0;pointer-events:none}
+#atlas[data-context="group"] .skill-glyph,#atlas[data-context="skill"] .skill-glyph{opacity:.86}
+#atlas[data-context="group"] .skill-dot,#atlas[data-context="skill"] .skill-dot{r:9;fill:#121416;stroke:var(--node-accent);stroke-width:.75}
+.skill-node.subdued{opacity:.18}
+.skill-edge{stroke-opacity:.25}
+.skill-node:focus-visible .skill-name,.skill-node:hover .skill-name{paint-order:stroke;stroke:#0a0a0a;stroke-width:4px;stroke-linejoin:round}
+.motion-reduced .atlas-group,.motion-reduced .group-name,.motion-reduced .group-junction{transition:none}
+@media(prefers-reduced-motion:reduce){.atlas-group,.group-name,.group-junction{transition:none}}
+
+.skill-node{opacity:var(--leaf-life,1)}
+.skill-node.subdued{opacity:calc(var(--leaf-life,1) * .18)}
+
+.routing-edge{stroke:var(--node-accent);stroke-width:.65;fill:none;vector-effect:non-scaling-stroke;pointer-events:none}
+
+body.reduce-transparency .atlas-context{background:#1c1c1c;backdrop-filter:none;-webkit-backdrop-filter:none}

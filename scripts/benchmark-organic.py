@@ -24,28 +24,37 @@ def sample(name,seconds):
     host=[p for sample in ps for p in sample if p['ownHost']]
     result.update(elapsedSeconds=round(elapsed,3),observedFPS=round(result['frames']/elapsed,2),hostCPUMedianPercent=statistics.median(p['cpuPercent'] for p in host) if host else None,hostRSSPeakMB=round(max(p['rssKB'] for p in host)/1024,2) if host else None,processSamples=ps)
     if name in ['idle','expansion','timelapse']:
-        assert result['frames']>seconds*8 and not result['diagnostics']['paused'], 'measurement interrupted by occlusion'
+        assert result['frames']>seconds*8 and not result['diagnostics']['paused'], f'measurement interrupted: paused={result["diagnostics"]["paused"]}, frames={result["frames"]}'
     print(name,json.dumps({k:v for k,v in result.items() if k!='processSamples'}),flush=True)
     return result
 
+deadline=time.monotonic()+45
+while time.monotonic()<deadline:
+    if call('typeof closeModal==="function"&&typeof atlasController!=="undefined"&&!!atlasController?.universe'):break
+    time.sleep(.1)
+else:raise TimeoutError('Native page did not finish loading')
+assert call('state.config.fixture===true'), 'Benchmark is restricted to the isolated QA profile'
 call(op='show');call(op='resize',width=1200,height=760)
-call('window.OracleOnboarding?.suspend();closeModal(true);live();selected=null;selectedSkill=null;visualPaused=false;$("#motion").checked=false;$("#economy").checked=false;$("#density").value=3;renderAtlas();atlasController.fit();atlasController.setFormation({progress:1,playing:false});true');time.sleep(1.5)
+call('if(window.organicExpansion)clearInterval(window.organicExpansion);window.OracleOnboarding?.suspend();closeModal(true);live();toggleObservatory(false);selected=null;selectedSkill=null;visualPaused=false;$("#motion").checked=false;$("#economy").checked=false;$("#density").value=3;renderAtlas();atlasController.fit();atlasController.setFormation({progress:1,playing:false});atlasController.universe.governor.reset();atlasController.universe.setQuality("balanced");window.benchmarkPriorInert=$("#app").inert;$("#app").inert=true;true');time.sleep(1.5)
 results={}
-results['idle']=sample('idle',12)
-call('window.organicStep=0;window.organicExpansion=setInterval(()=>{selected=["marketing","cyber-security",null][organicStep++%3];selectedSkill=null;renderAtlas();atlasController.fit()},1500);true')
-results['expansion']=sample('expansion',12)
-call('clearInterval(organicExpansion);selected=null;renderAtlas();atlasController.fit();true');time.sleep(1)
-if label=='before':
-    call('play();true')
-else:
-    call('ensureReplay().then(()=>{atlasController.setFormation({progress:0,playing:true,duration:12000});renderPlayback()});true')
-results['timelapse']=sample('timelapse',13)
-call('live();$("#economy").checked=true;renderAtlas();true');time.sleep(.5)
-results['economy']=sample('economy',8)
-call('$("#economy").checked=false;$("#motion").checked=true;renderAtlas();true');time.sleep(.5)
-results['reduced']=sample('reduced',4)
-call('$("#motion").checked=false;renderAtlas();true');call(op='hide');time.sleep(.5)
-results['minimized']=sample('minimized',4)
-call(op='show')
-report={'label':label,'measuredAt':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),'hardware':subprocess.check_output(['sysctl','-n','machdep.cpu.brand_string'],text=True).strip(),'os':subprocess.check_output(['sw_vers','-productVersion'],text=True).strip(),'phases':results,'limitations':'Render cadence measures delivered WebGL draws, not GPU duration. CPU is ps OS average; ownHost is OracleAtlasQA only. WebKit helpers are launchd children shared across applications and are recorded separately, never attributed wholesale to Oracle. Mailbox overhead at 10 Hz applies to both runs.'}
+try:
+    results['idle']=sample('idle',12)
+    call('window.organicStep=0;window.organicExpansion=setInterval(()=>{selected=["marketing","cyber-security",null][organicStep++%3];selectedSkill=null;renderAtlas();atlasController.fit()},1500);true')
+    results['expansion']=sample('expansion',12)
+    call('clearInterval(organicExpansion);selected=null;renderAtlas();atlasController.fit();true');time.sleep(1)
+    if label=='before':
+        call('play();true')
+    else:
+        call('ensureReplay().then(()=>{atlasController.setFormation({progress:0,playing:true,duration:12000});renderPlayback()});true')
+    results['timelapse']=sample('timelapse',13)
+    call('live();$("#economy").checked=true;renderAtlas();true');time.sleep(.5)
+    results['economy']=sample('economy',8)
+    call('$("#economy").checked=false;$("#motion").checked=true;renderAtlas();true');time.sleep(.5)
+    results['reduced']=sample('reduced',4)
+    call('$("#motion").checked=false;renderAtlas();true');call(op='hide');time.sleep(.5)
+    results['minimized']=sample('minimized',4)
+    call(op='show')
+finally:
+    call('if(window.organicExpansion)clearInterval(window.organicExpansion);$("#app").inert=window.benchmarkPriorInert??false;true')
+report={'label':label,'measuredAt':__import__('datetime').datetime.now(__import__('datetime').timezone.utc).isoformat(),'hardware':subprocess.check_output(['sysctl','-n','machdep.cpu.brand_string'],text=True).strip(),'os':subprocess.check_output(['sw_vers','-productVersion'],text=True).strip(),'phases':results,'limitations':'UI input is temporarily inert during the scripted samples and restored in finally; physical input is tested separately. Render cadence measures delivered WebGL draws, not GPU duration. CPU is ps OS average; ownHost is OracleAtlasQA only. WebKit helpers are launchd children shared across applications and are recorded separately, never attributed wholesale to Oracle. Mailbox overhead at 10 Hz applies to both runs.'}
 path=ROOT/f'docs/benchmarks/organic-{label}.json';path.write_text(json.dumps(report,indent=2)+'\n');print(path)

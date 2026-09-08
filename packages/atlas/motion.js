@@ -7,7 +7,7 @@ export const smooth = (start, end, value) => {
 
 export function revealAt(progress, kind, index = 0, leafIndex = 0, groupCount = 7) {
   const group = Math.min(1, Math.max(0, index) / Math.max(1, groupCount - 1));
-  const start = kind === 'sun' ? 0 : kind === 'connector' ? .18 : kind === 'collection' ? .23 + group * .20 : .63 + group * .09 + Math.max(0, leafIndex) / (Math.max(0, leafIndex) + 8) * .14;
+  const start = kind === 'sun' ? 0 : kind === 'connector' ? .18 : kind === 'collection' ? .23 + group * .20 : kind === 'group' ? .45 + group * .12 : .63 + group * .09 + Math.max(0, leafIndex) / (Math.max(0, leafIndex) + 8) * .14;
   return smooth(start, start + (kind === 'sun' ? .2 : .12), progress);
 }
 

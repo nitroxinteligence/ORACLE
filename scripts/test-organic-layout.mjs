@@ -16,7 +16,7 @@ test('geometry keeps identity and leaf paths stable under source reordering',()=
  const docs=ids.flatMap(id=>entries(id,55));const a=plan(collections,docs,'marketing'),b=plan([...collections].reverse(),[...docs].reverse(),'marketing');
  assert.deepEqual(a,b);for(const id of ids)assert.equal(a.nodes.find(n=>n.id===id).color,identity(id).color);
 });
-test('tentacles fit their sectors without overlapping specialists or dense leaf clumps',()=>{
+test('group branches avoid overlapping specialists or dense leaf clumps',()=>{
  const docs=ids.flatMap(id=>entries(id,id==='contents'?0:818));
  for(const selected of [null,...ids]){
   const geometry=plan(collections,docs,selected),points=geometry.leaves;

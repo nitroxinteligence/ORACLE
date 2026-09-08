@@ -63,3 +63,11 @@ Report separately: structure, identity, index, source read-back, skill/package d
 ## Canonical memory writes
 
 The isolated MCP exposes official GBrain operations with source visibility checks. It opens and releases the engine for each request; do not keep another PGLite process open. `oracle-memory` writes through to `<vault>/INBOX/oracle-memory`. Before remembering a fact for a new entity, explicitly create its canonical page using `put_page`, then call `remember`. Upstream intentionally keeps facts for unknown pages DB-only; a tool success alone does not prove vault persistence. Verify `get_page` and the resulting canonical path. Use TTL `3d` for transient facts. Retrieve vault notes through source `oracle-vault`; do not write new authoritative knowledge into this derived index. No inference or remote-agent tools are enabled.
+
+## Personal and professional notes
+
+The reviewed plan includes `knowledge_spaces` with the canonical Obsidian paths for Pessoal and Profissional. Setup creates only the missing directories. Existing recognized directories are reused; never relocate, rename, classify, or rewrite the user's existing notes automatically. Earlier confirmed plans remain immutable.
+
+When the user authorizes a new durable note, write personal material in the personal area and work/company/client material in the professional area, under the appropriate real subfolder. Read the plan paths instead of creating competing roots; defaults are `AREAS/pessoal` and `AREAS/profissional`. Ask when the intended area is ambiguous. Preserve provenance and verify the actual Markdown file. Normal vault indexing includes these files; `oracle-vault` remains a derived index, not the canonical write destination. Literal memory capture in `INBOX/oracle-memory` retains its existing receipt and retention contract; do not duplicate an entire conversation into either area.
+
+Oracle visualizes actual folder membership, with at most 50 visible items in a folder page. A circle or animation never proves a memory write or an index update.

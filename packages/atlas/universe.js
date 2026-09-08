@@ -7,6 +7,8 @@ import {
 import * as shaders from './shaders.js';
 import { FormationTimeline, revealAt, Samples, QualityGovernor, pixelRatio } from './motion.js';
 import * as layout from './layout.js';
+import * as knowledge from './knowledge.js';
+window.OracleKnowledge = knowledge;
 window.OracleLayout = layout;
 window.OracleMotion = { FormationTimeline, revealAt };
 
@@ -162,7 +164,8 @@ class OracleUniverse {
   sync(model) {
     if (!this.active) return;
     this.model = model;
-    const showSun=!model.selected;
+    const showSun=!model.selected&&!model.knowledge;
+    this.leafPoints.visible=!model.knowledge;
     if(this.sun.visible!==showSun){this.sun.visible=showSun;this.orbits.visible=showSun;this.dirty=true;}
     this.u.uGroupCount.value = Math.max(1, model.nodes.size);
     let changed = false;
@@ -190,17 +193,17 @@ class OracleUniverse {
     const groupIndex = id => model.nodes.get(id)?.index ?? -2;
     const hover = model.hovered || (document.documentElement.dataset.inputMode!=='pointer' && model.keyboardFocus) || {};
     const values = {
-      uSelected: groupIndex(model.selected), uSelectedLeaf: this.leafRows.get(model.selectedLeaf) ?? -2,
+      uSelected: groupIndex(model.selected||(model.knowledge?[...model.nodes.keys()][0]:null)), uSelectedLeaf: this.leafRows.get(model.selectedLeaf) ?? -2,
       uHovered: groupIndex(hover.category), uHoveredLeaf: this.leafRows.get(hover.skill) ?? -2,
       uDragged: groupIndex(model.drag?.category || model.drag?.node?.parent), uHoverCore: hover.core ? 1 : 0,
-      uFocusedCluster: this.clusterRows.get(model.context?.group) ?? -2, uHoveredCluster: this.clusterRows.get(hover.group || model.leaves.get(hover.skill)?.group) ?? -2, uContext: ['global','specialist','group','skill'].indexOf(model.context?.kind),
+      uFocusedCluster: this.clusterRows.get(model.context?.group) ?? -2, uHoveredCluster: this.clusterRows.get(hover.group || model.leaves.get(hover.skill)?.group) ?? -2, uContext: ['global','specialist','group','skill','knowledge'].indexOf(model.context?.kind),
     };
     for (const [key, value] of Object.entries(values)) {
       if (this.u[key].value !== value) { this.u[key].value = value; changed = true; }
     }
     for (const n of model.nodes.values()) {
       const row = this.nodeRows.get(n.id);
-      const selected = n.id === model.selected ? 1 : 0;
+      const selected = n.id === model.selected || model.knowledge ? 1 : 0;
       const hovered = n.id === hover.category || model.leaves.get(hover.skill)?.parent === n.id ? 1 : 0;
       const dragged = model.drag?.node?.id === n.id ? 1 : 0;
       const targets = [selected, hovered, dragged, model.selected && !selected ? 1 : 0];
@@ -254,11 +257,11 @@ class OracleUniverse {
     };
     for (const n of model.nodes.values()) {
       this.nodeRows.set(n.id, row);
-      let color = this.colorByID.get(n.id);if(!color){color=new Color(layout.identity(n.id).color);this.colorByID.set(n.id,color)}this.colors[n.index]=color;
+      const colorKey=n.id+':'+(n.color||'');let color=this.colorByID.get(colorKey);if(!color){color=new Color(n.color||layout.identity(n.id).color);this.colorByID.set(colorKey,color)}this.colors[n.index]=color;
       changed = write(node.center, row, n.x, -n.y) || changed;
       changed = write(node.tint, row, color.r, color.g, color.b) || changed;
       changed = write(node.order, row, n.index) || changed;
-      if(!model.selected)edgeTo(0, 0, n.x, n.y, color, 0, n.index, -1, -3);
+      if(!model.selected&&!model.knowledge)edgeTo(0, 0, n.x, n.y, color, 0, n.index, -1, -3);
       row++;
     }
     let clusterRow = 0;

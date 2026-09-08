@@ -141,6 +141,14 @@ final class Core {
         let ref = input["tool_use_id"] as? String ?? input["event_id"] as? String ?? UUID().uuidString
         try event(type:kind,summary:kind == "Stop" ? "Turno encerrado; conclusão do objetivo não verificada" : "Hook \(kind) recebido",source:"codex-hook",id:session+kind+ref)
     }
+    func knowledgeSpaces(_ entries:[[String:Any]]) -> [[String:String]] {
+        let directories=entries.filter{$0["directory"] as? Bool==true}.compactMap{$0["path"] as? String}
+        func normalized(_ value:String)->String {value.folding(options:[.caseInsensitive,.diacriticInsensitive],locale:Locale(identifier:"pt_BR"))}
+        return [("personal","Pessoal","AREAS/pessoal",["pessoal","personal"]),("professional","Profissional","AREAS/profissional",["profissional","professional"])].map {id,name,defaultPath,aliases in
+            let existing=directories.first{normalized($0)==normalized(defaultPath)} ?? directories.first{!$0.contains("/")&&aliases.contains(normalized($0))}
+            return ["id":id,"name":name,"path":existing ?? defaultPath]
+        }
+    }
     func makePlan(answers: [String: String], isNew: Bool, attach: Bool, catalogCollections:[String] = []) throws -> [String: Any] {
         let lock=try acquireOperationLock("setup");defer{releaseOperationLock(lock)}
         let brain=try acquireOperationLock("gbrain");defer{releaseOperationLock(brain)}
@@ -148,11 +156,14 @@ final class Core {
         if !attach { for (key, limit) in identityLimits { guard let v = answers[key], !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, v.count <= limit else { throw failure("Campo obrigatório inválido: \(key)") } } }
         let root = try vault()
         guard catalogCollections.allSatisfy({id in collections.contains(where:{$0.0==id})}) else { throw failure("Coleção desconhecida") }
-        var plan: [String: Any] = ["schema_version":1,"id":UUID().uuidString,"vault":root.path,"new_vault":isNew,"attach":attach,"answers":answers,"answers_hash":digest(try jsonData(answers)),"folders":isNew ? templateFolders : [],"executor":"Codex Desktop","created_at":ISO8601DateFormatter().string(from:Date())]
+        let baseline=try scan(root:root),spaces=knowledgeSpaces(baseline)
+        let areaPaths=spaces.compactMap{$0["path"]}
+        let folders=(isNew ? templateFolders.filter{!["AREAS/pessoal","AREAS/profissional"].contains($0)} : [])+areaPaths
+        var plan: [String: Any] = ["schema_version":1,"id":UUID().uuidString,"vault":root.path,"new_vault":isNew,"attach":attach,"answers":answers,"answers_hash":digest(try jsonData(answers)),"folders":folders,"knowledge_spaces":spaces,"executor":"Codex Desktop","created_at":ISO8601DateFormatter().string(from:Date())]
         plan["catalog_collections"]=catalogCollections
         if !catalogCollections.isEmpty { plan["catalog_hash"]=try catalogDigest() }
         plan["plan_hash"]=try planDigest(plan)
-        try writeJSON(try scan(root:root),home.appendingPathComponent("setup/\(plan["id"] as! String).baseline.json"))
+        try writeJSON(baseline,home.appendingPathComponent("setup/\(plan["id"] as! String).baseline.json"))
         try writeJSON(plan,home.appendingPathComponent("setup/plans/\(plan["id"] as! String).json"))
         try writeJSON(plan,home.appendingPathComponent("setup/plan.json"))
         return plan

@@ -46,5 +46,16 @@ func runTests() throws {
     try expect(fm.fileExists(atPath:file.path),"rollback preserves user files")
     try expect(!(try c.scan(root:root)).contains { ($0["path"] as? String ?? "").hasPrefix("escape") },"scan omits symlinks")
     try expect(!fm.fileExists(atPath:root.appendingPathComponent("INBOX").path),"rollback removes owned empty parent folders")
+    let reuseRoot=base.appendingPathComponent("existing-vault"),reuse=try Core(home:base.appendingPathComponent("existing-state"))
+    try fm.createDirectory(at:reuseRoot.appendingPathComponent("Pessoal"),withIntermediateDirectories:true)
+    let preserved=reuseRoot.appendingPathComponent("Pessoal/Minha nota.md");try Data("Nota existente".utf8).write(to:preserved)
+    reuse.config["vault"]=reuseRoot.path;try reuse.persist()
+    let reusePlan=try reuse.makePlan(answers:answers,isNew:false,attach:true)
+    let spaces=reusePlan["knowledge_spaces"] as! [[String:String]]
+    try expect(spaces.first{$0["id"]=="personal"}?["path"]=="Pessoal","onboarding reuses existing personal folder")
+    try reuse.confirmPlan(hash:reusePlan["plan_hash"] as! String);_ = try reuse.applyPlan();_ = try reuse.applyPlan(verifyOnly:true)
+    try expect(fm.fileExists(atPath:reuseRoot.appendingPathComponent("AREAS/profissional").path),"onboarding creates missing professional folder in existing vault")
+    try expect(!fm.fileExists(atPath:reuseRoot.appendingPathComponent("AREAS/pessoal").path),"onboarding avoids duplicate personal root")
+    try expect(try String(contentsOf:preserved)=="Nota existente","personal notes preserved by onboarding")
     print("All contract tests passed")
 }

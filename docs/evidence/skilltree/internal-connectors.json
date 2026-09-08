@@ -1,0 +1,25 @@
+{
+  "source": "Codex public app/read",
+  "apps": [
+    {
+      "id": "connector_openai_codex_document_control",
+      "name": "Codex Document Control",
+      "description": "Discover and control connected document sessions from Codex.",
+      "pluginDisplayNames": [
+        "Spreadsheets"
+      ]
+    },
+    {
+      "id": "connector_openai_hotline",
+      "name": "Hotline",
+      "description": "Look up local helpline information for the user based on country inferred from the conversation. You must use this tool before providing a suicide or self-harm helpline; do not use web search or guess.",
+      "pluginDisplayNames": []
+    },
+    {
+      "id": "connector_openai_safety_settings",
+      "name": "Safety Settings",
+      "description": "Read Parental Controls and Trusted Contact settings and approve parental-control changes.",
+      "pluginDisplayNames": []
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "checks": [
+    "Internal utility connectors absent from solar orbit",
+    "Knowledge orbit capped at 50 actual items and outside plugins",
+    "Missing artwork renders a white orbit icon",
+    "Focus/hover tooltip identifies the area and note count",
+    "Personal area contains only its direct folders and notes",
+    "Folder selection expands its own contents",
+    "Note selection opens its real Markdown document",
+    "Back returns to the parent personal area",
+    "Knowledge page 1 is bounded",
+    "Knowledge page 2 is bounded",
+    "Knowledge page 3 is bounded",
+    "All 103 real notes reachable across pages",
+    "Back to universe restores sun, specialists, and knowledge rings",
+    "No navigation or rendering errors",
+    "Context transition clears the previous tooltip"
+  ],
+  "passed": 15,
+  "scope": "Native AppKit/WKWebView with disposable public-catalog vault; test notes are synthetic"
+}

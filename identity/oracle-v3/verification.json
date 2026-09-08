@@ -1,0 +1,17 @@
+{
+  "svg_checked": 12,
+  "vector_symbols_and_wordmarks": true,
+  "embedded_raster_in_masters": false,
+  "composer_layers": "1024x1024, no mask, no gradient",
+  "browser": "Codex in-app browser",
+  "michroma_loaded": true,
+  "dark_and_light_controls": "rechecked, pass",
+  "all_images_loaded": true,
+  "horizontal_overflow": false,
+  "local_links_checked": 12,
+  "approved": "Michroma, planetary direction and existing icon backgrounds",
+  "application_unchanged": true,
+  "icon_foreground": "Solid white in dark mode, solid graphite in light mode",
+  "icon_foreground_gradients": 0,
+  "background_preservation": "Pixel comparison: no changes outside the foreground"
+}

@@ -14,21 +14,25 @@
   <header class="app-header">
     <a class="wordmark" href="#" aria-label="Oracle, enquadrar meu universo"><img class="brand-lockup" src="brand/lockup-white.svg" alt="Oracle"></a>
     <div class="header-actions">
-      <div class="replay-controls" role="group" aria-label="Timelapse visual">
+      <button id="navigation-toggle" class="icon-button" aria-label="Meu universo" aria-controls="navigation-panel" aria-expanded="true" data-tooltip="Meu universo"><span data-icon="sidebar"></span></button>
+      <button id="replay-toggle" class="icon-button" aria-label="Timelapse" aria-controls="replay-panel" aria-expanded="false" data-tooltip="Timelapse"><span data-icon="history"></span></button>
+      <button id="observatory-toggle" class="icon-button" aria-label="Observatório" aria-controls="observatory-panel" aria-expanded="false" data-tooltip="Observatório"><span data-icon="observatory"></span></button>
+      <div id="replay-panel" class="replay-controls floating-surface" role="group" aria-label="Timelapse" hidden>
         <button id="play" class="icon-button" aria-label="Iniciar timelapse" data-tooltip="Iniciar timelapse · formação do universo"><span data-icon="play"></span></button>
         <span id="replay-label" class="live-label">Ao vivo</span>
-        <input id="timeline" type="range" min="0" max="14" value="14" aria-label="Posição do timelapse" data-tooltip="Explorar a formação visual">
+        <input id="timeline" type="range" min="0" max="1000" value="1000" aria-label="Posição do timelapse" data-tooltip="Explorar a formação visual">
         <button id="speed" aria-label="Velocidade do timelapse: 1 vez" data-tooltip="Alterar velocidade do timelapse">1×</button>
-        <button id="live" class="icon-button" aria-label="Voltar ao vivo" data-tooltip="Voltar ao vivo" disabled><span data-icon="live"></span></button>
+        <button id="replay-restart" class="icon-button" aria-label="Recomeçar timelapse" data-tooltip="Recomeçar"><span data-icon="refresh"></span></button>
+        <button id="live" class="icon-button" aria-label="Encerrar timelapse" data-tooltip="Encerrar timelapse" disabled><span data-icon="close"></span></button>
       </div>
-      <span class="header-separator" aria-hidden="true"></span>
       <button id="settings" class="icon-button" aria-label="Ajustes do Oracle" data-tooltip="Ajustes do Oracle · ⌘,"></button>
+      <button id="updates" class="update-button" data-tooltip="Atualizações"><span data-icon="refresh"></span><span>Atualizar</span></button>
       <button id="lock" class="icon-button" aria-label="Bloquear Oracle" data-tooltip="Bloquear Oracle · ⌘L"></button>
     </div>
   </header>
   <main>
     <div id="galaxy" aria-hidden="true"></div>
-    <aside class="panel left" aria-label="Navegação do universo">
+    <aside id="navigation-panel" class="panel left" aria-label="Navegação do universo">
       <div class="panel-heading"><h2>Meu universo</h2><button id="refresh" class="icon-button" aria-label="Reler pasta" data-tooltip="Reler os arquivos da pasta"><span data-icon="refresh"></span></button></div>
       <button id="search" class="search-trigger" aria-haspopup="dialog" aria-label="Buscar no universo" data-tooltip="Buscar notas e skills · ⌘K"><span data-icon="search"></span><span>Buscar no universo</span><kbd>⌘ K</kbd></button>
       <div id="tree" class="tree"></div>
@@ -50,26 +54,27 @@
         <button id="context-back" aria-label="Voltar ao contexto" data-tooltip="Voltar ao contexto · Esc"><span data-icon="back"></span></button>
       </div>
     </section>
-    <aside class="panel right" aria-label="Observatório">
-      <div class="panel-heading"><h2 id="inspector-title">Observatório</h2><span class="observatory-mark" aria-hidden="true">✧</span></div>
+    <aside id="observatory-panel" class="panel right" aria-label="Observatório" hidden>
+      <div class="panel-heading"><h2 id="inspector-title">Observatório</h2><button id="observatory-close" class="icon-button" aria-label="Recolher Observatório" data-tooltip="Recolher"><span data-icon="minimize"></span></button></div>
       <div id="inspector"></div>
       <div class="divider"></div>
-      <h3>Seu ambiente</h3>
-      <div class="connection"><span data-icon="code"></span><div><strong>Codex Desktop</strong><small id="codex-status">Atividade desconhecida</small></div></div>
-      <div class="connection"><span data-icon="brain"></span><div><strong>Second Brain</strong><small id="gbrain-status">Não verificado</small></div></div>
-      <button id="activity" class="quiet-link">Recibos e cobertura <span aria-hidden="true">↗</span></button>
+      <div class="connection"><span data-icon="code"></span><div><strong>Codex</strong><small id="codex-status">Conexão não verificada</small></div></div>
+      <div class="connection"><span data-icon="brain"></span><div><strong>Second Brain</strong><small id="gbrain-status">Conexão não verificada</small></div></div>
+      <div class="divider"></div>
+      <div class="section-heading"><h3>Plugins</h3><button id="plugins-refresh" class="icon-button" aria-label="Atualizar plugins" data-tooltip="Atualizar plugins"><span data-icon="refresh"></span></button></div>
+      <div id="plugin-list" class="plugin-list"><small>Conecte o Codex para ver seus plugins.</small></div>
       <div class="divider"></div>
       <label class="control">Detalhes do mapa<input id="density" type="range" min="0" max="6" value="3"></label>
       <label class="check"><input id="motion" type="checkbox"> Reduzir movimento</label>
+      <label class="check"><input id="transparency" type="checkbox"> Reduzir transparência</label>
       <label class="check"><input id="economy" type="checkbox"> Qualidade econômica</label>
       <div class="visual-actions">
         <button id="ambient-toggle" class="quiet-link" data-tooltip="Pausar apenas a animação ambiente">Pausar atmosfera</button>
         <button id="reset-layout" class="quiet-link" data-tooltip="Restaurar posições dos nós; os arquivos permanecem no lugar">Restaurar posições</button>
       </div>
-      <button id="gmail" class="service-row"><span data-icon="mail"></span>Gmail<span aria-hidden="true">↗</span></button>
     </aside>
   </main>
-  <footer><span id="footer-status"></span><button id="updates" class="update-button" data-tooltip="Verificar e aplicar atualizações compatíveis"><span data-icon="refresh"></span><span>Atualizar</span></button></footer>
+  <span id="footer-status" class="source-status" role="status"></span>
 </div>
 <dialog id="modal" aria-labelledby="modal-title"><div id="modal-content"></div></dialog>
 <div id="tooltip" role="tooltip" hidden></div>

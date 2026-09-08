@@ -9,11 +9,11 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MAILBOX = pathlib.Path(os.environ.get('ORACLE_ATLAS_QA_DIR', ROOT / '.work/atlas-qa/mailbox'))
 
-def call(js=None, *, op='eval', name=None, timeout=15):
+def call(js=None, *, op='eval', name=None, timeout=15, **parameters):
     response = MAILBOX / 'response.json'
     response.unlink(missing_ok=True)
     temp = MAILBOX / 'request.tmp'
-    payload = json.dumps({'op': op, 'js': js, 'name': name})
+    payload = json.dumps({'op': op, 'js': js, 'name': name, **parameters})
     temp.write_text(payload)
     request = MAILBOX / 'request.json'
     temp.replace(request)

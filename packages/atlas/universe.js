@@ -6,6 +6,9 @@ import {
 } from 'three';
 import * as shaders from './shaders.js';
 import { FormationTimeline, revealAt, Samples, QualityGovernor, pixelRatio } from './motion.js';
+import * as layout from './layout.js';
+window.OracleLayout = layout;
+window.OracleMotion = { FormationTimeline, revealAt };
 
 const uniform = value => ({ value });
 const seed = n => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -49,7 +52,7 @@ class OracleUniverse {
     this.frameSamples = new Samples(); this.costSamples = new Samples();
     this.governor = new QualityGovernor();
     this.timeline = new FormationTimeline();
-    this.nodeRows = new Map(); this.leafRows = new Map(); this.leafBirths = new Map(); this.colors = [];
+    this.nodeRows = new Map(); this.leafRows = new Map(); this.leafBirths = new Map(); this.colors = []; this.colorByID = new Map();
     this.nodeCapacity = 8; this.edgeCapacity = 128; this.leafCapacity = 128;
     this.nodeTargets = new Float32Array(this.nodeCapacity * 4);
     this.receipts = new Set(); this.receiptAt = -100; this.transitioning = false;
@@ -58,7 +61,7 @@ class OracleUniverse {
       uScale: uniform(1), uDpr: uniform(pixelRatio(devicePixelRatio, false)),
       uSelected: uniform(-2), uSelectedLeaf: uniform(-2), uHovered: uniform(-2),
       uHoveredLeaf: uniform(-2), uDragged: uniform(-2), uReceipt: uniform(-1), uHoverCore: uniform(0),
-      uReconnect: uniform(0),
+      uReconnect: uniform(0), uGroupCount: uniform(7),
     };
     const canvas = document.createElement('canvas');
     canvas.className = 'universe-webgl'; canvas.setAttribute('aria-hidden', 'true');
@@ -159,6 +162,7 @@ class OracleUniverse {
   sync(model) {
     if (!this.active) return;
     this.model = model;
+    this.u.uGroupCount.value = Math.max(1, model.nodes.size);
     let changed = false;
     const width = Math.round(model.width), height = Math.round(model.height);
     if (!width || !height) return;
@@ -246,7 +250,7 @@ class OracleUniverse {
     };
     for (const n of model.nodes.values()) {
       this.nodeRows.set(n.id, row);
-      const color = this.colors[n.index] ||= new Color(model.palette[n.index]);
+      let color = this.colorByID.get(n.id);if(!color){color=new Color(layout.identity(n.id).color);this.colorByID.set(n.id,color)}this.colors[n.index]=color;
       changed = write(node.center, row, n.x, -n.y) || changed;
       changed = write(node.tint, row, color.r, color.g, color.b) || changed;
       changed = write(node.order, row, n.index) || changed;
@@ -262,7 +266,8 @@ class OracleUniverse {
       changed = write(leaf.position, leafRow, l.x, -l.y, 1) || changed;
       changed = write(leaf.tint, leafRow, color.r, color.g, color.b) || changed;
       changed = write(leaf.leafMeta, leafRow, parent.index, l.index, leafRow, this.leafBirths.get(l.id)) || changed;
-      edgeTo(parent.x, parent.y, l.x, l.y, color, 1, parent.index, parent.index * .137 + l.index * .21, leafRow);
+      const source=model.leaves.get(l.source)||parent;
+      edgeTo(source.x, source.y, l.x, l.y, color, 1, parent.index, parent.index * .137 + l.index * .21, leafRow);
       leafRow++;
     }
     if (this.nodeGeometry.instanceCount !== row || this.edgeGeometry.instanceCount !== edgeRow || this.leafGeometry.drawRange.count !== leafRow) changed = true;
@@ -299,9 +304,12 @@ class OracleUniverse {
     if (!this.model) return;
     const p = this.timeline.progress;
     if (p !== this.lastLabelProgress || notify) {
-      for (const n of this.model.nodes.values()) n.g.style.opacity = p === 1 ? '' : String(revealAt(p, 'collection', n.index));
-      for (const l of this.model.leaves.values()) l.g.style.opacity = p === 1 ? '' : String(revealAt(p, 'skill', this.model.nodes.get(l.parent)?.index ?? 0, l.index));
+      for (const n of this.model.nodes.values()) n.g.style.opacity = p === 1 ? '' : String(revealAt(p, 'collection', n.index, 0, this.model.nodes.size));
+      for (const l of this.model.leaves.values()) l.g.style.opacity = p === 1 ? '' : String(revealAt(p, 'skill', this.model.nodes.get(l.parent)?.index ?? 0, l.index, this.model.nodes.size));
       this.host.querySelector('.oracle-core').style.opacity = p === 1 ? '' : String(revealAt(p, 'sun'));
+      if(this.model.pluginLayer)this.model.pluginLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
+      for(const n of this.model.nodes.values()){const visible=p===1||revealAt(p,'collection',n.index,0,this.model.nodes.size)>.15;n.g.style.pointerEvents=visible?'':'none';n.g.setAttribute('tabindex',visible?'0':'-1')}
+      for(const l of this.model.leaves.values()){const visible=p===1||revealAt(p,'skill',this.model.nodes.get(l.parent)?.index??0,l.index,this.model.nodes.size)>.15;l.g.style.pointerEvents=visible?'':'none';l.g.setAttribute('tabindex',visible?'0':'-1')}
       this.lastLabelProgress = p;
     }
     if (notify || p === 1 && this.lastNotifiedProgress !== 1 || this.clock - (this.lastNotifyAt || 0) > .2) {
@@ -331,15 +339,15 @@ class OracleUniverse {
       this.timeout = 0;
       this.pending = requestAnimationFrame(now => { this.pending = 0; this.render(now); this.schedule(); });
     };
-    if (this.dirty || transient) request();
+    if (this.dirty || transient || this.quality !== 'economy') request();
     else {
-      const cadence = 1000 / (this.quality === 'economy' ? 15 : 30);
+      const cadence = 1000 / (this.quality === 'economy' ? 15 : 60);
       this.timeout = setTimeout(request, Math.max(0, cadence - (performance.now() - this.last) - 4));
     }
   }
   render(now) {
     if (this.unavailable()) return;
-    const cadence = 1000 / (this.quality === 'economy' ? 15 : 30);
+    const cadence = 1000 / (this.quality === 'economy' ? 15 : 60);
     // WebKit timestamps may be quantized to 1ms. Tolerate 2ms so a 66ms economy frame
     // isn't rejected and delayed another whole display refresh.
     if (!this.dirty && !this.transitioning && this.clock >= (this.arrivalUntil || 0) && this.last && now - this.last < cadence - 2) return;
@@ -391,7 +399,7 @@ class OracleUniverse {
       paused: this.paused || this.unavailable(), reduced: this.reduced, active: this.active,
       pendingFrames: Number(!!this.pending), pendingTimers: Number(!!this.timeout),
       formation: this.getFormation(), contextLost: !!this.contextLost, error: this.error || null,
-      note: 'CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.'
+      note: 'CPU submission is not GPU time. Active cadence targets 60 Hz; economy targets 15 Hz. Input preempts ambient deadlines. No telemetry is inferred from light.'
     };
   }
   dispose() {

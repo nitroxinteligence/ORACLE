@@ -38,6 +38,9 @@ final class AtlasQA {
         case "hide": window.level = .normal; window.miniaturize(nil); reply(["hidden": true])
         case "show": window.level = .floating; window.deminiaturize(nil); window.makeKeyAndOrderFront(nil); NSApp.activate(ignoringOtherApps: true); reply(["visible": true])
         case "close": reply(["closed": true]); NSApp.terminate(nil)
+        case "resize":
+            let width=max(840,min(1920,object["width"] as? Double ?? 1200)),height=max(620,min(1200,object["height"] as? Double ?? 760))
+            window.setContentSize(NSSize(width:width,height:height));window.center();reply(["width":width,"height":height])
         case "snapshot":
             let path = root.appendingPathComponent(object["name"] as? String ?? "snapshot.png")
             web.takeSnapshot(with: nil) { image, error in

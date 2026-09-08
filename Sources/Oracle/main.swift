@@ -24,6 +24,7 @@ if let hash = argument("--confirm-gbrain") { do { try core.confirmGBrain(hash); 
 if let operation = argument("--setup") {
     do { let result = try core.applyPlan(rollback:operation == "rollback",verifyOnly:operation == "verify"); print(String(decoding:try jsonData(result),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
+if arguments.contains("--self-test-editor") { do { try runEditorTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-updates") { do { try runUpdateTests(releasePath:argument("--test-release"));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test") { do { try runTests(); exit(0) } catch { fputs("FAIL: \(error)\n",stderr); exit(1) } }
 
@@ -37,6 +38,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var locked = true
     var requestMethods=[String:String]()
     var lockGeneration=0
+    var terminationPending=false
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
     let queue = DispatchQueue(label:"oracle.core")
     let updateQueue = DispatchQueue(label:"oracle.updates")
@@ -51,18 +53,37 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         web.setValue(false,forKey:"drawsBackground")
         window = NSWindow(contentRect:NSRect(x:0,y:0,width:1440,height:900),styleMask:[.titled,.closable,.miniaturizable,.resizable,.fullSizeContentView],backing:.buffered,defer:false)
         window.title = "Oracle"; window.titlebarAppearsTransparent = true; window.titleVisibility = .hidden
-        window.backgroundColor = .black; window.minSize = NSSize(width:1000,height:700); window.contentView = web; window.delegate = self
+        window.backgroundColor = .black; window.minSize = NSSize(width:840,height:620); window.contentView = web; window.delegate = self
         window.setFrameAutosaveName("OracleUniverse"); window.center(); window.makeKeyAndOrderFront(nil)
         buildMenu()
         locked = core.config["protected"] as? Bool == true
         web.loadFileURL(resourceRoot.appendingPathComponent("index.html"),allowingReadAccessTo:resourceRoot)
         NSApp.activate(ignoringOtherApps:true)
+        NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(accessibilityChanged),name:NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,object:nil)
         NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(lockApp),name:NSWorkspace.willSleepNotification,object:nil)
         DistributedNotificationCenter.default().addObserver(self,selector:#selector(lockApp),name:NSNotification.Name("com.apple.screenIsLocked"),object:nil)
     }
     func windowDidMiniaturize(_ notification:Notification) { web.evaluateJavaScript("window.oracleVisibility?.(false)",completionHandler:nil) }
     func windowDidDeminiaturize(_ notification:Notification) { web.evaluateJavaScript("window.oracleVisibility?.(true)",completionHandler:nil) }
     func windowDidChangeOcclusionState(_ notification:Notification) { web.evaluateJavaScript("window.oracleVisibility?.(\(window.occlusionState.contains(.visible) ? "true" : "false"))",completionHandler:nil) }
+    @objc func accessibilityChanged() {
+        let value:[String:Any]=["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]
+        if let data=try? jsonData(value) {web.evaluateJavaScript("window.oracleAccessibility?.(\(String(decoding:data,as:UTF8.self)))",completionHandler:nil)}
+    }
+    func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {
+        guard web != nil else {return .terminateNow}
+        if terminationPending{return .terminateLater};terminationPending=true
+        web.callAsyncJavaScript("return await window.oraclePrepareToClose?.() ?? true",arguments:[:],in:nil,in:.page) { result in
+            self.terminationPending=false
+            switch result {
+            case .success: sender.reply(toApplicationShouldTerminate:true)
+            case .failure:
+                let alert=NSAlert();alert.messageText="Não foi possível guardar seu rascunho";alert.informativeText="Volte ao editor e salve o documento ou descarte as alterações antes de sair.";alert.addButton(withTitle:"Voltar ao editor");alert.beginSheetModal(for:self.window){_ in sender.reply(toApplicationShouldTerminate:false)}
+            }
+        }
+        return .terminateLater
+    }
+    func windowShouldClose(_ sender:NSWindow)->Bool {NSApp.terminate(nil);return false}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication) -> Bool { true }
     func buildMenu() {
         let bar = NSMenu()
@@ -77,8 +98,14 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         view.submenu!.addItem(withTitle:"Tela cheia",action:#selector(NSWindow.toggleFullScreen(_:)),keyEquivalent:"f")
         NSApp.mainMenu = bar
     }
-    @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.2.0"; a.informativeText = "Companion nativo para macOS. Codex executa, GBrain recupera, Obsidian conserva. Cobertura de atividade parcial."; a.runModal() }
-    @objc func lockApp() { lockGeneration += 1;locked = true; web?.evaluateJavaScript("window.oracleLock?.()",completionHandler:nil) }
+    @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.3.0"; a.informativeText = "Seu conhecimento, conectado. Codex e Obsidian, em um só universo."; a.runModal() }
+    @objc func lockApp() {
+        lockGeneration += 1;locked=true
+        web?.evaluateJavaScript("window.oracleTakeDraftAndLock?.()") {value,_ in
+            guard let draft=value as? [String:String],let path=draft["path"],let hash=draft["hash"],let text=draft["text"] else {return}
+            self.queue.async {if draft["vault"]==core.config["vault"] as? String {_ = try? core.saveDraft(path:path,original:hash,text:text)}}
+        }
+    }
     func authenticate(_ completion:@escaping(Bool,String?)->Void) {
         let generation=lockGeneration
         let context = LAContext(); var error:NSError?
@@ -98,12 +125,12 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         requestMethods[id]=method
         let p = body["params"] as? [String:Any] ?? [:]
         if method == "lock" { lockApp(); reply(id,true); return }
-        if method == "boot" { reply(id,["locked":locked]); return }
+        if method == "boot" { reply(id,["locked":locked,"accessibility":["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]]); return }
         if method == "unlock" { authenticate { ok,error in if ok { self.locked = false }; self.reply(id,ok,error) }; return }
         guard !locked else { reply(id,nil,"Oracle bloqueado"); return }
         if method == "chooseVault" || method == "chooseProject" || method == "chooseGBrain" {
             let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
-            panel.message = method == "chooseVault" ? "Escolha o vault. Oracle lerá Markdown desta pasta; não reorganiza seu conteúdo." : method == "chooseProject" ? "Autorize somente a descoberta de AGENTS.md e AGENTS.override.md neste projeto." : "Escolha o workspace GBrain existente. Apenas operações oficiais de consulta serão usadas."
+            panel.message = method == "chooseVault" ? "Escolha o vault. Oracle lê os documentos e salva os arquivos que você editar nesta pasta." : method == "chooseProject" ? "Autorize somente a descoberta de AGENTS.md e AGENTS.override.md neste projeto." : "Escolha o workspace GBrain existente. Apenas operações oficiais de consulta serão usadas."
             panel.beginSheetModal(for:window) { response in
                 guard response == .OK, let url = panel.url else { self.reply(id,NSNull()); return }
                 self.queue.async { do {
@@ -118,7 +145,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         if method == "updateStart" {
             guard !updating else { reply(id,true);return }
             let operation=p["operation"] as? String ?? "check-apply"
-            guard ["check-apply","rollback-gbrain","rollback-skills"].contains(operation) else { reply(id,nil,"Operação inválida");return }
+            guard ["check-apply","check-only","rollback-gbrain","rollback-skills"].contains(operation) else { reply(id,nil,"Operação inválida");return }
             updating=true; reply(id,true)
             updateQueue.async {
                 do { let updater=try Core(home:core.home);_ = try updater.performUpdates(operation:operation) }
@@ -129,7 +156,6 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         if method == "protect" { authenticate { ok,error in if ok { self.queue.async { core.config["protected"] = true; try? core.persist(); DispatchQueue.main.async { self.reply(id,true) } } } else { self.reply(id,nil,error) } }; return }
         if method == "openCodex" { let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier:"com.openai.codex") ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier:"com.openai.Codex"); if let url { NSWorkspace.shared.openApplication(at:url,configuration:.init()); reply(id,true) } else { reply(id,nil,"Codex não encontrado. Abra o app instalado manualmente e cole o pedido.") }; return }
         if method == "openExternal" { guard let text=p["url"] as? String,let parts=URLComponents(string:text),["https","http"].contains(parts.scheme ?? ""),parts.host != nil,parts.user == nil,parts.password == nil,let url=parts.url else { reply(id,nil,"Link externo inválido"); return }; NSWorkspace.shared.open(url); reply(id,true); return }
-        if method == "openService" { NSWorkspace.shared.open(URL(string:"https://mail.google.com/")!); reply(id,true); return }
         if method == "copy" { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(p["text"] as? String ?? "",forType:.string); reply(id,true); return }
         if method == "reveal" { do { let url = try core.scoped(p["path"] as? String ?? "",root:core.vault()); NSWorkspace.shared.activateFileViewerSelecting([url]); reply(id,true) } catch { reply(id,nil,error.localizedDescription) }; return }
         if method == "exportSnapshot" {
@@ -150,7 +176,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 var result:Any = NSNull()
                 switch method {
                 case "saveLayout":
-                    guard let layout=p["layout"] as? [String:Any],let nodes=layout["nodes"] as? [String:[String:Double]],let leaves=layout["leaves"] as? [String:[String:Double]],nodes.count<=7,leaves.count<=1000 else { throw failure("Layout inválido") }
+                    guard let layout=p["layout"] as? [String:Any],let nodes=layout["nodes"] as? [String:[String:Double]],let leaves=layout["leaves"] as? [String:[String:Double]],nodes.count<=128,leaves.count<=2000 else { throw failure("Layout inválido") }
                     for point in Array(nodes.values)+Array(leaves.values) { guard let x=point["x"],let y=point["y"],x.isFinite,y.isFinite,abs(x)<=2000,abs(y)<=2000 else { throw failure("Posição inválida") } }
                     core.config["layout"]=layout; try core.persist(); result=true
                 case "updateStatus": var status=try core.updateStatus();status["busy"]=updaterBusy;if !updaterBusy,["checking","downloading","verifying","applying"].contains(status["phase"] as? String ?? "") {status["phase"]="interrupted";status["message"]="Operação interrompida. Verifique novamente para recuperar com segurança."};result=status
@@ -159,7 +185,10 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 case "gbrainRead": result = try core.gbrainRead(p)
                 case "gbrainReadback": result = (try? readJSON(core.home.appendingPathComponent("setup/gbrain-readback.json"))) ?? [:]
                 case "confirmGBrain": try core.confirmGBrain(p["hash"] as? String ?? ""); result = true
-                case "read": result = try core.readNote(p["path"] as? String ?? "")
+                case "read": result = try core.readEditableNote(p["path"] as? String ?? "")
+                case "saveNote": result = try core.saveNote(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")
+                case "saveDraft": result = try core.saveDraft(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")
+                case "discardDraft": try core.discardDraft(p["path"] as? String ?? "");result=true
                 case "saveVersion": result = try core.saveVersion(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")
                 case "plan": result = try core.makePlan(answers:p["answers"] as? [String:String] ?? [:],isNew:p["newVault"] as? Bool == true,attach:p["attach"] as? Bool == true,catalogCollections:p["catalogCollections"] as? [String] ?? [])
                 case "confirm": try core.confirmPlan(hash:p["hash"] as? String ?? ""); result = true

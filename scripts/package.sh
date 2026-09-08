@@ -8,5 +8,5 @@ trap 'rm -rf "$STAGE"' EXIT
 ditto "$APP" "$STAGE/Oracle.app"
 ln -s /Applications "$STAGE/Applications"
 cp docs/INSTALL.txt "$STAGE/LEIA-ME.txt"
-hdiutil create -volname "Oracle 0.2.1" -srcfolder "$STAGE" -ov -format UDZO dist/Oracle-0.2.1-arm64.dmg
-shasum -a 256 dist/Oracle-0.2.1-arm64.dmg > dist/Oracle-0.2.1-arm64.dmg.sha256
+hdiutil create -volname "Oracle 0.3.0" -srcfolder "$STAGE" -ov -format UDZO dist/Oracle-0.3.0-arm64.dmg
+shasum -a 256 dist/Oracle-0.3.0-arm64.dmg > dist/Oracle-0.3.0-arm64.dmg.sha256

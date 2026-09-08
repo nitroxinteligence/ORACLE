@@ -62,7 +62,11 @@ extension Core {
         try readJSON(bundledEngineResources().deletingLastPathComponent().appendingPathComponent("updates/sources.json"))
     }
     func updatePath(_ path: String) throws -> URL { try scoped("updates/" + path, root: home) }
-    func updatePreferences() -> [String: Any] { (try? readJSON(home.appendingPathComponent("updates/sources.local.json"))) ?? [:] }
+    func updatePreferences() -> [String: Any] {
+        var value=(try? readJSON(home.appendingPathComponent("updates/sources.local.json"))) ?? [:]
+        if value["skills_repository"] == nil,let defaults=try? updateManifest(),let skills=defaults["skills"] as? [String:Any],let repository=skills["repository"] as? String {value["skills_repository"]=repository}
+        return value
+    }
     func configureSkillSource(_ repository: String) throws -> [String: Any] {
         let lock = try acquireOperationLock("updates"); defer { releaseOperationLock(lock) }
         let normalized = repository.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: #"/+$"#, with: "", options: .regularExpression)
@@ -81,6 +85,7 @@ extension Core {
     }
     func updateStatus() throws -> [String: Any] {
         var value = (try? readJSON(updatePath("status.json"))) ?? ["phase": "idle", "message": "Pronto para verificar as fontes"]
+        value["available"] = (value["results"] as? [[String:Any]] ?? []).contains { $0["status"] as? String == "available" }
         value["skills_repository"] = updatePreferences()["skills_repository"] ?? NSNull()
         value["gbrain_version"] = ((try? readJSON(updatePath("runtime/current.json")))?["version"] ?? ((try? updateManifest())?["gbrain"] as? [String: Any])?["bundled_version"]) ?? "desconhecida"
         value["gbrain_rollback"] = (try? readJSON(updatePath("runtime/current.json")))?["previous"] != nil
@@ -248,9 +253,10 @@ extension Core {
             let result = try operation == "rollback-gbrain" ? rollbackRuntime() : rollbackSkills()
             try recordUpdate("complete", "Versão anterior recuperada", results: [result]); return try updateStatus()
         }
-        guard operation=="check-apply" else { throw failure("Operação de atualização desconhecida") }
+        guard ["check-apply","check-only"].contains(operation) else { throw failure("Operação de atualização desconhecida") }
+        let checkOnly = operation == "check-only"
         var recoveryError:String?
-        if let pending = try? readJSON(updatePath("skills/transaction.json")), pending["status"] as? String == "applying" { do { _ = try rollbackSkills() } catch { recoveryError=error.localizedDescription } }
+        if let pending = try? readJSON(updatePath("skills/transaction.json")), pending["status"] as? String == "applying" { if checkOnly { recoveryError="Há uma atualização interrompida. Use Restaurar skills anteriores antes de continuar." } else { do { _ = try rollbackSkills() } catch { recoveryError=error.localizedDescription } } }
         let manifest = try updateManifest(), network = UpdateNetwork()
         var results = [[String: Any]]()
         try recordUpdate("checking", "Consultando releases oficiais")
@@ -267,11 +273,15 @@ extension Core {
                     results.append(["id": "gbrain", "status": "current", "version": current, "message": "Second Brain está na versão compatível atual."])
                 } else if let release = (gbrain["compatible_releases"] as? [[String: Any]])?.first(where: { $0["tag"] as? String == tag }) {
                     guard let asset = (latest["assets"] as? [[String: Any]])?.first(where: { $0["name"] as? String == release["asset"] as? String }), asset["digest"] as? String == "sha256:" + (release["sha256"] as! String), let url = asset["browser_download_url"] as? String else { throw failure("Release sem checksum esperado") }
+                    if checkOnly {
+                        results.append(["id":"gbrain","status":"available","version":release["version"]!,"message":"Uma atualização compatível está disponível."])
+                    } else {
                     try recordUpdate("downloading", "Baixando motor compatível")
                     let bytes = try network.fetch(url, limit: 220_000_000)
                     try recordUpdate("verifying", "Verificando motor e adaptador")
                     _ = try activateRuntime(binary: bytes, release: release)
                     results.append(["id": "gbrain", "status": "updated", "version": release["version"]!, "message": "Motor atualizado; banco e identidade preservados."])
+                    }
                 } else { results.append(["id": "gbrain", "status": "compatibility_required", "version": tag, "message": "Release novo encontrado. Aguardando validação do adaptador Oracle e do formato do banco."]) }
             }
         } catch { results.append(["id": "gbrain", "status": "error", "message": error.localizedDescription]) }
@@ -286,7 +296,7 @@ extension Core {
                 guard asset["digest"] as? String == "sha256:" + digest(bytes) else { throw failure("Checksum do catálogo divergente do release") }
                 try recordUpdate("verifying","Verificando conteúdo e compatibilidade do catálogo")
                 let (version,files)=try decodeSkillsBundle(bytes)
-                results.append(try applySkillFiles(files, version: version, repository: repository))
+                results.append(try checkOnly ? previewSkillFiles(files,version:version) : applySkillFiles(files, version: version, repository: repository))
             } catch { results.append(["id": "skills", "status": "error", "message": error.localizedDescription]) }
         } else { results.append(["id": "skills", "status": "not_configured", "message": "Fonte não configurada. Informe o futuro repositório central de skills."]) }
         try recordUpdate("complete", "Verificação concluída", results: results)

@@ -12,3 +12,6 @@ Resources/catalog/packs/
 docs/planning/
 # Unlicensed upstream documentation snapshot, retained only for local research.
 docs/evidence/codex-hooks.md
+
+# Local Python test caches.
+__pycache__/

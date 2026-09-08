@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "oracle_version": "0.2.1",
+  "oracle_version": "0.3.0",
   "gbrain": {
     "repository": "https://github.com/garrytan/gbrain",
     "bundled_version": "0.48.4.0",
@@ -22,7 +22,7 @@
     "adopted": false
   },
   "skills": {
-    "repository": null,
+    "repository": "https://github.com/nitroxinteligence/ORACLE-SKILLS",
     "manifest_asset": "oracle-skills.json",
     "schema_version": 1
   }

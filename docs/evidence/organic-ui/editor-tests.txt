@@ -1,0 +1,20 @@
+PASS draft survives Core restart
+PASS direct save returns verified success
+PASS original vault file updated
+PASS readback points to original file
+PASS readback hash matches written bytes
+PASS saved draft removed
+PASS previous bytes retained for recovery
+PASS file permissions preserved
+PASS no alternate document or temporary file in vault
+PASS external edit is detected
+PASS conflict preserves external content
+PASS conflicting draft is recoverable
+PASS explicit rebase saves merged document
+PASS absolute path excluded
+PASS parent traversal excluded
+PASS symlink document excluded
+PASS non-Markdown excluded
+PASS index mirror cannot be edited
+PASS oversized draft rejected
+Editor: 19 checks passed, isolated temporary vault.

@@ -1,0 +1,1135 @@
+{
+  "label": "20260908-before",
+  "utc": "2026-09-08T04:22:35Z",
+  "hardware": "Apple M2",
+  "os": "26.6.2",
+  "fixtureDocumentCount": 947,
+  "fixturePathsSHA256": "170effce22c934b0cffe01031deb2b1c33af31b7c13b2b8b735b23e2056cbcf2",
+  "limitations": "CPU submission is not GPU time. ps CPU is an OS average, not energy. WebKit helpers below include other apps. QA mailbox wakes at 10Hz in both builds. No recording during metrics.",
+  "phases": {
+    "ambient": {
+      "atlas": [
+        668,
+        566
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1002,
+          849
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 1,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 33,
+        "frameIntervalP95Ms": 34,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 0,
+        "pendingTimers": 1,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 1250,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 360,
+        "sceneUpdateCPU95Ms": null,
+        "textures": 1,
+        "triangles": 786
+      },
+      "leaves": 9,
+      "nodes": 7,
+      "paintProbe": {
+        "cpuMedianMs": 0,
+        "cpuP95Ms": 1,
+        "intervalMedianMs": 33,
+        "intervalP95Ms": 34.00000000001455,
+        "samples": 377
+      },
+      "renderDelta": 377,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "durationSeconds": 12.63,
+      "processes": [
+        [
+          "8145     1   3.8  13168 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  14000 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  15616 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.5  25824 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.1  28080 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   5184 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.0  37344 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.4  13248 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  14000 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.8  15696 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.4  25536 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.1  17968 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   5184 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.2  32112 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.9  13296 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  14016 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.1  15840 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.6  26096 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.1  17936 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   5184 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   5.3  40400 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.4  14832 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  13744 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  13776 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.3  25488 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.0  17296 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   5120 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.9  31648 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.1  14640 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  13888 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1  10.9  44928 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.3  22832 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.2  16064 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4912 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.2  22240 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.7  13584 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  13904 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.9  48016 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.5  21440 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.2  14992 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4784 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.9  20656 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.0  11808 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  13888 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.8  14080 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.2  20160 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.0  14704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4768 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.1  18624 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.5  13424 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  13952 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  15808 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.0  21232 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.0  14896 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4784 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.8  22128 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.4  13408 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.8  13936 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.6  15744 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.7  21136 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.8  14880 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4896 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.2  21952 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  13376 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  13824 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.7  15808 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.1  20144 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.1  14752 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4880 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.8  18464 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.8  12528 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.3  13824 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  15680 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.3  17856 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.1  14560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4720 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.8  19328 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.8  10928 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  13872 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.0  12896 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.3  17856 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.2  14528 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4720 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.8  20384 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ]
+      ]
+    },
+    "zoom": {
+      "atlas": [
+        668,
+        566
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1002,
+          849
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 1,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 17,
+        "frameIntervalP95Ms": 18,
+        "geometries": 6,
+        "interactionFrameMedianMs": 17,
+        "interactionFrameP95Ms": 18,
+        "interactionSamples": 180,
+        "note": "CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 1,
+        "pendingTimers": 0,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 1735,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 360,
+        "sceneUpdateCPU95Ms": 1,
+        "textures": 1,
+        "triangles": 786
+      },
+      "leaves": 9,
+      "nodes": 7,
+      "paintProbe": {
+        "cpuMedianMs": 0,
+        "cpuP95Ms": 1,
+        "intervalMedianMs": 17,
+        "intervalP95Ms": 18,
+        "samples": 479
+      },
+      "renderDelta": 479,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "durationSeconds": 8.518,
+      "processes": [
+        [
+          "8145     1   4.7  12400 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  13616 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.6  14512 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.8  17712 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  26.4  28464 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  24.3  41504 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.9  10800 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.8  13568 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.7  12608 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   3.2  16928 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  29.0  29152 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  16.7  37264 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.6  12496 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.3  13600 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.4  14592 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   3.3  17584 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  29.7  26736 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  15.5  28288 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.1  12544 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  13696 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  14464 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   3.0  17616 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  28.8  28352 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  15.0  34048 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.7  12368 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  13712 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.6  14464 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   3.4  16768 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  32.8  28400 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  17.7  35760 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  10960 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  14176 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.5  12512 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   3.6  16768 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  38.2  32864 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  23.3  34896 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.0  10928 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  13616 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  12512 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.8  16720 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  28.0  34240 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  15.0  38768 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.9  12432 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  13552 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.8  14352 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.7  17536 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  27.6  30720 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  16.2  39040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ]
+      ]
+    },
+    "drag_geometry": {
+      "atlas": [
+        668,
+        566
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1002,
+          849
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 0,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 17,
+        "frameIntervalP95Ms": 18,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 1,
+        "pendingTimers": 0,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 2286,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 360,
+        "sceneUpdateCPU95Ms": 1,
+        "textures": 1,
+        "triangles": 786
+      },
+      "leaves": 9,
+      "nodes": 7,
+      "paintProbe": {
+        "cpuMedianMs": 0,
+        "cpuP95Ms": 0,
+        "intervalMedianMs": 17,
+        "intervalP95Ms": 18,
+        "samples": 497
+      },
+      "renderDelta": 497,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "durationSeconds": 8.395,
+      "processes": [
+        [
+          "8145     1   4.3  24272 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.4  34416 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.0  51664 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.2  16960 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  19.0  26704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  10.1  31968 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.8  14208 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  14352 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  15104 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.4  16704 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  19.8  25744 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  11.3  34064 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.0  13088 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  14848 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.2  15760 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.8  17504 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  21.1  25792 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  11.5  33312 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.5  12912 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.7  14560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.5  15376 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.4  17248 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  14.8  26032 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  10.3  36656 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.5  11280 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  14176 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.5  13216 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.7  16320 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  20.2  25936 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  11.3  34640 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.5  12880 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  13552 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.5  15232 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   6.1  27216 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  19.8  38256 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  13.3  47792 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  11280 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  13456 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.8  13344 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.9  21872 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  22.6  28208 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  11.5  41568 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.0  12848 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  14080 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.0  15056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.9  17664 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1  20.8  25968 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1  12.1  45888 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ]
+      ]
+    },
+    "focused": {
+      "atlas": [
+        668,
+        566
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1002,
+          849
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 0,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 33,
+        "frameIntervalP95Ms": 34,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 0,
+        "pendingTimers": 1,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 2662,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 312,
+        "sceneUpdateCPU95Ms": null,
+        "textures": 1,
+        "triangles": 1218
+      },
+      "leaves": 18,
+      "nodes": 7,
+      "paintProbe": {
+        "cpuMedianMs": 0,
+        "cpuP95Ms": 0,
+        "intervalMedianMs": 33,
+        "intervalP95Ms": 34,
+        "samples": 312
+      },
+      "renderDelta": 312,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "durationSeconds": 10.414,
+      "processes": [
+        [
+          "8145     1   3.9  12672 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  13392 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   5.2  48800 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.3  17584 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.3  17408 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.6  24640 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.5  11328 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  13392 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.7  14064 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.7  16560 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.9  15248 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.0  18352 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.3  12160 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.6  13568 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3552 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.4  13744 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.6  17264 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.8  15552 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   5216 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   6.2  34032 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.3  13408 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.7  13536 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3520 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.4  15520 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.5  17840 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.6  15584 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4768 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.7  34464 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.3  11376 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  13376 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.7  13408 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   2.2  16928 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   1.0  15168 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.4  20992 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.2  12992 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.7  13568 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.3  15472 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.5  17888 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.8  15136 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.3  26976 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.0  13104 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  13520 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.4  15504 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.7  18000 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.9  15056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   4.0  23232 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  13120 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  13456 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3280 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.7  15440 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.7  17120 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.9  15072 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   5376 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.3  20992 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.3  13088 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.8  13488 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3296 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.3  15456 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.7  18000 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.8  14624 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   5392 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   3.4  22912 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.1  12832 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.7  13488 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.2  15408 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.6  17504 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.7  14624 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.8  22656 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ]
+      ]
+    },
+    "economy": {
+      "atlas": [
+        668,
+        566
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          668,
+          566
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": 0,
+        "cpuSubmitP95Ms": 0,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": 67,
+        "frameIntervalP95Ms": 67,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 0,
+        "pendingTimers": 1,
+        "quality": "economy",
+        "reduced": false,
+        "renderCount": 2893,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 188,
+        "sceneUpdateCPU95Ms": null,
+        "textures": 1,
+        "triangles": 786
+      },
+      "leaves": 9,
+      "nodes": 7,
+      "paintProbe": {
+        "cpuMedianMs": 0,
+        "cpuP95Ms": 0,
+        "intervalMedianMs": 67,
+        "intervalP95Ms": 67.0000000000291,
+        "samples": 188
+      },
+      "renderDelta": 188,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "durationSeconds": 12.509,
+      "processes": [
+        [
+          "8145     1   3.9  11472 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  13552 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.0  13392 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.3  17184 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  16096 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.2  19232 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.8  12880 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  13536 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.8  15264 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.2  17584 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  15888 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.2  19056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.6  12880 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  13536 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.6  15392 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.9  17616 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.4  15904 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.1  19360 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.6  12976 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.7  13568 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.3  15456 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.0  17568 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.4  15952 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.1  22016 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.5  12992 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.8  13584 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.6  15600 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.0  17632 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  15968 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.1  22384 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.8  12960 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.8  13648 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.8  15632 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.0  17584 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  15968 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.1  22080 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.8  12944 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  13584 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.6  15376 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.2  17552 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  14864 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   2.7  35008 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  16208 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.8  13376 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.4  16192 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.0  17376 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  14368 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4640 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.0  33504 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   9.3  20512 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   3.2  33584 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3040 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   6.4  56992 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.3  16512 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  14208 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4624 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.3  15952 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.0  13216 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  26736 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  15904 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.1  17424 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  14240 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4640 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.2  18416 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  12992 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.9  14992 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.7  15824 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.2  17360 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.5  14256 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4640 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.4  18640 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  13104 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  15376 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.5  49792 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   1.0  17472 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.4  14256 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4640 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   1.2  19680 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ]
+      ]
+    },
+    "paused": {
+      "atlas": [
+        668,
+        566
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          668,
+          566
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": null,
+        "cpuSubmitP95Ms": null,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": null,
+        "frameIntervalP95Ms": null,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.",
+        "paused": true,
+        "pendingFrames": 0,
+        "pendingTimers": 0,
+        "quality": "economy",
+        "reduced": false,
+        "renderCount": 2894,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 0,
+        "sceneUpdateCPU95Ms": 0,
+        "textures": 1,
+        "triangles": 786
+      },
+      "leaves": 9,
+      "nodes": 7,
+      "paintProbe": {
+        "cpuMedianMs": null,
+        "cpuP95Ms": null,
+        "intervalMedianMs": null,
+        "intervalP95Ms": null,
+        "samples": 0
+      },
+      "renderDelta": 0,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "durationSeconds": 4.188,
+      "processes": [
+        [
+          "8145     1   4.5  13040 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  14848 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.6  49696 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.0  16272 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  21968 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4640 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0  24768 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.9  13072 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  14480 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.0  16064 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760  12.4  26912 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   4.1  33984 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   5.1  42704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  11680 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   1.8  14448 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.1  25696 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.2  23616 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  34032 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0  36512 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.6  13168 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.3  14448 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.4  26736 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.0  22432 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  28336 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0  29024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ]
+      ]
+    },
+    "reduced": {
+      "atlas": [
+        668,
+        566
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          668,
+          566
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": null,
+        "cpuSubmitP95Ms": null,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": null,
+        "frameIntervalP95Ms": null,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.",
+        "paused": false,
+        "pendingFrames": 0,
+        "pendingTimers": 0,
+        "quality": "economy",
+        "reduced": true,
+        "renderCount": 2895,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 0,
+        "sceneUpdateCPU95Ms": null,
+        "textures": 1,
+        "triangles": 786
+      },
+      "leaves": 9,
+      "nodes": 7,
+      "paintProbe": {
+        "cpuMedianMs": null,
+        "cpuP95Ms": null,
+        "intervalMedianMs": null,
+        "intervalP95Ms": null,
+        "samples": 0
+      },
+      "renderDelta": 0,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "durationSeconds": 4.215,
+      "processes": [
+        [
+          "8145     1   4.1  13168 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.2  14480 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.1  26704 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.0  23856 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  25248 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0  43072 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.9  13168 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.1  14352 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.9  26656 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.0  19568 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  18752 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0  31200 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.3  11664 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.4  14208 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.6  15024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.0  14128 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  12048 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.1  11392 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   3.7  11664 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.0  13760 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   3.7  15056 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.0  13792 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  12752 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4560 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0  10416 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ]
+      ]
+    },
+    "minimized": {
+      "atlas": [
+        668,
+        566
+      ],
+      "diagnostics": {
+        "active": true,
+        "adaptiveEconomy": false,
+        "buffer": [
+          1002,
+          849
+        ],
+        "contextLost": false,
+        "cpuSubmitMedianMs": null,
+        "cpuSubmitP95Ms": null,
+        "drawCalls": 7,
+        "error": null,
+        "formation": {
+          "duration": 4200,
+          "phase": "complete",
+          "playing": false,
+          "progress": 1,
+          "rate": 1,
+          "visualOnly": true
+        },
+        "frameIntervalMedianMs": null,
+        "frameIntervalP95Ms": null,
+        "geometries": 6,
+        "interactionFrameMedianMs": null,
+        "interactionFrameP95Ms": null,
+        "interactionSamples": 0,
+        "note": "CPU submission is not GPU time. Ambient cadence targets 30/15 Hz; input is scheduled separately. No telemetry is inferred from light.",
+        "paused": true,
+        "pendingFrames": 0,
+        "pendingTimers": 0,
+        "quality": "balanced",
+        "reduced": false,
+        "renderCount": 2901,
+        "renderer": "Three.js r185 \u00b7 WebGL2 \u00b7 instanced atlas",
+        "samples": 0,
+        "sceneUpdateCPU95Ms": null,
+        "textures": 1,
+        "triangles": 786
+      },
+      "leaves": 9,
+      "nodes": 7,
+      "paintProbe": {
+        "cpuMedianMs": null,
+        "cpuP95Ms": null,
+        "intervalMedianMs": null,
+        "intervalP95Ms": null,
+        "samples": 0
+      },
+      "renderDelta": 0,
+      "viewport": [
+        1200,
+        760,
+        2
+      ],
+      "durationSeconds": 4.207,
+      "processes": [
+        [
+          "8145     1   4.6  11440 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.3  13712 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   2992 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.7  25280 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.1  22944 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.6  20240 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   5680 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0  17952 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.4  13056 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.3  13776 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3008 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.7  26416 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.0  21840 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  16928 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4768 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0  16672 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.4  13024 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.3  13744 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3008 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   4.5  14928 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.0  17632 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  11024 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4688 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0   8768 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ],
+        [
+          "8145     1   4.6  13024 /Users/mateusmpz/code/Projetos - Mateus M/ORACLE/dist/Oracle.app/Contents/MacOS/Oracle",
+          "8161     1   2.4  13872 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "8162     1   0.0   3008 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "8164     1   5.1  15744 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent",
+          "19059 25760   0.1  17936 .work/atlas-qa/Oracle Atlas QA.app/Contents/MacOS/OracleAtlasQA",
+          "19069     1   0.0  10720 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.GPU.xpc/Contents/MacOS/com.apple.WebKit.GPU",
+          "19071     1   0.0   4384 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.Networking.xpc/Contents/MacOS/com.apple.WebKit.Networking",
+          "19072     1   0.0   8080 /System/Library/Frameworks/WebKit.framework/Versions/A/XPCServices/com.apple.WebKit.WebContent.xpc/Contents/MacOS/com.apple.WebKit.WebContent"
+        ]
+      ]
+    }
+  }
+}

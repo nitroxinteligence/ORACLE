@@ -1,0 +1,15 @@
+{
+  "dark": {
+    "foreground": "#EFF7FF",
+    "foreground_gradients": 0,
+    "background_definition_identical": true,
+    "changed_pixels_outside_foreground": 0
+  },
+  "light": {
+    "foreground": "#101E2C",
+    "foreground_gradients": 0,
+    "background_definition_identical": true,
+    "changed_pixels_outside_foreground": 0
+  },
+  "symbol_wordmark_geometry_and_pngs_unchanged": true
+}

@@ -40,7 +40,7 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `a293da8eb3f1f22183065e52e76cfc59578ddc2efa9c43681f8597856c97159c`
+- SHA-256 do DMG: `9b7766cf52d218f7487e53cd51f7546effa2aeb1db6a67b0c2f1116ba57f9446`
 
 Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 
@@ -75,3 +75,5 @@ O app pessoal em `/Applications` não foi substituído. Não houve push, publica
 `f2df723`: Meu Universo e Observatório com fundo translúcido, blur e borda suave; plugins em disclosure nativo recolhido por padrão e a cada reabertura do Observatório. Conferidos no WKWebView o estado inicial, expansão, atualização da lista sem fechar a seção manualmente aberta e reabertura recolhida. Preferência de redução de transparência preservada. [Prévia](translucent-sidebars-collapsed-plugins.png). App e DMG atualizados.
 
 `b94b360`: plugins e círculos de conhecimento em movimento orbital, com logos na vertical e separação geométrica. Pastas/notas também se movem nas cenas dedicadas. Hover/foco pausa o anel inteiro; pausa da atmosfera, redução de movimento e janela oculta congelam as fases. Usa o agendador existente. Dois testes de espaçamento e [nove verificações nativas](orbit-motion-native.json) passaram. App e DMG atualizados.
+
+`08f07dc`: fundo sólido do aplicativo em grafite `#1c1e23`, usando o tom sólido das laterais. WKWebView confirmou `rgb(28, 30, 35)` e ausência de imagem de fundo no body; inspeção visual na janela visível. [Prévia](solid-app-background.png). App e DMG atualizados.

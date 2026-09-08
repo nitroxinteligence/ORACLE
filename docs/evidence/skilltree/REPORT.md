@@ -40,7 +40,7 @@ Sete dos dez serviços conectados retornaram arte própria: Canva, Figma, Firecr
 
 - App: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle.app`
 - DMG: `/Users/mateusmpz/.codex/worktrees/a808/ORACLE/dist/Oracle-0.3.0-arm64.dmg`
-- SHA-256 do DMG: `42bbb8e99a37d13d656541f77126f28809b8e358a484dc303db08047222cb38b`
+- SHA-256 do DMG: `722b8e164e1fda1787334b85f3e3f7bb3e19a2ff618444bfba26a8b96c345a1a`
 
 Assinatura local ad hoc verificada; DMG validado e montado somente para leitura. A montagem anterior conferiu 4933 arquivos; o ajuste posterior da barra lateral foi reempacotado com assinatura e recursos atualizados. O executável distribuído não contém a caixa de testes nativa. [Recibo completo](package.json).
 
@@ -67,3 +67,5 @@ O app pessoal em `/Applications` não foi substituído. Não houve push, publica
 `ec95d0e`: laterais sem fundo, borda, sombra ou blur; cards e controles com superfície branca translúcida leve. Verificação visual em WKWebView com ambas as laterais abertas; estilos computados confirmam fundo transparente e borda zero nas duas laterais. App local e DMG atualizados, assinatura local verificada pelo empacotamento. [Resultado](floating-inspector.png).
 
 `1f1baea` / `a3a89d4`: áreas dedicadas por especialista, transição lateral de saída/entrada e expansão radial; SOL e demais especialistas reaparecem ao voltar ao universo. Gráfico limitado a 50 arquivos, mantendo catálogo integral na navegação e incluindo seleções fora da amostra sem exceder o teto. Grupos alfabéticos equivalentes de empacotamento são unificados; setores separados impedem que grupos desiguais cruzem o centro. Em Ads, 34 arquivos partem diretamente do especialista. Validação: 12 checks de geometria/catálogo, 7 checks nativos de navegação/limite e inspeção visual com janela visível. [Checks](dedicated-scenes.json) · [Ads corrigido](dedicated-ads-fixed.png) · [Cybersecurity limitado](dedicated-cybersecurity.png). Sem nova alegação de FPS.
+
+`8a1568e`: breadcrumb e Voltar compartilhados em todos os modais HTML, etapas de onboarding e trilha nos dois alertas nativos. Retorno conserva consulta, DOM e contexto do editor, com proteção/recuperação de rascunho. [Mapa completo](../../MODAL-NAVIGATION.md) · [Checks](modal-breadcrumb-checks.json) · [Plugins](modal-breadcrumb-plugins.png). Compilação Swift concluída, app local e DMG atualizados.

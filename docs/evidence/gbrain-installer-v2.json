@@ -1,0 +1,6 @@
+{
+  "status": "identity_and_index_verified",
+  "identity_in_canonical_vault": true,
+  "resume_preserves_identity": true,
+  "scope": "synthetic, isolated PGLite; no provider keys"
+}

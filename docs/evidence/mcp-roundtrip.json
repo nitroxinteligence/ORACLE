@@ -1,0 +1,23 @@
+{
+  "mcp_handshake": true,
+  "tool_names": [
+    "remember",
+    "entity",
+    "forget",
+    "get_page",
+    "put_page",
+    "list_pages",
+    "search",
+    "get_links",
+    "get_backlinks",
+    "traverse_graph",
+    "recall",
+    "context_pack",
+    "delta"
+  ],
+  "remember_status": "inserted",
+  "ttl_present": true,
+  "canonical_fence_written": true,
+  "ui_read_while_mcp_connected": true,
+  "scope": "synthetic profile, official GBrain handlers, no inference or remote agent tools"
+}

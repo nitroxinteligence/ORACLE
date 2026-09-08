@@ -9,7 +9,7 @@ Codex Desktop is the only AI executor. Oracle is a native viewer/configuration s
 
 ## Start from the reviewed plan
 
-The Oracle briefing supplies the absolute app executable and state directory. Read `<state>/setup/plan.json`. Its `confirmed_hash` must match its answers. Editing answers or changing vault requires a new review. An installed package never proves an active agent.
+The Oracle briefing supplies the absolute app executable and state directory. Read `<state>/setup/plan.json`. Its `confirmed_hash` must match the full `plan_hash`, including destination and catalog choices. Editing answers or changing vault requires a new review. An installed package never proves an active agent.
 
 Run the supplied executable using argument arrays or safe shell quoting:
 
@@ -18,13 +18,13 @@ Oracle --state <state> --setup apply
 Oracle --state <state> --setup verify
 ```
 
-`apply` resumes verified work. A collision is an error, not permission to overwrite. To undo only empty folders created by this plan:
+`apply` resumes verified work. A collision is an error, not permission to overwrite. To undo owned unchanged catalog files and empty folders created by this plan:
 
 ```text
 Oracle --state <state> --setup rollback
 ```
 
-Files and nonempty folders are preserved. The state/journal is outside the vault.
+User-edited files and nonempty folders are preserved. The state/journal is outside the vault.
 
 ## Existing GBrain
 
@@ -52,10 +52,14 @@ The official motor confirms the hash, renders identity in its owned workspace, r
 
 ## Codex observation
 
-Prepare the reviewed bridge using Oracle's deterministic bridge command when available. Inspect the generated hooks and skill. Install through supported Codex project/plugin surfaces. The person reviews the exact hooks in Codex. Do not edit private databases, trust records, auth files, or enable bypass flags. Never overwrite other hooks or global skill packages.
+Run `Oracle --state <state> --prepare-bridge` after GBrain finish (or in attach mode). Read `<state>/setup/bridge.json`, then open the returned workspace in Codex Desktop. The project contains `.codex/config.toml`, `.codex/hooks.json` and `.agents/skills/oracle-setup/SKILL.md`. Existing GBrain attach mode preserves its connection configuration. Inspect the generated hooks and skill. Install through supported Codex project/plugin surfaces. The person reviews the exact hooks in Codex. Do not edit private databases, trust records, auth files, or enable bypass flags. Never overwrite other hooks or global skill packages.
 
 The receiver keeps only event type, opaque correlation and timestamps. It discards prompts, outputs, arguments, reasoning and transcripts. Hosted tools may not be covered. Stop means turn ended; no event means unknown.
 
 ## Finish with evidence
 
 Report separately: structure, identity, index, source read-back, skill/package discovery, hooks received, and unavailable contracts. Include journal paths and the exact continuation for any failed step. Do not claim deployment, publication, complete history access, connected Gmail, or active agents from package presence.
+
+## Canonical memory writes
+
+The isolated MCP exposes official GBrain operations with source visibility checks. It opens and releases the engine for each request; do not keep another PGLite process open. `oracle-memory` writes through to `<vault>/INBOX/oracle-memory`. Before remembering a fact for a new entity, explicitly create its canonical page using `put_page`, then call `remember`. Upstream intentionally keeps facts for unknown pages DB-only; a tool success alone does not prove vault persistence. Verify `get_page` and the resulting canonical path. Use TTL `3d` for transient facts. Retrieve vault notes through source `oracle-vault`; do not write new authoritative knowledge into this derived index. No inference or remote-agent tools are enabled.

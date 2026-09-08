@@ -2,6 +2,7 @@
  * agent loop, extraction, embedding provider or auto-migration is invoked. */
 import { createEngine } from '../../vendor/gbrain/src/core/engine-factory.ts';
 import { loadConfig, toEngineConfig } from '../../vendor/gbrain/src/core/config.ts';
+if(Bun.argv.includes('--mcp')) { const {startMemoryMcp}=await import('./mcp.ts');await startMemoryMcp(); } else {
 const input = JSON.parse(await Bun.stdin.text());
 if (!['status','search','get','graph','list','index'].includes(input.operation)) throw Error('Unsupported operation');
 const config = loadConfig();
@@ -29,3 +30,5 @@ try {
   console.log(JSON.stringify({ok:false,error:message}));
   process.exitCode=1;
 } finally { await engine.disconnect(); }
+
+}

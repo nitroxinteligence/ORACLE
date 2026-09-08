@@ -28,8 +28,10 @@ extension Core {
         if !existing { env["GBRAIN_HOME"]=home.appendingPathComponent("gbrain/profile").path }
         return env
     }
-    func gbrainRead(_ params:[String:Any]) throws -> Any {
-        let existing=config["gbrainWorkspace"] as? String
+    func gbrainRead(_ params:[String:Any],allowSetup:Bool=false) throws -> Any {
+        refreshConfig()
+        if !allowSetup && config["gbrainAccess"] as? Bool == false { throw failure("Acesso à memória revogado. Conecte a instalação desejada na configuração.") }
+        let existing=allowSetup ? nil : config["gbrainWorkspace"] as? String
         let cwd=existing.map{URL(fileURLWithPath:$0)} ?? home.appendingPathComponent("gbrain/workspace")
         guard fm.fileExists(atPath:cwd.path) else { throw failure("GBrain ainda não foi preparado. Continue a instalação pelo Codex.") }
         let operation=params["operation"] as? String ?? "status"
@@ -47,10 +49,11 @@ extension Core {
         return r.output
     }
     func prepareGBrain() throws -> [String:Any] {
-        let plan=try readJSON(home.appendingPathComponent("setup/plan.json"))
+        let plan=try validatedPlan()
         guard plan["attach"] as? Bool != true else { throw failure("Instalação existente: use conexão/consulta; não inicialize outro banco") }
-        guard let hash=plan["confirmed_hash"] as? String,hash==digest(try jsonData(plan["answers"] ?? [:])),let answers=plan["answers"] as? [String:String] else { throw failure("Plano sem confirmação válida") }
+        guard let hash=plan["plan_hash"] as? String,let answers=plan["answers"] as? [String:String] else { throw failure("Plano sem confirmação válida") }
         let workspace=home.appendingPathComponent("gbrain/workspace")
+        if let cached=try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")),cached["plan_hash"] as? String==hash,fm.fileExists(atPath:home.appendingPathComponent("gbrain/profile/.gbrain/config.json").path),fm.fileExists(atPath:workspace.appendingPathComponent("state/interview.json").path) { return cached }
         try fm.createDirectory(at:workspace,withIntermediateDirectories:true)
         let configURL=home.appendingPathComponent("gbrain/profile/.gbrain/config.json")
         if !fm.fileExists(atPath:configURL.path) { _=try official(["init","--pglite","--no-embedding"],workspace:workspace); try event(type:"gbrain.engine_verified",summary:"GBrain 0.48.4.0 inicializado em perfil isolado PGLite, sem chave") }
@@ -75,27 +78,68 @@ extension Core {
     }
     func finishGBrain() throws -> [String:Any] {
         var receipt=try readJSON(home.appendingPathComponent("setup/gbrain-readback.json"))
-        let plan=try readJSON(home.appendingPathComponent("setup/plan.json"))
+        let plan=try validatedPlan()
         guard let hash=receipt["confirmed_hash"] as? String,hash==receipt["upstream_hash"] as? String,receipt["plan_hash"] as? String==plan["confirmed_hash"] as? String else { throw failure("Revise e confirme a entrevista oficial no Oracle") }
         let workspace=home.appendingPathComponent("gbrain/workspace")
         _=try official(["bootstrap","interview","--confirm",hash,"--workspace",workspace.path],workspace:workspace)
-        _=try official(["bootstrap","render","--workspace",workspace.path],workspace:workspace)
+        let renderReceipt=home.appendingPathComponent("setup/identity-render.json")
+        let prior=try? readJSON(renderReceipt)
+        let identities=["SOUL.md","USER.md","AGENTS.md","MEMORY.md","HEARTBEAT.md","ACCESS_POLICY.md","CLAUDE.md","GITHUB.md","memory/README.md"]
+        var current=[String:String]()
+        for path in identities { let url=workspace.appendingPathComponent(path);if fm.fileExists(atPath:url.path) { current[path]=digest(try Data(contentsOf:url)) } }
+        let answersHash=plan["answers_hash"] as! String
+        if let prior {
+            guard NSDictionary(dictionary:current).isEqual(to:prior["files"] as? [String:String] ?? [:]) else { throw failure("Identidade editada fora do Oracle. Revise os arquivos em \(workspace.path) no Codex antes de atualizar; nenhuma versão foi sobrescrita.") }
+            if prior["answers_hash"] as? String != answersHash { _=try official(["bootstrap","render","--force","--workspace",workspace.path],workspace:workspace) }
+        } else {
+            guard current.isEmpty else { throw failure("Identidade preexistente sem recibo Oracle. Conecte a instalação existente ou revise esse workspace no Codex: \(workspace.path)") }
+            _=try official(["bootstrap","render","--workspace",workspace.path],workspace:workspace)
+        }
+        current=[:];for path in identities { let url=workspace.appendingPathComponent(path);if fm.fileExists(atPath:url.path) { current[path]=digest(try Data(contentsOf:url)) } }
+        guard current["SOUL.md"] != nil,current["USER.md"] != nil else { throw failure("GBrain não produziu SOUL.md e USER.md") }
+        try writeJSON(["answers_hash":answersHash,"files":current],renderReceipt)
+        try publishIdentityNote(plan:plan,workspace:workspace)
         try event(type:"gbrain.identity_verified",summary:"Identidade renderizada pelo GBrain oficial após confirmação do hash")
         let root=try vault()
-        let existingStatus=try gbrainRead(["operation":"status"]) as? [String:Any]
+        let existingStatus=try gbrainRead(["operation":"status"],allowSetup:true) as? [String:Any]
         let sources=existingStatus?["sources"] as? [[String:Any]] ?? []
         if let source=sources.first(where:{$0["id"] as? String == "oracle-vault"}) {
             if let path=source["local_path"] as? String, path != root.path { throw failure("Fonte oracle-vault aponta para outro destino; reconciliação necessária") }
         } else { _=try official(["sources","add","oracle-vault","--name","Oracle vault"],workspace:workspace) }
+        let memoryRoot=try scoped("INBOX/oracle-memory",root:root);try fm.createDirectory(at:memoryRoot,withIntermediateDirectories:true)
+        if let memory=sources.first(where:{$0["id"] as? String=="oracle-memory"}) {
+            guard memory["local_path"] as? String==memoryRoot.path else { throw failure("A fonte oracle-memory aponta para outro destino. Revise a fonte no GBrain antes de continuar.") }
+        } else { _=try official(["sources","add","oracle-memory","--path",memoryRoot.path,"--name","Oracle memory","--force"],workspace:workspace) }
+        _=try official(["config","set","search.mcp_keyword_only","true"],workspace:workspace)
         let files=try scan(root:root).filter{$0["directory"] as? Bool != true}.compactMap{$0["path"] as? String}
-        var env=engineEnvironment();env["ORACLE_RECEIPT_DIR"]=home.appendingPathComponent("events").path
-        let indexed=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:workspace,environment:env,input:jsonData(["operation":"index","source":"oracle-vault","root":root.path,"files":files]),timeout:600)
+        var env=engineEnvironment();env["ORACLE_RECEIPT_DIR"]=home.appendingPathComponent("events").path;env["ORACLE_PLAN_EVENTS_DIR"]=home.appendingPathComponent("setup/events/\(plan["id"] as! String)").path
+        let indexed=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:workspace,environment:env,input:jsonData(["operation":"index","source":"oracle-vault","root":root.path,"files":files,"plan_ref":plan["id"] ?? ""]),timeout:600)
         guard let line=indexed.output.split(separator:"\n").last(where:{$0.hasPrefix("{")}),let data=String(line).data(using:.utf8),let result=try JSONSerialization.jsonObject(with:data) as? [String:Any],let value=result["value"] as? [String:Any],value["complete"] as? Bool==true else { throw failure("Indexação parcial ou indisponível. Veja os recibos; retome o mesmo plano. Nenhum arquivo original foi alterado.") }
         try event(type:"gbrain.index_verified",summary:"Vault indexado pelo GBrain sem embeddings ou extração por modelo")
-        config["gbrainVaultSource"]="oracle-vault"; try persist()
-        let status=try gbrainRead(["operation":"status"])
+        config["gbrainVaultSource"]="oracle-vault";config["gbrainAccess"]=true;config.removeValue(forKey:"gbrainWorkspace");try persist()
+        let status=try gbrainRead(["operation":"status"],allowSetup:true)
         receipt["status"]="identity_and_index_verified";receipt["engine_status"]=status;receipt["codex_trust"]="not_verified"
         try writeJSON(receipt,home.appendingPathComponent("setup/gbrain-readback.json"))
         return receipt
     }
+    func publishIdentityNote(plan:[String:Any],workspace:URL) throws {
+        let relative="INBOX/oracle/Oracle - identidade.md",root=try vault()
+        let url=try scoped(relative,root:root)
+        let answers=plan["answers"] as? [String:String] ?? [:]
+        var text="---\ntitle: Identidade Oracle\ntype: note\nanswers_hash: \(plan["answers_hash"] as? String ?? "")\n---\n\n# Identidade Oracle\n\nRespostas confirmadas na configuração. O perfil de execução é uma projeção produzida pelo GBrain oficial.\n"
+        for key in ["AGENT_NAME","PRINCIPAL_NAME","AGENT_PURPOSE","AGENT_TOP_JOBS","PRINCIPAL_CONTEXT","VOICE_REGISTER","PRINCIPAL_TIMEZONE"] { if let answer=answers[key] { text += "\n## \(key)\n\n"+answer.split(separator:"\n",omittingEmptySubsequences:false).map{"> "+$0}.joined(separator:"\n")+"\n" } }
+        let data=Data(text.utf8),hash=digest(data),receiptURL=home.appendingPathComponent("setup/identity-note.json")
+        let prior=try? readJSON(receiptURL)
+        var owned=prior?["owned"] as? Bool ?? false
+        if fm.fileExists(atPath:url.path) {
+            let existing=try Data(contentsOf:url)
+            if digest(existing) != hash {
+                guard owned,prior?["hash"] as? String==digest(existing) else { throw failure("Nota de identidade preservada por conflito: \(url.path). Revise no Codex.") }
+                let backup=home.appendingPathComponent("versions/identity-\(UUID().uuidString).md");try fm.createDirectory(at:backup.deletingLastPathComponent(),withIntermediateDirectories:true);try existing.write(to:backup,options:.atomic);try data.write(to:url,options:.atomic)
+            }
+        } else { try fm.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true);try data.write(to:url,options:.withoutOverwriting);owned=true }
+        try writeJSON(["path":relative,"hash":hash,"owned":owned,"origin_source_path":workspace.path],receiptURL)
+        try event(type:"gbrain.identity_note_verified",summary:"Identidade confirmada disponível no Inbox",id:(plan["id"] as! String)+"identity-note"+hash,details:["run_id":plan["id"]!,"subject_refs":[["path":relative,"directory":false,"hash":hash]]])
+    }
+
 }

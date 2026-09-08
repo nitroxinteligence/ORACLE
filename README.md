@@ -4,7 +4,7 @@ Aplicativo nativo para macOS que apresenta conhecimento do Obsidian, memória do
 
 **Codex executa. GBrain recupera. Obsidian conserva. Oracle apresenta.**
 
-O frontend já funciona no app macOS: atlas completo em Three.js, núcleo solar procedural, sete coleções de especialistas, zoom ancorado, arraste com posições persistidas, inspetor, leitura de Markdown e editor de versões pessoais com diff. A integração e o instalador estão em validação; presença de pacote não é prova de agente ativo.
+O frontend já funciona no app macOS: atlas completo em Three.js, núcleo solar procedural, sete coleções de especialistas, zoom ancorado, arraste com posições persistidas, inspetor, leitura de Markdown e editor de versões pessoais com diff. A versão 0.1.0 inclui catálogo de 940 skills, instalador retomável e MCP sobre GBrain oficial. Os testes de integração usam perfis sintéticos; presença de pacote não é prova de agente ativo.
 
 ![Oracle renderizado no macOS, com dados sintéticos](docs/evidence/oracle-native-atlas-v5.png)
 
@@ -17,6 +17,8 @@ bun install --frozen-lockfile
 bash scripts/bootstrap.sh
 bash scripts/build.sh
 open dist/Oracle.app
+# Opcional: gerar o DMG local
+bash scripts/package.sh
 ```
 
 O build produz um aplicativo macOS com recursos locais. Não é um site hospedado. O pacote de desenvolvimento usa assinatura ad hoc; assinatura Developer ID e notarização ainda não foram concluídas.
@@ -39,7 +41,10 @@ O navegador usa dados de demonstração identificados. Acesso a arquivos, autent
 - Journal de estrutura com aplicação, verificação, retomada e rollback preservador.
 - GBrain oficial fixado no commit `2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d`.
 - Receptor de hooks com minimização de dados e sem inferir conclusão de objetivo a partir de Stop.
-- Catálogo público fixado em versões, separado dos arquivos pessoais do vault.
+- Catálogo público de 940 skills, com hashes, licenças, verificação e rollback que preserva edições.
+- MCP com ciclo de conexão por chamada, memória canônica e TTL, sem ferramentas de inferência.
+- Ponte em workspace próprio, com revisão de hooks e confiança no Codex.
+- Replay determinístico por baseline e recibos de arquivos.
 
 ## Fronteiras explícitas
 
@@ -58,3 +63,9 @@ O bloqueio protege a interface, não criptografa o vault. As capturas e testes p
 - `skills/oracle-setup/`: procedimento de instalação executado pelo Codex.
 
 As dependências de terceiros conservam suas próprias licenças. A licença do código original do Oracle ainda não foi definida.
+
+## Validação desta versão
+
+`Oracle --self-test` passou em 17 contratos de arquivos, plano, concorrência e eventos. Os testes publicados verificam instalação de 4.902 arquivos do catálogo, idempotência, preservação de edição no rollback, entrevista/indexação GBrain, handshake MCP, escrita canônica com TTL e leitura simultânea da UI enquanto a conexão MCP permanece aberta. O replay tem teste de projeção pura. Evidências em `docs/evidence/`.
+
+Pendências de distribuição: Developer ID/notarização, Mac limpo independente, atualização automática e backup/restore integrado. A conexão a uma instalação pessoal preexistente e a confiança real dos hooks no Codex ainda precisam de validação. Esta entrega não declara essas etapas concluídas.

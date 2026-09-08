@@ -14,12 +14,15 @@ let templateFolders = ["INBOX/oracle","INBOX/oracle-history/conversations","INBO
 final class Core {
     let home: URL
     var config: [String: Any]
+    var lastSequence:Int64 = 0
+    var configBaseline:[String:Any] = [:]
     init(home: URL? = nil) throws {
         self.home = home ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/OracleCompanion")
         try fm.createDirectory(at: self.home, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         config = (try? readJSON(self.home.appendingPathComponent("config.json"))) ?? [:]
+        configBaseline=config
     }
-    func persist() throws { try writeJSON(config, home.appendingPathComponent("config.json")) }
+    func persist() throws { try persistMergedConfig() }
     func scoped(_ relative: String, root: URL) throws -> URL {
         guard !relative.hasPrefix("/"), !relative.split(separator: "/").contains("..") else { throw failure("Caminho fora do escopo") }
         let url = root.appendingPathComponent(relative).standardizedFileURL
@@ -48,10 +51,13 @@ final class Core {
         return output.sorted { ($0["path"] as! String) < ($1["path"] as! String) }
     }
     func snapshot() throws -> [String: Any] {
+        refreshConfig()
         var value: [String: Any] = ["config":config,"collections":collections.map { ["id":$0.0,"name":$0.1,"icon":$0.2] },"events":try events(),"engine":"não verificado","coverage":"Hooks opcionais; sem acesso ao banco privado do Codex; ausência de evento = desconhecido"]
         if let root = try? vault() { do { value["entries"] = try scan(root: root) } catch { value["entries"] = []; value["scanError"] = error.localizedDescription } }
         else { value["entries"] = [] }
         value["home"] = home.path
+        value["catalog"] = catalogSummary()
+        if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["vault"] as? String==config["vault"] as? String { value["setup"]=["plan_id":plan["id"] ?? "", "confirmed":plan["confirmed_hash"] != nil] }
         value["projects"] = config["projects"] ?? []
         return value
     }
@@ -62,7 +68,9 @@ final class Core {
         return ["text":String(decoding: data, as: UTF8.self),"hash":digest(data),"path":url.path]
     }
     func saveVersion(path: String, original: String, text: String) throws -> [String: Any] {
-        guard path.hasSuffix("SKILL.md"), text.utf8.count < 2_000_000, text.hasPrefix("---\n"), text.range(of: "(?m)^name: .+", options: .regularExpression) != nil, text.range(of: "(?m)^description: .+", options: .regularExpression) != nil else { throw failure("SKILL.md exige frontmatter com name e description") }
+        let normalized=text.replacingOccurrences(of:"\r\n",with:"\n")
+        let header=normalized.components(separatedBy:"\n---\n")
+        guard path.hasSuffix("/SKILL.md"), text.utf8.count < 2_000_000, normalized.hasPrefix("---\n"), header.count>=2, header[0].range(of: "(?m)^name: .+", options: .regularExpression) != nil, header[0].range(of: "(?m)^description: .+", options: .regularExpression) != nil else { throw failure("SKILL.md exige frontmatter delimitado com name e description") }
         let source = try scoped(path, root: vault())
         let current = try Data(contentsOf: source)
         guard digest(current) == original else {
@@ -73,24 +81,46 @@ final class Core {
         }
         // A personal version never overwrites a vendor's source.
         let slug = source.deletingLastPathComponent().lastPathComponent
-        let relative = "SISTEMA/skills/personal-overrides/\(slug)-\(UUID().uuidString.prefix(8))/SKILL.md"
+        let parent=source.deletingLastPathComponent().deletingLastPathComponent()
+        let parentRelative=String(parent.path.dropFirst(try vault().path.count+1))
+        let relative = "\(parentRelative)/\(slug)-personal-\(UUID().uuidString.prefix(8))/SKILL.md"
         let destination = try scoped(relative, root: vault())
-        try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let sourceFolder=source.deletingLastPathComponent()
+        // Copy relative assets alongside the personal skill, at the same depth.
+        guard let enumerator=fm.enumerator(at:sourceFolder,includingPropertiesForKeys:[.isSymbolicLinkKey,.fileSizeKey],options:[]) else { throw failure("Não foi possível ler o pacote") }
+        let assets=enumerator.allObjects.compactMap{$0 as? URL}
+        guard assets.count<10000 else { throw failure("Pacote grande demais para uma versão pessoal") }
+        var size=0
+        for asset in assets { let values=try asset.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true else { throw failure("Pacote com symlink exige revisão manual") };size += values.fileSize ?? 0 }
+        guard size<100_000_000 else { throw failure("Pacote pessoal excede 100 MB") }
+        try fm.copyItem(at:sourceFolder,to:destination.deletingLastPathComponent())
         try Data(text.utf8).write(to: destination, options: .atomic)
         try writeJSON(["source":path,"source_hash":original,"saved_hash":digest(Data(text.utf8)),"created_at":ISO8601DateFormatter().string(from: Date()),"codex_status":"não verificado"], destination.deletingLastPathComponent().appendingPathComponent("provenance.json"))
         return ["path":relative,"status":"Versão pessoal salva; aplicação no Codex não verificada"]
     }
-    func events() throws -> [[String: Any]] {
-        let dir = home.appendingPathComponent("events")
-        guard fm.fileExists(atPath: dir.path) else { return [] }
-        return try fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil).filter { $0.pathExtension == "json" }.compactMap { try? readJSON($0) }.sorted { ($0["received_at"] as? String ?? "") < ($1["received_at"] as? String ?? "") }.suffix(2000).map { $0 }
+    func events(directory:URL? = nil,limit:Int = 2000) throws -> [[String: Any]] {
+        let dir=directory ?? home.appendingPathComponent("events")
+        guard fm.fileExists(atPath:dir.path) else { return [] }
+        let urls=try fm.contentsOfDirectory(at:dir,includingPropertiesForKeys:[.contentModificationDateKey,.fileSizeKey],options:[.skipsHiddenFiles]).filter{$0.pathExtension=="json"}
+        let recent=urls.map{url in (url,(try? url.resourceValues(forKeys:[.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast)}.sorted{$0.1>$1.1}.prefix(limit)
+        let fractional=ISO8601DateFormatter();fractional.formatOptions=[.withInternetDateTime,.withFractionalSeconds]
+        let basic=ISO8601DateFormatter()
+        return recent.compactMap { pair -> (Int64,[String:Any])? in
+            guard (try? pair.0.resourceValues(forKeys:[.fileSizeKey]).fileSize) ?? 0 < 65536,let doc=try? readJSON(pair.0),doc["schema_version"] as? Int==1,doc["event_id"] is String else { return nil }
+            let at=doc["received_at"] as? String ?? ""
+            let date=fractional.date(from:at) ?? basic.date(from:at) ?? Date.distantPast
+            let sequence=(doc["sequence"] as? NSNumber)?.int64Value ?? Int64(max(0,date.timeIntervalSince1970)*1_000_000)
+            return (sequence,doc)
+        }.sorted { a,b in a.0==b.0 ? (a.1["event_id"] as! String)<(b.1["event_id"] as! String) : a.0<b.0 }.map{$0.1}
     }
-    func event(type: String, summary: String, source: String = "oracle", id: String = UUID().uuidString) throws {
+    func event(type: String, summary: String, source: String = "oracle", id: String = UUID().uuidString, details:[String:Any] = [:]) throws {
         let safeID = digest(Data(id.utf8))
         let dest = home.appendingPathComponent("events/\(safeID).json")
         if fm.fileExists(atPath: dest.path) { return }
-        let now = ISO8601DateFormatter().string(from: Date())
-        try writeJSON(["schema_version":1,"event_id":safeID,"source":source,"event_type":type,"sanitized_summary":summary,"received_at":now,"occurred_at":now,"coverage":"partial","observed_status":"observed"],dest)
+        let formatter=ISO8601DateFormatter();formatter.formatOptions=[.withInternetDateTime,.withFractionalSeconds];let now=formatter.string(from:Date());lastSequence=max(lastSequence+1,Int64(Date().timeIntervalSince1970*1_000_000))
+        var document:[String:Any] = ["schema_version":1,"event_id":safeID,"sequence":lastSequence,"source":source,"event_type":type,"sanitized_summary":summary,"received_at":now,"occurred_at":now,"coverage":"partial","observed_status":"observed"]
+        for key in ["phase","completed","total","run_id","plan_ref","subject_refs","removed_refs"] { if let value=details[key] { document[key]=value } };try writeJSON(document,dest)
+        if let planID=(details["plan_ref"] ?? details["run_id"]) as? String,UUID(uuidString:planID) != nil { try writeJSON(document,home.appendingPathComponent("setup/events/\(planID)/\(safeID).json")) }
     }
     func ingestHook(_ input: [String: Any]) throws {
         let allowed = ["SessionStart","SessionEnd","UserPromptSubmit","PreToolUse","PostToolUse","PermissionRequest","SubagentStart","SubagentStop","Stop","PreCompact","PostCompact"]
@@ -100,37 +130,65 @@ final class Core {
         let ref = input["tool_use_id"] as? String ?? input["event_id"] as? String ?? UUID().uuidString
         try event(type:kind,summary:kind == "Stop" ? "Turno encerrado; conclusão do objetivo não verificada" : "Hook \(kind) recebido",source:"codex-hook",id:session+kind+ref)
     }
-    func makePlan(answers: [String: String], isNew: Bool, attach: Bool) throws -> [String: Any] {
+    func makePlan(answers: [String: String], isNew: Bool, attach: Bool, catalogCollections:[String] = []) throws -> [String: Any] {
+        let lock=try acquireOperationLock("setup");defer{releaseOperationLock(lock)}
+        let brain=try acquireOperationLock("gbrain");defer{releaseOperationLock(brain)}
+        refreshConfig()
         if !attach { for (key, limit) in identityLimits { guard let v = answers[key], !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, v.count <= limit else { throw failure("Campo obrigatório inválido: \(key)") } } }
         let root = try vault()
-        let plan: [String: Any] = ["schema_version":1,"id":UUID().uuidString,"vault":root.path,"new_vault":isNew,"attach":attach,"answers":answers,"answers_hash":digest(try jsonData(answers)),"folders":isNew ? templateFolders : [],"executor":"Codex Desktop","created_at":ISO8601DateFormatter().string(from:Date())]
+        guard catalogCollections.allSatisfy({id in collections.contains(where:{$0.0==id})}) else { throw failure("Coleção desconhecida") }
+        var plan: [String: Any] = ["schema_version":1,"id":UUID().uuidString,"vault":root.path,"new_vault":isNew,"attach":attach,"answers":answers,"answers_hash":digest(try jsonData(answers)),"folders":isNew ? templateFolders : [],"executor":"Codex Desktop","created_at":ISO8601DateFormatter().string(from:Date())]
+        plan["catalog_collections"]=catalogCollections
+        if !catalogCollections.isEmpty { plan["catalog_hash"]=try catalogDigest() }
+        plan["plan_hash"]=try planDigest(plan)
+        try writeJSON(try scan(root:root),home.appendingPathComponent("setup/\(plan["id"] as! String).baseline.json"))
+        try writeJSON(plan,home.appendingPathComponent("setup/plans/\(plan["id"] as! String).json"))
         try writeJSON(plan,home.appendingPathComponent("setup/plan.json"))
         return plan
     }
+    func planDigest(_ plan:[String:Any]) throws -> String {
+        var payload=plan;payload.removeValue(forKey:"plan_hash");payload.removeValue(forKey:"confirmed_hash")
+        return digest(try jsonData(payload))
+    }
+    func validatedPlan() throws -> [String:Any] {
+        let plan=try readJSON(home.appendingPathComponent("setup/plan.json"))
+        guard let hash=plan["plan_hash"] as? String,hash==plan["confirmed_hash"] as? String,hash==(try planDigest(plan)),plan["answers_hash"] as? String==digest(try jsonData(plan["answers"] ?? [:])),plan["vault"] as? String==config["vault"] as? String else { throw failure("Plano mudou ou não foi confirmado. Revise a configuração no Oracle.") }
+        return plan
+    }
     func confirmPlan(hash: String) throws {
-        let url = home.appendingPathComponent("setup/plan.json")
-        var plan = try readJSON(url)
-        guard plan["answers_hash"] as? String == hash, digest(try jsonData(plan["answers"] ?? [:])) == hash else { throw failure("Respostas mudaram; revise novamente") }
-        plan["confirmed_hash"] = hash; try writeJSON(plan,url)
+        let url=home.appendingPathComponent("setup/plan.json");var plan=try readJSON(url)
+        guard plan["plan_hash"] as? String==hash,try planDigest(plan)==hash else { throw failure("A configuração mudou. Revise o plano novamente.") }
+        plan["confirmed_hash"]=hash;try writeJSON(plan,url)
+        if let id=plan["id"] as? String { try writeJSON(plan,home.appendingPathComponent("setup/plans/\(id).json")) }
+    }
+    func replayData() throws -> [String:Any] {
+        refreshConfig();let plan=try readJSON(home.appendingPathComponent("setup/plan.json"));guard plan["vault"] as? String==config["vault"] as? String,let id=plan["id"] as? String else { throw failure("Nenhum plano para reproduzir") }
+        let baselineURL=home.appendingPathComponent("setup/\(id).baseline.json")
+        let baseline=(try? JSONSerialization.jsonObject(with:Data(contentsOf:baselineURL))) ?? []
+        let archive=home.appendingPathComponent("setup/events/\(id)")
+        let journal=try events(directory:fm.fileExists(atPath:archive.path) ? archive : nil,limit:10000).filter { $0["run_id"] as? String==id || $0["plan_ref"] as? String==id }
+        return ["baseline":baseline,"events":journal,"plan_id":id,"coverage":"Somente itens do journal desta instalação; não é todo o histórico do vault."]
     }
     func applyPlan(rollback: Bool = false, verifyOnly: Bool = false) throws -> [String: Any] {
-        let plan = try readJSON(home.appendingPathComponent("setup/plan.json"))
-        guard let hash = plan["confirmed_hash"] as? String, hash == plan["answers_hash"] as? String, hash == digest(try jsonData(plan["answers"] ?? [:])), let rootPath = plan["vault"] as? String, rootPath == config["vault"] as? String, let id = plan["id"] as? String else { throw failure("Plano não confirmado ou pasta alterada") }
-        let lock = home.appendingPathComponent("setup/apply.lock")
-        do { try fm.createDirectory(at:lock,withIntermediateDirectories:false) } catch { throw failure("Instalação já em execução; se houve falha, examine e remova apply.lock antes de retomar") }
-        defer { try? fm.removeItem(at:lock) }
+        let operationLock=try acquireOperationLock("setup");defer{releaseOperationLock(operationLock)}
+        let brainLock=try acquireOperationLock("gbrain");defer{releaseOperationLock(brainLock)}
+        refreshConfig()
+        let plan=try validatedPlan()
+        guard let rootPath=plan["vault"] as? String,let id=plan["id"] as? String else { throw failure("Plano inválido") }
         let root = URL(fileURLWithPath:rootPath)
         let journalURL = home.appendingPathComponent("setup/\(id).json")
         var journal = (try? readJSON(journalURL)) ?? ["id":id,"created":[String](),"verified":[String]()]
         var created = journal["created"] as? [String] ?? []
         var verified = journal["verified"] as? [String] ?? []
         if rollback {
+            _ = try applyCatalog(plan:plan,rollback:true)
+            var removedRefs=[[String:Any]]()
             for path in created.reversed() {
                 let dir = try scoped(path,root:root)
-                if (try? fm.contentsOfDirectory(atPath:dir.path).isEmpty) == true { try fm.removeItem(at:dir) }
+                if (try? fm.contentsOfDirectory(atPath:dir.path).isEmpty) == true { try fm.removeItem(at:dir);removedRefs.append(["path":path,"directory":true]) }
             }
             journal["status"] = "rolled_back_empty_folders_only"; try writeJSON(journal,journalURL)
-            try event(type:"setup.rollback",summary:"Rollback preservou arquivos e pastas não vazias")
+            try event(type:"setup.rollback",summary:"Rollback preservou arquivos e pastas não vazias",details:["run_id":id,"phase":"rollback","completed":removedRefs.count,"total":created.count,"removed_refs":removedRefs])
             return journal
         }
         for path in plan["folders"] as? [String] ?? [] {
@@ -138,15 +196,16 @@ final class Core {
             if !fm.fileExists(atPath:url.path) {
                 if verifyOnly { throw failure("Pasta ausente: \(path)") }
                 // Journal ownership before mutation: safe resume after crash.
-                if !created.contains(path) { created.append(path); journal["created"] = created; try writeJSON(journal,journalURL) }
+                var prefix="";for part in path.split(separator:"/") { prefix=prefix.isEmpty ? String(part) : prefix+"/"+part;let parent=try scoped(prefix,root:root);if !fm.fileExists(atPath:parent.path) && !created.contains(prefix) { created.append(prefix) } };journal["created"]=created;try writeJSON(journal,journalURL)
                 try fm.createDirectory(at:url,withIntermediateDirectories:true)
             }
             var directory: ObjCBool = false
             guard fm.fileExists(atPath:url.path,isDirectory:&directory), directory.boolValue else { throw failure("Colisão: \(path) não é pasta") }
-            if !verified.contains(path) { verified.append(path); journal["verified"] = verified; try writeJSON(journal,journalURL); try event(type:"setup.folder_verified",summary:path,id:id+path) }
+            if !verified.contains(path) { verified.append(path); journal["verified"] = verified; try writeJSON(journal,journalURL); try event(type:"setup.folder_verified",summary:path,id:id+path,details:["run_id":id,"phase":"structure","completed":verified.count,"total":(plan["folders"] as? [String] ?? []).count,"subject_refs":[["path":path,"directory":true]]]) }
         }
         journal["status"] = "structure_verified"; journal["gbrain"] = "requires_official_bootstrap"; try writeJSON(journal,journalURL)
-        try event(type:"setup.structure_verified",summary:"Estrutura verificada; GBrain e confiança Codex têm verificações separadas",id:id+"structure")
+        try event(type:"setup.structure_verified",summary:"Estrutura verificada; GBrain e confiança Codex têm verificações separadas",id:id+"structure",details:["run_id":id,"phase":"structure","completed":verified.count,"total":verified.count])
+        _ = try applyCatalog(plan:plan,verifyOnly:verifyOnly)
         return journal
     }
 }

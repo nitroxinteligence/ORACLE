@@ -36778,6 +36778,16 @@
       "path": "packs/marketing/skills/video/references/edit-anatomy.md",
       "sha256": "51319196939e75b29fd1f00ef393e1772043e79dbf0a19c82145060cc62fde7f",
       "size": 7394
+    },
+    {
+      "path": "packs/code/ORACLE-LICENSES/Apache-2.0.txt",
+      "sha256": "a941b58ef0ba43a31e24ae7ece1b743a585efed9e37792b9ca063e0798be1cbe",
+      "size": 11255
+    },
+    {
+      "path": "packs/cyber-security/ORACLE-LICENSES/Apache-2.0.txt",
+      "sha256": "a941b58ef0ba43a31e24ae7ece1b743a585efed9e37792b9ca063e0798be1cbe",
+      "size": 11255
     }
   ]
 }

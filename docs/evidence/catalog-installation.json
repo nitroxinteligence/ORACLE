@@ -1,0 +1,10 @@
+{
+  "copied_skills": 940,
+  "verified_files": 4902,
+  "apply_seconds": 8.75,
+  "repeat_apply": "passed",
+  "verify": "passed",
+  "rollback_preserves_edited_skill": true,
+  "remaining_skills_after_rollback": 1,
+  "scope": "isolated synthetic vault; no personal vault writes"
+}

@@ -9,11 +9,12 @@ if arguments.contains("--hook") {
     do { let data = FileHandle.standardInput.readDataToEndOfFile(); guard data.count < 4_000_000, let value = try JSONSerialization.jsonObject(with:data) as? [String: Any] else { exit(0) }; try core.ingestHook(value) } catch { /* Observability must not block Codex. */ }
     print("{}"); exit(0)
 }
+if arguments.contains("--prepare-bridge") { do { print(String(decoding:try jsonData(core.prepareBridge()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if let operation = argument("--gbrain") {
-    do { let value = try operation == "prepare" ? core.prepareGBrain() : core.finishGBrain(); print(String(decoding:try jsonData(value),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
+    do { let lock=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(lock)};let value = try operation == "prepare" ? core.prepareGBrain() : core.finishGBrain(); print(String(decoding:try jsonData(value),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
 if let file = argument("--create-plan") {
-    do { let params=try readJSON(URL(fileURLWithPath:file)); let plan=try core.makePlan(answers:params["answers"] as? [String:String] ?? [:],isNew:params["newVault"] as? Bool == true,attach:params["attach"] as? Bool == true); print(String(decoding:try jsonData(plan),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
+    do { let params=try readJSON(URL(fileURLWithPath:file)); let plan=try core.makePlan(answers:params["answers"] as? [String:String] ?? [:],isNew:params["newVault"] as? Bool == true,attach:params["attach"] as? Bool == true,catalogCollections:params["catalogCollections"] as? [String] ?? []); print(String(decoding:try jsonData(plan),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
 if let hash = argument("--confirm-plan") { do { try core.confirmPlan(hash:hash); print("Plan confirmed"); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) } }
 if let hash = argument("--confirm-gbrain") { do { try core.confirmGBrain(hash); print("GBrain readback confirmed"); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) } }
@@ -26,6 +27,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var window: NSWindow!
     var web: WKWebView!
     var locked = true
+    var requestMethods=[String:String]()
+    var lockGeneration=0
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
     let queue = DispatchQueue(label:"oracle.core")
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -64,20 +67,24 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         NSApp.mainMenu = bar
     }
     @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.1.0"; a.informativeText = "Companion nativo para macOS. Codex executa, GBrain recupera, Obsidian conserva. Cobertura de atividade parcial."; a.runModal() }
-    @objc func lockApp() { locked = true; web?.evaluateJavaScript("window.oracleLock?.()",completionHandler:nil) }
+    @objc func lockApp() { lockGeneration += 1;locked = true; web?.evaluateJavaScript("window.oracleLock?.()",completionHandler:nil) }
     func authenticate(_ completion:@escaping(Bool,String?)->Void) {
+        let generation=lockGeneration
         let context = LAContext(); var error:NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication,error:&error) else { completion(false,error?.localizedDescription ?? "Autenticação indisponível"); return }
-        context.evaluatePolicy(.deviceOwnerAuthentication,localizedReason:"Abrir seu universo no Oracle") { success,error in DispatchQueue.main.async { completion(success,error?.localizedDescription) } }
+        context.evaluatePolicy(.deviceOwnerAuthentication,localizedReason:"Abrir seu universo no Oracle") { success,error in DispatchQueue.main.async { completion(success && generation==self.lockGeneration,generation==self.lockGeneration ? error?.localizedDescription : "Autenticação cancelada após bloqueio") } }
     }
     func reply(_ id: String,_ value: Any? = nil,_ error: String? = nil) {
-        let result:[String:Any] = error.map { ["error":$0] } ?? ["value":value ?? NSNull()]
+        let method=requestMethods.removeValue(forKey:id) ?? ""
+        let finalError = locked && !["boot","unlock","lock"].contains(method) ? "Oracle bloqueado" : error
+        let result:[String:Any] = finalError.map { ["error":$0] } ?? ["value":value ?? NSNull()]
         guard let data = try? jsonData(result), let idData = try? JSONSerialization.data(withJSONObject:[id]) else { return }
         let safeID = String(decoding:idData,as:UTF8.self)
         web.evaluateJavaScript("window.oracleReply(\(safeID)[0],\(String(decoding:data,as:UTF8.self)))",completionHandler:nil)
     }
     func userContentController(_ userContentController: WKUserContentController,didReceive message:WKScriptMessage) {
         guard message.frameInfo.isMainFrame, message.frameInfo.request.url?.isFileURL == true, let body = message.body as? [String:Any], let id = body["id"] as? String, let method = body["method"] as? String else { return }
+        requestMethods[id]=method
         let p = body["params"] as? [String:Any] ?? [:]
         if method == "lock" { lockApp(); reply(id,true); return }
         if method == "boot" { reply(id,["locked":locked]); return }
@@ -89,8 +96,9 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             panel.beginSheetModal(for:window) { response in
                 guard response == .OK, let url = panel.url else { self.reply(id,NSNull()); return }
                 self.queue.async { do {
+                    let lock=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(lock)};let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)};core.refreshConfig()
                     if method == "chooseVault" { core.config["vault"] = url.path }
-                    else if method == "chooseGBrain" { core.config["gbrainWorkspace"] = url.path }
+                    else if method == "chooseGBrain" { core.config["gbrainWorkspace"] = url.path;core.config["gbrainAccess"] = true }
                     else { var roots = core.config["projects"] as? [String] ?? []; if !roots.contains(url.path) { roots.append(url.path) }; core.config["projects"] = roots }
                     try core.persist(); DispatchQueue.main.async { self.reply(id,url.path) }
                 } catch { DispatchQueue.main.async { self.reply(id,nil,error.localizedDescription) } } }
@@ -128,14 +136,16 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 case "confirmGBrain": try core.confirmGBrain(p["hash"] as? String ?? ""); result = true
                 case "read": result = try core.readNote(p["path"] as? String ?? "")
                 case "saveVersion": result = try core.saveVersion(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")
-                case "plan": result = try core.makePlan(answers:p["answers"] as? [String:String] ?? [:],isNew:p["newVault"] as? Bool == true,attach:p["attach"] as? Bool == true)
+                case "plan": result = try core.makePlan(answers:p["answers"] as? [String:String] ?? [:],isNew:p["newVault"] as? Bool == true,attach:p["attach"] as? Bool == true,catalogCollections:p["catalogCollections"] as? [String] ?? [])
                 case "confirm": try core.confirmPlan(hash:p["hash"] as? String ?? ""); result = true
                 case "briefing": result = self.briefing()
                 case "events": result = try core.events()
+                case "replayData": result = try core.replayData()
+                case "bridgeReceipt": result = (try? readJSON(core.home.appendingPathComponent("setup/bridge.json"))) ?? [:]
                 case "conversations": result = (try? readJSON(core.home.appendingPathComponent("conversations.json")))?["conversations"] ?? []
                 case "instructions": result = try (core.config["projects"] as? [String] ?? []).flatMap { try core.scan(root:URL(fileURLWithPath:$0),instructionsOnly:true).filter { $0["directory"] as? Bool != true } }
                 case "readInstruction": guard let root = p["source"] as? String,(core.config["projects"] as? [String] ?? []).contains(root),let path = p["path"] as? String,["AGENTS.md","AGENTS.override.md"].contains(URL(fileURLWithPath:path).lastPathComponent) else { throw failure("Fonte não autorizada") }; let url = try core.scoped(path,root:URL(fileURLWithPath:root)); result = ["text":try String(contentsOf:url,encoding:.utf8),"path":url.path]
-                case "revoke": core.config.removeValue(forKey:"vault"); core.config.removeValue(forKey:"projects"); core.config.removeValue(forKey:"gbrainWorkspace"); try core.persist(); result = true
+                case "revoke": core.config.removeValue(forKey:"vault"); core.config.removeValue(forKey:"projects"); core.config.removeValue(forKey:"gbrainWorkspace");core.config["gbrainAccess"] = false; try core.persist(); result = true
                 default: throw failure("Operação não suportada")
                 }
                 DispatchQueue.main.async { self.reply(id,result) }

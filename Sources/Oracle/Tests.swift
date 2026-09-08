@@ -14,8 +14,17 @@ func runTests() throws {
     let answers = Dictionary(uniqueKeysWithValues:identityLimits.keys.map { ($0,"Fixture answer for " + $0) })
     let plan = try c.makePlan(answers:answers,isNew:true,attach:false)
     try rejects("unconfirmed installation") { _ = try c.applyPlan() }
-    try c.confirmPlan(hash:plan["answers_hash"] as! String)
+    try c.confirmPlan(hash:plan["plan_hash"] as! String)
     let first = try c.applyPlan(); let second = try c.applyPlan()
+    let confirmed=try readJSON(c.home.appendingPathComponent("setup/plan.json"))
+    var tampered=confirmed;tampered["catalog_collections"]=["ads"];try writeJSON(tampered,c.home.appendingPathComponent("setup/plan.json"))
+    try rejects("plan confirmation binds all settings") { _ = try c.applyPlan() }
+    try writeJSON(confirmed,c.home.appendingPathComponent("setup/plan.json"))
+    let sibling=try Core(home:c.home);sibling.config["gbrainAccess"]=true;try sibling.persist();c.config["layout"]=["nodes":[:]];try c.persist()
+    try expect((try Core(home:c.home)).config["gbrainAccess"] as? Bool==true,"cross-process preferences preserve independent fields")
+    let held=try c.acquireOperationLock("setup")
+    try rejects("concurrent installation excluded") { _ = try sibling.applyPlan() }
+    c.releaseOperationLock(held)
     try expect((first["verified"] as! [String]).count == templateFolders.count,"all planned folders verified")
     try expect((second["created"] as! [String]).count == (first["created"] as! [String]).count,"idempotent setup")
     let original = "---\nname: fixture\ndescription: Fixture skill\n---\n# Original\n"
@@ -34,5 +43,6 @@ func runTests() throws {
     _ = try c.applyPlan(rollback:true)
     try expect(fm.fileExists(atPath:file.path),"rollback preserves user files")
     try expect(!(try c.scan(root:root)).contains { ($0["path"] as? String ?? "").hasPrefix("escape") },"scan omits symlinks")
+    try expect(!fm.fileExists(atPath:root.appendingPathComponent("INBOX").path),"rollback removes owned empty parent folders")
     print("All contract tests passed")
 }

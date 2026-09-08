@@ -1,0 +1,21 @@
+Oracle 0.1.0 — versão de desenvolvimento para Apple Silicon, macOS 13+
+
+Arraste Oracle.app para Aplicativos e abra. A seleção de vault é explícita.
+Não exige Swift, Bun ou Python para executar o pacote pronto.
+
+Esta versão tem assinatura ad hoc, sem notarização Apple. O macOS pode bloquear
+uma cópia baixada. Revise a origem antes de autorizar em Ajustes do Sistema >
+Privacidade e Segurança. Não desative o Gatekeeper globalmente.
+
+O Codex Desktop executa a configuração pelo pedido que o app prepara. O passo
+de confiança dos hooks é feito no próprio Codex. GBrain usa perfil isolado.
+Não há atualização automática. Feche o app antes de substituir a versão.
+
+Dados próprios: ~/Library/Application Support/OracleCompanion
+O vault escolhido permanece separado. Apagar o aplicativo não apaga seu vault.
+O bloqueio protege a interface e não criptografa os arquivos.
+
+Limites desta entrega: sem notarização, sem teste em outro Mac limpo, sem
+restauração integrada de backup, sem updater automático. Integração com uma
+instalação pessoal preexistente de GBrain não foi validada neste lançamento.
+Hooks/MCP preparados precisam ser habilitados e verificados na tarefa Codex.

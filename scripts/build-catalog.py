@@ -47,6 +47,12 @@ for spec in SOURCES:
 for category in ['contents','personal-branding']:
  report['observed'][category]=len(list((VAULT/category).rglob('SKILL.md'))) if VAULT else None
  manifest['collections'].append({'id':category,'skill_count':0,'license':None,'repo':None,'commit':None})
+# Some Gentle entries explicitly carry Apache-2.0 despite the root MIT license.
+apache=(OUT/'packs/cyber-security/LICENSE').read_bytes()
+for category in sorted({e['collection'] for e in manifest['entries'] if e['license']=='Apache-2.0'}):
+    relative=f'packs/{category}/ORACLE-LICENSES/Apache-2.0.txt'
+    destination=OUT/relative;destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(apache)
+    manifest['files'].append({'path':relative,'sha256':sha(apache),'size':len(apache)})
 (OUT/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2))
 (ROOT/'docs/evidence/catalog-audit.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
 print(json.dumps({'observed':report['observed'],'packaged_entries':len(manifest['entries']),'packaged_files':len(manifest['files']),'local_runtime_differences':len(report['local_changes'])},ensure_ascii=False))

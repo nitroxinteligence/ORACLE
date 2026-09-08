@@ -17,6 +17,9 @@ cp vendor/gbrain/BOOTSTRAP_FOR_AGENTS.md Resources/engine/BOOTSTRAP_FOR_AGENTS.m
 cp vendor/gbrain/templates/bootstrap/questions.json Resources/engine/questions.json
 bun build --compile packages/gbrain-adapter/read.ts --outfile Resources/engine/oracle-gbrain-read
 bun run build:atlas
+bun build packages/contracts/replay.js --target browser --format iife --outfile Resources/web/replay.js
 cp node_modules/three/LICENSE Resources/web/THREE-LICENSE.txt
 python3 scripts/fetch-catalog.py
 python3 scripts/build-catalog.py
+
+python3 scripts/third-party-notices.py

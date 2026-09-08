@@ -1,0 +1,8 @@
+{
+  "baseline": true,
+  "creation": true,
+  "rollback": true,
+  "path_boundary": true,
+  "deterministic": true,
+  "inputs_unchanged": true
+}

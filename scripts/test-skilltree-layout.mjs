@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {catalogGroups,plan,sampleGroups,fitCamera} from '../packages/atlas/layout.js';
+import {catalogGroups,plan,sampleGroups,fitCamera,separateSpecialists} from '../packages/atlas/layout.js';
 const entry = (folder,name) => ({path:`SISTEMA/skills/marketing/${folder}${name}/SKILL.md`,name:'SKILL.md'});
 
 test('hierarchy links files only to membership groups, never to a preceding skill',()=>{
@@ -35,6 +35,31 @@ test('fit reserves navigation space and contains focal geometry on small and wid
     assert.ok(c.x+bounds.minX*c.k>=17.999);assert.ok(c.x+bounds.maxX*c.k<=w-17.999);
     assert.ok(c.y+bounds.minY*c.k>=73.999);assert.ok(c.y+bounds.maxY*c.k<=h-17.999);
     assert.ok(Number.isFinite(c.k)&&c.k>0);
+  }
+});
+
+test('specialist force separates overlapping saved positions and clears the core',()=>{
+  const nodes=[{id:'cyber-security',x:-120,y:180},{id:'last-30-days',x:-105,y:190},{id:'code',x:0,y:0}];
+  separateSpecialists(nodes,250,168);
+  for(const node of nodes)assert.ok(Math.hypot(node.x,node.y)>=249.999);
+  for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++)
+    assert.ok(Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)>=167.8);
+});
+
+test('global leaf fans stay inside the space assigned to their specialist',()=>{
+  const collections=['ads','code','contents','customer-finder','cyber-security','marketing','personal-branding','last-30-days'].map(id=>({id,name:id}));
+  const entries=collections.flatMap(({id})=>Array.from({length:10},(_,i)=>({name:'SKILL.md',path:`SISTEMA/skills/${id}/skill-${String(i).padStart(2,'0')}/SKILL.md`})));
+  const manual={nodes:{'cyber-security':{x:-120,y:180},'last-30-days':{x:-105,y:190}}};
+  const result=plan(collections,entries,null,3,manual);
+  for(let i=0;i<result.nodes.length;i++)for(let j=i+1;j<result.nodes.length;j++)
+    assert.ok(Math.hypot(result.nodes[i].x-result.nodes[j].x,result.nodes[i].y-result.nodes[j].y)>=167.8);
+  for(const node of result.nodes){
+    const peers=result.nodes.filter(other=>other!==node);
+    const sector=Math.min(1.25,Math.min(...peers.map(other=>Math.abs(Math.atan2(Math.sin(other.angle-node.angle),Math.cos(other.angle-node.angle)))))*.82);
+    for(const leaf of result.leaves.filter(leaf=>leaf.parent===node.id)){
+      const angle=Math.atan2(leaf.y,leaf.x),delta=Math.abs(Math.atan2(Math.sin(angle-node.angle),Math.cos(angle-node.angle)));
+      assert.ok(delta<=sector*.5+.02,`${node.id} leaf escaped its sector: ${delta} > ${sector*.5}`);
+    }
   }
 });
 

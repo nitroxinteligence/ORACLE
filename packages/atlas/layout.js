@@ -70,6 +70,30 @@ export function fitCamera(bounds, width, height, top = 48, padding = 18, maximum
   return { x: width / 2 - (bounds.minX + bounds.maxX) * k / 2,
     y: (height + top) / 2 - (bounds.minY + bounds.maxY) * k / 2, k };
 }
+// Saved drag positions are hints. Keep specialist roots and their constellations
+// apart in the rendered geometry so a crowded or older layout can recover
+// without rewriting the user's saved coordinates.
+export function separateSpecialists(nodes, coreRadius = 250, minimum = 168) {
+  for(let pass=0;pass<24;pass++){
+    let changed=false;
+    for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+      const a=nodes[i],b=nodes[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy);
+      if(d>=minimum)continue;
+      const angle=d>.001?Math.atan2(dy,dx):(hash(a.id+'|'+b.id)%6283)/1000;
+      const push=(minimum-d)/2+.05,px=Math.cos(angle)*push,py=Math.sin(angle)*push;
+      a.x-=px;a.y-=py;b.x+=px;b.y+=py;changed=true;
+    }
+    for(const node of nodes){
+      const distance=Math.hypot(node.x,node.y);
+      if(distance>=coreRadius)continue;
+      const angle=distance>.001?Math.atan2(node.y,node.x):identity(node.id).angle*Math.PI/180;
+      node.x=Math.cos(angle)*coreRadius;node.y=Math.sin(angle)*coreRadius;changed=true;
+    }
+    if(!changed)break;
+  }
+  for(const node of nodes)node.angle=Math.atan2(node.y,node.x);
+  return nodes;
+}
 // A specialist is a separate constellation: its root stays at the origin and
 // at most 50 actual files surround it; the complete catalog stays in navigation.
 function specialistPlan(collection, entries, context) {
@@ -124,6 +148,7 @@ export function plan(collections, entries, selected, detail = 3, manual = {}, mi
     return { ...c, angle, color: identity(c.id).color, x: saved?.x ?? Math.cos(angle) * radius,
       y: saved?.y ?? Math.sin(angle) * radius, skills: groups.flatMap(g => g.skills), groups };
   });
+  separateSpecialists(nodes,Math.max(250,radius-20),Math.max(168,radius*.5));
   const groups = [], leaves = [];
   for (const n of nodes) {
     const active = n.id === selected, limit = visibleCount(n.skills.length, active, detail, 1);
@@ -166,9 +191,13 @@ export function plan(collections, entries, selected, detail = 3, manual = {}, mi
           const leafAngle=angle+offset;
           lx=n.x+Math.cos(leafAngle)*radial;ly=n.y+Math.sin(leafAngle)*radial;
         } else {
-          const spread=Math.min(1.8,sector*3.4),leafAngle=angle+(members.length<2?0:i/Math.max(1,members.length-1)-.5)*spread;
-          const distance=50+(i%2)*14;
-          lx=x+Math.cos(leafAngle)*distance;ly=y+Math.sin(leafAngle)*distance;
+          // The leaf fan belongs to this specialist's angular sector. Letting a
+          // fan grow wider than its sector made neighbouring specialists share
+          // the same visual space even when their roots were well separated.
+          const gap=Math.max(17,Math.min(22,(radius+150)*sector*.82/Math.max(1,members.length-1)));
+          const tangent=(i-(members.length-1)/2)*gap,distance=50+(i%2)*14;
+          lx=x+Math.cos(angle)*distance-Math.sin(angle)*tangent;
+          ly=y+Math.sin(angle)*distance+Math.cos(angle)*tangent;
         }
         const saved = manual.leaves?.[entry.path];
         leaves.push({ id: entry.path, parent: n.id, group: g.id, source: g.id,
@@ -188,6 +217,7 @@ export function plan(collections, entries, selected, detail = 3, manual = {}, mi
       if(!leaf.custom)for(let step=0;step<3;step++){
         const cx=Math.floor(leaf.x/size),cy=Math.floor(leaf.y/size);let moved=false;
         for(let ix=cx-1;ix<=cx+1;ix++)for(let iy=cy-1;iy<=cy+1;iy++)for(const other of cells.get(`${ix},${iy}`)||[]){
+          if(other.parent===leaf.parent)continue;
           const dx=leaf.x-other.x,dy=leaf.y-other.y,d=Math.hypot(dx,dy);
           if(d<size){const angle=d>.001?Math.atan2(dy,dx):hash(leaf.id)*.001;leaf.x+=Math.cos(angle)*(size-d+.1);leaf.y+=Math.sin(angle)*(size-d+.1);moved=true}
         }

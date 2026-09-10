@@ -17,6 +17,19 @@ let modalSequence=0,modalHistory=[],modalPage=null;
 const promptRoot='SISTEMA/prompts';
 let promptFolderPath=promptRoot,promptSelectedPath='',promptQuery='',promptDocument=null;
 let promptExpanded=new Set([promptRoot]);
+const tutorialRoot='SISTEMA/Tutoriais';
+const tutorialDepartments=[
+ {slug:'design',label:'Design'},
+ {slug:'backend',label:'Back-end'},
+ {slug:'marketing',label:'Marketing'},
+ {slug:'go-to-market',label:'Go-to-market'},
+ {slug:'engenharia-de-ai',label:'Engenharia de IA'},
+ {slug:'criacao-de-imagens',label:'Criação de imagens'},
+ {slug:'criacao-de-videos',label:'Criação de vídeos'},
+ {slug:'3d',label:'3D'}
+];
+let tutorialFolderPath=tutorialRoot,tutorialSelectedPath='',tutorialQuery='',tutorialDocument=null;
+let tutorialExpanded=new Set([tutorialRoot]);
 function toast(text){
  if(!$('#lock-screen').hidden)return;
  if($('#modal').open){let notice=$('.modal-notice');if(!notice){notice=document.createElement('div');notice.className='modal-notice';notice.setAttribute('role','alert');$('.modal-body').prepend(notice)}notice.textContent=text;return}
@@ -85,7 +98,7 @@ $('#modal').addEventListener('click',e=>{if(e.target.closest('[data-close]')||(e
 $('#modal').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeModal()}});
 $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal()});
 $('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));modalRevision=++modalSequence;modalDirty=false;settingsTrail=false;modalHistory=[];modalPage=null;hideTooltip();const origin=modalOrigin;modalOrigin=null;if(origin?.isConnected&&!$('#app').inert)origin.focus({preventScroll:true});atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused)});
-$('#modal').addEventListener('close',()=>$('#prompts')?.setAttribute('aria-expanded','false'));
+$('#modal').addEventListener('close',()=>{$('#prompts')?.setAttribute('aria-expanded','false');$('#tutorials')?.setAttribute('aria-expanded','false')});
 function skills(id){return visibleEntries().filter(e=>!e.directory&&e.path.startsWith(`SISTEMA/skills/${id}/`)&&e.name==='SKILL.md')}
 function title(e){return e.name==='SKILL.md'?e.path.split('/').slice(-2,-1)[0]:e.name.replace(/\.md$/,'')}
 function entryLocation(e){const collection=state.collections.find(c=>e.path.startsWith(`SISTEMA/skills/${c.id}/`));return collection?`${collection.name} · ${e.name==='SKILL.md'?'Skill':'Documento'}`:e.path.split('/').slice(0,-1).slice(-2).join(' / ')||'Pasta principal'}
@@ -306,6 +319,107 @@ async function promptLibrary(){
  $('#refresh-prompts').onclick=safe(async()=>{await refresh();promptDocument=null;promptSelectedPath='';renderPromptLibrary();toast('Biblioteca relida do Obsidian.')});
 }
 
+function normalizedVaultPath(path){return String(path||'').replaceAll('\\','/').replace(/^\/+|\/+$/g,'').toLocaleLowerCase('pt-BR')}
+function tutorialRootPath(){
+ const expected=normalizedVaultPath(tutorialRoot);
+ const exact=state.entries.find(entry=>entry.directory&&normalizedVaultPath(entry.path)===expected);
+ if(exact)return exact.path;
+ const descendant=state.entries.find(entry=>normalizedVaultPath(entry.path).startsWith(expected+'/'));
+ return descendant?.path.split('/').slice(0,2).join('/')||tutorialRoot;
+}
+function tutorialDepartmentLabel(path){
+ const slug=String(path||'').split('/').at(-1)?.toLocaleLowerCase('pt-BR');
+ return tutorialDepartments.find(department=>department.slug===slug)?.label||'';
+}
+function tutorialDisplayName(path,data){
+ const root=data?.root||tutorialRoot;
+ if(normalizedVaultPath(path)===normalizedVaultPath(root))return 'Todos os tutoriais';
+ const raw=String(path||'').split('/').at(-1)||path;
+ return tutorialDepartmentLabel(path)||raw.replace(/[-_]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+function tutorialParent(path){return String(path).split('/').slice(0,-1).join('/')}
+function tutorialIsInFolder(path,folder,data){
+ const normalizedPath=normalizedVaultPath(path),normalizedFolder=normalizedVaultPath(folder),normalizedRoot=normalizedVaultPath(data?.root||tutorialRoot);
+ return normalizedFolder===normalizedRoot||normalizedPath===normalizedFolder||normalizedPath.startsWith(normalizedFolder+'/');
+}
+function tutorialData(){
+ const root=tutorialRootPath(),rootKey=normalizedVaultPath(root),folders=new Set([root]),documents=[];
+ const rootEntry=state.entries.find(entry=>entry.directory&&normalizedVaultPath(entry.path)===rootKey);
+ for(const entry of state.entries){
+  const path=String(entry.path||''),normalized=normalizedVaultPath(path);
+  if(normalized!==rootKey&&!normalized.startsWith(rootKey+'/'))continue;
+  if(entry.directory){folders.add(path);continue}
+  if(!path.toLowerCase().endsWith('.md'))continue;
+  documents.push(entry);
+  const parts=path.split('/'),rootDepth=root.split('/').length;
+  for(let i=rootDepth+1;i<parts.length;i++)folders.add(parts.slice(0,i).join('/'));
+ }
+ for(const department of tutorialDepartments){
+  const expected=`${root}/${department.slug}`;
+  if(![...folders].some(folder=>normalizedVaultPath(folder)===normalizedVaultPath(expected)))folders.add(expected);
+ }
+ return {root,exists:!!rootEntry,folders:[...folders],documents};
+}
+function tutorialFolderChildren(path,data){return data.folders.filter(folder=>normalizedVaultPath(folder)!==normalizedVaultPath(path)&&normalizedVaultPath(tutorialParent(folder))===normalizedVaultPath(path)).sort((a,b)=>tutorialDisplayName(a,data).localeCompare(tutorialDisplayName(b,data),'pt-BR'))}
+function tutorialFolderCount(path,data){return data.documents.filter(entry=>tutorialIsInFolder(entry.path,path,data)).length}
+function tutorialTreeNode(path,data,depth=0){
+ const children=tutorialFolderChildren(path,data),expanded=normalizedVaultPath(path)===normalizedVaultPath(data.root)||tutorialExpanded.has(path),active=normalizedVaultPath(path)===normalizedVaultPath(tutorialFolderPath),count=tutorialFolderCount(path,data);
+ return `<div class="prompt-tree-node tutorial-tree-node" style="--prompt-depth:${depth}"><button class="prompt-folder-button tutorial-folder-button${active?' active':''}" data-tutorial-folder="${esc(path)}" role="treeitem"${active?' aria-current="page"':''}${children.length?` aria-expanded="${expanded}"`:''}>${icon('folder')}<span><strong>${esc(tutorialDisplayName(path,data))}</strong><small>${count} ${count===1?'tutorial':'tutoriais'}</small></span>${children.length?icon('chevron','prompt-folder-chevron'):''}</button>${expanded&&children.length?`<div class="prompt-tree-children" role="group">${children.map(child=>tutorialTreeNode(child,data,depth+1)).join('')}</div>`:''}</div>`;
+}
+function tutorialListItems(data){
+ const terms=tutorialQuery.trim().toLocaleLowerCase('pt-BR').split(/\s+/).filter(Boolean);
+ return data.documents.filter(entry=>tutorialIsInFolder(entry.path,tutorialFolderPath,data)).filter(entry=>{
+  const haystack=(tutorialDisplayName(entry.name.replace(/\.md$/i,''),data)+' '+entry.path).toLocaleLowerCase('pt-BR');
+  return terms.every(term=>haystack.includes(term));
+ }).sort((a,b)=>tutorialDisplayName(a.name.replace(/\.md$/i,''),data).localeCompare(tutorialDisplayName(b.name.replace(/\.md$/i,''),data),'pt-BR'));
+}
+function tutorialListHTML(data){
+ const items=tutorialListItems(data),count=items.length,scope=normalizedVaultPath(tutorialFolderPath)===normalizedVaultPath(data.root)?'todos os tutoriais':tutorialDisplayName(tutorialFolderPath,data),heading=tutorialQuery?`Resultados em ${esc(scope)}`:tutorialDisplayName(tutorialFolderPath,data);
+ const headingHTML=`<div class="prompt-pane-heading tutorial-pane-heading"><div><span>${esc(heading)}</span><small>${count} ${count===1?'tutorial encontrado':'tutoriais encontrados'}</small></div></div>`;
+ if(!count)return headingHTML+`<div class="prompt-empty tutorial-empty">${icon('book')}<strong>${tutorialQuery?'Nenhum tutorial encontrado':'Este departamento ainda está vazio'}</strong><p>${tutorialQuery?'Tente outro termo ou escolha outro departamento.':'Adicione um arquivo .md nesta pasta do Obsidian para criar o próximo tutorial.'}</p></div>`;
+ const buttons=items.map(entry=>{
+  const selected=entry.path===tutorialSelectedPath,relative=entry.path.split('/').slice(data.root.split('/').length).join('/').replace(/\.md$/i,'');
+  return `<button class="prompt-list-item tutorial-list-item${selected?' active':''}" data-tutorial-document="${esc(entry.path)}" role="option" aria-selected="${selected}">${icon('book','prompt-list-icon')}<span><strong>${esc(tutorialDisplayName(entry.name.replace(/\.md$/i,''),data))}</strong><small>${esc(relative)}</small></span><span class="prompt-list-arrow" aria-hidden="true">↗</span></button>`;
+ }).join('');
+ return headingHTML+`<div class="prompt-list-items tutorial-list-items" role="listbox" aria-label="Tutoriais encontrados">${buttons}</div>`;
+}
+function tutorialPreviewHTML(){
+ if(!tutorialSelectedPath)return `<div class="prompt-preview-empty tutorial-preview-empty">${icon('book')}<h2>Escolha um tutorial</h2><p>Selecione um arquivo para ler, copiar ou abrir a nota original no Obsidian.</p></div>`;
+ if(!tutorialDocument)return `<div class="prompt-preview-empty prompt-loading tutorial-preview-empty" aria-live="polite">${icon('refresh')}<h2>Lendo tutorial…</h2><p>Consultando o arquivo original no Obsidian.</p></div>`;
+ if(tutorialDocument.error)return `<div class="prompt-preview-empty tutorial-preview-empty"><span class="status-badge" data-tone="negative">Leitura não concluída</span><h2>Não foi possível ler esta nota</h2><p>${esc(tutorialDocument.error)}</p></div>`;
+ const name=tutorialDisplayName(tutorialSelectedPath.split('/').at(-1).replace(/\.md$/i,''));
+ return `<div class="prompt-preview-heading tutorial-preview-heading"><div><span class="prompt-preview-kicker">TUTORIAL / OBSIDIAN</span><h2>${esc(name)}</h2><small>${esc(tutorialSelectedPath)}</small></div><div class="prompt-preview-actions tutorial-preview-actions"><button class="secondary" id="copy-tutorial">${icon('check')}Copiar</button><button class="secondary" id="open-tutorial-note">Abrir nota</button></div></div><article class="markdown-reader prompt-preview-content tutorial-preview-content">${markdown(tutorialDocument.text||'')}</article>`;
+}
+function renderTutorialLibrary(){
+ const tree=$('#tutorial-tree'),list=$('#tutorial-list'),preview=$('#tutorial-preview');if(!tree||!list||!preview)return;
+ const data=tutorialData();
+ if(!data.folders.some(folder=>normalizedVaultPath(folder)===normalizedVaultPath(tutorialFolderPath)))tutorialFolderPath=data.root;
+ if(tutorialSelectedPath&&!data.documents.some(entry=>entry.path===tutorialSelectedPath)){tutorialSelectedPath='';tutorialDocument=null}
+ if(tutorialSelectedPath&&!tutorialIsInFolder(tutorialSelectedPath,tutorialFolderPath,data)){tutorialSelectedPath='';tutorialDocument=null}
+ tree.innerHTML=tutorialTreeNode(data.root,data);
+ list.innerHTML=tutorialListHTML(data);
+ preview.innerHTML=tutorialPreviewHTML();
+ $('#tutorial-folder-count').textContent=`${Math.max(0,data.folders.length-1)} ${Math.max(0,data.folders.length-1)===1?'pasta':'pastas'}`;
+ $('#tutorial-source-status').textContent=!data.exists?'Pasta ainda não encontrada no vault conectado':data.documents.length?`${data.documents.length} ${data.documents.length===1?'tutorial':'tutoriais'} disponíveis no vault conectado`:'Pasta conectada · nenhum arquivo .md encontrado ainda';
+ tree.querySelectorAll('[data-tutorial-folder]').forEach(button=>button.onclick=()=>{const path=button.dataset.tutorialFolder,children=tutorialFolderChildren(path,data);tutorialFolderPath=path;if(children.length&&normalizedVaultPath(path)!==normalizedVaultPath(data.root)){if(tutorialExpanded.has(path))tutorialExpanded.delete(path);else tutorialExpanded.add(path)}if(tutorialSelectedPath&&!tutorialIsInFolder(tutorialSelectedPath,path,data)){tutorialSelectedPath='';tutorialDocument=null}renderTutorialLibrary();button.focus({preventScroll:true})});
+ list.querySelectorAll('[data-tutorial-document]').forEach(button=>button.onclick=()=>selectTutorial(button.dataset.tutorialDocument));
+ $('#copy-tutorial')?.addEventListener('click',safe(async()=>{await call('copy',{text:tutorialDocument?.text||''});toast('Tutorial copiado.')}));
+ $('#open-tutorial-note')?.addEventListener('click',safe(()=>openNote(tutorialSelectedPath)));
+ bindMarkdown(preview);
+}
+async function selectTutorial(path){
+ const revision=modalRevision;tutorialSelectedPath=path;tutorialDocument=null;renderTutorialLibrary();
+ try{const document=await call('read',{path});if(revision!==modalRevision||!$('#modal').open||tutorialSelectedPath!==path)return;tutorialDocument={...document,relative:path};renderTutorialLibrary()}catch(error){if(revision===modalRevision){tutorialDocument={error:error.message};renderTutorialLibrary();toast(error.message)}}
+}
+async function tutorialsLibrary(){
+ tutorialFolderPath=tutorialRoot;tutorialSelectedPath='';tutorialQuery='';tutorialDocument=null;tutorialExpanded=new Set([tutorialRoot]);
+ try{await refresh()}catch(error){toast(error.message)}
+ modal(`<span class="step-label">OBSIDIAN / SISTEMA/TUTORIAIS</span><h1>Tutoriais</h1><p>Guias práticos organizados por campo de trabalho, sempre ligados à nota Markdown original no seu vault.</p><div class="prompt-library tutorial-library"><div class="prompt-library-toolbar tutorial-library-toolbar"><div class="prompt-library-source tutorial-library-source"><span class="status-badge" data-tone="info">Fonte local</span><span id="tutorial-source-status">Lendo o vault…</span></div><label class="search prompt-search tutorial-search">${icon('search')}<input id="tutorial-search" type="search" autocomplete="off" spellcheck="false" aria-label="Buscar tutoriais" placeholder="Buscar por título ou pasta…"></label></div><div class="prompt-library-layout tutorial-library-layout"><aside class="prompt-sidebar tutorial-sidebar" aria-label="Departamentos de tutoriais"><div class="prompt-pane-heading tutorial-pane-heading"><div><span>Departamentos</span><small id="tutorial-folder-count"></small></div></div><nav id="tutorial-tree" role="tree" aria-label="Pastas de tutoriais"></nav></aside><section class="prompt-catalog tutorial-catalog" aria-label="Lista de tutoriais"><div id="tutorial-list"></div></section><article id="tutorial-preview" class="prompt-preview tutorial-preview" aria-label="Pré-visualização do tutorial"></article></div></div>${actions('<button class="secondary" id="refresh-tutorials">Reler Obsidian</button>')}`,{family:'tutorials',focus:'#tutorial-search',key:'tutorial-library'});
+ $('#tutorials').setAttribute('aria-expanded','true');renderTutorialLibrary();
+ $('#tutorial-search').oninput=event=>{tutorialQuery=event.target.value;tutorialSelectedPath='';tutorialDocument=null;renderTutorialLibrary()};
+ $('#refresh-tutorials').onclick=safe(async()=>{await refresh();tutorialDocument=null;tutorialSelectedPath='';renderTutorialLibrary();toast('Tutoriais relidos do Obsidian.')});
+}
+
 function settings(){
  settingsTrail=true;
  const row=(id,name,description,ic='chevron')=>`<button class="setting-row" id="${id}"><span><strong>${name}</strong><small>${description}</small></span>${icon(ic)}</button>`;
@@ -383,7 +497,7 @@ async function startJournal(){
  const data=await call('replayData');if(!data.events?.length)throw Error('Nenhum histórico de instalação disponível.');
  clearInterval(timer);timer=null;replaySession={...data,kind:'journal'};cursor=0;replay=true;closeModal();projectReplay();
 }
-$('#search').onclick=()=>openSearch();$('#refresh').onclick=safe(refresh);$('#settings').onclick=settings;$('#prompts').onclick=safe(promptLibrary);
+$('#search').onclick=()=>openSearch();$('#refresh').onclick=safe(refresh);$('#settings').onclick=settings;$('#prompts').onclick=safe(promptLibrary);$('#tutorials').onclick=safe(tutorialsLibrary);
 $('#tools').onclick=()=>plugin();$('#conversations').onclick=safe(conversations);$('#instructions').onclick=safe(instructions);
 $('#density').oninput=renderAtlas;$('#motion').checked=matchMedia('(prefers-reduced-motion: reduce)').matches;
 $('#motion').onchange=()=>{document.body.classList.toggle('reduced',$('#motion').checked);renderAtlas()};

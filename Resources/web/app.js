@@ -2,6 +2,7 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const paths={lock:'M6 10h12v11H6z M8 10V6a4 4 0 0 1 8 0v4 M12 14v3',folder:'M3 6h6l2 2h10v12H3z M3 6V4h6l2 2h10v2',note:'M6 3h8l4 4v14H6z M14 3v5h4 M9 12h6 M9 15h6 M9 18h5',search:'M16 16l5 5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',code:'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 3l-4 18',megaphone:'M3 9v6h5l12 5V4L8 9z M8 15l2 6h3l-2-5',shield:'M12 2l9 4v6c0 5-6 9-9 10-3-1-9-5-9-10V6z M8 12l3 3 5-6',chart:'M3 21h19 M5 18v-5h3v5 M11 18V9h3v9 M17 18V4h3v14 M4 9l7-5 4 1 6-4',person:'M17 7a5 5 0 1 1-10 0 5 5 0 0 1 10 0 M3 22v-3a9 9 0 0 1 18 0v3z',chat:'M3 3h18v14H9l-6 4z M7 8h10 M7 12h7',book:'M5 3h15v19H5a2 2 0 0 1 0-4h15 M5 3a2 2 0 0 0-2 2v15 M8 7h8 M8 11h6',tool:'M14 3a6 6 0 0 0-7 8l-5 7 4 4 7-7a6 6 0 0 0 8-7l-5 4-4-4z',mail:'M2 5h20v15H2z M2 5l10 8L22 5',brain:'M8 3a4 4 0 0 0-4 6 5 5 0 0 0 0 8 4 4 0 0 0 8 3V5a3 3 0 0 0-4-2 M16 3a4 4 0 0 1 4 6 5 5 0 0 1 0 8 4 4 0 0 1-8 3 M5 10l3 2 M19 10l-3 2',sliders:'M2 5h7 M15 5h7 M2 12h12 M20 12h2 M2 19h3 M11 19h11 M9 2v6h6V2z M14 9v6h6V9z M5 16v6h6v-6z'};
 Object.assign(paths,{orbit:'M4 12a8 8 0 1 0 16 0a8 8 0 1 0-16 0 M2 17c2 3 21-6 20-10s-21 5-20 10',sidebar:'M3 4h18v16H3z M9 4v16',history:'M3 11a9 9 0 1 1 2 7 M3 4v7h7 M12 7v5l3 2',observatory:'M3 12s3-7 9-7 9 7 9 7-3 7-9 7-9-7-9-7 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',minimize:'M5 12h14',play:'M8 5l12 7-12 7Z',pause:'M8 5v14 M16 5v14',refresh:'M20 7a9 9 0 1 0 1 8 M20 2v6h-6',live:'M12 8v8 M8 12h8 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',fit:'M8 3H3v5 M16 3h5v5 M3 16v5h5 M21 16v5h-5 M8 12h8 M12 8v8',back:'M9 5l-6 6 6 6 M3 11h12a6 6 0 0 1 6 6',close:'M6 6l12 12 M18 6L6 18',chevron:'M9 5l7 7-7 7',check:'M5 12l4 4L19 6'});
+paths.prompts='M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z M8 8h8 M8 12h6 M8 16h4 M17 2v4 M15 4h4';
 function icon(name,cls=''){return `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.note}"/></svg>`}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 $$('[data-icon]').forEach(e=>e.outerHTML=icon(e.dataset.icon));$('#settings').innerHTML=icon('sliders');$('#lock').innerHTML=icon('lock');
@@ -13,6 +14,9 @@ const colors=['#dba17c','#91b5ed','#7bc8b4','#d9c276','#b29bd7','#92c399','#d49c
 const positions=[[292,132],[564,130],[678,313],[164,310],[248,491],[600,485],[424,574]];
 let modalOrigin=null, modalRevision=0, modalDirty=false, settingsTrail=false;
 let modalSequence=0,modalHistory=[],modalPage=null;
+const promptRoot='SISTEMA/prompts';
+let promptFolderPath=promptRoot,promptSelectedPath='',promptQuery='',promptDocument=null;
+let promptExpanded=new Set([promptRoot]);
 function toast(text){
  if(!$('#lock-screen').hidden)return;
  if($('#modal').open){let notice=$('.modal-notice');if(!notice){notice=document.createElement('div');notice.className='modal-notice';notice.setAttribute('role','alert');$('.modal-body').prepend(notice)}notice.textContent=text;return}
@@ -81,6 +85,7 @@ $('#modal').addEventListener('click',e=>{if(e.target.closest('[data-close]')||(e
 $('#modal').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();closeModal()}});
 $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal()});
 $('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));modalRevision=++modalSequence;modalDirty=false;settingsTrail=false;modalHistory=[];modalPage=null;hideTooltip();const origin=modalOrigin;modalOrigin=null;if(origin?.isConnected&&!$('#app').inert)origin.focus({preventScroll:true});atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused)});
+$('#modal').addEventListener('close',()=>$('#prompts')?.setAttribute('aria-expanded','false'));
 function skills(id){return visibleEntries().filter(e=>!e.directory&&e.path.startsWith(`SISTEMA/skills/${id}/`)&&e.name==='SKILL.md')}
 function title(e){return e.name==='SKILL.md'?e.path.split('/').slice(-2,-1)[0]:e.name.replace(/\.md$/,'')}
 function entryLocation(e){const collection=state.collections.find(c=>e.path.startsWith(`SISTEMA/skills/${c.id}/`));return collection?`${collection.name} · ${e.name==='SKILL.md'?'Skill':'Documento'}`:e.path.split('/').slice(0,-1).slice(-2).join(' / ')||'Pasta principal'}
@@ -220,6 +225,87 @@ function plugin(id){
 async function conversations(){const revision=modalRevision;const items=await call('conversations');if(revision!==modalRevision)return;modal(`<span class="step-label">CONVERSAS / IMPORTAÇÃO DELIMITADA</span><h1>Conversas Codex</h1><p>Importe uma exportação de conversas para consultá-las aqui.</p><div id="conversation-list">${items.map((c,i)=>`<button class="result" data-conversation="${i}">${icon('chat')}<div><strong>${esc(c.title)}</strong><small>${esc(c.source)}</small></div></button>`).join('')||'<p class="empty">Nenhuma conversa importada.</p>'}</div>${actions('<button class="primary" id="import-conversations">Importar conversas…</button>')}`);$('#import-conversations').onclick=safe(async()=>{await call('importConversations');await conversations()});$$('[data-conversation]').forEach(e=>e.onclick=()=>{const c=items[Number(e.dataset.conversation)];modal(`<h1>${esc(c.title)}</h1><div class="source">${esc(c.source)} · conteúdo importado</div><pre>${esc(c.messages.map(m=>m.role.toUpperCase()+'\n'+m.text).join('\n\n'))}</pre>${actions()}`)})}
 async function instructions(){const revision=modalRevision;const items=await call('instructions');if(revision!==modalRevision)return;modal(`<h1>Instruções dos projetos</h1><p>Consulte as instruções dos projetos que você conectou.</p>${items.map((e,i)=>`<button class="result" data-instruction="${i}">${icon('book')}<div><strong>${esc(e.path)}</strong><small>${esc(e.source.split('/').at(-1))}</small></div></button>`).join('')||'<p class="empty">Conecte um projeto para ver suas instruções.</p>'}${actions('<button class="primary" id="add-project">Autorizar projeto…</button>')}`);$('#add-project').onclick=safe(async()=>{await call('chooseProject');await instructions()});$$('[data-instruction]').forEach(e=>e.onclick=safe(async()=>{const doc=await call('readInstruction',items[Number(e.dataset.instruction)]);modal(`<h1>Instrução encontrada</h1><div class="source">${esc(doc.path)}</div><pre>${esc(doc.text)}</pre>${actions()}`)}))}
 function activity(){modal(`<h1>Histórico técnico</h1><p>Hooks observam apenas caminhos suportados e confiados no Codex. Ferramentas hosted podem não emitir todos os eventos. Stop encerra um turno; silêncio não prova ociosidade, sucesso ou falha.</p><span class="pill">${state.events.filter(e=>e.source==='codex-hook').length} hooks recebidos</span><span class="pill">Sem observação total</span><pre>${esc(state.events.slice(-50).map(e=>`${e.received_at} · ${e.source}\n${e.event_type}: ${e.sanitized_summary}`).join('\n\n')||'Nenhum recibo recebido. A integração não foi comprovada nesta instalação.')}</pre>${actions('<button class="secondary" id="journal-replay">Reproduzir histórico</button>')}`);$('#journal-replay').onclick=safe(startJournal)}
+function promptDisplayName(path){
+ const raw=path===promptRoot?'Todos os prompts':String(path).split('/').at(-1)||path;
+ return raw.replace(/[-_]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+function promptParent(path){return String(path).split('/').slice(0,-1).join('/')}
+function promptIsInFolder(path,folder){return folder===promptRoot||path===folder||path.startsWith(folder+'/')}
+function promptData(){
+ const folders=new Set([promptRoot]),documents=[];
+ for(const entry of state.entries){
+  const path=String(entry.path||'');
+  if(path!==promptRoot&&!path.startsWith(promptRoot+'/'))continue;
+  if(entry.directory){folders.add(path);continue}
+  if(!path.toLowerCase().endsWith('.md'))continue;
+  documents.push(entry);
+  const parts=path.split('/');
+  for(let i=2;i<parts.length;i++)folders.add(parts.slice(0,i).join('/'));
+ }
+ return {folders:[...folders],documents};
+}
+function promptFolderChildren(path,data){
+ return data.folders.filter(folder=>folder!==path&&promptParent(folder)===path).sort((a,b)=>promptDisplayName(a).localeCompare(promptDisplayName(b),'pt-BR'));
+}
+function promptFolderCount(path,data){return data.documents.filter(entry=>promptIsInFolder(entry.path,path)).length}
+function promptTreeNode(path,data,depth=0){
+ const children=promptFolderChildren(path,data),expanded=path===promptRoot||promptExpanded.has(path),active=path===promptFolderPath;
+ const count=promptFolderCount(path,data);
+ return `<div class="prompt-tree-node" style="--prompt-depth:${depth}"><button class="prompt-folder-button${active?' active':''}" data-prompt-folder="${esc(path)}" role="treeitem"${active?' aria-current="page"':''}${children.length?` aria-expanded="${expanded}"`:''}>${icon('folder')}<span><strong>${esc(promptDisplayName(path))}</strong><small>${count} ${count===1?'prompt':'prompts'}</small></span>${children.length?icon('chevron','prompt-folder-chevron'):''}</button>${expanded&&children.length?`<div class="prompt-tree-children" role="group">${children.map(child=>promptTreeNode(child,data,depth+1)).join('')}</div>`:''}</div>`;
+}
+function promptListItems(data){
+ const terms=promptQuery.trim().toLocaleLowerCase('pt-BR').split(/\s+/).filter(Boolean);
+ return data.documents.filter(entry=>promptIsInFolder(entry.path,promptFolderPath)).filter(entry=>{
+  const haystack=(promptDisplayName(entry.name.replace(/\.md$/i,''))+' '+entry.path).toLocaleLowerCase('pt-BR');
+  return terms.every(term=>haystack.includes(term));
+ }).sort((a,b)=>promptDisplayName(a.name).localeCompare(promptDisplayName(b.name),'pt-BR'));
+}
+function promptListHTML(data){
+ const items=promptListItems(data),count=items.length,scope=promptFolderPath===promptRoot?'todos os prompts':promptDisplayName(promptFolderPath);
+ const heading=promptQuery?`Resultados em ${esc(scope)}`:promptDisplayName(promptFolderPath);
+ return `<div class="prompt-pane-heading"><div><span>${esc(heading)}</span><small>${count} ${count===1?'prompt encontrado':'prompts encontrados'}</small></div></div>${count?`<div class="prompt-list-items" role="listbox" aria-label="Prompts encontrados">${items.map(entry=>{const selected=entry.path===promptSelectedPath;const relative=entry.path.slice(promptRoot.length+1).replace(/\.md$/i,'');return `<button class="prompt-list-item${selected?' active':''}" data-prompt-document="${esc(entry.path)}" role="option" aria-selected="${selected}">${icon('note','prompt-list-icon')}<span><strong>${esc(promptDisplayName(entry.name.replace(/\.md$/i,'')))}</strong><small>${esc(relative)}</small></span><span class="prompt-list-arrow" aria-hidden="true">↗</span></button>`}).join('')}</div>`:`<div class="prompt-empty">${icon('folder')}<strong>${promptQuery?'Nenhum prompt encontrado':'Esta pasta ainda está vazia'}</strong><p>${promptQuery?'Tente outro termo ou escolha outro departamento.':'Crie ou mova um arquivo .md para esta pasta no Obsidian.'}</p></div>`}`;
+}
+function promptPreviewHTML(){
+ if(!promptSelectedPath)return `<div class="prompt-preview-empty">${icon('prompts')}<h2>Escolha um prompt</h2><p>Selecione um arquivo na biblioteca para ler, copiar ou abrir a nota original.</p></div>`;
+ if(!promptDocument)return `<div class="prompt-preview-empty prompt-loading" aria-live="polite">${icon('refresh')}<h2>Lendo prompt…</h2><p>Consultando o arquivo original no Obsidian.</p></div>`;
+ const name=promptDisplayName(promptSelectedPath.split('/').at(-1).replace(/\.md$/i,''));
+ return `<div class="prompt-preview-heading"><div><span class="prompt-preview-kicker">PROMPT / OBSIDIAN</span><h2>${esc(name)}</h2><small>${esc(promptSelectedPath)}</small></div><div class="prompt-preview-actions"><button class="secondary" id="copy-prompt">${icon('check')}Copiar</button><button class="secondary" id="open-prompt-note">Abrir nota</button></div></div><article class="markdown-reader">${markdown(promptDocument.text||'')}</article>`;
+}
+function renderPromptLibrary(){
+ const tree=$('#prompt-tree'),list=$('#prompt-list'),preview=$('#prompt-preview');if(!tree||!list||!preview)return;
+ const data=promptData();
+ if(!data.folders.includes(promptFolderPath))promptFolderPath=promptRoot;
+ if(promptSelectedPath&&!data.documents.some(entry=>entry.path===promptSelectedPath)){promptSelectedPath='';promptDocument=null}
+ if(promptSelectedPath&&!promptIsInFolder(promptSelectedPath,promptFolderPath)){promptSelectedPath='';promptDocument=null}
+ tree.innerHTML=promptTreeNode(promptRoot,data);
+ list.innerHTML=promptListHTML(data);
+ preview.innerHTML=promptPreviewHTML();
+ $('#prompt-folder-count').textContent=`${data.folders.length-1} ${data.folders.length-1===1?'pasta':'pastas'}`;
+ $('#prompt-source-status').textContent=data.documents.length?`${data.documents.length} ${data.documents.length===1?'prompt':'prompts'} disponíveis no vault conectado`:'Nenhum arquivo .md encontrado ainda';
+ tree.querySelectorAll('[data-prompt-folder]').forEach(button=>button.onclick=()=>{
+  const path=button.dataset.promptFolder,children=promptFolderChildren(path,data);
+  promptFolderPath=path;if(children.length&&path!==promptRoot){if(promptExpanded.has(path))promptExpanded.delete(path);else promptExpanded.add(path)}
+  if(promptSelectedPath&&!promptIsInFolder(promptSelectedPath,path)){promptSelectedPath='';promptDocument=null}
+  renderPromptLibrary();button.focus({preventScroll:true});
+ });
+ list.querySelectorAll('[data-prompt-document]').forEach(button=>button.onclick=()=>selectPrompt(button.dataset.promptDocument));
+ $('#copy-prompt')?.addEventListener('click',safe(async()=>{await call('copy',{text:promptDocument?.text||''});toast('Prompt copiado.')}));
+ $('#open-prompt-note')?.addEventListener('click',safe(()=>openNote(promptSelectedPath)));
+ bindMarkdown(preview);
+}
+async function selectPrompt(path){
+ const revision=modalRevision;promptSelectedPath=path;promptDocument=null;renderPromptLibrary();
+ try{const document=await call('read',{path});if(revision!==modalRevision||!$('#modal').open||promptSelectedPath!==path)return;promptDocument={...document,relative:path};renderPromptLibrary()}catch(error){if(revision===modalRevision)toast(error.message)}
+}
+async function promptLibrary(){
+ promptFolderPath=promptRoot;promptSelectedPath='';promptQuery='';promptDocument=null;promptExpanded=new Set([promptRoot]);
+ try{await refresh()}catch(error){toast(error.message)}
+ modal(`<span class="step-label">OBSIDIAN / SISTEMA/PROMPTS</span><h1>Biblioteca de prompts</h1><p>Uma biblioteca viva: a árvore abaixo acompanha as pastas e os arquivos Markdown do seu vault conectado.</p><div class="prompt-library"><div class="prompt-library-toolbar"><div class="prompt-library-source"><span class="status-badge" data-tone="info">Fonte local</span><span id="prompt-source-status">Lendo o vault…</span></div><label class="search prompt-search">${icon('search')}<input id="prompt-search" type="search" autocomplete="off" spellcheck="false" aria-label="Buscar prompts" placeholder="Buscar por nome ou pasta…"></label></div><div class="prompt-library-layout"><aside class="prompt-sidebar" aria-label="Departamentos de prompts"><div class="prompt-pane-heading"><div><span>Departamentos</span><small id="prompt-folder-count"></small></div></div><nav id="prompt-tree" role="tree" aria-label="Pastas de prompts"></nav></aside><section class="prompt-catalog" aria-label="Lista de prompts"><div id="prompt-list"></div></section><article id="prompt-preview" class="prompt-preview" aria-label="Pré-visualização do prompt"></article></div></div>${actions('<button class="secondary" id="refresh-prompts">Reler Obsidian</button>')}`,{family:'prompts',focus:'#prompt-search',key:'prompt-library'});
+ $('#prompts').setAttribute('aria-expanded','true');renderPromptLibrary();
+ $('#prompt-search').oninput=event=>{promptQuery=event.target.value;promptSelectedPath='';promptDocument=null;renderPromptLibrary()};
+ $('#refresh-prompts').onclick=safe(async()=>{await refresh();promptDocument=null;promptSelectedPath='';renderPromptLibrary();toast('Biblioteca relida do Obsidian.')});
+}
+
 function settings(){
  settingsTrail=true;
  const row=(id,name,description,ic='chevron')=>`<button class="setting-row" id="${id}"><span><strong>${name}</strong><small>${description}</small></span>${icon(ic)}</button>`;
@@ -297,7 +383,7 @@ async function startJournal(){
  const data=await call('replayData');if(!data.events?.length)throw Error('Nenhum histórico de instalação disponível.');
  clearInterval(timer);timer=null;replaySession={...data,kind:'journal'};cursor=0;replay=true;closeModal();projectReplay();
 }
-$('#search').onclick=()=>openSearch();$('#refresh').onclick=safe(refresh);$('#settings').onclick=settings;
+$('#search').onclick=()=>openSearch();$('#refresh').onclick=safe(refresh);$('#settings').onclick=settings;$('#prompts').onclick=safe(promptLibrary);
 $('#tools').onclick=()=>plugin();$('#conversations').onclick=safe(conversations);$('#instructions').onclick=safe(instructions);
 $('#density').oninput=renderAtlas;$('#motion').checked=matchMedia('(prefers-reduced-motion: reduce)').matches;
 $('#motion').onchange=()=>{document.body.classList.toggle('reduced',$('#motion').checked);renderAtlas()};

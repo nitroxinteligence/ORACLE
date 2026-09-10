@@ -73,27 +73,6 @@ body.reduce-transparency .atlas-context{background:#1c1c1c;backdrop-filter:none;
 .knowledge-empty{position:absolute;left:var(--atlas-center-x,50%);top:calc(50% + 80px);transform:translateX(-50%);max-width:280px;text-align:center;color:var(--muted);font-size:12px;pointer-events:none}
 .plugin-fallback svg{color:#fff;width:22px;height:22px}
 
-/* Prompt constellations mirror the real SISTEMA/prompts tree around the two area roots. */
-.prompt-orbit-layer{pointer-events:none;transition:opacity 200ms ease,filter 200ms ease}
-.prompt-area-orbit{pointer-events:none}
-.prompt-area-core{fill:none;stroke:var(--prompt-accent);stroke-width:1.1;stroke-opacity:.7;vector-effect:non-scaling-stroke}
-.prompt-area-core-halo{fill:var(--prompt-accent);fill-opacity:.08;stroke:none}
-.prompt-orbit-ring{fill:none;stroke:var(--prompt-accent);stroke-width:.7;stroke-opacity:.18;vector-effect:non-scaling-stroke}
-.prompt-orbit-current{fill:none;stroke:var(--prompt-accent);stroke-width:1;stroke-opacity:.48;stroke-dasharray:10 22 2 38;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center;animation:prompt-orbit-spin 54s linear infinite}
-.prompt-orbit-ball{opacity:0;animation:prompt-ball-appear 520ms var(--ease-out) var(--prompt-delay,0ms) forwards}
-.prompt-ball{fill:var(--prompt-accent);fill-opacity:.72;stroke:#fff;stroke-opacity:.38;stroke-width:.55;vector-effect:non-scaling-stroke}
-.prompt-orbit-ball.folder .prompt-ball{fill:#101216;fill-opacity:.95;stroke:var(--prompt-accent);stroke-opacity:.85;stroke-width:1}
-.prompt-ball-ring{fill:none;stroke:var(--prompt-accent);stroke-opacity:.24;stroke-width:.65;vector-effect:non-scaling-stroke}
-.prompt-area-label{fill:#e1e2e4;font-size:8px;font-weight:520;letter-spacing:.14em;pointer-events:none}
-.prompt-area-count{fill:#9fa5ae;font-size:7px;letter-spacing:.04em;pointer-events:none}
-.prompt-overflow{pointer-events:none}
-.prompt-overflow-marker{fill:#121418;stroke:var(--prompt-accent);stroke-width:1;stroke-opacity:.75;vector-effect:non-scaling-stroke}
-.prompt-overflow-label{fill:#d4d7dc;font-size:6px;pointer-events:none}
-@keyframes prompt-orbit-spin{to{transform:rotate(360deg)}}
-@keyframes prompt-ball-appear{from{opacity:0}to{opacity:1}}
-.ambient-paused .prompt-orbit-current,.window-hidden .prompt-orbit-current,.motion-reduced .prompt-orbit-current{animation-play-state:paused}
-#atlas.specialist-spotlight .prompt-orbit-layer{opacity:.4;filter:blur(1px)}
-
 /* Specialist names are headings in screen space, not tooltip bubbles. */
 .specialist-hover-name{position:absolute;z-index:2;margin:0;transform:translateX(-50%);pointer-events:none;color:#f2f2f2;font-size:20px;font-weight:500;line-height:1.25;letter-spacing:-.3px;text-align:center;overflow-wrap:anywhere;text-shadow:0 2px 12px #0008}
 .category-node.specialist-name-active .category-name{visibility:hidden}
@@ -102,5 +81,5 @@ body.reduce-transparency .atlas-context{background:#1c1c1c;backdrop-filter:none;
 #atlas .hover-muted{opacity:.4;filter:blur(1.25px)}
 #atlas .hover-focused{filter:none}
 #atlas .atlas-group.hover-focused .group-name{opacity:.9}
-#atlas .plugin-orbit-layer,#atlas .knowledge-orbit-layer,#atlas .verified-connectors,#atlas .prompt-orbit-layer{transition:opacity 200ms ease,filter 200ms ease}
-#atlas.specialist-spotlight .plugin-orbit-layer,#atlas.specialist-spotlight .knowledge-orbit-layer,#atlas.specialist-spotlight .verified-connectors,#atlas.specialist-spotlight .prompt-orbit-layer{opacity:.4;filter:blur(1px)}
+#atlas .plugin-orbit-layer,#atlas .knowledge-orbit-layer,#atlas .verified-connectors{transition:opacity 200ms ease,filter 200ms ease}
+#atlas.specialist-spotlight .plugin-orbit-layer,#atlas.specialist-spotlight .knowledge-orbit-layer,#atlas.specialist-spotlight .verified-connectors{opacity:.4;filter:blur(1px)}

@@ -104,3 +104,18 @@ html[data-input-mode=keyboard] :is(button,a,summary,input[type=checkbox],input[t
 .plugins-list-toolbar .icon-button{width:30px;height:30px;padding:5px}
 body.reduce-transparency #app .panel{background:#1c1e23;backdrop-filter:none;-webkit-backdrop-filter:none}
 @media(prefers-reduced-transparency:reduce){#app .panel{background:#1c1e23;backdrop-filter:none;-webkit-backdrop-filter:none}}
+/* Prompt library panes keep their own scroll position and expose the rail. */
+dialog[data-family=prompts] #modal-content{height:calc(100vh - 48px)}
+dialog[data-family=prompts] .modal-body{display:flex;flex-direction:column;overflow:hidden}
+dialog[data-family=prompts] .prompt-library{height:auto;flex:1 1 auto;min-height:0}
+dialog[data-family=prompts] .prompt-library-layout{flex:1 1 auto;grid-template-rows:minmax(0,1fr);height:auto;min-height:0;max-height:none}
+dialog[data-family=prompts] .prompt-sidebar,dialog[data-family=prompts] .prompt-catalog{overflow-x:hidden;overflow-y:scroll;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#737984 #1b1e23}
+dialog[data-family=prompts] .prompt-preview{display:flex;flex-direction:column;overflow:hidden;scrollbar-gutter:stable}
+dialog[data-family=prompts] .prompt-preview-content{min-height:0;overflow-x:hidden;overflow-y:scroll;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:#737984 #15181d;padding-right:12px}
+dialog[data-family=prompts] .prompt-sidebar::-webkit-scrollbar,dialog[data-family=prompts] .prompt-catalog::-webkit-scrollbar,dialog[data-family=prompts] .prompt-preview-content::-webkit-scrollbar{width:10px}
+dialog[data-family=prompts] .prompt-sidebar::-webkit-scrollbar-track,dialog[data-family=prompts] .prompt-catalog::-webkit-scrollbar-track,dialog[data-family=prompts] .prompt-preview-content::-webkit-scrollbar-track{background:#1b1e23;border-left:1px solid #ffffff0a;border-radius:8px}
+dialog[data-family=prompts] .prompt-sidebar::-webkit-scrollbar-thumb,dialog[data-family=prompts] .prompt-catalog::-webkit-scrollbar-thumb,dialog[data-family=prompts] .prompt-preview-content::-webkit-scrollbar-thumb{background:#737984;border:2px solid #1b1e23;border-radius:8px}
+dialog[data-family=prompts] .prompt-preview-content::-webkit-scrollbar-track{background:#15181d}
+dialog[data-family=prompts] .prompt-preview-content::-webkit-scrollbar-thumb{border-color:#15181d}
+@media(max-width:960px){dialog[data-family=prompts] .prompt-library-layout{grid-template-rows:minmax(0,1fr) minmax(0,1fr)}dialog[data-family=prompts] .prompt-sidebar,dialog[data-family=prompts] .prompt-catalog{max-height:none}dialog[data-family=prompts] .prompt-preview{max-height:none;min-height:0}}
+@media(max-width:640px){dialog[data-family=prompts] .prompt-library-layout{grid-template-rows:minmax(180px,.8fr) minmax(220px,1fr) minmax(260px,1.2fr)}dialog[data-family=prompts] .prompt-sidebar,dialog[data-family=prompts] .prompt-catalog{max-height:none}dialog[data-family=prompts] .prompt-preview{max-height:none;min-height:0}dialog[data-family=prompts] .prompt-preview-content{padding-right:10px}}

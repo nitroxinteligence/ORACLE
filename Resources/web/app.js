@@ -269,7 +269,7 @@ function promptPreviewHTML(){
  if(!promptSelectedPath)return `<div class="prompt-preview-empty">${icon('prompts')}<h2>Escolha um prompt</h2><p>Selecione um arquivo na biblioteca para ler, copiar ou abrir a nota original.</p></div>`;
  if(!promptDocument)return `<div class="prompt-preview-empty prompt-loading" aria-live="polite">${icon('refresh')}<h2>Lendo prompt…</h2><p>Consultando o arquivo original no Obsidian.</p></div>`;
  const name=promptDisplayName(promptSelectedPath.split('/').at(-1).replace(/\.md$/i,''));
- return `<div class="prompt-preview-heading"><div><span class="prompt-preview-kicker">PROMPT / OBSIDIAN</span><h2>${esc(name)}</h2><small>${esc(promptSelectedPath)}</small></div><div class="prompt-preview-actions"><button class="secondary" id="copy-prompt">${icon('check')}Copiar</button><button class="secondary" id="open-prompt-note">Abrir nota</button></div></div><article class="markdown-reader">${markdown(promptDocument.text||'')}</article>`;
+ return `<div class="prompt-preview-heading"><div><span class="prompt-preview-kicker">PROMPT / OBSIDIAN</span><h2>${esc(name)}</h2><small>${esc(promptSelectedPath)}</small></div><div class="prompt-preview-actions"><button class="secondary" id="copy-prompt">${icon('check')}Copiar</button><button class="secondary" id="open-prompt-note">Abrir nota</button></div></div><article class="markdown-reader prompt-preview-content">${markdown(promptDocument.text||'')}</article>`;
 }
 function renderPromptLibrary(){
  const tree=$('#prompt-tree'),list=$('#prompt-list'),preview=$('#prompt-preview');if(!tree||!list||!preview)return;

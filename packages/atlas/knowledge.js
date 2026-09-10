@@ -1,10 +1,10 @@
 /** Canonical Obsidian paths only. Folder membership is not inferred semantic knowledge. */
-import {hash,boundsOf} from './layout.js';
+import {boundsOf} from './layout.js';
 export const internalConnectors=new Set(['connector_openai_codex_document_control','connector_openai_hotline','connector_openai_safety_settings']);
 export function orbitPlugins(plugins=[]){return plugins.filter(p=>p.status==='connected'&&!internalConnectors.has(p.id)).sort((a,b)=>a.id.localeCompare(b.id))}
 export const areaDefinitions=[
-  {id:'personal',name:'Pessoal',path:'AREAS/pessoal',color:'#D4A1CC',aliases:['pessoal','personal'],palette:['#D4A1CC','#B4A0E5','#DDB08D','#A2C7B4']},
-  {id:'professional',name:'Profissional',path:'AREAS/profissional',color:'#83B9D7',aliases:['profissional','professional'],palette:['#83B9D7','#A2AFE4','#CEC08B','#8CBFAA']},
+  {id:'personal',name:'Pessoal',path:'AREAS/pessoal',color:'#D4A1CC',aliases:['pessoal','personal']},
+  {id:'professional',name:'Profissional',path:'AREAS/profissional',color:'#83B9D7',aliases:['profissional','professional']},
 ];
 const inside=(path,root)=>path===root||path.startsWith(root+'/');
 const plain=value=>String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -18,7 +18,8 @@ export function areas(entries=[]){
   return {...area,path,exists:!!exact||!!alias||descendants.length>0,notes:descendants.filter(e=>!e.directory).length,folders:descendants.filter(e=>e.directory).length};
  });
 }
-export function colorFor(area,path){return area.palette[hash(path)%area.palette.length]}
+// Every folder and note inherits its area's fixed color, including nested scenes.
+export function colorFor(area){return area.color}
 export function areaEntries(entries,area){return entries.filter(e=>e.path!==area.path&&inside(e.path,area.path))}
 export function children(entries,path){return entries.filter(e=>e.path.slice(0,e.path.lastIndexOf('/'))===path).sort((a,b)=>Number(b.directory)-Number(a.directory)||a.path.localeCompare(b.path))}
 export function label(entry){return entry.name?.replace(/\.md$/i,'')||entry.path.split('/').at(-1).replace(/\.md$/i,'')}
@@ -49,15 +50,15 @@ export function orbit(entries=[],pluginRadius=105){
  }
  return {areas:roots,points,rings,radius:rings.at(-1)||pluginRadius+58};
 }
-export function resolve(entries,navigation){
- const area=areas(entries).find(a=>a.id===navigation.area)||areas(entries)[0];
+export function resolve(entries,navigation,definitions=areas(entries)){
+ const area=definitions.find(a=>a.id===navigation.area)||definitions[0];
  const requested=String(navigation.path||area.path);
  const allowed=inside(requested,area.path)&&!requested.split('/').includes('..');
  const exists=requested===area.path||entries.some(e=>e.directory&&e.path===requested);
  return {...navigation,area:area.id,path:allowed&&exists?requested:area.path,page:Math.max(0,Number(navigation.page)||0)};
 }
-export function plan(entries,navigation){
- const route=resolve(entries,navigation),area=areas(entries).find(a=>a.id===route.area);
+export function plan(entries,navigation,definitions=areas(entries)){
+ const route=resolve(entries,navigation,definitions),area=definitions.find(a=>a.id===route.area);
  const all=children(entries,route.path),pages=Math.max(1,Math.ceil(all.length/50));route.page=Math.min(route.page,pages-1);
  const rows=all.slice(route.page*50,route.page*50+50),id='knowledge:'+route.path;
  const root={id,name:route.path===area.path?area.name:route.path.split('/').at(-1),icon:'folder',x:0,y:0,angle:-Math.PI/2,color:route.path===area.path?area.color:colorFor(area,route.path),skills:entries.filter(e=>!e.directory&&e.path.startsWith(route.path+'/')),groups:[],knowledge:true};

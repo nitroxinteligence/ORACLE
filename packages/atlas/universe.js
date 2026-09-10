@@ -8,7 +8,11 @@ import * as shaders from './shaders.js';
 import { FormationTimeline, revealAt, Samples, QualityGovernor, pixelRatio, pluginOrbitRadius, orbitalPosition } from './motion.js';
 import * as layout from './layout.js';
 import * as knowledge from './knowledge.js';
+import * as prompts from './prompts.js';
+import * as atmosphere from './atmosphere.js';
 window.OracleKnowledge = knowledge;
+window.OraclePrompts = prompts;
+window.OracleAtmosphere = atmosphere;
 window.OracleLayout = layout;
 window.OracleMotion = { FormationTimeline, revealAt, pluginOrbitRadius, orbitalPosition };
 
@@ -121,15 +125,7 @@ class OracleUniverse {
     this.galaxy = this.mesh(this.plane, shaders.planeVertex, shaders.galaxyFragment);
     this.galaxy.scale.set(1120, 730, 1);
 
-    const starGeometry = new BufferGeometry();
-    const positions = [], seeds = [];
-    for (let i = 0; i < 78; i++) {
-      positions.push((seed(i + 2) - .5) * 1080, (seed(i + 901) - .5) * 720, -1);
-      seeds.push(seed(i + 31));
-    }
-    starGeometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
-    starGeometry.setAttribute('seed', new BufferAttribute(new Float32Array(seeds), 1));
-    this.stars = this.mesh(starGeometry, shaders.starVertex, shaders.starFragment, Points);
+    // Stars live in the static app-wide SVG, not inside the zoomable world.
     const orbitGeometry = new BufferGeometry(), orbitPositions = [], along = [], orders = [];
     [[185, 95], [288, 156], [395, 233]].forEach(([rx, ry], order) => {
       for (let i = 0; i < 160; i++) for (const end of [i, i + 1]) {
@@ -329,6 +325,7 @@ class OracleUniverse {
       if(this.model.connectorLayer)this.model.connectorLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       if(this.model.pluginLayer)this.model.pluginLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       if(this.model.knowledgeLayer)this.model.knowledgeLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
+      if(this.model.promptLayer)this.model.promptLayer.style.opacity=p===1?'':String(revealAt(p,'connector'));
       for(const n of this.model.nodes.values()){const visible=p===1||revealAt(p,'collection',n.index,0,this.model.nodes.size)>.15;n.g.style.pointerEvents=visible?'':'none';n.g.setAttribute('tabindex',visible?'0':'-1')}
       for(const l of this.model.leaves.values()){const visible=!l.retiring&&(p===1||revealAt(p,'skill',this.model.nodes.get(l.parent)?.index??0,l.index,this.model.nodes.size)>.15);l.g.style.pointerEvents=visible?'':'none';l.g.setAttribute('tabindex',visible?'0':'-1')}
       this.lastLabelProgress = p;

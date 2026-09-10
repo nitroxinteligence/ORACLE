@@ -9,7 +9,7 @@ $$('[data-icon]').forEach(e=>e.outerHTML=icon(e.dataset.icon));$('#settings').in
 const pending=new Map();let requestID=0;
 function call(method,params={}){return new Promise((resolve,reject)=>{if(!window.webkit?.messageHandlers.oracle){reject(Error('O aplicativo macOS é necessário. Este arquivo não é um app web.'));return}const id=String(++requestID);pending.set(id,{resolve,reject});window.webkit.messageHandlers.oracle.postMessage({id,method,params})})}
 window.oracleReply=(id,res)=>{const p=pending.get(id);if(!p)return;pending.delete(id);res.error?p.reject(Error(res.error)):p.resolve(res.value)};
-let state={entries:[],collections:[],events:[],config:{}},selected=null,view='map',query='',zoom=1,replay=false,cursor=0,timer=null,speed=1,readDocument=null;
+let state={entries:[],collections:[],events:[],config:{}},selected=null,view='map',query='',zoom=OracleAtlas.DEFAULT_ZOOM,replay=false,cursor=0,timer=null,speed=1,readDocument=null;
 const colors=['#dba17c','#91b5ed','#7bc8b4','#d9c276','#b29bd7','#92c399','#d49cae'];
 const positions=[[292,132],[564,130],[678,313],[164,310],[248,491],[600,485],[424,574]];
 let modalOrigin=null, modalRevision=0, modalDirty=false, settingsTrail=false;
@@ -131,7 +131,7 @@ let inspectorOpenedByMap=false;
 let atlasController=null, selectedSkill=null, visualPaused=false,replaySession=null,replayProjection=null;
 function renderAtlas(){
  const installation=OracleInstallationVisual.projection(state);document.body.classList.toggle('setup-pending',installation.coreReady===false);
- if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf)=>{selected=id;selectedSkill=leaf;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onPlugin:id=>plugin(id),onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpen:safe(openNote),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
+ if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf)=>{selected=id;selectedSkill=leaf;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onPlugin:id=>plugin(id),onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
  atlasController.update({collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:state.codexPlugins?.plugins||[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||$('#modal').open});
 }
 function setView(next){view=next;$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#atlas').hidden=view!=='map';$('#results').hidden=view==='map';$('.map-tools').hidden=view!=='map';renderResults();atlasController?.setPaused(view!=='map'||document.hidden)}
@@ -317,6 +317,14 @@ async function promptLibrary(){
  $('#prompts').setAttribute('aria-expanded','true');renderPromptLibrary();
  $('#prompt-search').oninput=event=>{promptQuery=event.target.value;promptSelectedPath='';promptDocument=null;renderPromptLibrary()};
  $('#refresh-prompts').onclick=safe(async()=>{await refresh();promptDocument=null;promptSelectedPath='';renderPromptLibrary();toast('Biblioteca relida do Obsidian.')});
+}
+
+async function openPromptFromOrbit(path){
+ await promptLibrary();
+ if(!promptData().documents.some(entry=>entry.path===path)){toast('Este prompt não está mais no vault. A biblioteca foi atualizada.');return}
+ promptFolderPath=promptParent(path);
+ for(let folder=promptFolderPath;folder===promptRoot||folder.startsWith(promptRoot+'/');folder=promptParent(folder))promptExpanded.add(folder);
+ await selectPrompt(path);
 }
 
 function normalizedVaultPath(path){return String(path||'').replaceAll('\\','/').replace(/^\/+|\/+$/g,'').toLocaleLowerCase('pt-BR')}

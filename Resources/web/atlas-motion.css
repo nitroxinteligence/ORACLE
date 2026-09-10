@@ -62,11 +62,11 @@ body.reduce-transparency .atlas-context{background:#1c1c1c;backdrop-filter:none;
 #atlas:not([data-context="global"]) .category-name{display:block;opacity:1;fill:#eee}
 
 /* Real personal/professional folders and notes surround the plugin orbit. */
-.knowledge-orbit-layer{pointer-events:none}
+.knowledge-orbit-layer,.prompt-orbit-layer{pointer-events:none}
 .knowledge-orbit-ring{fill:none;stroke:#ffffff;stroke-opacity:.12;stroke-width:.7;vector-effect:non-scaling-stroke}
-.knowledge-orbit-node{pointer-events:auto;cursor:pointer;outline:none}
+.knowledge-orbit-node,.prompt-orbit-node{pointer-events:auto;cursor:pointer;outline:none}
 .knowledge-orbit-dot{stroke:#ffffff55;stroke-width:.6;vector-effect:non-scaling-stroke}
-.knowledge-orbit-node:hover .knowledge-orbit-dot,.knowledge-orbit-node:focus-visible .knowledge-orbit-dot{stroke:#fff;stroke-width:1.8}
+.knowledge-orbit-node:hover .knowledge-orbit-dot,.knowledge-orbit-node:focus-visible .knowledge-orbit-dot,.prompt-orbit-node:hover .knowledge-orbit-dot,.prompt-orbit-node:focus-visible .knowledge-orbit-dot{stroke:#fff;stroke-width:1.8}
 .three-enabled .knowledge-node .skill-dot{opacity:1;stroke:#ffffff66;stroke-width:.8;vector-effect:non-scaling-stroke}
 .knowledge-node .skill-glyph{opacity:.9;stroke:#fff;stroke-width:.8}
 .knowledge-node:hover .skill-dot,.knowledge-node:focus-visible .skill-dot{stroke:#fff;stroke-width:1.5}
@@ -81,5 +81,18 @@ body.reduce-transparency .atlas-context{background:#1c1c1c;backdrop-filter:none;
 #atlas .hover-muted{opacity:.4;filter:blur(1.25px)}
 #atlas .hover-focused{filter:none}
 #atlas .atlas-group.hover-focused .group-name{opacity:.9}
-#atlas .plugin-orbit-layer,#atlas .knowledge-orbit-layer,#atlas .verified-connectors{transition:opacity 200ms ease,filter 200ms ease}
-#atlas.specialist-spotlight .plugin-orbit-layer,#atlas.specialist-spotlight .knowledge-orbit-layer,#atlas.specialist-spotlight .verified-connectors{opacity:.4;filter:blur(1px)}
+#atlas .plugin-orbit-layer,#atlas .knowledge-orbit-layer,#atlas .prompt-orbit-layer,#atlas .verified-connectors{transition:opacity 200ms ease,filter 200ms ease}
+#atlas.specialist-spotlight .plugin-orbit-layer,#atlas.specialist-spotlight .knowledge-orbit-layer,#atlas.specialist-spotlight .prompt-orbit-layer,#atlas.specialist-spotlight .verified-connectors{opacity:.4;filter:blur(1px)}
+@media(prefers-reduced-motion:reduce){#atlas .prompt-orbit-layer{transition:none}}
+.motion-reduced .prompt-orbit-layer{transition:none}
+
+/* Quiet, noninteractive atmosphere. Negative layers stay above the body background
+   inside their isolated app/stage, but behind all graph objects and floating panels. */
+#app{isolation:isolate}
+#app>.oracle-starfield{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;overflow:hidden;fill:#dce2e9}
+#atlas>.atlas-expansion{position:absolute;inset:0;width:100%;height:100%;z-index:-1;overflow:hidden;pointer-events:none;transition:opacity 200ms ease}
+.atlas-expansion circle{fill:none;stroke:#dce2e9;stroke-width:.6;vector-effect:non-scaling-stroke}
+#atlas:not([data-context="global"])>.atlas-expansion{display:none}
+#atlas.specialist-spotlight>.atlas-expansion{opacity:.4}
+.motion-reduced>.atlas-expansion{transition:none}
+@media(prefers-reduced-motion:reduce){#atlas>.atlas-expansion{transition:none}}

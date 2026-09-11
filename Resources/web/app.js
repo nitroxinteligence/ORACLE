@@ -7,12 +7,21 @@ function icon(name,cls=''){return `<svg class="${cls}" viewBox="0 0 24 24" fill=
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 $$('[data-icon]').forEach(e=>e.outerHTML=icon(e.dataset.icon));$('#settings').innerHTML=icon('sliders');$('#lock').innerHTML=icon('lock');
 const pending=new Map();let requestID=0;
-function call(method,params={}){return new Promise((resolve,reject)=>{if(!window.webkit?.messageHandlers.oracle){reject(Error('O aplicativo macOS é necessário. Este arquivo não é um app web.'));return}const id=String(++requestID);pending.set(id,{resolve,reject});window.webkit.messageHandlers.oracle.postMessage({id,method,params})})}
-window.oracleReply=(id,res)=>{const p=pending.get(id);if(!p)return;pending.delete(id);res.error?p.reject(Error(res.error)):p.resolve(res.value)};
+function call(method,params={}){return new Promise((resolve,reject)=>{
+ if(!window.webkit?.messageHandlers.oracle){reject(Error('O aplicativo macOS é necessário. Este arquivo não é um app web.'));return}
+ if(pending.size>=128){reject(Error('Há operações demais em andamento. Aguarde as respostas atuais.'));return}
+ const id=String(++requestID),timeout=setTimeout(()=>{pending.delete(id);reject(Error('A operação não respondeu a tempo. Confira o estado antes de repetir.'));},['gbrainRead','onboardingConnect','codexPlugins','codexPluginsRefresh'].includes(method)?120000:90000);
+ pending.set(id,{resolve,reject,timeout});
+ try{window.webkit.messageHandlers.oracle.postMessage({id,method,params})}catch(error){clearTimeout(timeout);pending.delete(id);reject(error)}
+})}
+window.oracleReply=(id,res)=>{const p=pending.get(id);if(!p)return;pending.delete(id);clearTimeout(p.timeout);res.error?p.reject(Error(res.error)):p.resolve(res.value)};
 let state={entries:[],collections:[],events:[],config:{}},selected=null,view='map',query='',zoom=OracleAtlas.DEFAULT_ZOOM,replay=false,cursor=0,timer=null,speed=1,readDocument=null;
 const colors=['#dba17c','#91b5ed','#7bc8b4','#d9c276','#b29bd7','#92c399','#d49cae'];
 const positions=[[292,132],[564,130],[678,313],[164,310],[248,491],[600,485],[424,574]];
 let modalOrigin=null, modalRevision=0, modalDirty=false, settingsTrail=false;
+let navigationEpoch=0,noteReadSequence=0,refreshSequence=0,refreshTask=null;
+let initialScanTimer=null,initialScanRetries=0,memoryPollTask=null,memoryEpoch=0,lastMemorySignature='';
+const navigationBlocked=()=>!$('#lock-screen').hidden||!!document.querySelector('.ob-dialog[open]')||modalDirty;
 let modalSequence=0,modalHistory=[],modalPage=null;
 const promptRoot='SISTEMA/prompts';
 let promptFolderPath=promptRoot,promptSelectedPath='',promptQuery='',promptDocument=null;
@@ -48,6 +57,7 @@ function modalBack(index=modalHistory.length-1){
  const restore=()=>{
   if(!prior){closeModal(true);return}
   modalHistory=modalHistory.slice(0,index);modalPage=prior;modalRevision=prior.revision;
+  navigationEpoch++;
   readDocument=prior.document;editorSession=prior.editor;settingsTrail=prior.settings;
   modalDirty=prior.dirty;hideTooltip();
   $('#modal-content').replaceChildren(...prior.nodes);$('#modal').dataset.family=prior.family;
@@ -60,7 +70,8 @@ function modalBack(index=modalHistory.length-1){
  restore();
 }
 function modal(html,options={}){
- if(!$('#lock-screen').hidden)return;
+ if(!$('#lock-screen').hidden||document.querySelector('.ob-dialog[open]'))return false;
+ if(modalDirty&&options.family!=='editor'){requestEditorExit(false,()=>modal(html,options));return false}
  const dialog=$('#modal'), content=$('#modal-content');
  const template=document.createElement('template');template.innerHTML=html;
  const heading=template.content.querySelector('h1')||document.createElement('h1');heading.id='modal-title';heading.tabIndex=-1;
@@ -74,7 +85,7 @@ function modal(html,options={}){
    if(modalHistory.length>24)modalHistory.shift();
   }
  }
- modalRevision=++modalSequence;modalDirty=false;hideTooltip();atlasController?.setPaused(true);
+ modalRevision=++modalSequence;navigationEpoch++;modalDirty=false;hideTooltip();atlasController?.setPaused(true);
  template.content.querySelectorAll('.step-label').forEach(e=>e.remove());
  const footers=[...template.content.children].filter(e=>e.classList.contains('actions'));const footer=footers.at(-1)||document.createElement('div');footer.className='modal-footer';
  footer.querySelectorAll('[data-close]').forEach(e=>e.remove());
@@ -87,10 +98,11 @@ function modal(html,options={}){
  content.replaceChildren(head,body,footer);dialog.dataset.family=family;
  dialog.append($('#tooltip'));if(!dialog.open)dialog.showModal();
  const focus=options.focus?content.querySelector(options.focus):body.querySelector('input:not([type=checkbox]),textarea,select');(focus||heading).focus({preventScroll:true});
+ return true;
 }
 function closeModal(force=false){
  if(modalDirty&&!force){requestEditorExit();return}
- $('#modal').close();
+ navigationEpoch++;$('#modal').close();
 }
 function actions(extra=''){return `<div class="actions"><button class="secondary" data-close>Concluído</button>${extra}</div>`}
 let backdropDown=false;$('#modal').addEventListener('pointerdown',e=>{backdropDown=e.target===$('#modal')});
@@ -100,17 +112,51 @@ $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal()});
 $('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));modalRevision=++modalSequence;modalDirty=false;settingsTrail=false;modalHistory=[];modalPage=null;hideTooltip();const origin=modalOrigin;modalOrigin=null;if(origin?.isConnected&&!$('#app').inert)origin.focus({preventScroll:true});atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused)});
 $('#modal').addEventListener('close',()=>{$('#prompts')?.setAttribute('aria-expanded','false');$('#tutorials')?.setAttribute('aria-expanded','false')});
 function skills(id){return visibleEntries().filter(e=>!e.directory&&e.path.startsWith(`SISTEMA/skills/${id}/`)&&e.name==='SKILL.md')}
-function departmentCatalog(){return OracleDepartments.createCatalog(state.collections,visibleEntries(),state.departmentManifest||window.OracleDepartmentManifest)}
+function departmentCatalog(){return OracleDepartments.createCatalog(state.collections,visibleEntries(),state.departmentManifest||window.OracleDepartmentManifest,state.config.departmentAssignments||{})}
 function title(e){return e.name==='SKILL.md'?e.path.split('/').slice(-2,-1)[0]:e.name.replace(/\.md$/,'')}
 function entryLocation(e){const collection=state.collections.find(c=>e.path.startsWith(`SISTEMA/skills/${c.id}/`));return collection?`${collection.name} · ${e.name==='SKILL.md'?'Skill':'Documento'}`:e.path.split('/').slice(0,-1).slice(-2).join(' / ')||'Pasta principal'}
-async function refresh(){state=await call('snapshot');render();call('updateStatus').then(status=>{reflectUpdateStatus(status);maybeAutomaticUpdateCheck(status)}).catch(()=>{});if(state.scanError)toast(state.scanError)}
-function mountOnboarding(){return window.ORACLE_PREVIEW?Promise.resolve():window.OracleOnboarding?.mount({call,refresh,getState:()=>state,toast,openSettings:settings})}
+async function refresh(){
+ if(refreshTask)return refreshTask;
+ const sequence=++refreshSequence;
+ const task=(async()=>{const next=await call('snapshot');if(sequence!==refreshSequence||!$('#lock-screen').hidden)return;
+  const librariesChanged=state.scan?.signature!==next.scan?.signature||state.scan?.pending!==next.scan?.pending||state.scan?.complete!==next.scan?.complete||state.scanError!==next.scanError||JSON.stringify(state.config.libraryRoots)!==JSON.stringify(next.config.libraryRoots);
+  const scanErrorChanged=state.scanError!==next.scanError;
+  state=next;applyVisualPreferences(false);render();
+  if(librariesChanged){promptBrowser.render();tutorialBrowser.render();}
+  if(!updateBusy)call('updateStatus').then(status=>{if(sequence!==refreshSequence||!$('#lock-screen').hidden)return;reflectUpdateStatus(status);maybeAutomaticUpdateCheck(status)}).catch(()=>{});if(state.scanError&&scanErrorChanged)toast(state.scanError);
+  clearTimeout(initialScanTimer);if(state.scan?.pending&&initialScanRetries++<20)initialScanTimer=setTimeout(()=>safe(refresh)(),750);else if(!state.scan?.pending)initialScanRetries=0;
+ })();
+ refreshTask=task;try{return await task}finally{if(refreshTask===task)refreshTask=null}
+}
+async function refreshVault(){if(state.config.vault&&state.onboarding?.licensed)await call('memoryRefresh');return refresh();}
+function mountOnboarding(){return window.ORACLE_PREVIEW?Promise.resolve():window.OracleOnboarding?.mount({call,refresh,getState:()=>state,toast,openSettings:settings,canOpen:()=>$('#lock-screen').hidden&&!$('#modal').open&&!modalDirty})}
 function render(){
  renderTree();renderAtlas();renderResults();renderProgress();renderInspector();renderPlugins();
- $('#footer-status').textContent=state.scanError?'Fonte indisponível · consulte os ajustes':'';
+ renderMemoryStatus();renderMemoryFreshness();
  OracleStatusBadge.apply($('#codex-status'),state.codexPlugins?.status==='available'?'connected':state.events.some(e=>e.source==='codex-hook')?'recent_activity':'unverified',state.codexPlugins?.status==='available'?'Conectado':state.events.some(e=>e.source==='codex-hook')?'Atividade recente':'Conexão não verificada');
- const synced=state.gbrainSync?.status==='verified';OracleStatusBadge.apply($('#gbrain-status'),synced?'connected':state.config.gbrainWorkspace?'selected':'pending',synced?'Índice local verificado':state.config.gbrainWorkspace?'Fonte externa preservada':state.gbrainSync?.status==='needs_attention'?'Índice requer atenção':'Configurar memória');
  renderPlayback();
+}
+function renderMemoryStatus(){
+ $('#footer-status').textContent=state.scanError?'Leitura parcial · confira as permissões':state.scan?.pending?'Lendo o vault local…':state.memorySync?.state==='stale'||state.memorySync?.indexing?'Memória aguardando atualização local':'';
+ const memoryState=state.memorySync?.state;
+ OracleStatusBadge.apply($('#gbrain-status'),memoryState==='current'?'connected':memoryState==='partial'?'error':memoryState==='external'?'selected':'pending',({current:'Índice atualizado',partial:'Leitura parcial',stale:'Atualização pendente',external:'Perfil externo selecionado',unavailable:'Índice não configurado'})[memoryState]||'Conexão não verificada');
+}
+async function pollMemoryStatus(){
+ if(memoryPollTask)return memoryPollTask;
+ if(!$('#lock-screen').hidden||document.hidden||window.oracleWindowVisible===false||!state.onboarding?.licensed||!state.config.vault)return;
+ const epoch=memoryEpoch,vault=state.config.vault;
+ const current=()=>epoch===memoryEpoch&&$('#lock-screen').hidden&&state.config.vault===vault;
+ const task=(async()=>{
+  try{
+   const status=await call('memoryStatus');if(!current()||!status||typeof status.state!=='string')return;
+   const signature=JSON.stringify([status.state,status.generation,status.indexedGeneration,status.indexing,status.lastScanAt,status.error]);
+   state.memorySync=status;
+   if(signature!==lastMemorySignature){lastMemorySignature=signature;renderMemoryStatus();renderMemoryFreshness();}
+   // This asks for the already cached snapshot, not a scan/index on the UI lane.
+   if(status.lastScanAt&&status.lastScanAt!==state.scan?.at)await refresh();
+  }catch(error){if(current()){state.memorySync={...state.memorySync,state:'unavailable',error:'Não foi possível verificar a memória agora.'};lastMemorySignature='';renderMemoryStatus();renderMemoryFreshness();}}
+ })();
+ memoryPollTask=task;try{return await task}finally{if(memoryPollTask===task)memoryPollTask=null}
 }
 function renderTree(){
  const opened=new Set($$('#tree details[open]>summary').map(e=>e.dataset.folder||e.dataset.collection||e.dataset.department));
@@ -134,7 +180,7 @@ let atlasController=null, selectedSkill=null, selectedDepartment=null, visualPau
 function renderAtlas(){
  const installation=OracleInstallationVisual.projection(state);document.body.classList.toggle('setup-pending',installation.coreReady===false);
  if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf,keyboard,selection)=>{selected=id;selectedSkill=leaf;selectedDepartment=selection?.department||null;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onPlugin:id=>plugin(id),onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
- atlasController.update({departmentManifest:state.departmentManifest||window.OracleDepartmentManifest,selectedDepartment,collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:state.codexPlugins?.plugins||[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||$('#modal').open});
+ atlasController.update({promptRoot:state.config.libraryRoots?.prompt||'',departmentAssignments:state.config.departmentAssignments||{},departmentManifest:state.departmentManifest||window.OracleDepartmentManifest,selectedDepartment,collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:state.codexPlugins?.plugins||[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||!!document.querySelector('dialog[open]')});
 }
 function setView(next){view=next;$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#atlas').hidden=view!=='map';$('#results').hidden=view==='map';$('.map-tools').hidden=view!=='map';renderResults();atlasController?.setPaused(view!=='map'||document.hidden)}
 function renderResults(){if(view==='map')return;let entries=visibleEntries().filter(e=>(view==='folders'||!e.directory)&&(!query||(e.path+' '+title(e)).toLowerCase().includes(query)));$('#results').innerHTML=`<h2>${view==='list'?'Documentos':'Pastas e documentos'} <small>${entries.length} resultados · fonte local</small></h2>`+(entries.length?entries.slice(0,300).map(e=>`<button class="result" data-path="${esc(e.path)}">${icon(e.directory?'folder':'note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div></button>`).join('')+(entries.length>300?'<p class="empty">Mostrando 300 resultados. Refine a busca.</p>':''):'<p class="empty">Nenhum resultado nesta pasta e filtro.</p>');bindPaths($('#results'))}
@@ -158,22 +204,27 @@ function renderProgress(){
  if(active){const completed=Math.max(0,Math.min(last.completed||0,last.total));bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax',String(last.total));bar.setAttribute('aria-valuenow',String(completed));bar.setAttribute('aria-valuetext',`${completed} de ${last.total} arquivos verificados`);$('#progress-fill').style.width=(completed/last.total*100)+'%'}
  renderPlayback();
 }
-let editorSession=null,draftTimer=null;
+let editorSession=null,draftTimer=null,editorWrites=Promise.resolve();
+function queueEditorWrite(operation){const task=editorWrites.catch(()=>{}).then(operation);editorWrites=task.catch(()=>{});return task}
 async function persistEditorDraft(){
  clearTimeout(draftTimer);
  const session=editorSession;if(!session||!modalDirty)return;
- const revision=session.revision;
- const saved=await call('saveDraft',{path:session.path,hash:session.hash,text:session.text});
+ if(session.savePromise)await session.savePromise;
+ const revision=session.revision,text=session.text;
+ if(text===session.base)return;
+ const saved=await queueEditorWrite(()=>call('saveDraft',{path:session.path,hash:session.hash,text}));
  if(editorSession===session&&revision===session.revision){session.saved=true;const status=$('#draft-status');if(status)status.textContent='Rascunho guardado neste Mac'}
  return saved;
 }
 async function openNote(path){
- const revision=modalRevision,document=await call('read',{path});if(revision!==modalRevision)return;
+ if(navigationBlocked())return;
+ const epoch=navigationEpoch,sequence=++noteReadSequence,document=await call('read',{path});if(epoch!==navigationEpoch||sequence!==noteReadSequence||navigationBlocked())return;
  readDocument={...document,relative:path};editorSession=null;
  const name=path.endsWith('/SKILL.md')?path.split('/').at(-2).replace(/-/g,' '):path.split('/').at(-1).replace(/\.md$/i,'');
  modal(`<h1>${esc(name)}</h1>${document.draft&&document.draft.text!==document.text?'<div class="editor-recovery"><p>Há um rascunho que ainda não foi salvo no documento.</p><button class="secondary" id="recover-draft">Retomar</button></div>':''}<article class="markdown-reader">${markdown(document.text)}</article><details class="source-details"><summary>Detalhes do arquivo</summary><div class="source">${esc(document.path)}<br>SHA-256 ${document.hash}</div></details>${actions(`<button class="secondary" id="reveal-note">Mostrar no Finder</button>${document.editable!==false?'<button class="primary" id="edit-note">Editar</button>':''}`)}`,{family:'reader',key:'document:'+path});
- bindMarkdown($('#modal-content'));$('#reveal-note').onclick=safe(()=>call('reveal',{path}));$('#edit-note')?.addEventListener('click',()=>editNote());
+ bindMarkdown($('#modal-content'),path);$('#reveal-note').onclick=safe(()=>call('reveal',{path}));$('#edit-note')?.addEventListener('click',()=>editNote());
  $('#recover-draft')?.addEventListener('click',()=>{editNote(document.draft.text,document.draft.originalHash);if(document.draft.originalHash!==document.hash)showEditorConflict(document)});
+ return true;
 }
 function editNote(draft=readDocument.text,baseHash=readDocument.hash){
  const current=editorSession;
@@ -198,11 +249,25 @@ function showEditorConflict(current){
 }
 async function saveEditor(){
  const session=editorSession;if(!session)return;
- const result=await call('saveNote',{path:session.path,hash:session.hash,text:session.text});
+ if(session.savePromise)return session.savePromise;
+ clearTimeout(draftTimer);
+ const sent={path:session.path,hash:session.hash,text:session.text,revision:session.revision};
+ const save=queueEditorWrite(()=>call('saveNote',{path:sent.path,hash:sent.hash,text:sent.text})).then(result=>{
+  if(result.status==='conflict'){session.conflict=result.current;if(editorSession===session)showEditorConflict(result.current);return result}
+  if(result.status!=='saved'||!result.document?.hash)throw Error('A gravação ainda não foi confirmada. Seu texto continua no editor.');
+  session.base=sent.text;session.hash=result.document.hash;
+  modalHistory=modalHistory.filter(page=>!(page.family==='reader'&&page.document?.relative===session.path));
+  session.saved=session.text===sent.text;
+  if(editorSession===session){readDocument={...result.document,relative:session.path};modalDirty=session.text!==session.base;const label=$('#draft-status');if(label)label.textContent=modalDirty?'Versão enviada salva. Guardando a digitação mais recente…':'Salvo no arquivo original';}
+  return result;
+ });
+ session.savePromise=save;
+ let failure;try{await save}catch(error){failure=error}finally{session.savePromise=null}
  if(editorSession!==session)return;
- if(result.status==='conflict'){if(!$('#editor'))editNote(session.text);showEditorConflict(result.current);return}
- clearTimeout(draftTimer);modalDirty=false;session.saved=true;
- await refresh();await openNote(session.path);toast('Salvo no Obsidian.');
+ // The editor stays mounted. A later revision can never be replaced by the acknowledgement.
+ if(modalDirty)await persistEditorDraft();
+ if(failure)throw failure;
+ safe(refresh)();
 }
 function reviewEdit(session){
  const old=session.base.split('\n'),now=session.text.split('\n');let lines='';
@@ -223,8 +288,12 @@ function requestEditorExit(discardOnly=false,onExit=null){
  $('#confirm-discard').onclick=safe(async()=>{clearTimeout(draftTimer);await call('discardDraft',{path:editorSession.path});editorSession=null;modalDirty=false;leave()});
  $('#keep-editing').focus();
 }
-window.oraclePrepareToClose=async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();return true};
-function showSetup(){if(window.OracleOnboarding&&!window.ORACLE_PREVIEW){closeModal();OracleOnboarding.open()}else toast('A configuração funciona no aplicativo para macOS.')}
+window.oraclePrepareToClose=async()=>{if(editorSession?.savePromise)await editorSession.savePromise;await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();return true};
+function showSetup(options={}){
+ if(!window.OracleOnboarding||window.ORACLE_PREVIEW){toast('A configuração funciona no aplicativo para macOS.');return;}
+ const enter=()=>{closeModal(true);OracleOnboarding.open(typeof options==='object'?options:{});};
+ if(modalDirty){requestEditorExit(false,enter);return;}enter();
+}
 const pluginStates={connected:'Conectado',disconnected:'Desconectado',installed:'Instalado',needs_auth:'Conectar conta',unavailable:'Indisponível',missing:'Ausente',absent:'Ausente',pending:'Pendente',inactive:'Inativo',disabled:'Inativo',paused:'Pausado',running:'Em execução',error:'Erro'};
 const statusBadge=(status,label)=>OracleStatusBadge.render(status,label);
 function pluginIcon(p){const url=p.iconDataURL;return url&&/^data:image\/(png|jpeg|webp);base64,/.test(url)?`<span class="plugin-icon"><img src="${esc(url)}" alt=""></span>`:`<span class="plugin-icon plugin-fallback" aria-hidden="true">${icon('orbit')}</span>`}
@@ -239,205 +308,52 @@ function plugin(id){
  if(!p&&inventory?.plugins?.length){$('#modal-plugins').innerHTML=inventory.plugins.map((p,i)=>`<button class="plugin-row" data-plugin="${i}">${pluginIcon(p)}<div><strong>${esc(p.name)}</strong>${statusBadge(p.status,pluginStates[p.status]||'Não verificado')}</div>${icon('chevron')}</button>`).join('');$$('[data-plugin]').forEach(b=>b.onclick=()=>plugin(inventory.plugins[Number(b.dataset.plugin)].id))}
  $('#manage-plugin').onclick=safe(()=>call('openCodex'));
 }
-async function conversations(){const revision=modalRevision;const items=await call('conversations');if(revision!==modalRevision)return;modal(`<span class="step-label">CONVERSAS / IMPORTAÇÃO DELIMITADA</span><h1>Conversas Codex</h1><p>Importe uma exportação de conversas para consultá-las aqui.</p><div id="conversation-list">${items.map((c,i)=>`<button class="result" data-conversation="${i}">${icon('chat')}<div><strong>${esc(c.title)}</strong><small>${esc(c.source)}</small></div></button>`).join('')||'<p class="empty">Nenhuma conversa importada.</p>'}</div>${actions('<button class="primary" id="import-conversations">Importar conversas…</button>')}`);$('#import-conversations').onclick=safe(async()=>{await call('importConversations');await conversations()});$$('[data-conversation]').forEach(e=>e.onclick=()=>{const c=items[Number(e.dataset.conversation)];modal(`<h1>${esc(c.title)}</h1><div class="source">${esc(c.source)} · conteúdo importado</div><pre>${esc(c.messages.map(m=>m.role.toUpperCase()+'\n'+m.text).join('\n\n'))}</pre>${actions()}`)})}
+async function conversations(){
+ if(navigationBlocked())return;
+ const epoch=navigationEpoch,items=await call('conversations');if(epoch!==navigationEpoch||navigationBlocked())return;
+ modal(`<h1>Conversas importadas</h1><p>Importe um arquivo Oracle Conversations v1. O histórico das suas contas não é acessado automaticamente.</p><div id="conversation-list">${items.map((c,i)=>`<button class="result" data-conversation="${i}">${icon('chat')}<div><strong>${esc(c.title)}</strong><small>${esc(c.source)}</small></div></button>`).join('')||'<p class="empty">Nenhuma conversa importada.</p>'}</div>${actions('<button class="primary" id="import-conversations">Importar conversas…</button>')}`);
+ $('#import-conversations').onclick=safe(async()=>{const e=navigationEpoch;await call('importConversations');if(e===navigationEpoch)await conversations()});
+ $$('[data-conversation]').forEach(e=>e.onclick=()=>{const c=items[Number(e.dataset.conversation)];modal(`<h1>${esc(c.title)}</h1><div class="source">${esc(c.source)} · conteúdo importado</div><pre>${esc(c.messages.map(m=>m.role.toUpperCase()+'\n'+m.text).join('\n\n'))}</pre>${actions()}`)});
+}
 async function instructions(){const revision=modalRevision;const items=await call('instructions');if(revision!==modalRevision)return;modal(`<h1>Instruções dos projetos</h1><p>Consulte as instruções dos projetos que você conectou.</p>${items.map((e,i)=>`<button class="result" data-instruction="${i}">${icon('book')}<div><strong>${esc(e.path)}</strong><small>${esc(e.source.split('/').at(-1))}</small></div></button>`).join('')||'<p class="empty">Conecte um projeto para ver suas instruções.</p>'}${actions('<button class="primary" id="add-project">Autorizar projeto…</button>')}`);$('#add-project').onclick=safe(async()=>{await call('chooseProject');await instructions()});$$('[data-instruction]').forEach(e=>e.onclick=safe(async()=>{const doc=await call('readInstruction',items[Number(e.dataset.instruction)]);modal(`<h1>Instrução encontrada</h1><div class="source">${esc(doc.path)}</div><pre>${esc(doc.text)}</pre>${actions()}`)}))}
 function activity(){modal(`<h1>Histórico técnico</h1><p>Hooks observam apenas caminhos suportados e confiados no Codex. Ferramentas hosted podem não emitir todos os eventos. Stop encerra um turno; silêncio não prova ociosidade, sucesso ou falha.</p><span class="pill">${state.events.filter(e=>e.source==='codex-hook').length} hooks recebidos</span><span class="pill">Sem observação total</span><pre>${esc(state.events.slice(-50).map(e=>`${e.received_at} · ${e.source}\n${e.event_type}: ${e.sanitized_summary}`).join('\n\n')||'Nenhum recibo recebido. A integração não foi comprovada nesta instalação.')}</pre>${actions('<button class="secondary" id="journal-replay">Reproduzir histórico</button>')}`);$('#journal-replay').onclick=safe(startJournal)}
-function promptDisplayName(path){
- const raw=path===promptRoot?'Todos os prompts':String(path).split('/').at(-1)||path;
- return raw.replace(/[-_]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-}
-function promptParent(path){return String(path).split('/').slice(0,-1).join('/')}
-function promptIsInFolder(path,folder){return folder===promptRoot||path===folder||path.startsWith(folder+'/')}
-function promptData(){
- const folders=new Set([promptRoot]),documents=[];
- for(const entry of state.entries){
-  const path=String(entry.path||'');
-  if(path!==promptRoot&&!path.startsWith(promptRoot+'/'))continue;
-  if(entry.directory){folders.add(path);continue}
-  if(!path.toLowerCase().endsWith('.md'))continue;
-  documents.push(entry);
-  const parts=path.split('/');
-  for(let i=2;i<parts.length;i++)folders.add(parts.slice(0,i).join('/'));
- }
- return {folders:[...folders],documents};
-}
-function promptFolderChildren(path,data){
- return data.folders.filter(folder=>folder!==path&&promptParent(folder)===path).sort((a,b)=>promptDisplayName(a).localeCompare(promptDisplayName(b),'pt-BR'));
-}
-function promptFolderCount(path,data){return data.documents.filter(entry=>promptIsInFolder(entry.path,path)).length}
-function promptTreeNode(path,data,depth=0){
- const children=promptFolderChildren(path,data),expanded=path===promptRoot||promptExpanded.has(path),active=path===promptFolderPath;
- const count=promptFolderCount(path,data);
- return `<div class="prompt-tree-node" style="--prompt-depth:${depth}"><button class="prompt-folder-button${active?' active':''}" data-prompt-folder="${esc(path)}" role="treeitem"${active?' aria-current="page"':''}${children.length?` aria-expanded="${expanded}"`:''}>${icon('folder')}<span><strong>${esc(promptDisplayName(path))}</strong><small>${count} ${count===1?'prompt':'prompts'}</small></span>${children.length?icon('chevron','prompt-folder-chevron'):''}</button>${expanded&&children.length?`<div class="prompt-tree-children" role="group">${children.map(child=>promptTreeNode(child,data,depth+1)).join('')}</div>`:''}</div>`;
-}
-function promptListItems(data){
- const terms=promptQuery.trim().toLocaleLowerCase('pt-BR').split(/\s+/).filter(Boolean);
- return data.documents.filter(entry=>promptIsInFolder(entry.path,promptFolderPath)).filter(entry=>{
-  const haystack=(promptDisplayName(entry.name.replace(/\.md$/i,''))+' '+entry.path).toLocaleLowerCase('pt-BR');
-  return terms.every(term=>haystack.includes(term));
- }).sort((a,b)=>promptDisplayName(a.name).localeCompare(promptDisplayName(b.name),'pt-BR'));
-}
-function promptListHTML(data){
- const items=promptListItems(data),count=items.length,scope=promptFolderPath===promptRoot?'todos os prompts':promptDisplayName(promptFolderPath);
- const heading=promptQuery?`Resultados em ${esc(scope)}`:promptDisplayName(promptFolderPath);
- return `<div class="prompt-pane-heading"><div><span>${esc(heading)}</span><small>${count} ${count===1?'prompt encontrado':'prompts encontrados'}</small></div></div>${count?`<div class="prompt-list-items" role="listbox" aria-label="Prompts encontrados">${items.map(entry=>{const selected=entry.path===promptSelectedPath;const relative=entry.path.slice(promptRoot.length+1).replace(/\.md$/i,'');return `<button class="prompt-list-item${selected?' active':''}" data-prompt-document="${esc(entry.path)}" role="option" aria-selected="${selected}">${icon('note','prompt-list-icon')}<span><strong>${esc(promptDisplayName(entry.name.replace(/\.md$/i,'')))}</strong><small>${esc(relative)}</small></span><span class="prompt-list-arrow" aria-hidden="true">↗</span></button>`}).join('')}</div>`:`<div class="prompt-empty">${icon('folder')}<strong>${promptQuery?'Nenhum prompt encontrado':'Esta pasta ainda está vazia'}</strong><p>${promptQuery?'Tente outro termo ou escolha outro departamento.':'Crie ou mova um arquivo .md para esta pasta no Obsidian.'}</p></div>`}`;
-}
-function promptPreviewHTML(){
- if(!promptSelectedPath)return `<div class="prompt-preview-empty">${icon('prompts')}<h2>Escolha um prompt</h2><p>Selecione um arquivo na biblioteca para ler, copiar ou abrir a nota original.</p></div>`;
- if(!promptDocument)return `<div class="prompt-preview-empty prompt-loading" aria-live="polite">${icon('refresh')}<h2>Lendo prompt…</h2><p>Consultando o arquivo original no Obsidian.</p></div>`;
- const name=promptDisplayName(promptSelectedPath.split('/').at(-1).replace(/\.md$/i,''));
- return `<div class="prompt-preview-heading"><div><span class="prompt-preview-kicker">PROMPT / OBSIDIAN</span><h2>${esc(name)}</h2><small>${esc(promptSelectedPath)}</small></div><div class="prompt-preview-actions"><button class="secondary" id="copy-prompt">${icon('check')}Copiar</button><button class="secondary" id="open-prompt-note">Abrir nota</button></div></div><article class="markdown-reader prompt-preview-content">${markdown(promptDocument.text||'')}</article>`;
-}
-function renderPromptLibrary(){
- const tree=$('#prompt-tree'),list=$('#prompt-list'),preview=$('#prompt-preview');if(!tree||!list||!preview)return;
- const data=promptData();
- if(!data.folders.includes(promptFolderPath))promptFolderPath=promptRoot;
- if(promptSelectedPath&&!data.documents.some(entry=>entry.path===promptSelectedPath)){promptSelectedPath='';promptDocument=null}
- if(promptSelectedPath&&!promptIsInFolder(promptSelectedPath,promptFolderPath)){promptSelectedPath='';promptDocument=null}
- tree.innerHTML=promptTreeNode(promptRoot,data);
- list.innerHTML=promptListHTML(data);
- preview.innerHTML=promptPreviewHTML();
- $('#prompt-folder-count').textContent=`${data.folders.length-1} ${data.folders.length-1===1?'pasta':'pastas'}`;
- $('#prompt-source-status').textContent=data.documents.length?`${data.documents.length} ${data.documents.length===1?'prompt':'prompts'} disponíveis no vault conectado`:'Nenhum arquivo .md encontrado ainda';
- tree.querySelectorAll('[data-prompt-folder]').forEach(button=>button.onclick=()=>{
-  const path=button.dataset.promptFolder,children=promptFolderChildren(path,data);
-  promptFolderPath=path;if(children.length&&path!==promptRoot){if(promptExpanded.has(path))promptExpanded.delete(path);else promptExpanded.add(path)}
-  if(promptSelectedPath&&!promptIsInFolder(promptSelectedPath,path)){promptSelectedPath='';promptDocument=null}
-  renderPromptLibrary();button.focus({preventScroll:true});
+const libraryHooks={state:()=>state,esc,icon,modal,epoch:()=>navigationEpoch,blocked:navigationBlocked,refresh,rescan:refreshVault,toast,call,openNote:safe(openNote),bindMarkdown};
+const promptBrowser=new OracleLibrary.Library({id:'prompt',family:'prompts',root:promptRoot,title:'Biblioteca de prompts',all:'Todos os prompts',description:'Prompts Markdown no seu vault. A prévia lê o arquivo original.',trigger:'#prompts'},libraryHooks);
+const tutorialBrowser=new OracleLibrary.Library({id:'tutorial',family:'tutorials',root:tutorialRoot,title:'Tutoriais',all:'Todos os tutoriais',description:'Tutoriais Markdown nas pastas reais do seu vault.',trigger:'#tutorials'},libraryHooks);
+function promptData(){return promptBrowser.data()}
+function tutorialData(){return tutorialBrowser.data()}
+function promptLibrary(){return promptBrowser.open()}
+function tutorialsLibrary(){return tutorialBrowser.open()}
+function renderPromptLibrary(){return promptBrowser.render()}
+function renderTutorialLibrary(){return tutorialBrowser.render()}
+function selectPrompt(path){return promptBrowser.select(path)}
+function selectTutorial(path){return tutorialBrowser.select(path)}
+function openPromptFromOrbit(path){return promptBrowser.open(path)}
+function departmentSettings(){
+ const catalog=departmentCatalog();
+ modal(`<h1>Organizar departamentos</h1><p>A organização usa os mesmos departamentos do mapa. Os arquivos permanecem nas pastas originais.</p><div class="department-settings">${catalog.specialists.map(c=>`<label class="department-setting"><span>${esc(c.name)}</span><select data-department-choice="${esc(c.id)}">${catalog.departments.map(d=>`<option value="${esc(d.id)}" ${c.department===d.id?'selected':''}>${esc(d.name)}</option>`).join('')}</select></label>`).join('')||'<p class="empty">Nenhum especialista encontrado nesta fonte.</p>'}</div>${actions('<button class="primary" id="save-departments">Salvar organização</button>')}`);
+ $('#save-departments').onclick=safe(async()=>{
+  // The native preferences keep their shipped slugs; the shared catalog normalizes them.
+  const assignments={...state.config.departmentAssignments,...Object.fromEntries($$('[data-department-choice]').map(e=>[e.dataset.departmentChoice,e.value==='department/other'?'unassigned':e.value.replace(/^department\//,'')]))};
+  await call('saveDepartments',{assignments});state.config.departmentAssignments=assignments;if(atlasController)atlasController.topologyKey=null;await refresh();toast('Organização salva. Os arquivos permanecem no lugar.');
  });
- list.querySelectorAll('[data-prompt-document]').forEach(button=>button.onclick=()=>selectPrompt(button.dataset.promptDocument));
- $('#copy-prompt')?.addEventListener('click',safe(async()=>{await call('copy',{text:promptDocument?.text||''});toast('Prompt copiado.')}));
- $('#open-prompt-note')?.addEventListener('click',safe(()=>openNote(promptSelectedPath)));
- bindMarkdown(preview);
 }
-async function selectPrompt(path){
- const revision=modalRevision;promptSelectedPath=path;promptDocument=null;renderPromptLibrary();
- try{const document=await call('read',{path});if(revision!==modalRevision||!$('#modal').open||promptSelectedPath!==path)return;promptDocument={...document,relative:path};renderPromptLibrary()}catch(error){if(revision===modalRevision)toast(error.message)}
-}
-async function promptLibrary(){
- promptFolderPath=promptRoot;promptSelectedPath='';promptQuery='';promptDocument=null;promptExpanded=new Set([promptRoot]);
- try{await refresh()}catch(error){toast(error.message)}
- modal(`<span class="step-label">OBSIDIAN / SISTEMA/PROMPTS</span><h1>Biblioteca de prompts</h1><p>Uma biblioteca viva: a árvore abaixo acompanha as pastas e os arquivos Markdown do seu vault conectado.</p><div class="prompt-library"><div class="prompt-library-toolbar"><div class="prompt-library-source"><span class="status-badge" data-tone="info">Fonte local</span><span id="prompt-source-status">Lendo o vault…</span></div><label class="search prompt-search">${icon('search')}<input id="prompt-search" type="search" autocomplete="off" spellcheck="false" aria-label="Buscar prompts" placeholder="Buscar por nome ou pasta…"></label></div><div class="prompt-library-layout"><aside class="prompt-sidebar" aria-label="Departamentos de prompts"><div class="prompt-pane-heading"><div><span>Departamentos</span><small id="prompt-folder-count"></small></div></div><nav id="prompt-tree" role="tree" aria-label="Pastas de prompts"></nav></aside><section class="prompt-catalog" aria-label="Lista de prompts"><div id="prompt-list"></div></section><article id="prompt-preview" class="prompt-preview" aria-label="Pré-visualização do prompt"></article></div></div>${actions('<button class="secondary" id="refresh-prompts">Reler Obsidian</button>')}`,{family:'prompts',focus:'#prompt-search',key:'prompt-library'});
- $('#prompts').setAttribute('aria-expanded','true');renderPromptLibrary();
- $('#prompt-search').oninput=event=>{promptQuery=event.target.value;promptSelectedPath='';promptDocument=null;renderPromptLibrary()};
- $('#refresh-prompts').onclick=safe(async()=>{await refresh();promptDocument=null;promptSelectedPath='';renderPromptLibrary();toast('Biblioteca relida do Obsidian.')});
-}
-
-async function openPromptFromOrbit(path){
- await promptLibrary();
- if(!promptData().documents.some(entry=>entry.path===path)){toast('Este prompt não está mais no vault. A biblioteca foi atualizada.');return}
- promptFolderPath=promptParent(path);
- for(let folder=promptFolderPath;folder===promptRoot||folder.startsWith(promptRoot+'/');folder=promptParent(folder))promptExpanded.add(folder);
- await selectPrompt(path);
-}
-
-function normalizedVaultPath(path){return String(path||'').replaceAll('\\','/').replace(/^\/+|\/+$/g,'').toLocaleLowerCase('pt-BR')}
-function tutorialRootPath(){
- const expected=normalizedVaultPath(tutorialRoot);
- const exact=state.entries.find(entry=>entry.directory&&normalizedVaultPath(entry.path)===expected);
- if(exact)return exact.path;
- const descendant=state.entries.find(entry=>normalizedVaultPath(entry.path).startsWith(expected+'/'));
- return descendant?.path.split('/').slice(0,2).join('/')||tutorialRoot;
-}
-function tutorialDepartmentLabel(path){
- const slug=String(path||'').split('/').at(-1)?.toLocaleLowerCase('pt-BR');
- return tutorialDepartments.find(department=>department.slug===slug)?.label||'';
-}
-function tutorialDisplayName(path,data){
- const root=data?.root||tutorialRoot;
- if(normalizedVaultPath(path)===normalizedVaultPath(root))return 'Todos os tutoriais';
- const raw=String(path||'').split('/').at(-1)||path;
- return tutorialDepartmentLabel(path)||raw.replace(/[-_]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
-}
-function tutorialParent(path){return String(path).split('/').slice(0,-1).join('/')}
-function tutorialIsInFolder(path,folder,data){
- const normalizedPath=normalizedVaultPath(path),normalizedFolder=normalizedVaultPath(folder),normalizedRoot=normalizedVaultPath(data?.root||tutorialRoot);
- return normalizedFolder===normalizedRoot||normalizedPath===normalizedFolder||normalizedPath.startsWith(normalizedFolder+'/');
-}
-function tutorialData(){
- const root=tutorialRootPath(),rootKey=normalizedVaultPath(root),folders=new Set([root]),documents=[];
- const rootEntry=state.entries.find(entry=>entry.directory&&normalizedVaultPath(entry.path)===rootKey);
- for(const entry of state.entries){
-  const path=String(entry.path||''),normalized=normalizedVaultPath(path);
-  if(normalized!==rootKey&&!normalized.startsWith(rootKey+'/'))continue;
-  if(entry.directory){folders.add(path);continue}
-  if(!path.toLowerCase().endsWith('.md'))continue;
-  documents.push(entry);
-  const parts=path.split('/'),rootDepth=root.split('/').length;
-  for(let i=rootDepth+1;i<parts.length;i++)folders.add(parts.slice(0,i).join('/'));
- }
- for(const department of tutorialDepartments){
-  const expected=`${root}/${department.slug}`;
-  if(![...folders].some(folder=>normalizedVaultPath(folder)===normalizedVaultPath(expected)))folders.add(expected);
- }
- return {root,exists:!!rootEntry,folders:[...folders],documents};
-}
-function tutorialFolderChildren(path,data){return data.folders.filter(folder=>normalizedVaultPath(folder)!==normalizedVaultPath(path)&&normalizedVaultPath(tutorialParent(folder))===normalizedVaultPath(path)).sort((a,b)=>tutorialDisplayName(a,data).localeCompare(tutorialDisplayName(b,data),'pt-BR'))}
-function tutorialFolderCount(path,data){return data.documents.filter(entry=>tutorialIsInFolder(entry.path,path,data)).length}
-function tutorialTreeNode(path,data,depth=0){
- const children=tutorialFolderChildren(path,data),expanded=normalizedVaultPath(path)===normalizedVaultPath(data.root)||tutorialExpanded.has(path),active=normalizedVaultPath(path)===normalizedVaultPath(tutorialFolderPath),count=tutorialFolderCount(path,data);
- return `<div class="prompt-tree-node tutorial-tree-node" style="--prompt-depth:${depth}"><button class="prompt-folder-button tutorial-folder-button${active?' active':''}" data-tutorial-folder="${esc(path)}" role="treeitem"${active?' aria-current="page"':''}${children.length?` aria-expanded="${expanded}"`:''}>${icon('folder')}<span><strong>${esc(tutorialDisplayName(path,data))}</strong><small>${count} ${count===1?'tutorial':'tutoriais'}</small></span>${children.length?icon('chevron','prompt-folder-chevron'):''}</button>${expanded&&children.length?`<div class="prompt-tree-children" role="group">${children.map(child=>tutorialTreeNode(child,data,depth+1)).join('')}</div>`:''}</div>`;
-}
-function tutorialListItems(data){
- const terms=tutorialQuery.trim().toLocaleLowerCase('pt-BR').split(/\s+/).filter(Boolean);
- return data.documents.filter(entry=>tutorialIsInFolder(entry.path,tutorialFolderPath,data)).filter(entry=>{
-  const haystack=(tutorialDisplayName(entry.name.replace(/\.md$/i,''),data)+' '+entry.path).toLocaleLowerCase('pt-BR');
-  return terms.every(term=>haystack.includes(term));
- }).sort((a,b)=>tutorialDisplayName(a.name.replace(/\.md$/i,''),data).localeCompare(tutorialDisplayName(b.name.replace(/\.md$/i,''),data),'pt-BR'));
-}
-function tutorialListHTML(data){
- const items=tutorialListItems(data),count=items.length,scope=normalizedVaultPath(tutorialFolderPath)===normalizedVaultPath(data.root)?'todos os tutoriais':tutorialDisplayName(tutorialFolderPath,data),heading=tutorialQuery?`Resultados em ${esc(scope)}`:tutorialDisplayName(tutorialFolderPath,data);
- const headingHTML=`<div class="prompt-pane-heading tutorial-pane-heading"><div><span>${esc(heading)}</span><small>${count} ${count===1?'tutorial encontrado':'tutoriais encontrados'}</small></div></div>`;
- if(!count)return headingHTML+`<div class="prompt-empty tutorial-empty">${icon('book')}<strong>${tutorialQuery?'Nenhum tutorial encontrado':'Este departamento ainda está vazio'}</strong><p>${tutorialQuery?'Tente outro termo ou escolha outro departamento.':'Adicione um arquivo .md nesta pasta do Obsidian para criar o próximo tutorial.'}</p></div>`;
- const buttons=items.map(entry=>{
-  const selected=entry.path===tutorialSelectedPath,relative=entry.path.split('/').slice(data.root.split('/').length).join('/').replace(/\.md$/i,'');
-  return `<button class="prompt-list-item tutorial-list-item${selected?' active':''}" data-tutorial-document="${esc(entry.path)}" role="option" aria-selected="${selected}">${icon('book','prompt-list-icon')}<span><strong>${esc(tutorialDisplayName(entry.name.replace(/\.md$/i,''),data))}</strong><small>${esc(relative)}</small></span><span class="prompt-list-arrow" aria-hidden="true">↗</span></button>`;
- }).join('');
- return headingHTML+`<div class="prompt-list-items tutorial-list-items" role="listbox" aria-label="Tutoriais encontrados">${buttons}</div>`;
-}
-function tutorialPreviewHTML(){
- if(!tutorialSelectedPath)return `<div class="prompt-preview-empty tutorial-preview-empty">${icon('book')}<h2>Escolha um tutorial</h2><p>Selecione um arquivo para ler, copiar ou abrir a nota original no Obsidian.</p></div>`;
- if(!tutorialDocument)return `<div class="prompt-preview-empty prompt-loading tutorial-preview-empty" aria-live="polite">${icon('refresh')}<h2>Lendo tutorial…</h2><p>Consultando o arquivo original no Obsidian.</p></div>`;
- if(tutorialDocument.error)return `<div class="prompt-preview-empty tutorial-preview-empty"><span class="status-badge" data-tone="negative">Leitura não concluída</span><h2>Não foi possível ler esta nota</h2><p>${esc(tutorialDocument.error)}</p></div>`;
- const name=tutorialDisplayName(tutorialSelectedPath.split('/').at(-1).replace(/\.md$/i,''));
- return `<div class="prompt-preview-heading tutorial-preview-heading"><div><span class="prompt-preview-kicker">TUTORIAL / OBSIDIAN</span><h2>${esc(name)}</h2><small>${esc(tutorialSelectedPath)}</small></div><div class="prompt-preview-actions tutorial-preview-actions"><button class="secondary" id="copy-tutorial">${icon('check')}Copiar</button><button class="secondary" id="open-tutorial-note">Abrir nota</button></div></div><article class="markdown-reader prompt-preview-content tutorial-preview-content">${markdown(tutorialDocument.text||'')}</article>`;
-}
-function renderTutorialLibrary(){
- const tree=$('#tutorial-tree'),list=$('#tutorial-list'),preview=$('#tutorial-preview');if(!tree||!list||!preview)return;
- const data=tutorialData();
- if(!data.folders.some(folder=>normalizedVaultPath(folder)===normalizedVaultPath(tutorialFolderPath)))tutorialFolderPath=data.root;
- if(tutorialSelectedPath&&!data.documents.some(entry=>entry.path===tutorialSelectedPath)){tutorialSelectedPath='';tutorialDocument=null}
- if(tutorialSelectedPath&&!tutorialIsInFolder(tutorialSelectedPath,tutorialFolderPath,data)){tutorialSelectedPath='';tutorialDocument=null}
- tree.innerHTML=tutorialTreeNode(data.root,data);
- list.innerHTML=tutorialListHTML(data);
- preview.innerHTML=tutorialPreviewHTML();
- $('#tutorial-folder-count').textContent=`${Math.max(0,data.folders.length-1)} ${Math.max(0,data.folders.length-1)===1?'pasta':'pastas'}`;
- $('#tutorial-source-status').textContent=!data.exists?'Pasta ainda não encontrada no vault conectado':data.documents.length?`${data.documents.length} ${data.documents.length===1?'tutorial':'tutoriais'} disponíveis no vault conectado`:'Pasta conectada · nenhum arquivo .md encontrado ainda';
- tree.querySelectorAll('[data-tutorial-folder]').forEach(button=>button.onclick=()=>{const path=button.dataset.tutorialFolder,children=tutorialFolderChildren(path,data);tutorialFolderPath=path;if(children.length&&normalizedVaultPath(path)!==normalizedVaultPath(data.root)){if(tutorialExpanded.has(path))tutorialExpanded.delete(path);else tutorialExpanded.add(path)}if(tutorialSelectedPath&&!tutorialIsInFolder(tutorialSelectedPath,path,data)){tutorialSelectedPath='';tutorialDocument=null}renderTutorialLibrary();button.focus({preventScroll:true})});
- list.querySelectorAll('[data-tutorial-document]').forEach(button=>button.onclick=()=>selectTutorial(button.dataset.tutorialDocument));
- $('#copy-tutorial')?.addEventListener('click',safe(async()=>{await call('copy',{text:tutorialDocument?.text||''});toast('Tutorial copiado.')}));
- $('#open-tutorial-note')?.addEventListener('click',safe(()=>openNote(tutorialSelectedPath)));
- bindMarkdown(preview);
-}
-async function selectTutorial(path){
- const revision=modalRevision;tutorialSelectedPath=path;tutorialDocument=null;renderTutorialLibrary();
- try{const document=await call('read',{path});if(revision!==modalRevision||!$('#modal').open||tutorialSelectedPath!==path)return;tutorialDocument={...document,relative:path};renderTutorialLibrary()}catch(error){if(revision===modalRevision){tutorialDocument={error:error.message};renderTutorialLibrary();toast(error.message)}}
-}
-async function tutorialsLibrary(){
- tutorialFolderPath=tutorialRoot;tutorialSelectedPath='';tutorialQuery='';tutorialDocument=null;tutorialExpanded=new Set([tutorialRoot]);
- try{await refresh()}catch(error){toast(error.message)}
- modal(`<span class="step-label">OBSIDIAN / SISTEMA/TUTORIAIS</span><h1>Tutoriais</h1><p>Guias práticos organizados por campo de trabalho, sempre ligados à nota Markdown original no seu vault.</p><div class="prompt-library tutorial-library"><div class="prompt-library-toolbar tutorial-library-toolbar"><div class="prompt-library-source tutorial-library-source"><span class="status-badge" data-tone="info">Fonte local</span><span id="tutorial-source-status">Lendo o vault…</span></div><label class="search prompt-search tutorial-search">${icon('search')}<input id="tutorial-search" type="search" autocomplete="off" spellcheck="false" aria-label="Buscar tutoriais" placeholder="Buscar por título ou pasta…"></label></div><div class="prompt-library-layout tutorial-library-layout"><aside class="prompt-sidebar tutorial-sidebar" aria-label="Departamentos de tutoriais"><div class="prompt-pane-heading tutorial-pane-heading"><div><span>Departamentos</span><small id="tutorial-folder-count"></small></div></div><nav id="tutorial-tree" role="tree" aria-label="Pastas de tutoriais"></nav></aside><section class="prompt-catalog tutorial-catalog" aria-label="Lista de tutoriais"><div id="tutorial-list"></div></section><article id="tutorial-preview" class="prompt-preview tutorial-preview" aria-label="Pré-visualização do tutorial"></article></div></div>${actions('<button class="secondary" id="refresh-tutorials">Reler Obsidian</button>')}`,{family:'tutorials',focus:'#tutorial-search',key:'tutorial-library'});
- $('#tutorials').setAttribute('aria-expanded','true');renderTutorialLibrary();
- $('#tutorial-search').oninput=event=>{tutorialQuery=event.target.value;tutorialSelectedPath='';tutorialDocument=null;renderTutorialLibrary()};
- $('#refresh-tutorials').onclick=safe(async()=>{await refresh();tutorialDocument=null;tutorialSelectedPath='';renderTutorialLibrary();toast('Tutoriais relidos do Obsidian.')});
+async function catalogSettings(){
+ if(!state.onboarding?.capabilities?.manageCatalogSource){toast('Esta ação exige a licença administrativa assinada.');return;}
+ const epoch=navigationEpoch,status=await call('updateStatus');if(epoch!==navigationEpoch)return;
+ modal(`<h1>Fonte oficial de skills</h1><p>Configuração administrativa. Os alunos recebem apenas o catálogo aprovado; este controle não altera os arquivos de origem.</p><label class="field">Repositório GitHub HTTPS<input id="catalog-repository" type="url" value="${esc(status.skills_repository||'')}" placeholder="https://github.com/organizacao/repositorio"></label><p class="muted">Não inclua tokens ou credenciais. O catálogo é validado antes de instalar.</p>${actions('<button class="primary" id="save-catalog-source">Salvar fonte</button>')}`);
+ $('#save-catalog-source').onclick=safe(async()=>{await call('configureSkillSource',{repository:$('#catalog-repository').value});toast('Fonte configurada. Use Verificar para consultar uma versão.');});
 }
 
 function settings(){
+ if(document.querySelector('.ob-dialog[open]'))return;
+ if(modalDirty){requestEditorExit(false,settings);return}
  settingsTrail=true;
  const row=(id,name,description,ic='chevron')=>`<button class="setting-row" id="${id}"><span><strong>${name}</strong><small>${description}</small></span>${icon(ic)}</button>`;
  modal(`<h1>Ajustes do Oracle</h1>
  <section class="settings-section"><h2>Seu Oracle</h2><div class="setting-group">
- ${row('restart-setup','Configurar Oracle','Conta, conexões e pasta do Obsidian')}
+ ${row('restart-setup','Configurar Oracle','Identidade, instalação local e pasta do Obsidian')}
+ ${row('manage-departments','Organizar departamentos','Agrupamento visual; os arquivos não serão movidos')}
  ${row('gbrain-memory','Consultar memória','Encontrar notas e suas conexões')}
  ${row('gbrain-connect','Conectar Second Brain','Usar uma instalação que você já possui')}
  ${row('gbrain-review','Revisar contexto','Conferir as informações sobre você')}
@@ -451,13 +367,15 @@ function settings(){
  </div></section>
  <section class="settings-section"><h2>Aplicativo</h2><div class="setting-group">
  ${row('updates-settings','Atualizações','Verificar novidades e versões','refresh')}
+ ${state.onboarding?.capabilities?.manageCatalogSource?row('catalog-settings','Fonte oficial de skills','Ação administrativa desta licença'):''}
  ${row('export-view','Exportar imagem','Salvar uma imagem do seu universo')}
  </div></section>
  <details class="source-details"><summary>Avançado</summary><div class="setting-group">
  ${row('graphics-diagnostics','Desempenho do mapa','Medidas desta janela')}
  ${row('activity-settings','Histórico técnico','Consultar registros de atividade')}
- </div><div class="source">${window.ORACLE_PREVIEW||state.config.fixture?'Ambiente de validação · dados sintéticos':'Instalação local'}<br>Pasta: ${esc(state.config.vault||'Não selecionada')}<br>Oracle 0.3.0 · distribuição de desenvolvimento</div></details>${actions()}`,{family:'settings'});
- $('#restart-setup').onclick=()=>{if(window.OracleOnboarding){closeModal();OracleOnboarding.open({fromSettings:true})}else showSetup(0)};
+ </div><div class="source">${window.ORACLE_PREVIEW||state.config.fixture?'Ambiente de validação · dados sintéticos':'Instalação local'}<br>Pasta: ${esc(state.config.vault||'Não selecionada')}<br>${esc(buildDescription())}</div></details>${actions()}`,{family:'settings'});
+ $('#restart-setup').onclick=()=>showSetup({fromSettings:true});$('#manage-departments').onclick=departmentSettings;
+ $('#catalog-settings')?.addEventListener('click',safe(catalogSettings));
  $('#gbrain-memory').onclick=safe(memory);$('#gbrain-review').onclick=safe(reviewGBrain);$('#bridge-review').onclick=safe(reviewBridge);
  $('#maintenance-settings').onclick=safe(maintenanceSettings);$('#backup-settings').onclick=safe(backupSettings);
  $('#graphics-diagnostics').onclick=graphicsDiagnostics;$('#activity-settings').onclick=activity;$('#updates-settings').onclick=safe(()=>showUpdates(false));
@@ -535,28 +453,44 @@ async function startJournal(){
  const data=await call('replayData');if(!data.events?.length)throw Error('Nenhum histórico de instalação disponível.');
  clearInterval(timer);timer=null;replaySession={...data,kind:'journal'};cursor=0;replay=true;closeModal();projectReplay();
 }
-$('#search').onclick=()=>openSearch();$('#refresh').onclick=safe(refresh);$('#settings').onclick=settings;$('#prompts').onclick=safe(promptLibrary);$('#tutorials').onclick=safe(tutorialsLibrary);
+$('#search').onclick=()=>openSearch();$('#refresh').onclick=safe(refreshVault);$('#settings').onclick=settings;$('#prompts').onclick=safe(promptLibrary);$('#tutorials').onclick=safe(tutorialsLibrary);
 $('#tools').onclick=()=>plugin();$('#conversations').onclick=safe(conversations);$('#instructions').onclick=safe(instructions);
 $('#density').oninput=renderAtlas;$('#motion').checked=matchMedia('(prefers-reduced-motion: reduce)').matches;
-$('#motion').onchange=()=>{document.body.classList.toggle('reduced',$('#motion').checked);renderAtlas()};
+$('#motion').onchange=safe(()=>saveVisualPreference('reduceMotion',$('#motion').checked));
 $('#timeline').oninput=safe(scrub);$('#play').onclick=safe(play);$('#live').onclick=live;
 $('#speed').onclick=()=>{speed=speed===4?1:speed*2;$('#speed').textContent=speed+'×';atlasController?.setFormation({rate:speed});if(timer){clearInterval(timer);timer=null;play()}renderPlayback()};
 $('.wordmark').onclick=e=>{e.preventDefault();setView('map');renderAtlas();atlasController?.select(null);atlasController?.fit()};
 $('#updates').onclick=safe(()=>showUpdates(false));
-function setZoom(factor){atlasController?.zoomAt(factor)}$('#zoom-in').onclick=()=>setZoom(1.2);$('#zoom-out').onclick=()=>setZoom(1/1.2);$('#zoom-reset').onclick=()=>atlasController?.fit();$('#context-back').onclick=()=>atlasController?.back();$('#reset-layout').onclick=()=>{atlasController?.reset();toast('Posições restauradas. Nenhum arquivo foi movido.')};$('#economy').onchange=renderAtlas;
-window.oracleLock=()=>{window.OracleOnboarding?.suspend();OracleInstallationVisual.reset();for(const p of pending.values())p.reject(Error('Oracle bloqueado'));pending.clear();replay=false;replayProjection=null;replaySession=null;closeModal(true);if(atlasController){atlasController.dispose();atlasController=null};$('#lock-screen').hidden=false;$('#app').inert=true;state={entries:[],collections:[],events:[],config:{}};readDocument=null;editorSession=null;clearTimeout(draftTimer);$('#tree').oracleHTML=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null};$('#lock').onclick=safe(async()=>{await persistEditorDraft();if(!window.ORACLE_PREVIEW)await call('lock');window.oracleLock()});$('#unlock').onclick=safe(async()=>{await call('unlock');$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();await mountOnboarding()});
+function setZoom(factor){atlasController?.zoomAt(factor)}$('#zoom-in').onclick=()=>setZoom(1.2);$('#zoom-out').onclick=()=>setZoom(1/1.2);$('#zoom-reset').onclick=()=>atlasController?.fit();$('#context-back').onclick=()=>atlasController?.back();$('#reset-layout').onclick=()=>{atlasController?.reset();toast('Posições restauradas. Nenhum arquivo foi movido.')};$('#economy').onchange=safe(()=>saveVisualPreference('economy',$('#economy').checked));
+window.oracleLock=()=>{
+ window.OracleOnboarding?.suspend();OracleInstallationVisual.reset();refreshSequence++;navigationEpoch++;noteReadSequence++;refreshTask=null;
+ memoryEpoch++;memoryPollTask=null;lastMemorySignature='';visualPending={};
+ clearTimeout(initialScanTimer);initialScanRetries=0;clearTimeout(updatePolling);
+ for(const p of pending.values()){clearTimeout(p.timeout);p.reject(Error('Oracle bloqueado'));}pending.clear();
+ replay=false;replayProjection=null;replaySession=null;closeModal(true);if(atlasController){atlasController.dispose();atlasController=null;}
+ $('#lock-screen').hidden=false;$('#app').inert=true;state={entries:[],collections:[],events:[],config:{}};readDocument=null;editorSession=null;clearTimeout(draftTimer);
+ $('#tree').oracleHTML=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null;
+};
+$('#lock').onclick=safe(async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();if(!window.ORACLE_PREVIEW)await call('lock');else window.oracleLock();});
+$('#unlock').onclick=safe(async()=>{const allowed=await call('unlock');if(!allowed)return;$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();await mountOnboarding();});
 // Deterministic ambient dust; it never represents an agent or event.
 for(let i=0;i<46;i++){const e=document.createElement('i');e.className='star';e.style.cssText=`left:${(Math.sin(i*12.9898)*43758.5453%1+1)%1*100}%;top:${(Math.sin(i*78.233)*12731.7%1+1)%1*100}%;width:${i%7===0?2:1}px;height:${i%7===0?2:1}px;opacity:${i%5/18+.04}`;$('#galaxy').append(e)}
 call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked)window.oracleLock();else{await refresh();$('#app').inert=false;await mountOnboarding()}}).catch(e=>{if($('#lock-screen').hidden)$('#app').inert=false;toast(e.message)});
 setInterval(()=>{if(!$('#lock-screen').hidden||document.hidden)return;call('events').then(events=>{if(events.at(-1)?.event_id!==state.events.at(-1)?.event_id){state.events=events;renderProgress();renderAtlas();if(events.at(-1)?.phase&&!$('#modal').open)safe(refresh)()}}).catch(()=>{})},2500);
 setInterval(()=>{if($('#lock-screen').hidden&&!document.hidden&&!$('#modal').open)safe(refresh)()},30000);
+setInterval(()=>{void pollMemoryStatus();},1800);
 
 async function memory(){
+ if(navigationBlocked())return;
  modal('<h1>Memória</h1><p>Conectando à sua biblioteca…</p>'+actions());
- const revision=modalRevision;const status=await call('gbrainRead',{operation:'status'});if(revision!==modalRevision||!$('#modal').open)return;
- OracleStatusBadge.apply($('#gbrain-status'),'connected','Conectada');
+ const revision=modalRevision,epoch=navigationEpoch;let status;
+ try{status=await call('gbrainRead',{operation:'status'});}catch(error){if(epoch!==navigationEpoch)return;modal(`<h1>Memória indisponível</h1><p role="alert">${esc(error.message)}</p>${actions('<button class="secondary" id="memory-retry">Tentar novamente</button>')}`);$('#memory-retry').onclick=safe(memory);return;}
+ if(epoch!==navigationEpoch||revision!==modalRevision||!$('#modal').open)return;
  modal(`<span class="step-label">${window.ORACLE_PREVIEW?'MEMÓRIA / DADOS SINTÉTICOS':'MEMÓRIA / GBRAIN OFICIAL '+esc(status.version)}</span><h1>Memória</h1><p>Encontre suas notas e acompanhe suas conexões.</p><label class="field">Biblioteca<select id="memory-source">${status.sources.map(s=>`<option value="${esc(s.id)}">${esc(({default:'Geral','oracle-memory':'Memória do Oracle','oracle-vault':'Obsidian'})[s.id]||s.name||s.id)}</option>`).join('')}</select></label><label class="search"><input id="memory-query" placeholder="Buscar na memória" aria-label="Buscar na memória"></label><div id="memory-results"></div>${actions('<button class="primary" id="memory-search">Buscar</button>')}`);
  if(status.sources.some(s=>s.id==='oracle-vault'))$('#memory-source').value='oracle-vault';
+ const freshness=document.createElement('div');freshness.id='memory-freshness';freshness.className='memory-freshness';freshness.setAttribute('role','status');$('.modal-body').prepend(freshness);renderMemoryFreshness();
+ const update=document.createElement('button');update.className='secondary';update.textContent='Atualizar índice local';$('.modal-footer').prepend(update);
+ update.onclick=safe(async()=>{state.memorySync=await call('memoryRefresh');renderMemoryFreshness();});
  const source=()=>$('#memory-source').value;
  const viewRevision=modalRevision;let searchSequence=0;
  const renderHits=(hits,src)=>{
@@ -580,13 +514,20 @@ async function memory(){
  $('#memory-search').onclick=search;$('#memory-query').onkeydown=e=>{if(e.key==='Enter')search()};$('#memory-source').onchange=search;if(status.sources.length)await search();
 }
 async function memoryPage(slug,source){
- const revision=modalRevision,page=await call('gbrainRead',{operation:'get',source,slug});if(revision!==modalRevision)return;if(!page)throw Error('Nota não encontrada');
- const links=await call('gbrainRead',{operation:'graph',source,slug});if(revision!==modalRevision)return;
- modal(`<h1>${esc(page.title||slug)}</h1><article class="markdown-reader">${markdown(page.compiled_truth||'')}</article><details class="source-details"><summary>Origem e conexões</summary><div class="source">${esc(source)} / ${esc(slug)}<br>${esc(page.canonical_path||page.frontmatter?.canonical_path||page.frontmatter?.origin_source_path||'Caminho de origem não informado')}</div><pre>${esc(JSON.stringify(links,null,2))}</pre></details>${actions()}`,{family:'reader',key:'memory:'+source+':'+slug});bindMarkdown($('#modal-content'));
+ const epoch=navigationEpoch,page=await call('gbrainRead',{operation:'get',source,slug});if(epoch!==navigationEpoch)return;if(!page)throw Error('Nota não encontrada');
+ let links;try{links=await call('gbrainRead',{operation:'graph',source,slug});}catch(error){links={status:'unavailable',message:error.message};}if(epoch!==navigationEpoch)return;
+ const canonical=page.canonical_path||page.frontmatter?.canonical_path||'',prefix=String(state.config.vault||'')+'/';
+ const relative=source==='oracle-vault'&&canonical.startsWith(prefix)?canonical.slice(prefix.length):'';
+ modal(`<h1>${esc(page.title||slug)}</h1><article class="markdown-reader">${markdown(page.compiled_truth||'')}</article><details class="source-details"><summary>Origem e conexões</summary><div class="source">${esc(source)} / ${esc(slug)}<br>${esc(canonical||page.frontmatter?.origin_source_path||'Caminho de origem não informado')}${page.indexed_hash?'<br>Versão indexada: '+esc(page.indexed_hash):''}</div><pre>${esc(JSON.stringify(links,null,2))}</pre></details>${actions()}`,{family:'reader',key:'memory:'+source+':'+slug});bindMarkdown($('#modal-content'),relative);
 }
-async function reviewGBrain(){const revision=modalRevision;const r=await call('gbrainReadback');if(revision!==modalRevision)return;if(!r.upstream_hash)throw Error('Seu contexto ainda não foi preparado. Continue pela configuração do Oracle.');modal(`<span class="step-label">REVISÃO OFICIAL GBRAIN</span><h1>Revisar contexto</h1><p>Confira se estas informações refletem suas respostas.</p><pre>${esc(window.OracleOnboarding?.formatReadback?.(r.readback)||r.readback)}</pre>${actions('<button class="primary" id="confirm-official">Confirmar contexto</button>')}`);$('#confirm-official').onclick=safe(async()=>{await call('confirmGBrain',{hash:r.upstream_hash});toast('Contexto confirmado. Continue a configuração no Codex.');closeModal()})}
+function renderMemoryFreshness(){
+ const element=$('#memory-freshness');if(!element)return;
+ const sync=state.memorySync||{},names={current:'Índice local atualizado.',stale:'Alterações aguardam verificação local.',partial:'A leitura ou indexação está parcial. Exclusões não serão reconciliadas.',external:'Perfil externo selecionado. Sua atualização é gerenciada pelo responsável dessa instalação.',unavailable:'Índice local ainda não disponível.'};
+ element.textContent=(names[sync.state]||'Atualidade do índice ainda não verificada.')+(sync.indexing?' Indexação em andamento.':'')+(sync.error?' '+sync.error:'');
+}
+async function reviewGBrain(){const revision=modalRevision;const r=await call('gbrainReadback');if(revision!==modalRevision)return;if(!r.upstream_hash)throw Error('Seu contexto ainda não foi preparado. Continue pela configuração do Oracle.');modal(`<span class="step-label">REVISÃO OFICIAL GBRAIN</span><h1>Revisar contexto</h1><p>Confira suas respostas registradas. Confirmações e alterações são feitas na configuração, vinculadas ao plano atual.</p><pre>${esc(window.OracleOnboarding?.formatReadback?.(r.readback)||r.readback)}</pre>${actions('<button class="primary" id="open-identity-setup">Abrir configuração</button>')}`);$('#open-identity-setup').onclick=()=>showSetup({fromSettings:true});}
 
-function renderSkillInspector(){const path=selectedSkill,name=path.split('/').slice(-2,-1)[0],collection=state.collections.find(c=>c.id===selected);$('#inspector-title').textContent=name.replace(/-/g,' ');$('#inspector').innerHTML=`<span class="pill">Skill · ${esc(collection?.name||'')}</span><p class="muted">Um procedimento da sua coleção de especialistas.</p><button id="inspect-skill" class="primary">Ler procedimento</button><button id="edit-selected-skill" class="secondary">Editar</button><button id="focus-parent">Enquadrar coleção →</button>`;$('#inspect-skill').onclick=safe(()=>openNote(path));$('#edit-selected-skill').onclick=safe(async()=>{await openNote(path);editNote()});$('#focus-parent').onclick=()=>atlasController?.focus(selected)}
+function renderSkillInspector(){const path=selectedSkill,name=path.split('/').slice(-2,-1)[0],collection=state.collections.find(c=>c.id===selected);$('#inspector-title').textContent=name.replace(/-/g,' ');$('#inspector').innerHTML=`<span class="pill">Skill · ${esc(collection?.name||'')}</span><p class="muted">Um procedimento da sua coleção de especialistas.</p><button id="inspect-skill" class="primary">Ler procedimento</button><button id="edit-selected-skill" class="secondary">Editar</button><button id="focus-parent">Enquadrar coleção →</button>`;$('#inspect-skill').onclick=safe(()=>openNote(path));$('#edit-selected-skill').onclick=safe(async()=>{if(await openNote(path))editNote()});$('#focus-parent').onclick=()=>atlasController?.focus(selected)}
 
 function graphicsDiagnostics(){modal(`<h1>Diagnóstico do atlas</h1><p>Medidas desta janela, sem estimar tempo de GPU. O movimento ambiental é separado de execução real do Codex.</p><pre>${esc(JSON.stringify(atlasController?.diagnostics()||{renderer:'SVG fallback',reason:atlasController?.renderError},null,2))}</pre>${actions()}`)}
 
@@ -594,33 +535,48 @@ window.oracleVisibility=visible=>{window.oracleWindowVisible=visible;atlasContro
 
 $('#ambient-toggle').onclick=()=>{visualPaused=!visualPaused;$('#ambient-toggle').textContent=visualPaused?'Retomar atmosfera':'Pausar atmosfera';atlasController?.setPaused(visualPaused||document.hidden||view!=='map')};
 
-function markdown(text){
- const lines=text.replace(/^---\n[\s\S]*?\n---\n/,'').split('\n');let html='',list=false,code=false,codeLines=[];
- const inline=line=>esc(line).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>').replace(/\[\[([^\]]+)\]\]/g,'<button class="wiki-link" data-wiki="$1">$1</button>').replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<button class="document-link" data-external="$2">$1 ↗</button>');
- for(const line of lines){if(line.startsWith('```')){if(code){html+='<pre><code>'+esc(codeLines.join('\n'))+'</code></pre>';codeLines=[];code=false}else code=true;continue}if(code){codeLines.push(line);continue}const item=/^\s*[-*] (.+)/.exec(line);if(item){if(!list){html+='<ul>';list=true}html+='<li>'+inline(item[1])+'</li>';continue}if(list){html+='</ul>';list=false}const heading=/^(#{1,4}) (.+)/.exec(line);if(heading){html+=`<h${Math.min(heading[1].length+1,4)}>${inline(heading[2])}</h${Math.min(heading[1].length+1,4)}>`}else if(line.startsWith('> '))html+='<blockquote>'+inline(line.slice(2))+'</blockquote>';else if(line.trim())html+='<p>'+inline(line)+'</p>'}
- if(list)html+='</ul>';if(code)html+='<pre><code>'+esc(codeLines.join('\n'))+'</code></pre>';return html||'<p>Documento vazio.</p>';
+function markdown(text){return OracleMarkdown.render(text)}
+function scrollMarkdownFragment(fragment){
+ if(!fragment)return;
+ const normalized=String(fragment).normalize('NFC').toLocaleLowerCase('pt-BR'),slug=text=>text.replace(/[^\p{L}\p{N}_ -]/gu,'').trim().replace(/\s+/g,'-');
+ const heading=[...document.querySelectorAll('.markdown-reader :is(h2,h3,h4,h5,h6)')].find(h=>{const text=h.textContent.normalize('NFC').toLocaleLowerCase('pt-BR');return text===normalized||slug(text)===normalized;});
+ if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});heading.scrollIntoView({block:'start'});}
+ else toast('Nota aberta; a seção citada não foi encontrada.');
 }
-function bindMarkdown(container){container.querySelectorAll('[data-external]').forEach(e=>e.onclick=safe(()=>call('openExternal',{url:e.dataset.external})));container.querySelectorAll('[data-wiki]').forEach(e=>e.onclick=safe(async()=>{const name=e.dataset.wiki.split('|')[0].split('#')[0].toLowerCase();const matches=visibleEntries().filter(n=>!n.directory&&(title(n).toLowerCase()===name||n.path.replace(/\.md$/,'').toLowerCase()===name));if(matches.length===1)await openNote(matches[0].path);else{openSearch(name);if(!matches.length)toast('Relação citada; documento não encontrado nesta pasta')}}))}
+function bindMarkdown(container,sourcePath=readDocument?.relative||''){
+ container.querySelectorAll('[data-external]').forEach(e=>e.onclick=safe(()=>call('openExternal',{url:e.dataset.external})));
+ container.querySelectorAll('[data-local]').forEach(e=>e.onclick=safe(async()=>{
+  if(!sourcePath)throw Error('A origem local deste documento não foi confirmada. Abra a nota na fonte original.');
+  const target=OracleMarkdown.resolveLocal(e.dataset.local,sourcePath,visibleEntries());
+  if(await openNote(target.path))scrollMarkdownFragment(target.fragment);
+ }));
+ container.querySelectorAll('[data-wiki]').forEach(e=>e.onclick=safe(async()=>{
+  let target;try{target=OracleMarkdown.resolveWiki(e.dataset.wiki,sourcePath,visibleEntries());}
+  catch(error){openSearch(e.dataset.wiki.split('#')[0]);toast(error.message);return;}
+  if(await openNote(target.path))scrollMarkdownFragment(target.fragment);
+ }));
+}
 
 $('#modal').addEventListener('close',()=>atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused));
 
 function visibleEntries(){return replayProjection||state.entries}
 function timelineEvents(){return replay&&replaySession?.kind==='journal'?replaySession.events:state.events}
 
-function setupContinuation(){modal(`<h1>Continuar sua configuração</h1><p>O plano confirmado permanece disponível. A retomada verifica o que já existe e continua pelos recibos, sem criar outro plano.</p><div class="source">Plano ${esc(state.setup.plan_id)}</div>${actions('<button class="secondary" id="new-setup">Nova configuração</button><button class="primary" id="resume-setup">Retomar no Codex</button>')}`);$('#new-setup').onclick=()=>showSetup(0);$('#resume-setup').onclick=()=>showSetup(5)}
+function setupContinuation(){modal(`<h1>Continuar sua configuração</h1><p>O plano confirmado permanece disponível. A retomada verifica o que já existe e continua pelos recibos, sem criar outro plano.</p><div class="source">Plano ${esc(state.setup.plan_id)}</div>${actions('<button class="primary" id="resume-setup">Abrir retomada local</button>')}`);$('#resume-setup').onclick=()=>showSetup()}
 
 async function reviewBridge(){
  const connected=state.codexPlugins?.status==='available';
- modal(`<h1>Codex e plugins</h1>${statusBadge(connected?'connected':'unverified',connected?'Conectado':'Conexão não verificada')}<p>O Codex executa suas tarefas e gerencia as permissões dos plugins.</p>${actions('<button class="secondary" id="bridge-plugins">Ver plugins</button><button class="primary" id="bridge-codex">Abrir Codex</button>')}`);
- $('#bridge-plugins').onclick=()=>plugin();$('#bridge-codex').onclick=safe(()=>call('openCodex'));
+ modal(`<h1>Codex e plugins</h1>${statusBadge(connected?'connected':'unverified',connected?'Conectado':'Conexão não verificada')}<p>A conexão é opcional para tarefas remotas. A instalação, consulta e edição locais permanecem disponíveis offline.</p>${actions('<button class="secondary" id="bridge-plugins">Ver plugins</button><button class="secondary" id="bridge-codex">Abrir Codex</button><button class="primary" id="bridge-connect">Conexão e modelo</button>')}`);
+ $('#bridge-plugins').onclick=()=>plugin();$('#bridge-codex').onclick=safe(()=>call('openCodex'));$('#bridge-connect').onclick=()=>showSetup({fromSettings:true,connection:true});
 }
 
 // One search surface serves the launcher, collection navigation and wiki links.
 function openSearch(initial='',scope={}){
+ if(navigationBlocked())return;
  const prefix=/^(SISTEMA|INBOX|PROJETOS|AREAS|WIKI|FONTES)\//i.test(initial)?initial:'';
  const catalog=departmentCatalog(),department=catalog.departmentByID.get(scope.department);
  let selectedIndex=0,hits=[],page=0;
- modal(`<span class="step-label">MEU UNIVERSO</span><h1>Encontre uma skill</h1>
+ modal(`<span class="step-label">MEU UNIVERSO</span><h1>Buscar notas e skills</h1>
  <label class="search search-field">${icon('search')}<input id="universe-query" type="search" autocomplete="off" spellcheck="false" aria-label="Buscar notas e skills" placeholder="Nome, assunto ou caminho…" value="${esc(prefix?'':initial)}" aria-controls="search-results"></label>
  ${prefix||department?`<button class="search-scope" id="clear-search-scope">${icon('folder')}${esc(department?.name||prefix)} ${icon('close')}</button>`:''}
  <div class="search-meta" id="search-count" role="status" aria-live="polite"></div>
@@ -665,11 +621,16 @@ document.addEventListener('keydown',e=>{if(!['Shift','Control','Alt','Meta'].inc
 // WebKit on macOS does not focus every clicked control by default. Keep the
 // native app's modal origin and keyboard controls consistent with the browser.
 document.addEventListener('click',e=>{const control=e.target.closest('button,input[type=range],summary');if(control&&!control.disabled)control.focus({preventScroll:true})},true);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideTooltip();if(!e.defaultPrevented&&!$('#modal').open&&view==='map'&&(atlasController?.selected||atlasController?.department||atlasController?.knowledge)){e.preventDefault();atlasController.back()}}if($('#app').inert)return;if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(!modalDirty)openSearch()}if(e.metaKey&&e.key===','){e.preventDefault();if(!modalDirty)settings()}});
+document.addEventListener('keydown',e=>{
+ if(document.querySelector('.ob-dialog[open]')||$('#app').inert)return;
+ if(e.key==='Escape'){hideTooltip();if(!e.defaultPrevented&&!document.querySelector('dialog[open]')&&view==='map'&&(atlasController?.selected||atlasController?.knowledge||atlasController?.department)){e.preventDefault();atlasController.back();}}
+ if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(!modalDirty)openSearch();}
+ if(e.metaKey&&e.key===','){e.preventDefault();if(!modalDirty)settings();}
+});
 
 let updatePolling=null,updateBusy=false;
-const updateNames={gbrain:'Second Brain',cognee:'Memory',skills:'Skills'};
-const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',external:'Instalação existente',compatibility_required:'Aguardando validação',not_adopted:'Ainda não conectado',not_configured:'Sem atualização disponível',error:'Tente novamente',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
+const updateNames={gbrain:'GBrain oficial',cognee:'Integração não adotada',skills:'Skills'};
+const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',external:'Instalação existente',compatibility_required:'Aguardando validação',not_adopted:'Não adotado',not_configured:'Fonte não configurada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
 function reflectUpdateStatus(status){
  updateBusy=!!status.busy;$('#updates').classList.toggle('busy',updateBusy);
  const pending=!!status.knownUpdate||!!status.available;
@@ -701,6 +662,14 @@ async function pollAutomaticUpdateStatus(attempt){
   automaticUpdateFailures=(status.phase==='failed'||status.results?.some(r=>r.status==='error'))?automaticUpdateFailures+1:0;
  }catch(error){automaticUpdateFailures++;updateBusy=false;$('#updates').classList.remove('busy')}
 }
+function updateResultRows(status){
+ const displayed=new Map((status.pendingUpdates||[]).map(row=>[row.id,row]));
+ for(const row of status.results||[]){
+  const known=displayed.get(row.id);
+  displayed.set(row.id,known&&['offline','error','not_checked'].includes(row.status)?{...known,...row,pendingUpdate:known}:row);
+ }
+ return (displayed.size?[...displayed.values()]:[{id:'gbrain',status:'not_checked',version:status.gbrain_version},{id:'skills',status:'not_checked'}]).filter(row=>row.status!=='not_adopted');
+}
 async function showUpdates(operation=null){
  if(operation===true)operation='check-apply';if(operation===false)operation=null;
  if(operation){await call('updateStart',{operation});updateBusy=true}
@@ -714,11 +683,9 @@ async function showUpdates(operation=null){
     $('#update-message').textContent=updateBusy?'Verificando e preparando…':status.phase==='interrupted'?'A atualização foi interrompida. Você pode tentar novamente.':status.available?'Há uma atualização pronta para instalar.':status.knownUpdate?'Há uma versão nova aguardando compatibilidade.':status.phase==='complete'?'Verificação concluída.':'Confira se há novidades para seu Oracle.';
     const progress=$('#update-progress');progress.hidden=!updateBusy;if(status.total>0){progress.max=status.total;progress.value=status.completed||0}else progress.removeAttribute('value');
     $('#check-updates').disabled=updateBusy;$('#apply-updates').hidden=!status.available;$('#apply-updates').disabled=updateBusy;
-    const displayed=new Map((status.pendingUpdates||[]).map(r=>[r.id,r]));
-    for(const row of status.results||[])displayed.set(row.id,row);
-    const results=displayed.size?[...displayed.values()]:[{id:'gbrain',status:'not_checked',version:status.gbrain_version},{id:'skills',status:'not_checked'}];
-    const descriptions={current:'Você já está usando a versão disponível.',updated:'A atualização foi instalada.',available:'Pronta para instalar.',external:'Gerenciada na instalação que você conectou.',compatibility_required:'Esta versão ainda precisa ser validada para o Oracle.',not_adopted:'Nenhuma integração ativa.',not_configured:'Nenhum pacote novo disponível.',not_checked:'Use Verificar para consultar novidades.',preserved_edits:'Suas alterações foram mantidas.',error:'Não foi possível concluir a consulta.'};
-    $('#update-results').innerHTML=results.map(r=>`<section class="update-result"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${descriptions[r.status]||'Confira os detalhes abaixo.'}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.message&&r.status!=='not_adopted'?`<details class="source-details"><summary>Detalhes</summary><p>${esc(r.message)}</p></details>`:''}</section>`).join('');
+    const results=updateResultRows(status);
+    const descriptions={current:'Você já está usando a versão aprovada disponível.',updated:'A atualização foi instalada.',available:'Pronta para instalar.',external:'Gerenciada na instalação que você conectou.',compatibility_required:'Esta versão ainda precisa ser validada para o Oracle.',not_configured:'Configure uma fonte aprovada antes de verificar o catálogo.',not_checked:'Use Verificar para consultar novidades.',preserved_edits:'Suas alterações foram mantidas.',offline:'Sem conexão para consultar a fonte. A versão instalada foi preservada.',error:'Não foi possível concluir a consulta; isso não significa ausência de atualizações.'};
+    $('#update-results').innerHTML=results.map(r=>`<section class="update-result"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${descriptions[r.status]||'Confira os detalhes abaixo.'}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.pendingUpdate?`<p>Atualização conhecida${r.pendingUpdate.version?' · versão '+esc(r.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}${r.message&&r.status!=='not_adopted'?`<details class="source-details"><summary>Detalhes</summary><p>${esc(r.message)}</p></details>`:''}</section>`).join('');
     $('#update-recovery').innerHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar skills anteriores</button>':'');
     $$('[data-rollback]').forEach(b=>{b.disabled=updateBusy;b.onclick=safe(()=>showUpdates(b.dataset.rollback))});
    }
@@ -746,20 +713,42 @@ $('#navigation-toggle').onclick=()=>toggleNavigation();$('#replay-toggle').oncli
 $('#replay-restart').onclick=safe(async()=>{live();await ensureReplay();atlasController.setFormation({progress:0,playing:true,duration:12000,rate:speed});renderPlayback()});
 $('#atlas').addEventListener('oracle:formation',()=>{if(replay&&replaySession?.kind==='formation')renderPlayback()});
 $('#plugins-refresh').onclick=safe(async()=>{await call('codexPluginsRefresh');await refresh()});
-function applyAccessibility(value={}){
- if(value.reduceMotion)$('#motion').checked=true;
- if(value.reduceTransparency)$('#transparency').checked=true;
+const systemVisual={reduceMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,reduceTransparency:matchMedia('(prefers-reduced-transparency: reduce)').matches};
+let visualPending={},visualWrites=Promise.resolve(),visualRevision=0;
+function applyVisualPreferences(redraw=true){
+ const saved=state.config.visualPreferences||{};
+ for(const [key,id] of [['reduceMotion','motion'],['reduceTransparency','transparency'],['economy','economy']]){
+  const control=$('#'+id),forced=systemVisual[key]===true;
+  control.checked=forced||(visualPending[key]?.value??saved[key]??false);control.disabled=forced;
+  control.title=forced?'Definido pelas opções de acessibilidade do macOS':'';
+ }
  document.body.classList.toggle('reduced',$('#motion').checked);document.body.classList.toggle('reduce-transparency',$('#transparency').checked);
- if(atlasController)renderAtlas();
+ if(redraw&&atlasController)renderAtlas();
 }
+async function saveVisualPreference(key,value){
+ const epoch=memoryEpoch,revision=++visualRevision;visualPending[key]={value:!!value,revision};applyVisualPreferences();
+ const task=visualWrites.catch(()=>{}).then(async()=>{
+  if(epoch!==memoryEpoch)throw Error('Preferência cancelada após bloqueio.');
+  if(window.ORACLE_PREVIEW)return {...state.config.visualPreferences,[key]:!!value};
+  return call('saveVisualPreferences',{[key]:!!value});
+ });visualWrites=task;
+ try{const saved=await task;if(epoch===memoryEpoch){state.config.visualPreferences={...state.config.visualPreferences,...saved};}}
+ finally{if(epoch===memoryEpoch&&visualPending[key]?.revision===revision){delete visualPending[key];applyVisualPreferences();}}
+}
+function applyAccessibility(value={}){
+ for(const key of ['reduceMotion','reduceTransparency'])if(typeof value[key]==='boolean')systemVisual[key]=value[key];
+ applyVisualPreferences();
+}
+function buildDescription(){const b=state.build||{};return `Oracle ${b.version||'versão não registrada'} · ${b.channel||'canal não registrado'} · commit ${String(b.commit||'não registrado').slice(0,12)}${b.dirty?' · alterações locais':''} · build ${b.buildID||'não registrado'}`;}
 window.oracleAccessibility=applyAccessibility;
 $('#transparency').checked=matchMedia('(prefers-reduced-transparency: reduce)').matches;
-$('#transparency').onchange=()=>document.body.classList.toggle('reduce-transparency',$('#transparency').checked);
+$('#transparency').onchange=safe(()=>saveVisualPreference('reduceTransparency',$('#transparency').checked));
+for(const [key,query] of [['reduceMotion','(prefers-reduced-motion: reduce)'],['reduceTransparency','(prefers-reduced-transparency: reduce)']])matchMedia(query).addEventListener('change',event=>applyAccessibility({[key]:event.matches}));
 if(innerWidth<=1050)toggleNavigation(false);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#modal').open){if(!$('#replay-panel').hidden)toggleReplayPanel(false);else if(document.body.classList.contains('observatory-open'))toggleObservatory(false)}});
 document.addEventListener('pointerdown',e=>{if(!$('#replay-panel').hidden&&!e.target.closest('#replay-panel,#replay-toggle')&&!$('#modal').open)toggleReplayPanel(false)});
 
-window.oracleTakeDraftAndLock=()=>{const draft=editorSession&&modalDirty?{path:editorSession.path,hash:editorSession.hash,text:editorSession.text,vault:state.config.vault}:null;window.oracleLock();editorSession=null;clearTimeout(draftTimer);return draft};
+window.oracleTakeDraftAndLock=()=>{const editor=editorSession&&modalDirty?{path:editorSession.path,hash:editorSession.hash,text:editorSession.text,vault:state.config.vault}:null;const onboarding=window.OracleOnboarding?.pendingDraft?.()||null;window.oracleLock();return {editor,onboarding};};
 
 window.addEventListener('oracle:onboarding-progress',event=>{
  if(!$('#lock-screen').hidden)return;

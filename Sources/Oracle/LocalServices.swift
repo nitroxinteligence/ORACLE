@@ -1,6 +1,6 @@
 import Foundation
 
-/// Local indexing, hook capture projection, separately consented Codex synthesis and backup.
+/// Daily hook capture projection, separately consented Codex synthesis and backup.
 /// No global launch agent or fabricated host automation registration.
 final class OracleLocalServices {
     private let home:URL
@@ -43,10 +43,9 @@ final class OracleLocalServices {
                 guard state["status"] as? String=="completed" || service.onboardingLegacyAccess() else{return}
                 if (try service.maintenanceSnapshot())["due"] as? Bool==true {
                     _=try service.performMaintenance(cancelled:{self.isPaused()}) {try service.syncGBrainVault()}
-                } else {
-                    let setup=try service.acquireOperationLock("setup");defer{service.releaseOperationLock(setup)}
-                    _=try service.syncGBrainVault()
                 }
+                // Basic indexing has one authority: MemorySyncCoordinator.
+                // This timer runs only the separately consented daily maintenance.
             } catch {
                 // Sync/maintenance APIs retain their own failed receipts. A
                 // busy lock is retried at the next opportunity, not spun on.

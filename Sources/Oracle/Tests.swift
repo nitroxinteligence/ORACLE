@@ -1,5 +1,7 @@
 import Foundation
 func runTests() throws {
+    try runDataReliabilityTests()
+    try runNativeMemoryEngineTests()
     let base = try oracleTestDirectory("oracle-test")
     defer { try? fm.removeItem(at:base) }
     let c = try Core(home:base.appendingPathComponent("state")); let root = base.appendingPathComponent("vault")

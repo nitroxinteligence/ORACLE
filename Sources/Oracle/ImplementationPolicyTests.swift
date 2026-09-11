@@ -83,12 +83,12 @@ func runImplementationPolicyTests() throws {
     let held=try c.acquireOperationLock("setup")
     try rejects("maintenance excludes concurrent setup"){_=try c.performMaintenance(force:true){throw failure("must not start")}}
     var bridgeLockRejected=false
-    do{_=try c.prepareBridge()}catch{bridgeLockRejected=error.localizedDescription.contains("Configuração em andamento")}
+    do{_=try c.prepareBridge()}catch{bridgeLockRejected=error.localizedDescription.contains("Outra operação está em andamento")}
     try expect(bridgeLockRejected,"bridge preparation owns setup lock before reading or writing method files")
     c.releaseOperationLock(held)
     let heldBrain=try c.acquireOperationLock("gbrain")
     bridgeLockRejected=false
-    do{_=try c.prepareBridge()}catch{bridgeLockRejected=error.localizedDescription.contains("Configuração em andamento")}
+    do{_=try c.prepareBridge()}catch{bridgeLockRejected=error.localizedDescription.contains("Outra operação está em andamento")}
     c.releaseOperationLock(heldBrain)
     try expect(bridgeLockRejected,"bridge preparation excludes a concurrent memory writer")
     let success=try c.performMaintenance(force:true,backup:{throw failure("unconsented backup must not run")}){["status":"verified","complete":true]}

@@ -1,0 +1,44 @@
+/* Scoped reliability/2D presentation. Existing document and vault layouts are not changed. */
+.markdown-table{max-width:100%;overflow:auto;margin:18px 0}
+.markdown-table table{width:100%;border-collapse:collapse;font-size:inherit}
+.markdown-table :is(th,td){border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+.markdown-table th{font-weight:600;background:var(--surface-field)}
+.markdown-image-alt{color:var(--muted);font-style:italic}
+.markdown-reader :is(ol,ul){padding-left:26px}.markdown-reader li>p{margin:7px 0}
+.library-pages{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border-top:1px solid var(--line)}
+.library-pages .secondary{padding:8px;min-height:36px}
+.prompt-tree-node>button:focus-visible,.prompt-list-item:focus-visible{outline:2px solid var(--focus-line);outline-offset:-2px}
+#modal:is([data-family="prompts"],[data-family="tutorials"]){height:min(780px,calc(100vh - 36px));max-height:calc(100vh - 36px)}
+#modal:is([data-family="prompts"],[data-family="tutorials"]) .modal-body{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#modal:is([data-family="prompts"],[data-family="tutorials"]) .prompt-library{display:flex;flex-direction:column;flex:1;min-height:0;height:auto}
+#modal:is([data-family="prompts"],[data-family="tutorials"]) .prompt-library-layout{flex:1;min-height:0;height:auto;grid-template-columns:minmax(150px,.7fr) minmax(180px,.9fr) minmax(260px,1.4fr)}
+.library-description{flex:none;margin:0 0 12px}
+.prompt-library-layout :is(.prompt-sidebar,.prompt-catalog,.prompt-preview){min-height:0;overflow:auto}
+.prompt-folder-button small{line-height:1.4}
+.ob-dialog footer{flex-wrap:wrap}.ob-question{border:1px solid var(--line);padding:16px;margin:20px 0;min-width:0}
+.ob-question legend{padding:0 6px;font-size:14px;line-height:1.5;max-width:100%}
+.ob-question small{display:block;color:var(--muted)}
+.ob-progress-card .ob-card-actions{display:flex;gap:8px}
+body.reduced :is(.ob-working,.ob-dialog){animation:none!important}
+body.reduced .ob-working{width:100%;opacity:.3}
+.atlas-flat .planet-surface{fill:#151617;stroke:var(--node-accent);stroke-opacity:.85;stroke-width:1}
+.atlas-flat .oracle-core>circle{fill:#151617;stroke:#92989f;stroke-width:1}
+.atlas-flat :is(.core-atmosphere,.core-orbit,.orbital-scaffolding){display:none}
+.atlas-flat .category-node.department-node .category-name{display:block;opacity:1;fill:var(--ink)}
+.atlas-flat .department-specialist .group-name{display:block;opacity:1;fill:var(--ink)}
+.atlas-flat .department-specialist .group-junction{fill:var(--node-accent);stroke:var(--node-accent)}
+.atlas-flat[data-context="department"] .atlas-expansion{display:none}
+.department-settings{display:grid;gap:14px}.department-setting{display:grid;grid-template-columns:1fr minmax(150px,1fr);gap:16px;align-items:center}
+.department-setting select{min-width:0;width:100%;padding:10px;background:var(--surface-field);color:var(--ink);border:1px solid var(--line);border-radius:8px}
+.memory-freshness{padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin:12px 0;color:var(--muted);line-height:1.5}
+@media(max-width:960px){
+ #modal:is([data-family="prompts"],[data-family="tutorials"]) .library-description{display:none}
+ #modal:is([data-family="prompts"],[data-family="tutorials"]) .prompt-library-layout{grid-template-columns:minmax(220px,.8fr) minmax(300px,1.2fr);grid-template-rows:112px minmax(0,1fr);grid-template-areas:"folders preview" "documents preview";min-height:240px}
+ .prompt-library-layout .prompt-sidebar{grid-area:folders;border-bottom:1px solid var(--line)}
+ .prompt-library-layout .prompt-catalog{grid-area:documents}
+ .prompt-library-layout .prompt-preview{grid-area:preview}
+ .prompt-sidebar .prompt-pane-heading{padding:8px 12px}
+ .prompt-sidebar .prompt-folder-button{min-height:38px;padding:6px 10px}
+ .ob-dialog footer{gap:8px;padding:14px 20px}
+}
+@media(prefers-reduced-motion:reduce){.ob-working,.ob-dialog{animation:none!important}}

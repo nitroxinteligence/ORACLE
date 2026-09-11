@@ -125,11 +125,11 @@ test('specialist and department pagers display disjoint complete catalogs and di
   atlas.pageGroup(1);assert.equal(atlas.context.page,2);
 });
 
-test('back restores department, catalog page and custom camera; overview returns to 118%',()=>{
+test('back restores department, catalog page and custom pan at the fixed 118% scale',()=>{
   const {atlas}=harness();atlas.setDepartment('department/code',{page:1});
-  atlas.target={x:611,y:249,k:atlas.baseScale*1.42};atlas.autoFit=false;const departmentCamera={...atlas.target};
+  atlas.target={x:611,y:249,k:atlas.baseScale*1.18};atlas.autoFit=false;const departmentCamera={...atlas.target};
   atlas.focus('code');atlas.pageGroup(1);
-  atlas.target={x:459,y:330,k:atlas.baseScale*1.65};atlas.autoFit=false;const specialistCamera={...atlas.target};
+  atlas.target={x:459,y:330,k:atlas.baseScale*1.18};atlas.autoFit=false;const specialistCamera={...atlas.target};
   atlas.revealSkill(skill('code',124).path);assert.equal(atlas.context.kind,'skill');
   atlas.back(true);assert.equal(atlas.context.kind,'specialist');assert.equal(atlas.context.page,1);
   for(const key of ['x','y','k'])assert.ok(Math.abs(atlas.target[key]-specialistCamera[key])<1e-8);

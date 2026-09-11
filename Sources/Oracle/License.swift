@@ -1,7 +1,6 @@
 import Foundation
 import CryptoKit
 
-// The exact payload bytes are signed, so JSON encoding differences cannot validate a forged code.
 struct OracleLicense: Codable {
     let version: Int
     let product: String
@@ -11,80 +10,165 @@ struct OracleLicense: Codable {
     let issuedAt: Int64
     let expiresAt: Int64?
     let deviceID: String?
+    var devicePublicKey: String? = nil
+    var invitationID: String? = nil
+    var requestID: String? = nil
+    var role: String? = nil
+    var usesKeyProof: Bool { devicePublicKey != nil || invitationID != nil || requestID != nil || role != nil }
 }
-struct LicenseKeys: Codable { let version: Int; let keys: [String:String] }
-func base64URL(_ data:Data)->String { data.base64EncodedString().replacingOccurrences(of:"+",with:"-").replacingOccurrences(of:"/",with:"_").replacingOccurrences(of:"=",with:"") }
-func decodeBase64URL(_ text:String)->Data? {
-    guard !text.isEmpty,text.count<8192,text.allSatisfy({$0.isASCII && ($0.isLetter || $0.isNumber || $0=="-" || $0=="_")}) else { return nil }
-    let padded=text.replacingOccurrences(of:"-",with:"+").replacingOccurrences(of:"_",with:"/") + String(repeating:"=",count:(4-text.count%4)%4)
-    guard let data=Data(base64Encoded:padded),base64URL(data)==text else { return nil };return data
+struct LicenseKeys: Codable { let version: Int; let keys: [String: String] }
+struct OracleActivationRequest: Codable {
+    let version: Int
+    let product: String
+    let invitation: String
+    let requestID: String
+    let deviceID: String
+    let devicePublicKey: String
+    let keyProtection: String
+    let createdAt: Int64
 }
-func validateLicense(_ code:String, keys:LicenseKeys, device:String, now:Int64=Int64(Date().timeIntervalSince1970)) throws -> OracleLicense {
-    guard code.utf8.count<=8192 else{throw failure("Código inválido ou muito longo.")}
-    let parts=code.trimmingCharacters(in:.whitespacesAndNewlines).split(separator:".",omittingEmptySubsequences:false)
-    guard parts.count==3,["ORACLE1","ORACLE2"].contains(parts[0]),keys.version==1,
-          let payload=decodeBase64URL(String(parts[1])),payload.count<4096,
-          let signature=decodeBase64URL(String(parts[2])),signature.count==64,
-          let value=try? JSONDecoder().decode(OracleLicense.self,from:payload),
-          (value.version==1 && parts[0]=="ORACLE1" || value.version==2 && parts[0]=="ORACLE2"),
-          value.product=="oracle-macos",UUID(uuidString:value.licenseID) != nil,
-          !value.subject.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty,value.subject.count<=160,
-          let publicText=keys.keys[value.keyID],let publicData=Data(base64Encoded:publicText),
-          let publicKey=try? Curve25519.Signing.PublicKey(rawRepresentation:publicData),
-          publicKey.isValidSignature(signature,for:Data((String(parts[0])+".").utf8)+payload) else {
-        throw failure("Código inválido ou alterado. Confira o código recebido de Mateus.")
-    }
-    if value.version==2 {
-        guard let required=value.deviceID,OracleDeviceBinding.valid(required),required==device else {
-            throw failure("Este código não corresponde ao vínculo verificado deste Mac. Solicite a emissão ou migração do acesso.")
-        }
-        guard value.expiresAt==nil,value.issuedAt>=0 else {
-            throw failure("O acesso offline desta versão não aceita prazo de expiração.")
-        }
-    }
-    guard value.issuedAt<=now+300 else { throw failure("Confira a data do Mac antes de ativar este código.") }
-    if let expires=value.expiresAt { guard expires>value.issuedAt,expires>now else { throw failure("Este código expirou. Solicite um novo código a Mateus.") } }
-    if let required=value.deviceID { guard required==device else { throw failure("Este código foi emitido para outro Mac.") } }
+func base64URL(_ data: Data) -> String {
+    data.base64EncodedString().replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "=", with: "")
+}
+func decodeBase64URL(_ text: String) -> Data? {
+    guard !text.isEmpty, text.count < 8192, text.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }) else { return nil }
+    let padded = text.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/") + String(repeating: "=", count: (4-text.count%4)%4)
+    guard let data = Data(base64Encoded: padded), base64URL(data) == text else { return nil }; return data
+}
+func validInvitation(_ text: String) -> Bool {
+    let p = text.split(separator: ".", omittingEmptySubsequences: false)
+    return p.count == 2 && p[0] == "ORACLEINV2" && decodeBase64URL(String(p[1]))?.count == 32
+}
+func makeActivationRequest(invitation: String, identity: OracleDeviceIdentity, now: Int64 = Int64(Date().timeIntervalSince1970)) throws -> String {
+    guard validInvitation(invitation) else { throw failure("Convite inválido. Use o convite individual enviado pelo proprietário.") }
+    try identity.provePossession()
+    let value = OracleActivationRequest(version: 2, product: "oracle-macos", invitation: invitation, requestID: UUID().uuidString,
+        deviceID: identity.fingerprint, devicePublicKey: base64URL(identity.publicKey), keyProtection: "secure-enclave-p256", createdAt: now)
+    let bytes = try JSONEncoder().encode(value)
+    return "ORACLEREQ2." + base64URL(bytes) + "." + base64URL(try identity.sign(Data("ORACLEREQ2.".utf8) + bytes))
+}
+func validateActivationRequest(_ code: String) throws -> OracleActivationRequest {
+    let p = code.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ".", omittingEmptySubsequences: false)
+    guard code.utf8.count <= 8192, p.count == 3, p[0] == "ORACLEREQ2",
+        let bytes = decodeBase64URL(String(p[1])), bytes.count < 4096, let signature = decodeBase64URL(String(p[2])), signature.count == 64,
+        let value = try? JSONDecoder().decode(OracleActivationRequest.self, from: bytes), value.version == 2, value.product == "oracle-macos",
+        validInvitation(value.invitation), UUID(uuidString: value.requestID) != nil, value.createdAt >= 0,
+        value.keyProtection == "secure-enclave-p256", let pub = decodeBase64URL(value.devicePublicKey), value.deviceID == digest(pub),
+        let key = try? P256.Signing.PublicKey(x963Representation: pub), let sig = try? P256.Signing.ECDSASignature(rawRepresentation: signature),
+        key.isValidSignature(sig, for: Data("ORACLEREQ2.".utf8) + bytes) else { throw failure("Solicitação de ativação inválida ou alterada.") }
     return value
+}
+
+/// Verify the signed envelope before interpreting either shipped ORACLE2 binding.
+/// Existing ORACLE1 records are read-only compatibility; new activation requires v2.
+func validateLicense(_ code: String, keys: LicenseKeys, device: String, now: Int64 = Int64(Date().timeIntervalSince1970)) throws -> OracleLicense {
+    guard code.utf8.count <= 8192 else { throw failure("Código inválido ou muito longo.") }
+    let p = code.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ".", omittingEmptySubsequences: false)
+    guard keys.version == 1, p.count == 3, ["ORACLE1", "ORACLE2"].contains(String(p[0])),
+        let bytes = decodeBase64URL(String(p[1])), bytes.count < 4096,
+        let signature = decodeBase64URL(String(p[2])), signature.count == 64,
+        let value = try? JSONDecoder().decode(OracleLicense.self, from: bytes),
+        String(p[0]) == "ORACLE\(value.version)", [1, 2].contains(value.version), value.product == "oracle-macos",
+        UUID(uuidString: value.licenseID) != nil,
+        !value.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, value.subject.count <= 160,
+        let publicText = keys.keys[value.keyID], let publicData = Data(base64Encoded: publicText),
+        let key = try? Curve25519.Signing.PublicKey(rawRepresentation: publicData),
+        key.isValidSignature(signature, for: Data((String(p[0]) + ".").utf8) + bytes) else {
+        throw failure("Licença inválida ou alterada. Confira o código individual recebido.")
+    }
+    guard value.issuedAt >= 0, value.issuedAt <= now + 300 else { throw failure("Confira a data do Mac antes de ativar a licença.") }
+    if value.version == 2 {
+        guard value.expiresAt == nil, let required = value.deviceID, required == device else {
+            throw failure("Este código permanente não corresponde ao vínculo verificado deste Mac.")
+        }
+        if value.usesKeyProof {
+            guard let role = value.role, ["student", "owner"].contains(role),
+                let invitation = value.invitationID, invitation.count == 64, invitation.allSatisfy({"0123456789abcdef".contains($0)}),
+                let request = value.requestID, UUID(uuidString: request) != nil,
+                let text = value.devicePublicKey, let pub = decodeBase64URL(text),
+                (try? P256.Signing.PublicKey(x963Representation: pub)) != nil, digest(pub) == required else {
+                throw failure("Resposta de ativação com prova de aparelho incompleta ou incompatível.")
+            }
+        } else {
+            guard OracleDeviceBinding.valid(required) else { throw failure("Vínculo ORACLE-MAC2 inválido.") }
+        }
+    } else {
+        guard !value.usesKeyProof else { throw failure("Campos ORACLE2 não podem ser usados como licença antiga.") }
+        if let required = value.deviceID, required != device { throw failure("Este código foi emitido para outro Mac.") }
+        if let expires = value.expiresAt { guard expires > value.issuedAt, expires > now else { throw failure("Este código expirou.") } }
+    }
+    return value
+}
+func validateDeviceLicense(_ code: String, keys: LicenseKeys, identity: OracleDeviceIdentity, now: Int64 = Int64(Date().timeIntervalSince1970)) throws -> OracleLicense {
+    let license = try validateLicense(code, keys: keys, device: identity.fingerprint, now: now)
+    guard license.usesKeyProof, let text = license.devicePublicKey, decodeBase64URL(text) == identity.publicKey else {
+        throw failure("Chave do aparelho incompatível.")
+    }
+    try identity.provePossession(); return license
+}
+
+enum OracleCapability: String { case useOracle, configure, manageCatalogSource, manageDistribution, issueLicenses }
+func licenseCapabilities(_ license: OracleLicense?) -> [String: Bool] {
+    let active = license != nil, owner = license?.role == "owner"
+    return ["useOracle": active, "configure": active, "manageCatalogSource": owner, "manageDistribution": owner, "issueLicenses": false]
 }
 extension Core {
     func licenseKeys() throws -> LicenseKeys {
-        if let licenseTrust {return licenseTrust}
-        let url=bundledEngineResources().deletingLastPathComponent().appendingPathComponent("licensing/public-keys.json")
-        return try JSONDecoder().decode(LicenseKeys.self,from:Data(contentsOf:url))
+        // In-process test injection only; no UI, environment or profile trust override.
+        if let licenseTrust { return licenseTrust }
+        guard let resources = Bundle.main.resourceURL else { throw failure("As chaves públicas do aplicativo não estão disponíveis.") }
+        let url = resources.appendingPathComponent("licensing/public-keys.json")
+        let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+        guard values.isRegularFile == true, values.isSymbolicLink != true, (values.fileSize ?? Int.max) <= 65536 else { throw failure("O pacote de chaves públicas é inválido.") }
+        return try JSONDecoder().decode(LicenseKeys.self, from: Data(contentsOf: url))
     }
-    func licenseDeviceID() throws -> String {
-        let path=home.appendingPathComponent("onboarding/device-id")
-        if let value=try? String(contentsOf:path,encoding:.utf8),UUID(uuidString:value) != nil { return value }
-        try fm.createDirectory(at:path.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-        let value=UUID().uuidString;try Data(value.utf8).write(to:path,options:.withoutOverwriting);try fm.setAttributes([.posixPermissions:0o600],ofItemAtPath:path.path);return value
+    func licenseDeviceID() throws -> String { try licenseDevice.identifier(create:false) }
+    private func checkedLicense(_ code:String) throws -> OracleLicense {
+        let parts=code.split(separator:".",omittingEmptySubsequences:false)
+        guard parts.count==3,let bytes=decodeBase64URL(String(parts[1])),
+              let value=try? JSONDecoder().decode(OracleLicense.self,from:bytes) else {throw failure("Código de acesso inválido.")}
+        let keys=try licenseKeys()
+        if value.usesKeyProof {return try validateDeviceLicense(code,keys:keys,identity:SecureEnclaveDeviceIdentity.load())}
+        let device:String
+        if code.hasPrefix("ORACLE2.") {device=try licenseDevice.identifier(create:false)}
+        else {device=(try? licenseFile("onboarding/device-id",limit:128)).flatMap{String(data:$0,encoding:.utf8)} ?? ""}
+        return try validateLicense(code,keys:keys,device:device)
     }
     func activeLicense() -> OracleLicense? {
-        guard let bytes=try? licenseFile("onboarding/license"),let raw=String(data:bytes,encoding:.utf8),let keys=try? licenseKeys() else{return nil}
-        let code=raw.trimmingCharacters(in:.whitespacesAndNewlines)
-        let device:String
-        if code.hasPrefix("ORACLE2.") {
-            guard let current=try? licenseDevice.identifier(create:false) else{return nil};device=current
-        } else {
-            // Read-only v1 compatibility, never regenerate a device UUID.
-            device=(try? licenseFile("onboarding/device-id",limit:128)).flatMap{String(data:$0,encoding:.utf8)} ?? ""
+        guard let bytes=try? licenseFile("onboarding/license"),let text=String(data:bytes,encoding:.utf8) else{return nil}
+        return try? checkedLicense(text.trimmingCharacters(in:.whitespacesAndNewlines))
+    }
+    func requireCapability(_ capability: OracleCapability) throws {
+        guard licenseCapabilities(activeLicense())[capability.rawValue] == true else {
+            throw failure(capability == .useOracle || capability == .configure ? "Ative a licença deste Mac para continuar." : "Esta ação exige autorização administrativa assinada do proprietário.")
         }
-        return try? validateLicense(code,keys:keys,device:device)
+    }
+    func activationRequest(_ invitation: String) throws -> [String: Any] {
+        let token=invitation.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard validInvitation(token) else{throw failure("Convite individual inválido.")}
+        let lock=try acquireOperationLock("license");defer{releaseOperationLock(lock)}
+        let identity=try SecureEnclaveDeviceIdentity.load(create:true)
+        let path=try scoped("onboarding/activation-request",root:home)
+        if let bytes=try? licenseFile("onboarding/activation-request"),let saved=String(data:bytes,encoding:.utf8),
+           let previous=try? validateActivationRequest(saved),previous.invitation==token,previous.deviceID==identity.fingerprint {
+            try identity.provePossession();return ["request":saved,"deviceID":identity.fingerprint,"status":"awaiting_response"]
+        }
+        let request=try makeActivationRequest(invitation:token,identity:identity)
+        try fm.createDirectory(at:path.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        try atomicWriteData(Data(request.utf8),to:path,permissions:0o600)
+        return ["request":request,"deviceID":identity.fingerprint,"status":"awaiting_response"]
     }
     func activateLicense(_ code:String) throws -> [String:Any] {
         let clean=code.trimmingCharacters(in:.whitespacesAndNewlines)
-        guard clean.hasPrefix("ORACLE2.") else {
-            throw failure("Novas ativações exigem um código individual ORACLE2 para este Mac. A instalação e os documentos existentes foram preservados.")
-        }
+        guard clean.hasPrefix("ORACLE2."),clean.utf8.count<=8192 else {throw failure("Novas ativações exigem um código individual ORACLE2. Seus documentos foram preservados.")}
         let lock=try acquireOperationLock("license");defer{releaseOperationLock(lock)}
         let setup=try acquireOperationLock("setup");defer{releaseOperationLock(setup)}
-        let device=try licenseDevice.identifier(create:false)
-        let value=try validateLicense(clean,keys:licenseKeys(),device:device)
+        let value=try checkedLicense(clean)
         let path=try scoped("onboarding/license",root:home)
         try fm.createDirectory(at:path.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         try atomicWriteData(Data(clean.utf8),to:path,permissions:0o600)
-        // Legacy access also checks the v2 prefix if interrupted before this save.
         var state=onboardingRecord();state["legacyAccess"]=false;try writeJSON(state,onboardingURL)
-        return ["valid":true,"subject":value.subject,"deviceBound":true,"offline":true,"expires":false]
+        return ["valid":true,"subject":value.subject,"deviceBound":true,"offline":true,"expires":false,
+                "role":value.role ?? "student","capabilities":licenseCapabilities(value)]
     }
 }

@@ -1,36 +1,84 @@
 import Foundation
+import Darwin
+
+func validSpecialistID(_ id:String) -> Bool {
+    id.utf8.count <= 64 && id.range(of:"^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$",options:.regularExpression) != nil
+}
+
+func portablePathKey(_ path:String) -> String {
+    path.precomposedStringWithCanonicalMapping.lowercased()
+}
 
 extension Core {
     func catalogRoot() -> URL { bundledEngineResources().deletingLastPathComponent().appendingPathComponent("catalog") }
-    func catalogManifest() throws -> [String:Any] { try readJSON(catalogRoot().appendingPathComponent("manifest.json")) }
+    func catalogManifest() throws -> [String:Any] {
+        let manifest = try readJSON(catalogRoot().appendingPathComponent("manifest.json"))
+        guard manifest["schema_version"] as? Int == 1,
+              let groups = manifest["collections"] as? [[String:Any]], groups.count <= 500,
+              let files = manifest["files"] as? [[String:Any]], files.count <= 60_000 else { throw failure("Manifesto de catálogo inválido") }
+        let ids = groups.compactMap { $0["id"] as? String }
+        guard ids.count == groups.count, ids.allSatisfy(validSpecialistID), Set(ids).count == ids.count else { throw failure("Identificadores de especialistas inválidos ou duplicados") }
+        var paths = Set<String>()
+        for file in files {
+            guard let path = file["path"] as? String, let hash = file["sha256"] as? String,
+                  hash.range(of:"^[a-f0-9]{64}$",options:.regularExpression) != nil else { throw failure("Arquivo sem hash de integridade") }
+            let pieces = path.split(separator:"/",omittingEmptySubsequences:false).map(String.init)
+            guard pieces.count >= 3,pieces[0] == "packs",ids.contains(pieces[1]),
+                  !pieces.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." }),
+                  !path.contains("\\"),path.utf8.count <= 1000,
+                  paths.insert(portablePathKey(path)).inserted else { throw failure("Caminho de catálogo inválido ou com colisão") }
+        }
+        return manifest
+    }
     func catalogSummary() -> [[String:Any]] { (try? catalogManifest()["collections"] as? [[String:Any]]) ?? [] }
     func catalogDigest() throws -> String { digest(try Data(contentsOf:catalogRoot().appendingPathComponent("manifest.json"))) }
     func applyCatalog(plan:[String:Any],rollback:Bool=false,verifyOnly:Bool=false) throws -> [String:Any] {
+        try withVaultWrite {
+            defer { if !verifyOnly { notifyVaultChanged(reason:"catalog") } }
+            return try applyCatalogLocked(plan:plan,rollback:rollback,verifyOnly:verifyOnly)
+        }
+    }
+    private func applyCatalogLocked(plan:[String:Any],rollback:Bool,verifyOnly:Bool) throws -> [String:Any] {
         let selected=plan["catalog_collections"] as? [String] ?? []
         if selected.isEmpty { return ["verified":0,"total":0] }
-        guard let id=plan["id"] as? String,plan["catalog_hash"] as? String == (try catalogDigest()) else { throw failure("Catálogo mudou. Gere e revise outro plano antes de instalar.") }
+        guard let id=plan["id"] as? String,UUID(uuidString:id) != nil,plan["catalog_hash"] as? String == (try catalogDigest()) else { throw failure("Catálogo mudou. Gere e revise outro plano antes de instalar.") }
         let manifest=try catalogManifest(),root=try vault()
+        let available = Set((manifest["collections"] as? [[String:Any]] ?? []).compactMap { $0["id"] as? String })
+        guard selected.allSatisfy({ available.contains($0) && validSpecialistID($0) }) else { throw failure("Especialista ausente do catálogo validado") }
         let journalURL=home.appendingPathComponent("setup/\(id).catalog.json")
         var journal=(try? readJSON(journalURL)) ?? ["created_files":[String:String](),"created_dirs":[String](),"verified":0]
         var owned=journal["created_files"] as? [String:String] ?? [:]
         var directories=Set(journal["created_dirs"] as? [String] ?? [])
         if rollback {
             var retained=[String](),removed=0,removedBatch=[[String:Any]]()
-            for (path,hash) in owned { let url=try scoped(path,root:root);if fm.fileExists(atPath:url.path) { if digest(try Data(contentsOf:url))==hash { try fm.removeItem(at:url);removed += 1;removedBatch.append(["path":path,"directory":false]);if removedBatch.count==50 { try event(type:"catalog.rollback_verified",summary:"\(removed) arquivos revertidos",id:id+"rollback"+String(removed),details:["run_id":id,"phase":"rollback","completed":removed,"total":owned.count,"removed_refs":removedBatch]);removedBatch=[] } } else { retained.append(path) } } }
+            for (path,hash) in owned {
+                let url=try scoped(path,root:root)
+                if !fm.fileExists(atPath:url.path) { continue }
+                try coordinatedWrite(at:url,options:.forDeleting) { destination in
+                    guard try scoped(path,root:root).path == destination.path else { throw failure("O destino da recuperação mudou.") }
+                    guard digest(try Data(contentsOf:destination)) == hash else { retained.append(path);return }
+                    guard Darwin.unlink(destination.path) == 0 else { throw failure("Arquivo preservado: não foi possível removê-lo sem recursão.") }
+                    removed+=1;removedBatch.append(["path":path,"directory":false])
+                }
+                if removedBatch.count==50 { try event(type:"catalog.rollback_verified",summary:"\(removed) arquivos revertidos",id:id+"rollback"+String(removed),details:["run_id":id,"phase":"rollback","completed":removed,"total":owned.count,"removed_refs":removedBatch]);removedBatch=[] }
+            }
             if !removedBatch.isEmpty { try event(type:"catalog.rollback_verified",summary:"\(removed) arquivos revertidos",id:id+"rollback"+String(removed),details:["run_id":id,"phase":"rollback","completed":removed,"total":owned.count,"removed_refs":removedBatch]);removedBatch=[] }
-            for path in directories.sorted(by:{$0.count>$1.count}) { let url=try scoped(path,root:root);if (try? fm.contentsOfDirectory(atPath:url.path).isEmpty)==true { try fm.removeItem(at:url);removedBatch.append(["path":path,"directory":true]) } }
+            for path in directories.sorted(by:{$0.count>$1.count}) { let url=try scoped(path,root:root);if try removeEmptyVaultDirectory(url) { removedBatch.append(["path":path,"directory":true]) } }
             for start in stride(from:0,to:removedBatch.count,by:100) { try event(type:"catalog.folders_reverted",summary:"Pastas vazias do catálogo revertidas",id:id+"rollback-dirs"+String(start),details:["run_id":id,"removed_refs":Array(removedBatch[start..<min(start+100,removedBatch.count)])]) }
             journal["status"]="rolled_back_preserving_edits";journal["removed"]=removed;journal["retained"]=retained;try writeJSON(journal,journalURL)
             return journal
         }
         struct Item { let source:URL;let target:URL;let path:String;let hash:String;let absent:Bool }
-        var items=[Item](),conflicts=[String]()
+        var items=[Item](),conflicts=[String](),totalBytes=0
         for file in manifest["files"] as? [[String:Any]] ?? [] {
             guard let path=file["path"] as? String,let hash=file["sha256"] as? String else { throw failure("Manifesto do catálogo inválido") }
             let pieces=path.split(separator:"/").map(String.init)
             guard pieces.count>=3,pieces[0]=="packs",selected.contains(pieces[1]) else { continue }
             let relative="SISTEMA/skills/"+pieces.dropFirst().joined(separator:"/")
             let source=try scoped(path,root:catalogRoot()),target=try scoped(relative,root:root)
+            let attributes=try source.resourceValues(forKeys:[.fileSizeKey,.isRegularFileKey])
+            guard attributes.isRegularFile == true,let size=attributes.fileSize,size<=5_000_000 else { throw failure("Arquivo de catálogo fora dos limites") }
+            totalBytes+=size;guard totalBytes<=256_000_000 else { throw failure("Seleção de catálogo excede 256 MB; instale em grupos menores.") }
             guard digest(try Data(contentsOf:source))==hash else { throw failure("Integridade inválida: \(path)") }
             let exists=fm.fileExists(atPath:target.path)
             if exists && (try? Data(contentsOf:target)).map(digest) != hash { conflicts.append(relative) }
@@ -52,12 +100,19 @@ extension Core {
             for item in batch where item.absent { owned[item.path]=item.hash }
             journal["created_files"]=owned;journal["created_dirs"]=Array(directories);journal["total"]=total;try writeJSON(journal,journalURL)
             for item in batch {
-                if item.absent {
-                    try fm.createDirectory(at:item.target.deletingLastPathComponent(),withIntermediateDirectories:true)
-                    let temporary=item.target.deletingLastPathComponent().appendingPathComponent(".oracle-\(UUID().uuidString).tmp")
-                    do { try fm.copyItem(at:item.source,to:temporary);try fm.moveItem(at:temporary,to:item.target) } catch { try? fm.removeItem(at:temporary);throw error }
+                try coordinatedWrite(at:item.target) { destination in
+                    guard try scoped(item.path,root:root).path == destination.path else { throw failure("O destino do catálogo mudou.") }
+                    if item.absent && !fm.fileExists(atPath:destination.path) {
+                        try fm.createDirectory(at:destination.deletingLastPathComponent(),withIntermediateDirectories:true)
+                        let data = try Data(contentsOf:item.source)
+                        guard digest(data) == item.hash else { throw failure("O pacote do catálogo mudou.") }
+                        try data.write(to:destination,options:.withoutOverwriting)
+                        if let permissions=try fm.attributesOfItem(atPath:item.source.path)[.posixPermissions] as? NSNumber {
+                            try fm.setAttributes([.posixPermissions:permissions.intValue & 0o777],ofItemAtPath:destination.path)
+                        }
+                    }
+                    guard digest(try Data(contentsOf:destination)) == item.hash else { throw failure("Arquivo mudou durante instalação: \(item.path)") }
                 }
-                guard digest(try Data(contentsOf:item.target))==item.hash else { throw failure("Arquivo mudou durante instalação: \(item.path)") }
             }
             let completed=min(total,start+50);journal["verified"]=completed;try writeJSON(journal,journalURL)
             try event(type:"catalog.files_verified",summary:"\(completed) arquivos do catálogo verificados",id:id+"catalog"+String(completed),details:["phase":"catalog","completed":completed,"total":total,"run_id":id,"subject_refs":batch.map{["path":$0.path,"directory":false,"hash":$0.hash] as [String:Any]}])

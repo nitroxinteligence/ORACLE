@@ -12,11 +12,11 @@ import * as prompts from './prompts.js';
 import * as atmosphere from './atmosphere.js';
 import * as departments from './departments.js';
 import departmentManifest from '../../Resources/catalog/departments.json';
-window.OracleDepartments = departments;
 window.OracleDepartmentManifest = departmentManifest;
 window.OracleKnowledge = knowledge;
 window.OraclePrompts = prompts;
 window.OracleAtmosphere = atmosphere;
+window.OracleDepartments = departments;
 window.OracleLayout = layout;
 window.OracleMotion = { FormationTimeline, revealAt, pluginOrbitRadius, orbitalPosition };
 

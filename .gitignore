@@ -23,3 +23,5 @@ __pycache__/
 /vendor
 .serena/
 scripts/__pycache__/
+/node_modules
+/Resources/catalog/packs

@@ -89,30 +89,10 @@ extension Core {
     /// Internal setup seam; caller owns the process-wide `gbrain` operation lock.
     @discardableResult
     func performOwnedGBrainSyncLocked(force:Bool=false,reason:String,plan:[String:Any]?=nil) throws -> [String:Any] {
-        let root=try vault().resolvingSymlinksInPath().standardizedFileURL
-        let owner=try readJSON(try scoped("gbrain/profile/oracle-owned.json",root:home))
-        guard owner["owner"] as? String=="OracleCompanion",owner["schema_version"] as? Int==2,owner["vault_root"] as? String==root.path else {throw failure("Fonte e destino do índice precisam ser confirmados novamente.")}
-        try prepareOwnedGBrainRuntime()
-        var env=engineEnvironment();env["ORACLE_RECEIPT_DIR"]=try scoped("events",root:home).path
-        if let id=plan?["id"] as? String,UUID(uuidString:id) != nil {env["ORACLE_PLAN_EVENTS_DIR"]=try scoped("setup/events/"+id,root:home).path}
-        var request:[String:Any]=["operation":"index","source":"oracle-vault","root":root.path,"force":force,"owned":true]
-        if let id=plan?["id"] as? String {request["plan_ref"]=id}
-        let receipt=try scoped("setup/gbrain-sync.json",root:home)
-        do {
-            let result=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:try scoped("gbrain/workspace",root:home),environment:env,input:jsonData(request),timeout:600)
-            guard result.code==0,let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")}),
-                  let response=try JSONSerialization.jsonObject(with:Data(line.utf8)) as? [String:Any],response["ok"] as? Bool==true,
-                  var value=response["value"] as? [String:Any],value["complete"] as? Bool==true else {
-                throw failure("Índice não confirmado. O último recibo completo e os documentos originais foram preservados; confira os eventos antes de retomar.")
-            }
-            let manifest=try scoped("gbrain/profile/oracle-vault-manifest.json",root:home)
-            guard value["manifest_file_sha256"] as? String==digest(try Data(contentsOf:manifest)) else {throw failure("O recibo do índice mudou antes da verificação final.")}
-            value["status"]="verified";value["checkedAt"]=ISO8601DateFormatter().string(from:Date());value["inference"]=false;value["reason"]=reason
-            try writeJSON(value,receipt);return value
-        } catch {
-            var last=(try? readJSON(receipt)) ?? [:]
-            last["status"]="needs_attention";last["attemptedAt"]=ISO8601DateFormatter().string(from:Date());last["inference"]=false
-            try? writeJSON(last,receipt);throw error
-        }
+        let snapshot=try scanSnapshot(root:vault())
+        var value=try indexVaultSnapshot(snapshot,generation:0,planRef:plan?["id"] as? String,
+                                        budget:120,maxUpserts:5000,force:force)
+        value["reason"]=reason
+        return value
     }
 }

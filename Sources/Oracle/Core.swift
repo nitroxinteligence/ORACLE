@@ -15,6 +15,7 @@ final class Core {
     let home: URL
     var config: [String: Any]
     var scopedVaultURL:URL?
+    lazy var memorySync = MemorySyncCoordinator(home:home)
     deinit {scopedVaultURL?.stopAccessingSecurityScopedResource()}
     var lastSequence:Int64 = 0
     var configBaseline:[String:Any] = [:]
@@ -37,30 +38,20 @@ final class Core {
     }
     func vault() throws -> URL { guard let path = config["vault"] as? String else { throw failure("Selecione uma pasta de conhecimento acessível") };let root=URL(fileURLWithPath:path);try beginVaultAccess(root);guard fm.fileExists(atPath:path) else{throw failure("A pasta do Obsidian está indisponível. Escolha a pasta novamente.")};return root }
     func scan(root inputRoot: URL, instructionsOnly: Bool = false) throws -> [[String: Any]] {
-        let root=inputRoot.resolvingSymlinksInPath()
-        var output = [[String: Any]]()
-        guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey,.isSymbolicLinkKey,.fileSizeKey,.contentModificationDateKey], options: [.skipsHiddenFiles], errorHandler: { _, _ in false }) else { throw failure("Não foi possível ler a pasta") }
-        for case let file as URL in walker {
-            let values = try file.resourceValues(forKeys: [.isDirectoryKey,.isSymbolicLinkKey,.fileSizeKey,.contentModificationDateKey])
-            if values.isSymbolicLink == true { walker.skipDescendants(); continue }
-            if ["node_modules","vendor","dist","build"].contains(file.lastPathComponent), values.isDirectory == true { walker.skipDescendants(); continue }
-            let prefix=root.path.hasSuffix("/") ? root.path : root.path+"/"
-            let canonical=file.path.hasPrefix(prefix) ? file.path : file.resolvingSymlinksInPath().path
-            guard canonical.hasPrefix(prefix) else { throw failure("A pasta mudou durante a leitura. Selecione-a novamente.") }
-            let rel = String(canonical.dropFirst(prefix.count))
-            if instructionsOnly && values.isDirectory != true && !["AGENTS.md","AGENTS.override.md"].contains(file.lastPathComponent) { continue }
-            if values.isDirectory != true && file.pathExtension.lowercased() != "md" { continue }
-            if values.isDirectory != true && (values.fileSize ?? 0) > 2_000_000 { continue }
-            output.append(["path":rel,"name":file.lastPathComponent,"directory":values.isDirectory == true,"size":values.fileSize ?? 0,"modified":values.contentModificationDate?.timeIntervalSince1970 ?? 0,"source":inputRoot.path])
-            if output.count >= 60000 { throw failure("Limite de 60 mil entradas: selecione uma pasta menor") }
-        }
-        return output.sorted { ($0["path"] as! String) < ($1["path"] as! String) }
+        let result = try scanSnapshot(root:inputRoot,instructionsOnly:instructionsOnly)
+        guard result.complete else { throw failure("Leitura parcial da pasta. Nenhuma remoção pode ser reconciliada. " + (result.issues.first?["error"] ?? "Revise as permissões.")) }
+        return result.entries
     }
     func snapshot() throws -> [String: Any] {
         refreshConfig()
         var value: [String: Any] = ["config":config,"collections":collections.map { ["id":$0.0,"name":$0.1,"icon":$0.2] },"events":try events(),"engine":"não verificado","coverage":"Hooks opcionais; sem acesso ao banco privado do Codex; ausência de evento = desconhecido"]
-        if let root = try? vault() { do { value["entries"] = try scan(root: root) } catch { value["entries"] = []; value["scanError"] = error.localizedDescription } }
+        if let root = try? vault() {
+            let cached = memorySync.cachedSnapshot(root:root)
+            value["entries"] = cached["entries"] ?? [];value["scan"] = cached["scan"]
+            value["scanError"] = cached["scanError"]
+        }
         else { value["entries"] = [] }
+        value["memorySync"] = memorySync.status()
         value["collections"] = discoveredCollections(value["entries"] as? [[String:Any]] ?? [])
         value["operations"] = ["setup":operationIsRunning("setup"),"gbrain":operationIsRunning("gbrain")]
         value["home"] = home.path
@@ -79,6 +70,12 @@ final class Core {
         return ["text":String(decoding: data, as: UTF8.self),"hash":digest(data),"path":url.path]
     }
     func saveVersion(path: String, original: String, text: String) throws -> [String: Any] {
+        try withVaultWrite {
+            defer { notifyVaultChanged(reason:"personal-version") }
+            return try saveVersionLocked(path:path,original:original,text:text)
+        }
+    }
+    private func saveVersionLocked(path: String, original: String, text: String) throws -> [String: Any] {
         let normalized=text.replacingOccurrences(of:"\r\n",with:"\n")
         let header=normalized.components(separatedBy:"\n---\n")
         guard path.hasSuffix("/SKILL.md"), text.utf8.count < 2_000_000, normalized.hasPrefix("---\n"), header.count>=2, header[0].range(of: "(?m)^name: .+", options: .regularExpression) != nil, header[0].range(of: "(?m)^description: .+", options: .regularExpression) != nil else { throw failure("SKILL.md exige frontmatter delimitado com name e description") }
@@ -155,11 +152,12 @@ final class Core {
         refreshConfig()
         if !attach { for (key, limit) in identityLimits { guard let v = answers[key], !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, v.count <= limit else { throw failure("Campo obrigatório inválido: \(key)") } } }
         let root = try vault()
-        guard catalogCollections.allSatisfy({id in collections.contains(where:{$0.0==id})}) else { throw failure("Coleção desconhecida") }
+        let available = Set(catalogSummary().compactMap { $0["id"] as? String })
+        guard catalogCollections.allSatisfy({ validSpecialistID($0) && available.contains($0) }),Set(catalogCollections).count == catalogCollections.count else { throw failure("Coleção ausente do catálogo validado") }
         let baseline=try scan(root:root),spaces=knowledgeSpaces(baseline)
         let areaPaths=spaces.compactMap{$0["path"]}
         let folders=(isNew ? templateFolders.filter{!["AREAS/pessoal","AREAS/profissional"].contains($0)} : [])+areaPaths
-        var plan: [String: Any] = ["schema_version":1,"id":UUID().uuidString,"vault":root.path,"new_vault":isNew,"attach":attach,"answers":answers,"answers_hash":digest(try jsonData(answers)),"folders":folders,"knowledge_spaces":spaces,"executor":"Codex Desktop","created_at":ISO8601DateFormatter().string(from:Date())]
+        var plan: [String: Any] = ["schema_version":1,"id":UUID().uuidString,"vault":root.path,"new_vault":isNew,"attach":attach,"answers":answers,"answers_hash":digest(try jsonData(answers)),"folders":folders,"knowledge_spaces":spaces,"executor":"native-local","created_at":ISO8601DateFormatter().string(from:Date())]
         plan["catalog_collections"]=catalogCollections
         if !catalogCollections.isEmpty { plan["catalog_hash"]=try catalogDigest() }
         plan["plan_hash"]=try planDigest(plan)
@@ -192,6 +190,12 @@ final class Core {
         return ["baseline":baseline,"events":journal,"plan_id":id,"coverage":"Somente itens do journal desta instalação; não é todo o histórico do vault."]
     }
     func applyPlan(rollback: Bool = false, verifyOnly: Bool = false) throws -> [String: Any] {
+        try withVaultWrite {
+            defer { if !verifyOnly { notifyVaultChanged(reason:"setup") } }
+            return try applyPlanLocked(rollback:rollback,verifyOnly:verifyOnly)
+        }
+    }
+    private func applyPlanLocked(rollback: Bool, verifyOnly: Bool) throws -> [String: Any] {
         let operationLock=try acquireOperationLock("setup");defer{releaseOperationLock(operationLock)}
         let brainLock=try acquireOperationLock("gbrain");defer{releaseOperationLock(brainLock)}
         refreshConfig()
@@ -207,7 +211,7 @@ final class Core {
             var removedRefs=[[String:Any]]()
             for path in created.reversed() {
                 let dir = try scoped(path,root:root)
-                if (try? fm.contentsOfDirectory(atPath:dir.path).isEmpty) == true { try fm.removeItem(at:dir);removedRefs.append(["path":path,"directory":true]) }
+                if try removeEmptyVaultDirectory(dir) { removedRefs.append(["path":path,"directory":true]) }
             }
             journal["status"] = "rolled_back_empty_folders_only"; try writeJSON(journal,journalURL)
             try event(type:"setup.rollback",summary:"Rollback preservou arquivos e pastas não vazias",details:["run_id":id,"phase":"rollback","completed":removedRefs.count,"total":created.count,"removed_refs":removedRefs])
@@ -220,7 +224,10 @@ final class Core {
                 if verifyOnly { throw failure("Pasta ausente: \(path)") }
                 // Journal ownership before mutation: safe resume after crash.
                 var prefix="";for part in path.split(separator:"/") { prefix=prefix.isEmpty ? String(part) : prefix+"/"+part;let parent=try scoped(prefix,root:root);if !fm.fileExists(atPath:parent.path) && !created.contains(prefix) { created.append(prefix) } };journal["created"]=created;try writeJSON(journal,journalURL)
-                try fm.createDirectory(at:url,withIntermediateDirectories:true)
+                try coordinatedWrite(at:url,options:.forMerging) { destination in
+                    guard try scoped(path,root:root).path == destination.path else { throw failure("O destino da configuração mudou.") }
+                    try fm.createDirectory(at:destination,withIntermediateDirectories:true)
+                }
             }
             var directory: ObjCBool = false
             guard fm.fileExists(atPath:url.path,isDirectory:&directory), directory.boolValue else { throw failure("Colisão: \(path) não é pasta") }

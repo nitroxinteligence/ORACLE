@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="atlas-motion.css">
 <link rel="stylesheet" href="onboarding.css">
+<link rel="stylesheet" href="audit.css">
 </head>
 <body>
 <div id="app" inert>
@@ -42,7 +43,7 @@
       </div>
       <div id="tree" class="tree"></div>
       <div class="side-bottom">
-        <button id="conversations"><span data-icon="chat"></span>Conversas ChatGPT</button>
+        <button id="conversations"><span data-icon="chat"></span>Conversas importadas</button>
         <button id="instructions"><span data-icon="book"></span>Instruções dos projetos</button>
         <button id="tools"><span data-icon="tool"></span>Ferramentas</button>
       </div>
@@ -51,9 +52,9 @@
       <div id="atlas"></div>
       <div id="results" hidden></div>
       <div class="map-tools" role="group" aria-label="Navegação do atlas">
-        <button id="zoom-out" aria-label="Reduzir zoom" data-tooltip="Reduzir zoom · −">−</button>
-        <span id="zoom-label">118%</span>
-        <button id="zoom-in" aria-label="Aumentar zoom" data-tooltip="Aumentar zoom · +">+</button>
+        <button id="zoom-out" aria-label="Zoom fixo em 118%" disabled hidden>−</button>
+        <span id="zoom-label" aria-label="Zoom fixo em 118%">118%</span>
+        <button id="zoom-in" aria-label="Zoom fixo em 118%" disabled hidden>+</button>
         <span class="tool-separator" aria-hidden="true"></span>
         <button id="zoom-reset" aria-label="Enquadrar contexto" data-tooltip="Enquadrar contexto · 0"><span data-icon="fit"></span></button>
         <button id="context-back" aria-label="Voltar ao contexto" data-tooltip="Voltar ao contexto · Esc"><span data-icon="back"></span></button>
@@ -88,5 +89,5 @@
 <div id="tooltip" role="tooltip" hidden></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <div id="lock-screen" hidden><div class="lock-card"><div class="wordmark"><img class="brand-lockup" src="brand/lockup-white.svg" alt="Oracle"></div><h1>Seu universo, reservado.</h1><p>Use Touch ID ou a senha do macOS para continuar.</p><button id="unlock" class="primary">Desbloquear Oracle</button><small>A proteção bloqueia esta interface. Seu vault continua acessível pelo Obsidian.</small></div></div>
-<script src="status-badges.js"></script><script src="preview.js"></script><script src="universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="installation-visual.js"></script><script src="onboarding.js"></script><script src="app.js"></script>
+<script src="status-badges.js"></script><script src="vendor/marked.js"></script><script src="reader.js"></script><script src="library.js"></script><script src="preview.js"></script><script src="universe.js"></script><script src="flat-universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="installation-visual.js"></script><script src="onboarding.js"></script><script src="app.js"></script>
 </body></html>

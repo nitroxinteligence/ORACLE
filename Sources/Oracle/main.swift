@@ -8,6 +8,16 @@ func argument(_ key: String) -> String? { guard let i = arguments.firstIndex(of:
 // The distributed application has neither this identifier nor this Info.plist key.
 let validationState = Bundle.main.bundleIdentifier?.hasSuffix(".validation") == true ? Bundle.main.object(forInfoDictionaryKey:"OracleQAState") as? String : nil
 let core = try Core(home: (argument("--state") ?? validationState).map { URL(fileURLWithPath:$0) })
+// A CLI is another entrypoint, not an authorization bypass. Test switches only
+// run their own synthetic suites, never a second mutating command in the same invocation.
+let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates"]
+let mutatingSwitches:Set<String>=["--prepare-bridge","--gbrain","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update"]
+if arguments.contains(where:{mutatingSwitches.contains($0)}) {
+    do {
+        guard !arguments.contains(where:{testSwitches.contains($0)}) else {throw failure("Execute testes e operações de produto separadamente.")}
+        try core.requireCapability(.configure)
+    } catch {fputs(error.localizedDescription+"\n",stderr);exit(1)}
+}
 if arguments.contains("--hook") {
     do { let data = FileHandle.standardInput.readDataToEndOfFile(); guard data.count < 4_000_000, let value = try JSONSerialization.jsonObject(with:data) as? [String: Any] else { exit(0) }; try core.ingestHook(value) } catch { /* Observability must not block Codex. */ }
     print("{}"); exit(0)
@@ -46,6 +56,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
     let queue = DispatchQueue(label:"oracle.core")
     let updateQueue = DispatchQueue(label:"oracle.updates")
+    let memoryQueue = DispatchQueue(label:"oracle.memory.reads",qos:.userInitiated)
     var updating = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -63,6 +74,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         window.setFrameAutosaveName("OracleUniverse"); window.center(); window.makeKeyAndOrderFront(nil)
         buildMenu()
         locked = core.config["protected"] as? Bool == true
+        if !locked && core.activeLicense() != nil {core.memorySync.start()}
         web.loadFileURL(resourceRoot.appendingPathComponent("index.html"),allowingReadAccessTo:resourceRoot)
         NSApp.activate(ignoringOtherApps:true)
         NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(accessibilityChanged),name:NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,object:nil)
@@ -90,7 +102,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         return .terminateLater
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {NSApp.terminate(nil);return false}
-    func applicationWillTerminate(_ notification:Notification) {onboardingController?.shutdown()}
+    func applicationWillTerminate(_ notification:Notification) {core.memorySync.stop();onboardingController?.shutdown()}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication) -> Bool { true }
     func buildMenu() {
         let bar = NSMenu()
@@ -111,12 +123,17 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         trail.setAccessibilityLabel("Caminho da janela: \(path)")
         alert.accessoryView=trail
     }
-    @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.3.0"; a.informativeText = "Seu conhecimento, conectado. Codex e Obsidian, em um só universo."; addAlertBreadcrumb(a,"Oracle › Sobre o Oracle");a.addButton(withTitle:"Voltar");a.runModal() }
+    @objc func about() { let a = NSAlert(); a.messageText = "Oracle"; a.informativeText = OracleBuildIdentity.description(); addAlertBreadcrumb(a,"Oracle › Sobre o Oracle");a.addButton(withTitle:"Voltar");a.runModal() }
     @objc func lockApp() {
-        lockGeneration += 1;locked=true
+        lockGeneration += 1;locked=true;core.memorySync.stop()
         web?.evaluateJavaScript("window.oracleTakeDraftAndLock?.()") {value,_ in
-            guard let draft=value as? [String:String],let path=draft["path"],let hash=draft["hash"],let text=draft["text"] else {return}
-            self.queue.async {if draft["vault"]==core.config["vault"] as? String {_ = try? core.saveDraft(path:path,original:hash,text:text)}}
+            guard let snapshot=value as? [String:Any] else {return}
+            if let draft=snapshot["editor"] as? [String:String],let path=draft["path"],let hash=draft["hash"],let text=draft["text"] {
+                self.queue.async {if draft["vault"]==core.config["vault"] as? String {_ = try? core.saveDraft(path:path,original:hash,text:text)}}
+            }
+            if let draft=snapshot["onboarding"] as? [String:Any],let controller=self.onboardingController {
+                controller.queue.async {try? controller.saveDraft(draft)}
+            }
         }
     }
     func authenticate(_ completion:@escaping(Bool,String?)->Void) {
@@ -134,16 +151,29 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         web.evaluateJavaScript("window.oracleReply(\(safeID)[0],\(String(decoding:data,as:UTF8.self)))",completionHandler:nil)
     }
     func userContentController(_ userContentController: WKUserContentController,didReceive message:WKScriptMessage) {
-        guard message.frameInfo.isMainFrame, message.frameInfo.request.url?.isFileURL == true, let body = message.body as? [String:Any], let id = body["id"] as? String, let method = body["method"] as? String else { return }
+        guard message.frameInfo.isMainFrame,let origin=message.frameInfo.request.url,origin.isFileURL,origin.standardizedFileURL.path.hasPrefix(resourceRoot.path+"/"),let body = message.body as? [String:Any],let id=body["id"] as? String,id.count<=64,let method=body["method"] as? String,method.count<=80,requestMethods.count<128 else {return}
         requestMethods[id]=method
         let p = body["params"] as? [String:Any] ?? [:]
         if method == "lock" { lockApp(); reply(id,true); return }
         if method == "boot" { reply(id,["locked":locked,"accessibility":["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]]); return }
-        if method == "unlock" { authenticate { ok,error in if ok { self.locked = false }; self.reply(id,ok,error) }; return }
+        if method == "unlock" { authenticate { ok,error in if ok { self.locked = false;if core.activeLicense() != nil {core.memorySync.start()} }; self.reply(id,ok,error) }; return }
         guard !locked else { reply(id,nil,"Oracle bloqueado"); return }
         if handleOnboarding(id,method:method,params:p) { return }
-        if !core.onboardingLegacyAccess() && core.activeLicense()==nil && !["snapshot","copy","openExternal","openCodex"].contains(method) {reply(id,nil,"Ative seu código para continuar.");return}
-        if method == "chooseVault" || method == "chooseProject" || method == "chooseGBrain" {
+        let hasAccess=core.activeLicense() != nil
+        if !hasAccess {core.memorySync.stop()}
+        if method=="snapshot" && !hasAccess {
+            queue.async {do{let onboarding=try self.onboardingController?.snapshot() ?? core.onboardingSnapshot();DispatchQueue.main.async{self.reply(id,["config":[:],"entries":[],"events":[],"collections":[],"catalog":[],"onboarding":onboarding,"build":OracleBuildIdentity.metadata()])}}catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}};return
+        }
+        if !hasAccess && !["copy","openExternal","openCodex"].contains(method) {reply(id,nil,"Ative a licença deste Mac para continuar.");return}
+        if method=="chooseGBrain" {_ = handleOnboarding(id,method:"onboardingChooseBrain",params:p);return}
+        if method=="confirmGBrain" {_ = handleOnboarding(id,method:"onboardingConfirmIdentity",params:p);return}
+        if method=="snapshot" {core.memorySync.start()}
+        if method=="gbrainRead" {
+            memoryQueue.async {do{let reader=try Core(home:core.home);let result=try reader.gbrainRead(p);DispatchQueue.main.async{self.reply(id,result)}}catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}};return
+        }
+        if method=="memoryStatus" {reply(id,core.memorySync.status());return}
+        if method=="memoryRefresh" {core.memorySync.invalidate(reason:"manual-refresh");core.memorySync.start();reply(id,core.memorySync.status());return}
+        if method == "chooseVault" || method == "chooseProject" {
             let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
             panel.message = method == "chooseVault" ? "Escolha o vault. Oracle lê os documentos e salva os arquivos que você editar nesta pasta." : method == "chooseProject" ? "Autorize somente a descoberta de AGENTS.md e AGENTS.override.md neste projeto." : "Escolha o workspace GBrain existente. Apenas operações oficiais de consulta serão usadas."
             panel.beginSheetModal(for:window) { response in
@@ -151,9 +181,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 self.queue.async { do {
                     let lock=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(lock)};let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)};core.refreshConfig()
                     if method == "chooseVault" { core.config["vault"] = url.path;core.config.removeValue(forKey:"vaultBookmark") }
-                    else if method == "chooseGBrain" { core.config["gbrainWorkspace"] = url.path;core.config["gbrainAccess"] = true }
                     else { var roots = core.config["projects"] as? [String] ?? []; if !roots.contains(url.path) { roots.append(url.path) }; core.config["projects"] = roots }
-                    try core.persist(); DispatchQueue.main.async { self.reply(id,url.path) }
+                    try core.persist();core.memorySync.invalidate(reason:"source-changed");DispatchQueue.main.async { if !self.locked && core.activeLicense() != nil {core.memorySync.start()};self.reply(id,url.path) }
                 } catch { DispatchQueue.main.async { self.reply(id,nil,error.localizedDescription) } } }
             }; return
         }
@@ -195,11 +224,13 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                     for point in Array(nodes.values)+Array(leaves.values) { guard let x=point["x"],let y=point["y"],x.isFinite,y.isFinite,abs(x)<=2000,abs(y)<=2000 else { throw failure("Posição inválida") } }
                     core.config["layout"]=layout; try core.persist(); result=true
                 case "updateStatus": var status=try core.updateStatus();status["busy"]=updaterBusy;if !updaterBusy,["checking","downloading","verifying","applying"].contains(status["phase"] as? String ?? "") {status["phase"]="interrupted";status["message"]="Operação interrompida. Verifique novamente para recuperar com segurança."};result=status
-                case "configureSkillSource": result = try core.configureSkillSource(p["repository"] as? String ?? "")
-                case "snapshot": result = try core.snapshot()
+                case "configureSkillSource": try core.requireCapability(.manageCatalogSource);result = try core.configureSkillSource(p["repository"] as? String ?? "")
+                case "saveLibraryRoot":result=try core.saveLibraryRoot(library:p["library"] as? String ?? "",path:p["path"] as? String ?? "")
+                case "saveDepartments":guard let assignments=p["assignments"] as? [String:String] else{throw failure("Departamentos inválidos")};result=try core.saveDepartmentAssignments(assignments)
+                case "saveVisualPreferences":result=try core.saveVisualPreferences(p)
+                case "snapshot":var snapshot=try core.snapshot();snapshot["build"]=OracleBuildIdentity.metadata();result=snapshot
                 case "gbrainRead": result = try core.gbrainRead(p)
                 case "gbrainReadback": result = (try? readJSON(core.home.appendingPathComponent("setup/gbrain-readback.json"))) ?? [:]
-                case "confirmGBrain": try core.confirmGBrain(p["hash"] as? String ?? ""); result = true
                 case "read": result = try core.readEditableNote(p["path"] as? String ?? "")
                 case "saveNote": result = try core.saveNote(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")
                 case "saveDraft": result = try core.saveDraft(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")
@@ -214,7 +245,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 case "conversations": result = (try? readJSON(core.home.appendingPathComponent("conversations.json")))?["conversations"] ?? []
                 case "instructions": result = try (core.config["projects"] as? [String] ?? []).flatMap { try core.scan(root:URL(fileURLWithPath:$0),instructionsOnly:true).filter { $0["directory"] as? Bool != true } }
                 case "readInstruction": guard let root = p["source"] as? String,(core.config["projects"] as? [String] ?? []).contains(root),let path = p["path"] as? String,["AGENTS.md","AGENTS.override.md"].contains(URL(fileURLWithPath:path).lastPathComponent) else { throw failure("Fonte não autorizada") }; let url = try core.scoped(path,root:URL(fileURLWithPath:root)); result = ["text":try String(contentsOf:url,encoding:.utf8),"path":url.path]
-                case "revoke": core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark"); core.config.removeValue(forKey:"projects"); core.config.removeValue(forKey:"gbrainWorkspace");core.config["gbrainAccess"] = false; try core.persist(); result = true
+                case "revoke":core.memorySync.stop();core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark");core.config.removeValue(forKey:"projects");core.config.removeValue(forKey:"gbrainWorkspace");core.config.removeValue(forKey:"gbrainProfile");core.config["gbrainAccess"] = false;try core.persist();core.memorySync.invalidate(reason:"access-revoked");result=true
                 default: throw failure("Operação não suportada")
                 }
                 DispatchQueue.main.async { self.reply(id,result) }

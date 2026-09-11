@@ -43,6 +43,15 @@ extension Core {
         return result
     }
     func saveNote(path: String, original: String, text: String) throws -> [String:Any] {
+        // Keep the proposal even when another writer currently owns the vault.
+        _ = try saveDraft(path:path,original:original,text:text)
+        return try withVaultWrite {
+            let result = try saveNoteLocked(path:path,original:original,text:text)
+            if result["status"] as? String == "saved" { notifyVaultChanged(reason:"editor-save") }
+            return result
+        }
+    }
+    private func saveNoteLocked(path: String, original: String, text: String) throws -> [String:Any] {
         let operation = try acquireOperationLock("editor")
         defer { releaseOperationLock(operation) }
         let url = try editableURL(path)

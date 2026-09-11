@@ -3,6 +3,8 @@ import Foundation
 extension Core {
     /// Read-only assessment uses the same ownership rules as installation.
     func previewSkillFiles(_ files: [UpdateFile], version: String) throws -> [String:Any] {
+        guard files.count<=5000,Set(files.map { portablePathKey($0.path) }).count==files.count,
+              files.allSatisfy({$0.data.count<=2_000_000}),files.reduce(0,{$0+$1.data.count})<=50_000_000 else { throw failure("Manifesto de skills fora dos limites") }
         let root = try vault()
         let prior = (try? readJSON(updatePath("skills/installed.json"))) ?? [:]
         if let priorRoot = prior["vault"] as? String, priorRoot != root.path { throw failure("Selecione a pasta usada na instalação dessas skills.") }

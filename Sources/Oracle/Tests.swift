@@ -1,6 +1,8 @@
 import Foundation
 func runTests() throws {
-    let base = fm.temporaryDirectory.appendingPathComponent("oracle-test-\(UUID().uuidString)")
+    try runDataReliabilityTests()
+    try runNativeMemoryEngineTests()
+    let base = try oracleTestFixture("core")
     defer { try? fm.removeItem(at:base) }
     let c = try Core(home:base.appendingPathComponent("state")); let root = base.appendingPathComponent("vault")
     try fm.createDirectory(at:root,withIntermediateDirectories:true)

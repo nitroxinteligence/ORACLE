@@ -16,19 +16,65 @@ protocol CodexConnection:AnyObject {
 }
 extension CodexConnection {
     func request(_ method:String,_ params:[String:Any]=[:]) throws -> [String:Any] {try request(method,params,timeout:45)}
+    func discoverOnboardingModel() throws -> CodexOnboardingModel {
+        var models=[[String:Any]](),cursor:String?,seen=Set<String>()
+        repeat {
+            var params:[String:Any]=["limit":100,"includeHidden":false]
+            if let cursor {params["cursor"]=cursor}
+            let result=try request("model/list",params)
+            models += result["data"] as? [[String:Any]] ?? []
+            guard models.count<=2000 else{throw failure("O catálogo de modelos excedeu o limite de verificação.")}
+            cursor=result["nextCursor"] as? String
+            if let cursor {guard !cursor.isEmpty,seen.insert(cursor).inserted,seen.count<20 else{throw failure("Paginação de modelos incompatível.")}}
+        } while cursor != nil
+        return try CodexOnboardingModel.select(models)
+    }
+}
+struct CodexOnboardingModel {
+    let model:String
+    let effort:String?
+    static func select(_ models:[[String:Any]]) throws -> CodexOnboardingModel {
+        let candidates=models.filter { row in
+            guard let model=row["model"] as? String,!model.isEmpty,model.utf8.count<=256,row["hidden"] as? Bool != true else{return false}
+            return (row["inputModalities"] as? [String] ?? ["text"]).contains("text")
+        }
+        guard let choice=candidates.first(where:{$0["isDefault"] as? Bool==true}) ?? candidates.first else{throw failure("O Codex não informou um modelo de texto disponível. A instalação local não depende de modelo.")}
+        let efforts=(choice["supportedReasoningEfforts"] as? [[String:Any]] ?? []).compactMap{$0["reasoningEffort"] as? String}
+        let suggested=choice["defaultReasoningEffort"] as? String
+        let effort=suggested.flatMap{efforts.contains($0) ? $0 : nil} ?? efforts.first
+        return CodexOnboardingModel(model:choice["model"] as! String,effort:effort)
+    }
 }
 
 /// A dedicated public app-server connection. It does not attach to Desktop's private databases,
 /// inspect auth.json, or export tokens. Only documented, generated protocol messages cross here.
+struct CodexLaunchConfiguration {
+    let executable:URL
+    let arguments:[String]
+    let environment:[String:String]
+}
 final class CodexBridge:CodexConnection {
     private let condition=NSCondition(), writer=NSLock()
     private var process:Process?, input:FileHandle?, output:FileHandle?, errors:FileHandle?
     private var buffer=Data(), responses=[Int:[String:Any]](), nextID=0
-    var onNotification: ((String,[String:Any])->Void)?
-    var onRequest: ((Any,String,[String:Any])->Void)?
-    var onDisconnect:(()->Void)?
+    private var pendingResponseIDs=Set<Int>(),transportEpoch:UInt64=0
+    private var notificationHandler:((String,[String:Any])->Void)?,requestHandler:((Any,String,[String:Any])->Void)?,disconnectHandler:(()->Void)?
+    var onNotification:((String,[String:Any])->Void)? {
+        get{condition.lock();defer{condition.unlock()};return notificationHandler}
+        set{condition.lock();notificationHandler=newValue;condition.unlock()}
+    }
+    var onRequest:((Any,String,[String:Any])->Void)? {
+        get{condition.lock();defer{condition.unlock()};return requestHandler}
+        set{condition.lock();requestHandler=newValue;condition.unlock()}
+    }
+    var onDisconnect:(()->Void)? {
+        get{condition.lock();defer{condition.unlock()};return disconnectHandler}
+        set{condition.lock();disconnectHandler=newValue;condition.unlock()}
+    }
+    private let launch:CodexLaunchConfiguration?
+    init(launch:CodexLaunchConfiguration?=nil) {self.launch=launch}
     private(set) var version=""
-    var isRunning:Bool { process?.isRunning == true }
+    var isRunning:Bool {condition.lock();defer{condition.unlock()};return process?.isRunning == true}
     static func executable() throws -> URL {
         let home=FileManager.default.homeDirectoryForCurrentUser
         // Prefer the Desktop version: an unrelated npm CLI may lag its config schema.
@@ -38,22 +84,26 @@ final class CodexBridge:CodexConnection {
     func start(cwd:URL) throws {
         if isRunning {return}
         let p=Process(),stdin=Pipe(),stdout=Pipe(),stderr=Pipe()
-        p.executableURL=try Self.executable();p.arguments=["app-server","--stdio"];p.currentDirectoryURL=cwd
+        p.executableURL=try launch?.executable ?? Self.executable();p.arguments=launch?.arguments ?? ["app-server","--stdio"];p.currentDirectoryURL=cwd
         // Codex owns its normal login and configuration. API credentials are not passed through.
-        p.environment=["HOME":fm.homeDirectoryForCurrentUser.path,"PATH":"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin","LANG":"en_US.UTF-8","TERM":"dumb"]
+        p.environment=launch?.environment ?? ["HOME":fm.homeDirectoryForCurrentUser.path,"PATH":"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin","LANG":"en_US.UTF-8","TERM":"dumb"]
         p.standardInput=stdin;p.standardOutput=stdout;p.standardError=stderr
-        process=p;input=stdin.fileHandleForWriting;output=stdout.fileHandleForReading;errors=stderr.fileHandleForReading
-        stdout.fileHandleForReading.readabilityHandler={ [weak self] h in self?.consume(h.availableData) }
+        condition.lock();transportEpoch &+= 1;let epoch=transportEpoch
+        buffer.removeAll();responses.removeAll();pendingResponseIDs.removeAll()
+        process=p;input=stdin.fileHandleForWriting;output=stdout.fileHandleForReading;errors=stderr.fileHandleForReading;condition.unlock()
+        stdout.fileHandleForReading.readabilityHandler={ [weak self] h in self?.consume(h.availableData,epoch:epoch) }
         stderr.fileHandleForReading.readabilityHandler={ h in _=h.availableData } // Never store credentials or full engine output.
-        p.terminationHandler={ [weak self] _ in guard let self else{return};self.condition.lock();self.condition.broadcast();self.condition.unlock();self.onDisconnect?() }
-        try p.run()
-        let result=try request("initialize",["clientInfo":["name":"oracle_companion","title":"Oracle","version":"0.3.0"],"capabilities":["experimentalApi":true]])
-        version=result["userAgent"] as? String ?? "Codex";try write(["method":"initialized"])
+        p.terminationHandler={ [weak self] _ in guard let self else{return};self.condition.lock();let callback=self.transportEpoch==epoch ? self.disconnectHandler : nil;self.condition.broadcast();self.condition.unlock();callback?() }
+        do {
+            try p.run()
+            let result=try request("initialize",["clientInfo":["name":"oracle_companion","title":"Oracle","version":"0.3.0"],"capabilities":["experimentalApi":true]])
+            version=result["userAgent"] as? String ?? "Codex";try write(["method":"initialized"])
+        } catch {stop();throw error}
     }
-    private func consume(_ data:Data) {
+    private func consume(_ data:Data,epoch:UInt64) {
         guard !data.isEmpty else{return}
-        condition.lock();buffer.append(data)
-        if buffer.count>16_000_000 { buffer.removeAll();condition.unlock();process?.terminate();return }
+        condition.lock();guard epoch==transportEpoch else{condition.unlock();return};buffer.append(data)
+        if buffer.count>16_000_000 {buffer.removeAll();let overloaded=process;condition.unlock();overloaded?.terminate();return}
         var messages=[[String:Any]]()
         while let end=buffer.firstIndex(of:10) {
             let line=Data(buffer[..<end]);buffer.removeSubrange(...end)
@@ -61,32 +111,43 @@ final class CodexBridge:CodexConnection {
         }
         condition.unlock()
         for msg in messages {
+            condition.lock();let current=epoch==transportEpoch,requestCallback=requestHandler,notificationCallback=notificationHandler;condition.unlock();guard current else{return}
             if let method=msg["method"] as? String {
                 let params=msg["params"] as? [String:Any] ?? [:]
-                if let id=msg["id"] {onRequest?(id,method,params)} else {onNotification?(method,params)}
-            } else if let id=msg["id"] as? Int {condition.lock();responses[id]=msg;condition.broadcast();condition.unlock()}
+                if let id=msg["id"] {requestCallback?(id,method,params)} else {notificationCallback?(method,params)}
+            } else if let rawID=msg["id"],let id=rawID as? Int,onboardingRPCKey(rawID)=="n:\(id)" {
+                condition.lock();if epoch==transportEpoch && pendingResponseIDs.contains(id) && responses[id]==nil {responses[id]=msg;condition.broadcast()};condition.unlock()
+            }
         }
     }
     func write(_ object:[String:Any]) throws {
         let data=try JSONSerialization.data(withJSONObject:object)+Data([10]);writer.lock();defer{writer.unlock()}
-        guard isRunning,let input else{throw failure("Conexão com Codex interrompida. Reconecte para continuar.")};try input.write(contentsOf:data)
+        condition.lock();let running=process?.isRunning==true,handle=input;condition.unlock()
+        guard running,let handle else{throw failure("Conexão com Codex interrompida. Reconecte para continuar.")};try handle.write(contentsOf:data)
     }
     func request(_ method:String,_ params:[String:Any]=[:],timeout:Double=45) throws -> [String:Any] {
-        condition.lock();nextID+=1;let id=nextID;condition.unlock()
-        try write(["id":id,"method":method,"params":params]);let deadline=Date().addingTimeInterval(timeout)
+        condition.lock();nextID+=1;let id=nextID,epoch=transportEpoch
+        guard pendingResponseIDs.count<128 else{condition.unlock();throw failure("Muitas solicitações simultâneas ao Codex.")}
+        pendingResponseIDs.insert(id);condition.unlock()
+        do {try write(["id":id,"method":method,"params":params])} catch {condition.lock();pendingResponseIDs.remove(id);condition.unlock();throw error}
+        let deadline=Date().addingTimeInterval(max(1,min(timeout,120)))
         condition.lock();defer{condition.unlock()}
-        while responses[id]==nil && isRunning {if !condition.wait(until:deadline){break}}
+        defer{pendingResponseIDs.remove(id);responses.removeValue(forKey:id)}
+        while responses[id]==nil && process?.isRunning==true && epoch==transportEpoch {if !condition.wait(until:deadline){break}}
         guard let response=responses.removeValue(forKey:id) else{throw failure("Codex não respondeu a tempo. A conexão pode ser retomada.")}
-        if let error=response["error"] as? [String:Any] {throw failure("Codex: \((error["message"] as? String ?? "operação indisponível").prefix(700))")}
+        if response["error"] is [String:Any] {throw failure("O Codex recusou a operação \(method). Nenhum detalhe sensível da resposta foi registrado.")}
         return response["result"] as? [String:Any] ?? [:]
     }
     func reply(id:Any,result:[String:Any]) throws {try write(["id":id,"result":result])}
     func reject(id:Any) {try? write(["id":id,"error":["code":-32601,"message":"This Oracle client does not support this request."]])}
     func stop() {
-        onDisconnect=nil;onNotification=nil;onRequest=nil
-        output?.readabilityHandler=nil;errors?.readabilityHandler=nil
-        try? input?.close();if isRunning{process?.terminate()}
-        condition.lock();responses.removeAll();condition.broadcast();condition.unlock()
+        writer.lock();defer{writer.unlock()}
+        condition.lock()
+        let priorProcess=process,priorInput=input,priorOutput=output,priorErrors=errors
+        disconnectHandler=nil;notificationHandler=nil;requestHandler=nil
+        transportEpoch &+= 1;responses.removeAll();pendingResponseIDs.removeAll();buffer.removeAll();process=nil;input=nil;output=nil;errors=nil;condition.broadcast();condition.unlock()
+        priorOutput?.readabilityHandler=nil;priorErrors?.readabilityHandler=nil
+        try? priorInput?.close();if priorProcess?.isRunning==true{priorProcess?.terminate()}
     }
     deinit{stop()}
     func account() throws -> [String:Any] {

@@ -1,7 +1,7 @@
 import Foundation
 
 func runEditorTests() throws {
-    let base=fm.temporaryDirectory.appendingPathComponent("oracle-editor-tests-\(UUID().uuidString)")
+    let base=try oracleTestFixture("editor")
     defer { try? fm.removeItem(at:base) }
     let c=try Core(home:base.appendingPathComponent("state")),root=base.appendingPathComponent("vault")
     try fm.createDirectory(at:root,withIntermediateDirectories:true)

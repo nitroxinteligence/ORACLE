@@ -5,46 +5,54 @@ export const rootPath = 'SISTEMA/prompts';
 export const definition = {
   id: 'prompts', name: 'Prompts', path: rootPath, color: '#CEC08B',
 };
-export const contains = path => typeof path === 'string' &&
-  (path === rootPath || path.startsWith(rootPath + '/')) &&
-  !path.split('/').some(part => part === '..' || part === '.');
+const valid = path => typeof path === 'string' && !path.startsWith('/') && !/[\\\u0000-\u001f\u007f]/.test(path) &&
+  !path.split('/').some(part => !part || part === '..' || part === '.');
+const key = path => path.normalize('NFC').toLocaleLowerCase('pt-BR');
+const inside = (path, root) => path === root || path.startsWith(root + '/');
+// Family recognition is case-insensitive; selecting one real root below is not.
+export const contains = path => valid(path) && key(path.split('/').slice(0,2).join('/')) === key(rootPath);
 const parent = path => path.slice(0, path.lastIndexOf('/'));
-const displayName = path => path === rootPath ? 'Prompts' :
+const displayName = (path, root = rootPath) => path === root ? 'Prompts' :
   path.split('/').at(-1).replace(/\.md$/i, '').replace(/[-_]+/g, ' ');
 const order = (a, b) => a.path.localeCompare(b.path, 'pt-BR');
 
-export function inventory(entries = []) {
+export function inventory(entries = [], choice = '') {
   const files = new Map(), folders = new Map();
+  const roots = [...new Set(entries.filter(e => contains(e.path) && (e.directory || e.path.split('/').length > 2))
+    .map(e => e.path.split('/').slice(0,2).join('/')))].sort((a,b) => a.localeCompare(b,'pt-BR'));
+  const selected = roots.includes(choice) ? choice : roots.length === 1 ? roots[0] : '';
+  const root = selected || rootPath, ambiguous = roots.length > 1 && !selected;
   // Ancestor folders are evidenced by their actual descendant path, even with a file-only index.
   const addFolder = path => {
-    for (let cursor = path; contains(cursor); cursor = parent(cursor)) {
+    for (let cursor = path; inside(cursor, root); cursor = parent(cursor)) {
       if (folders.has(cursor)) break;
-      folders.set(cursor, {path: cursor, name: displayName(cursor), directory: true});
+      folders.set(cursor, {path: cursor, name: displayName(cursor, root), directory: true});
     }
   };
   for (const entry of entries) {
-    if (!contains(entry.path)) continue;
+    if (ambiguous || !contains(entry.path) || !inside(entry.path, root)) continue;
     if (entry.directory) addFolder(entry.path);
     else if (/\.md$/i.test(entry.path)) { files.set(entry.path, entry); addFolder(parent(entry.path)); }
   }
-  const directories = [...folders.values()].filter(entry => entry.path !== rootPath)
+  const directories = [...folders.values()].filter(entry => entry.path !== root)
     .sort((a,b) => a.path.split('/').length-b.path.split('/').length || order(a,b));
   const documents = [...files.values()].sort(order);
-  const area = {...definition, exists: folders.has(rootPath), notes: documents.length, folders: directories.length};
-  return {area, directories, documents, entries: [...folders.values(), ...documents]};
+  const area = {...definition, path: root, exists: !ambiguous && folders.has(root), ambiguous, notes: documents.length, folders: directories.length};
+  return {area, roots, ambiguous, directories, documents, entries: [...folders.values(), ...documents]};
 }
 
 function describe(entry, data) {
-  if (entry.path === rootPath) return `Prompts · ${data.area.folders} pastas · ${data.area.notes} prompts · ${rootPath}`;
-  const location = entry.path.slice(rootPath.length + 1).replace(/\.md$/i, '').split('/').join(' › ');
+  const root = data.area.path;
+  if (entry.path === root) return `Prompts · ${data.area.folders} pastas · ${data.area.notes} prompts · ${root}`;
+  const location = entry.path.slice(root.length + 1).replace(/\.md$/i, '').split('/').join(' › ');
   const count = entry.directory ? data.documents.filter(file => file.path.startsWith(entry.path + '/')).length : 0;
   return `Prompts › ${location} · ${entry.directory ? `Pasta · ${count} ${count === 1 ? 'prompt' : 'prompts'}` : 'Prompt Markdown'}`;
 }
 
-export function orbit(entries = [], innerRadius = 163) {
-  const data = inventory(entries);
+export function orbit(entries = [], innerRadius = 163, choice = '') {
+  const data = inventory(entries, choice);
   if (!data.area.exists) return {area: data.area, points: [], rings: [], radius: 0, total: 0, visible: 0};
-  const all = [{path: rootPath, name: 'Prompts', directory: true, root: true}];
+  const all = [{path: data.area.path, name: 'Prompts', directory: true, root: true}];
   // Keep actual prompts visible even when the library has many empty departments.
   for (let i = 0; i < Math.max(data.directories.length, data.documents.length); i++) {
     if (data.directories[i]) all.push(data.directories[i]);
@@ -68,15 +76,15 @@ export function orbit(entries = [], innerRadius = 163) {
 }
 
 export function resolve(entries, navigation) {
-  const data = inventory(entries);
+  const data = inventory(entries, navigation?.rootChoice);
   return folderResolve(data.entries, {...navigation, area: 'prompts'}, [data.area]);
 }
 export function plan(entries, navigation) {
-  const data = inventory(entries);
+  const data = inventory(entries, navigation?.rootChoice);
   const result = folderPlan(data.entries, {...navigation, area: 'prompts'}, [data.area]);
-  result.nodes[0].name = displayName(result.route.path);
+  result.nodes[0].name = displayName(result.route.path, data.area.path);
   for (const leaf of result.leaves) {
-    leaf.name = displayName(leaf.id); leaf.color = definition.color;
+    leaf.name = displayName(leaf.id, data.area.path); leaf.color = definition.color;
     leaf.tooltip = describe({path: leaf.id, directory: leaf.directory}, data);
   }
   return result;

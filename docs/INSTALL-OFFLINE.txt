@@ -1,0 +1,46 @@
+ORACLE — macOS 13 ou posterior, Apple Silicon
+
+Confira o canal e a identificação do build em Sobre o Oracle e nos Ajustes avançados. Uma versão developer usa
+assinatura de desenvolvimento e não comprova notarização ou ativação em hardware.
+Distribua aos alunos somente a versão release aprovada, com relatório, assinatura
+e tickets verificados pelo proprietário. Não remova a quarentena nem desative as
+proteções do macOS para contornar uma distribuição inválida.
+
+ATIVAÇÃO INDIVIDUAL
+Use o convite individual do proprietário para gerar uma solicitação neste Mac.
+Envie essa solicitação ao proprietário e importe a resposta assinada que ele
+devolver. A licença é permanente e vinculada à chave protegida deste aparelho;
+copiar o arquivo de licença não ativa outro Mac. O aplicativo exige Secure Enclave
+compatível e uma distribuição com as autorizações corretas do Keychain. Não há
+identificador UUID alternativo, código coletivo ou revogação remota prometida.
+
+INSTALAÇÃO LOCAL
+Escolha a pasta original do Obsidian e revise o plano. Instalar executa as fases
+locais do Oracle e do GBrain oficial sem pedir uma conta ou executar um modelo no
+Codex. Revise o readback das respostas, confirme e retome para concluir a identidade,
+o índice e a ponte local. Cancelar interrompe no limite seguro de uma fase e preserva
+os itens confirmados; Retomar verifica o mesmo plano antes de continuar.
+
+Para usar um GBrain existente, escolha explicitamente seu workspace e o perfil local
+que contém .gbrain/config.json. Um perfil global ou remoto não é selecionado por
+suposição. Esse modo não reinicializa o brain existente. Não há tutorial, primeira
+entrega ou tarefa com modelo obrigatória.
+
+CODEX É OPCIONAL
+Conectar ao Codex, executar com Codex e verificar a descoberta da skill são ações
+opcionais explícitas. Essas ações podem precisar da conta e da rede próprias do
+serviço, mas não são pré-requisitos para instalar e usar a estrutura local. A
+verificação local não declara que o Codex confiou nos hooks. Aprovações expiradas
+ou já respondidas não podem ser reaproveitadas após desconexão.
+
+SEUS DOCUMENTOS
+Editar salva no Markdown original do vault selecionado. Rascunhos e cópias de
+recuperação ficam no perfil local. Um conflito com uma edição externa requer
+revisão da base antes de salvar. O bloqueio da interface não criptografa seu vault.
+
+RECUPERAÇÃO E TROCA DE MAC
+Preserve o perfil e procure o proprietário se a identidade protegida ficar
+indisponível. Reinstalação, migração de conta e substituição física precisam seguir
+a política de recuperação aprovada; não apague a identidade nem emita convites
+extras para tentar contornar uma licença consumida. Uma cópia antiga permanentemente
+offline não pode ser desativada remotamente por promessa.

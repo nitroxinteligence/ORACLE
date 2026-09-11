@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 let onboardingActiveStatuses:Set<String>=["starting","running","cancelling"]
 extension Core {
@@ -15,19 +16,21 @@ extension Core {
     var onboardingURL:URL {home.appendingPathComponent("onboarding/state.json")}
     func onboardingRecord() -> [String:Any] {(try? readJSON(onboardingURL)) ?? [:]}
     func onboardingLegacyAccess() -> Bool {
-        // Adopt only an existing configured profile. A newly chosen vault is never an activation.
-        let state=onboardingRecord()
-        if let legacy=state["legacyAccess"] as? Bool{return legacy}
-        return state.isEmpty && config["vault"] as? String != nil
+        // Compatibility name only. A profile/UUID/old legacyAccess flag is NOT an authorization.
+        activeLicense()?.role == "owner"
     }
     func onboardingSnapshot() throws -> [String:Any] {
         refreshConfig();var value=onboardingRecord()
         if value.isEmpty {
-            value=["schemaVersion":1,"status":"not_started","legacyAccess":config["vault"] as? String != nil]
+            value=["schemaVersion":2,"status":"not_started","legacyProfilePreserved":config["vault"] as? String != nil]
             try writeJSON(value,onboardingURL)
         }
-        value["licensed"]=activeLicense() != nil
-        value["deviceID"]=try licenseDeviceID()
+        let license=activeLicense()
+        value["licensed"]=license != nil;value["legacyAccess"]=license?.role == "owner"
+        value["role"]=license?.role ?? "locked";value["capabilities"]=licenseCapabilities(license)
+        value["deviceID"]=license?.deviceID ?? ""
+        value["legacyProfilePreserved"]=config["vault"] as? String != nil
+        value["deviceSupport"]=["supported":SecureEnclave.isAvailable,"kind":"secure-enclave-p256","reason":SecureEnclave.isAvailable ? "Ativação offline vinculada à chave deste Mac." : "Secure Enclave indisponível; este Mac não suporta a ativação vinculada ao aparelho."]
         value["vaultName"]=(config["vault"] as? String).map{URL(fileURLWithPath:$0).lastPathComponent} ?? ""
         value["hasVault"]=(try? vault()) != nil
         if value["hasVault"] as? Bool==false && value["status"] as? String=="completed" {value["status"]="configuring";value["runID"]=NSNull();value["message"]="Escolha seu Obsidian para continuar."}
@@ -35,18 +38,20 @@ extension Core {
         value["codexConnected"]=(try? readJSON(home.appendingPathComponent("onboarding/connection.json")))?["connected"] as? Bool ?? false
         let progress=try onboardingProgress();value["confirmed"]=progress
         value["completed"]=progress.count;value["total"]=NSNull()
-        if onboardingActiveStatuses.contains(value["status"] as? String ?? ""), let pid=value["ownerPID"] as? Int32,kill(pid,0) != 0,errno==ESRCH {value["status"]="interrupted";value["message"]="A configuração foi interrompida. Retome do último ponto confirmado."}
-        if let r=try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")),r["status"] as? String=="awaiting_readback_confirmation",let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),r["plan_hash"] as? String==plan["plan_hash"] as? String,r["confirmed_hash"]==nil {
+        if onboardingActiveStatuses.contains(value["status"] as? String ?? ""), let pid=value["ownerPID"] as? Int, pid > 0, pid <= Int(Int32.max),kill(Int32(pid),0) != 0,errno==ESRCH {value["status"]="interrupted";value["message"]="A configuração foi interrompida. Retome do último ponto confirmado."}
+        if let review=try onboardingReview() {value["review"]=review} else {value.removeValue(forKey:"review")}
+        if value["review"] is [String:Any],let r=try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")),r["status"] as? String=="awaiting_readback_confirmation",let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),r["plan_hash"] as? String==plan["plan_hash"] as? String,r["confirmed_hash"]==nil {
             value["readback"]=["text":r["readback"] ?? "","hash":r["upstream_hash"] ?? ""]
         }
         // Paths and protocol payloads are internal. The view only gets user-facing state.
-        value.removeValue(forKey:"ownerPID");return value
+        for key in ["ownerPID","threadID","turnID","request","detail"] {value.removeValue(forKey:key)}
+        return value
     }
     func onboardingProgress() throws -> [[String:Any]] {
         let record=onboardingRecord();guard let run=record["runID"] as? String,let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["id"] as? String==run,plan["vault"] as? String==config["vault"] as? String else{return []}
         if record["status"] as? String=="completed",let saved=record["formation"] as? [[String:Any]],record["confirmedAt"] is String {return saved}
         var confirmed=[[String:Any]]()
-        if record["codexStarted"] as? Bool==true {confirmed.append(["id":"sol","kind":"core","label":"Oracle","evidence":"Codex turn/start"])}
+        if record["localStarted"] as? Bool==true || record["codexStarted"] as? Bool==true {confirmed.append(["id":"sol","kind":"core","label":"Oracle","evidence":record["localStarted"] as? Bool==true ? "native local installation" : "Codex turn/start"])}
         if let root=try? vault(),let journal=try? readJSON(home.appendingPathComponent("setup/\(run).json")),journal["status"] as? String=="structure_verified" {
             confirmed.append(["id":"obsidian","kind":"connector","label":root.lastPathComponent,"evidence":"vault readback"])
             let events=try self.events(directory:home.appendingPathComponent("setup/events/\(run)"),limit:10000)
@@ -76,8 +81,17 @@ extension Core {
         }
         _=try gbrainRead(["operation":"status"])
         let bridge=try readJSON(home.appendingPathComponent("setup/bridge.json"))
-        guard let root=bridge["workspace"] as? String,let skill=bridge["skill"] as? String,skill.hasPrefix(root+"/"),let expected=bridge["skill_sha256"] as? String,expected==digest(try Data(contentsOf:URL(fileURLWithPath:skill))) else{throw failure("A instalação da skill no Codex ainda não foi verificada.")}
-        return ["structure":true,"memory":true,"skill":true,"hooksTrusted":false]
+        let root=home.appendingPathComponent("codex-workspace")
+        guard bridge["workspace"] as? String==root.path,let skill=bridge["skill"] as? String,skill.hasPrefix(root.path+"/"),let expected=bridge["skill_sha256"] as? String else{throw failure("A ponte local ainda não foi verificada.")}
+        let file=try scoped(String(skill.dropFirst(root.path.count+1)),root:root)
+        guard expected==digest(try Data(contentsOf:file)) else{throw failure("A skill local mudou; revise a ponte antes de concluir.")}
+        let hooks=try scoped(".codex/hooks.json",root:root)
+        guard bridge["hooks_sha256"] as? String==digest(try jsonData(readJSON(hooks))) else{throw failure("Os hooks locais mudaram; a confiança continua não verificada.")}
+        if plan["attach"] as? Bool != true {
+            let config=try scoped(".codex/config.toml",root:root)
+            guard bridge["mcp_sha256"] as? String==digest(try Data(contentsOf:config)) else{throw failure("A configuração local da memória mudou.")}
+        }
+        return ["structure":true,"memory":true,"skill":true,"localOnly":true,"hooksTrusted":false,"skillDiscoveredByCodex":false]
     }
 }
 
@@ -91,50 +105,83 @@ final class OnboardingController {
     private let stateLock=NSRecursiveLock()
     private var loadedThreadID:String?
     private var earlyCompletions=[String:[String:Any]]()
-    private var pendingRequests=[String:(Any,String,[String:Any])](),loginID:String?
-    private var inventoryTimer:DispatchSourceTimer?
+    private let consents=OnboardingConsentQueue()
+    private var loginID:String?
+    private var connectionEpoch=UUID(),runGeneration=UUID()
+    private var completedTurn=false,localInFlight=false
+    private let localDriver:OfflineInstallationDriver
+    private let accessCheck:(()throws->Void)?
     var openLogin:((URL)->Void)?
-    init(home:URL,bridge:CodexConnection=CodexBridge(),automaticallyReconnect:Bool=true) throws {
+    init(home:URL,bridge:CodexConnection=CodexBridge(),automaticallyReconnect:Bool=false,localDriver:OfflineInstallationDriver=NativeOfflineInstallation(),accessCheck:(()throws->Void)?=nil) throws {
         self.bridge=bridge
+        self.localDriver=localDriver;self.accessCheck=accessCheck
         core=try Core(home:home)
         _=try core.onboardingSnapshot()
         // A cached login or inventory is never treated as a live connection after launch.
         try writeJSON(["connected":false],home.appendingPathComponent("onboarding/connection.json"))
         if var inventory=try? readJSON(home.appendingPathComponent("onboarding/plugins.json")) {inventory["status"]="unavailable";inventory["reason"]="Reconecte ao Codex para verificar os plugins";inventory["plugins"]=(inventory["plugins"] as? [[String:Any]] ?? []).map{r in var x=r;if x["status"] as? String=="connected"{x["status"]="unavailable"};return x};try writeJSON(inventory,home.appendingPathComponent("onboarding/plugins.json"))}
         let prior=core.onboardingRecord()
-        if onboardingActiveStatuses.contains(prior["status"] as? String ?? "") {try update(["status":"interrupted","message":"Retome a configuração para conferir o último ponto salvo."])}
-        bridge.onNotification={ [weak self] method,params in self?.notifications.async { self?.notification(method,params) } }
-        bridge.onRequest={ [weak self] id,method,params in self?.notifications.async {self?.receivedRequest(id,method,params)} }
-        bridge.onDisconnect={ [weak self] in self?.notifications.async {self?.disconnected()} }
-        if automaticallyReconnect && (core.onboardingLegacyAccess() || core.onboardingRecord()["codexAuthorized"] as? Bool==true) {
+        if onboardingActiveStatuses.contains(prior["status"] as? String ?? "") || prior["request"] is [String:Any] || (prior["pendingRequestCount"] as? Int ?? 0)>0 {try update(["status":"interrupted","message":"Retome a configuração para conferir o último ponto salvo.","request":NSNull()])}
+        try update(["pendingRequestCount":0,"request":NSNull(),"authorizing":false])
+        bindBridgeCallbacks()
+        if automaticallyReconnect && core.onboardingRecord()["codexAuthorized"] as? Bool==true {
             queue.async { [weak self] in self?.restoreConnection() }
         }
-        let timer=DispatchSource.makeTimerSource(queue:queue);timer.schedule(deadline:.now()+60,repeating:60)
-        timer.setEventHandler { [weak self] in guard let self,self.bridge.isRunning,!onboardingActiveStatuses.contains(self.core.onboardingRecord()["status"] as? String ?? "") else{return};_ = try? self.refreshPlugins() };timer.resume();inventoryTimer=timer
+    }
+    private func bindBridgeCallbacks() {
+        stateLock.lock();connectionEpoch=UUID();let epoch=connectionEpoch;stateLock.unlock()
+        bridge.onNotification={ [weak self] method,params in
+            guard let self else{return};self.stateLock.lock();let generation=self.runGeneration;self.stateLock.unlock()
+            self.notifications.async {self.stateLock.lock();defer{self.stateLock.unlock()};guard self.connectionEpoch==epoch else{return};self.notification(method,params,generation:generation)}
+        }
+        bridge.onRequest={ [weak self] id,method,params in
+            guard let self else{return};self.stateLock.lock();let generation=self.runGeneration;self.stateLock.unlock()
+            self.notifications.async {self.stateLock.lock();defer{self.stateLock.unlock()};guard self.connectionEpoch==epoch else{return};self.receivedRequest(id,method,params,generation:generation)}
+        }
+        bridge.onDisconnect={ [weak self] in self?.notifications.async {guard let self else{return};self.stateLock.lock();defer{self.stateLock.unlock()};guard self.connectionEpoch==epoch else{return};self.disconnected()} }
+    }
+    private func ensureBridge() throws {
+        if !bridge.isRunning {bindBridgeCallbacks();try bridge.start(cwd:core.home)}
+    }
+    func snapshot() throws -> [String:Any] {
+        stateLock.lock();defer{stateLock.unlock()}
+        // Avoid sharing mutable Core.config with a long-running local phase.
+        var value=try Core(home:core.home).onboardingSnapshot()
+        value["pendingRequestCount"]=consents.pending.count
+        if let request=consents.pending.first {value["request"]=request.projection}
+        return value
     }
     private func restoreConnection() {
-        do {try bridge.start(cwd:core.home);let account=try bridge.account();try writeJSON(account,core.home.appendingPathComponent("onboarding/connection.json"));if account["connected"] as? Bool==true {_ = try refreshPlugins()}}catch{disconnected()}
+        do {try requireAccess();try ensureBridge();let account=try bridge.account();try writeJSON(account,core.home.appendingPathComponent("onboarding/connection.json"))}catch{disconnected()}
     }
     func shutdown() {
-        inventoryTimer?.cancel();inventoryTimer=nil
-        if onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? "") || core.onboardingRecord()["request"] is [String:Any] {
+        stateLock.lock();defer{stateLock.unlock()}
+        if onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? "") || !consents.pending.isEmpty {
             try? Data("cancel".utf8).write(to:core.home.appendingPathComponent("onboarding/cancel"),options:.atomic)
             try? update(["status":"interrupted","message":"Configuração pausada ao fechar o Oracle. Retome para continuar."])
         }
+        _=consents.invalidate(newTransport:true);connectionEpoch=UUID();loginID=nil
+        try? update(["pendingRequestCount":0,"authorizing":false])
         bridge.stop()
         try? writeJSON(["connected":false],core.home.appendingPathComponent("onboarding/connection.json"))
     }
-    deinit {inventoryTimer?.cancel();bridge.stop()}
+    deinit {bridge.stop()}
     func update(_ changes:[String:Any]) throws {
-        stateLock.lock();defer{stateLock.unlock()};var state=core.onboardingRecord();for(k,v) in changes{state[k]=v};state["updatedAt"]=ISO8601DateFormatter().string(from:Date());try writeJSON(state,core.onboardingURL)
+        stateLock.lock();defer{stateLock.unlock()};var state=core.onboardingRecord();for(k,v) in changes{state[k]=v}
+        state.removeValue(forKey:"request");state.removeValue(forKey:"detail")
+        state["pendingRequestCount"]=consents.pending.count
+        state["updatedAt"]=ISO8601DateFormatter().string(from:Date());try writeJSON(state,core.onboardingURL)
     }
     private func disconnected() {
-        stateLock.lock();loadedThreadID=nil;stateLock.unlock()
+        stateLock.lock();defer{stateLock.unlock()};loadedThreadID=nil;loginID=nil;connectionEpoch=UUID()
+        _=consents.invalidate(newTransport:true);earlyCompletions.removeAll()
         try? writeJSON(["connected":false],core.home.appendingPathComponent("onboarding/connection.json"))
-        if onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? ""){try? update(["status":"interrupted","message":"A conexão com o Codex foi interrompida. Seus avanços foram preservados."])}
+        let record=core.onboardingRecord()
+        if record["executor"] as? String=="codex",["starting","running","waiting_user","cancelling"].contains(record["status"] as? String ?? "") {completedTurn=true;try? update(["status":"interrupted","message":"A conexão com o Codex foi interrompida. As aprovações expiraram; os avanços locais foram preservados."])}
+        try? update(["pendingRequestCount":0,"authorizing":false])
     }
     func connect() throws -> [String:Any] {
-        try requireAccess();try bridge.start(cwd:core.home)
+        try requireAccess();try ensureBridge()
         let account=try bridge.account();try writeJSON(account,core.home.appendingPathComponent("onboarding/connection.json"))
         if account["connected"] as? Bool==true {try update(["codexAuthorized":true]);return account}
         if loginID != nil {return ["connected":false,"status":"authorizing","message":"Conclua a autorização no navegador ou cancele para tentar novamente."]}
@@ -151,9 +198,11 @@ final class OnboardingController {
         if let loginID {_ = try bridge.request("account/login/cancel",["loginId":loginID]);self.loginID=nil};try update(["authorizing":false])
     }
     func requireAccess() throws {
-        guard core.activeLicense() != nil || core.onboardingLegacyAccess() else{throw failure("Ative seu código antes de continuar.")}
+        if let accessCheck {try accessCheck();return} // native dependency injection; no serialized bypass
+        try core.requireCapability(.configure)
     }
     func selectVault(_ url:URL) throws {
+        stateLock.lock();defer{stateLock.unlock()}
         try requireAccess();try ensureNotRunning();let root=url.resolvingSymlinksInPath().standardizedFileURL
         guard (try? url.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink) != true,!root.path.contains("Library/Application Support/OracleGBrain/obsidian"),!root.path.contains("/gbrain/profile/") else{throw failure("Escolha a pasta original do Obsidian, sem links ou espelhos de indexação.")}
         let access=root.startAccessingSecurityScopedResource();defer{if access{root.stopAccessingSecurityScopedResource()}}
@@ -162,62 +211,177 @@ final class OnboardingController {
         if let bookmark=try? root.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil){core.config["vaultBookmark"]=bookmark.base64EncodedString()}
         try core.persist();try update(["status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull()])
     }
+    func selectBrain(workspace:URL,profile:URL) throws {
+        stateLock.lock();defer{stateLock.unlock()}
+        try requireAccess();try ensureNotRunning()
+        for url in [workspace,profile] {
+            let values=try url.resourceValues(forKeys:[.isDirectoryKey,.isSymbolicLinkKey])
+            guard values.isDirectory==true,values.isSymbolicLink != true else{throw failure("Escolha a pasta original do workspace e do perfil, sem links simbólicos.")}
+        }
+        let workspaceAccess=workspace.startAccessingSecurityScopedResource(),profileAccess=profile.startAccessingSecurityScopedResource()
+        defer{if workspaceAccess{workspace.stopAccessingSecurityScopedResource()};if profileAccess{profile.stopAccessingSecurityScopedResource()}}
+        core.refreshConfig();try core.selectExternalGBrain(workspace:workspace,profile:profile)
+        try update(["status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull(),"awaitingIdentity":false,"existingBrainVerified":false])
+    }
     func ensureNotRunning() throws {
-        guard !(core.onboardingRecord()["request"] is [String:Any]),!onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? ""),!core.operationIsRunning("setup"),!core.operationIsRunning("gbrain") else{throw failure("Aguarde ou cancele a instalação antes de mudar a configuração.")}
+        stateLock.lock();defer{stateLock.unlock()}
+        guard consents.pending.isEmpty,consents.early.isEmpty,!localInFlight,!onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? ""),!core.operationIsRunning("setup"),!core.operationIsRunning("gbrain") else{throw failure("Aguarde ou cancele a instalação antes de mudar a configuração.")}
     }
     func saveDraft(_ draft:[String:Any]) throws {
-        try requireAccess();try ensureNotRunning()
+        try requireAccess();stateLock.lock();defer{stateLock.unlock()}
         guard (try jsonData(draft)).count<30000 else{throw failure("Configuração grande demais.")}
-        try update(["draft":draft])
+        let allowed:Set<String>=["answers","newVault","attach","catalogCollections","step","ui"]
+        guard Set(draft.keys).isSubset(of:allowed) else{throw failure("Campos de rascunho desconhecidos.")}
+        // Closing/reopening may save the same form or only its UI step during installation.
+        // It must never mutate the reviewed inputs underneath a running plan.
+        let old=core.onboardingRecord()["draft"] as? [String:Any] ?? [:]
+        func inputs(_ value:[String:Any])->[String:Any] {value.filter{!["step","ui"].contains($0.key)}}
+        if onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? "") || !consents.pending.isEmpty || localInFlight {
+            guard try jsonData(inputs(draft))==jsonData(inputs(old)) else{throw failure("A instalação está em andamento. O rascunho revisado não foi alterado.")}
+        }
+        if try jsonData(inputs(draft)) != jsonData(inputs(old)),core.onboardingRecord()["runID"] is String {
+            try update(["draft":draft,"status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull(),"awaitingIdentity":false])
+        } else {try update(["draft":draft])}
+    }
+    func saveUIState(_ value:[String:Any]) throws {
+        try requireAccess()
+        guard Set(value.keys).isSubset(of:["step","expanded","tab"]),(try jsonData(value)).count<=2048 else{throw failure("Estado visual inválido.")}
+        try update(["ui":value])
     }
     func plan(_ params:[String:Any]) throws -> [String:Any] {
+        stateLock.lock();defer{stateLock.unlock()}
         try requireAccess();try ensureNotRunning();core.refreshConfig()
         if params["attach"] as? Bool==true,core.config["gbrainWorkspace"] as? String==nil{throw failure("Selecione a instalação existente do Second Brain.")}
         let plan=try core.makePlan(answers:params["answers"] as? [String:String] ?? [:],isNew:params["newVault"] as? Bool==true,attach:params["attach"] as? Bool==true,catalogCollections:params["catalogCollections"] as? [String] ?? [])
-        try update(["status":"review","runID":plan["id"]!,"threadID":NSNull(),"turnID":NSNull(),"codexStarted":false,"existingBrainVerified":false,"draft":params])
-        return plan
+        try update(["status":"review","runID":plan["id"]!,"threadID":NSNull(),"turnID":NSNull(),"codexStarted":false,"localStarted":false,"awaitingIdentity":false,"existingBrainVerified":false,"verification":NSNull(),"confirmedAt":NSNull(),"formation":[],"draft":params])
+        return try core.onboardingReview() ?? [:]
     }
     func install(_ hash:String) throws -> [String:Any] {
-        try requireAccess();try ensureNotRunning();guard bridge.isRunning,(try bridge.account())["connected"] as? Bool==true else{throw failure("Conecte sua conta no Codex antes de instalar.")}
-        try core.confirmPlan(hash:hash);try clearCancel();try startTurn(resume:false)
-        return try core.onboardingSnapshot()
+        stateLock.lock();defer{stateLock.unlock()}
+        try requireAccess();try ensureNotRunning()
+        guard try core.onboardingReview()?["plan_hash"] as? String==hash else{throw failure("O plano revisado mudou. Gere uma nova revisão antes de instalar.")}
+        try core.confirmPlan(hash:hash);try clearCancel();try startLocal()
+        return try snapshot()
     }
     private func clearCancel() throws {let path=core.home.appendingPathComponent("onboarding/cancel");if fm.fileExists(atPath:path.path){try fm.removeItem(at:path)}}
     func resume() throws -> [String:Any] {
-        try requireAccess();try ensureNotRunning();guard bridge.isRunning,(try bridge.account())["connected"] as? Bool==true else{throw failure("Reconecte ao Codex antes de retomar.")}
-        _=try core.validatedPlan();try clearCancel();try startTurn(resume:true);return try core.onboardingSnapshot()
+        stateLock.lock();defer{stateLock.unlock()}
+        try requireAccess();try ensureNotRunning();core.refreshConfig()
+        guard try core.onboardingReview() != nil else{throw failure("Não há um plano revisado para retomar.")}
+        _=try core.validatedPlan();try clearCancel();try startLocal();return try snapshot()
+    }
+    func installWithCodex(_ hash:String) throws -> [String:Any] {
+        try requireAccess();try ensureNotRunning()
+        guard try core.onboardingReview()?["plan_hash"] as? String==hash else{throw failure("O plano revisado mudou.")}
+        guard bridge.isRunning,(try bridge.account())["connected"] as? Bool==true else{throw failure("Conecte ao Codex apenas para usar esta execução opcional.")}
+        try core.confirmPlan(hash:hash);try clearCancel();try startTurn(resume:false);return try snapshot()
+    }
+    func resumeWithCodex() throws -> [String:Any] {
+        try requireAccess();try ensureNotRunning()
+        guard try core.onboardingReview() != nil else{throw failure("Não há um plano revisado para retomar.")}
+        guard bridge.isRunning,(try bridge.account())["connected"] as? Bool==true else{throw failure("Reconecte ao Codex para retomar a execução opcional.")}
+        _=try core.validatedPlan();try clearCancel();try startTurn(resume:true);return try snapshot()
+    }
+    private func startLocal() throws {
+        stateLock.lock();defer{stateLock.unlock()}
+        runGeneration=UUID();let generation=runGeneration;completedTurn=false
+        _=consents.invalidate();earlyCompletions.removeAll();localInFlight=true
+        do {try update(["status":"starting","executor":"native-local","phase":"structure","message":"Preparando a instalação local…","ownerPID":Int(getpid()),"threadID":NSNull(),"turnID":NSNull(),"awaitingIdentity":false,"localStarted":true])}
+        catch {localInFlight=false;throw error}
+        queue.async { [weak self] in self?.runLocalPhases(generation) }
+    }
+    private func localPhase(_ phase:String,_ message:String,_ generation:UUID) throws {
+        stateLock.lock();defer{stateLock.unlock()}
+        guard runGeneration==generation else{throw failure("Esta instalação foi substituída por outra execução.")}
+        try core.checkOnboardingCancellation();try update(["status":"running","phase":phase,"message":message])
+    }
+    private func runLocalPhases(_ generation:UUID) {
+        defer {stateLock.lock();localInFlight=false;stateLock.unlock()}
+        do {
+            core.refreshConfig();let plan=try core.validatedPlan()
+            try localPhase("structure","Criando e verificando a estrutura local.",generation);try localDriver.apply(core)
+            try core.checkOnboardingCancellation()
+            if plan["attach"] as? Bool != true {
+                try localPhase("identity","Preparando as respostas no GBrain oficial, sem modelo.",generation)
+                let receipt=try localDriver.prepare(core)
+                guard receipt["plan_hash"] as? String==plan["plan_hash"] as? String else{throw failure("A revisão do GBrain pertence a outro plano.")}
+                guard let hash=receipt["upstream_hash"] as? String,!hash.isEmpty else{throw failure("O GBrain não retornou uma revisão confirmável.")}
+                try core.checkOnboardingCancellation()
+                if receipt["confirmed_hash"] as? String != hash {
+                    try update(["status":"waiting_user","phase":"identity","awaitingIdentity":true,"message":"Revise e confirme suas respostas antes de criar a identidade e o índice."]);return
+                }
+                try localPhase("memory","Verificando a identidade e o índice local.",generation);try localDriver.finish(core)
+            }
+            try localPhase("bridge","Preparando a ponte local. Conectar ao Codex é opcional.",generation);try localDriver.prepareBridge(core)
+            try localPhase("verification","Conferindo arquivos, memória e recibos locais.",generation)
+            let verified=try localDriver.verify(core)
+            try core.checkOnboardingCancellation()
+            stateLock.lock();defer{stateLock.unlock()}
+            guard runGeneration==generation else{return}
+            try update(["existingBrainVerified":true]);let formation=try core.onboardingProgress()
+            try update(["formation":formation,"confirmedAt":ISO8601DateFormatter().string(from:Date()),"status":"completed","phase":"ready","message":"Seu Oracle está pronto para uso local.","verification":verified,"awaitingIdentity":false])
+        } catch {
+            stateLock.lock();defer{stateLock.unlock()};guard runGeneration==generation else{return}
+            let cancelled=fm.fileExists(atPath:core.home.appendingPathComponent("onboarding/cancel").path)
+            try? update(["status":cancelled ? "cancelled" : "interrupted","message":cancelled ? "Instalação pausada; os itens confirmados foram preservados." : error.localizedDescription])
+        }
     }
     private func startTurn(resume:Bool) throws {
-        core.refreshConfig();let plan=try core.validatedPlan();let workspace=core.home.appendingPathComponent("onboarding/workspace")
-        try fm.createDirectory(at:workspace,withIntermediateDirectories:true)
+        let workspace=core.home.appendingPathComponent("onboarding/workspace")
         let skill=core.bundledEngineResources().deletingLastPathComponent().appendingPathComponent("skills/oracle-onboarding/SKILL.md")
         guard fm.fileExists(atPath:skill.path) else{throw failure("A skill de instalação não está no pacote. Reinstale o aplicativo.")}
-        let initial=core.onboardingRecord();try update(["status":"starting","phase":"codex","message":"Enviando a configuração ao Codex…","ownerPID":Int(getpid()),"request":NSNull(),"awaitingIdentity":false])
+        let plan:[String:Any],initial:[String:Any],generation:UUID,epoch:UUID
         do {
-            var config:[String:Any]=["model_reasoning_effort":"xhigh","sandbox_workspace_write.writable_roots":[core.home.path,try core.vault().path],"sandbox_workspace_write.network_access":false]
+            stateLock.lock();defer{stateLock.unlock()}
+            core.refreshConfig();guard try core.onboardingReview() != nil else{throw failure("O plano mudou antes de iniciar a execução opcional.")}
+            plan=try core.validatedPlan();initial=core.onboardingRecord()
+            try fm.createDirectory(at:workspace,withIntermediateDirectories:true)
+            runGeneration=UUID();generation=runGeneration;epoch=connectionEpoch;completedTurn=false;_=consents.invalidate();earlyCompletions.removeAll()
+            try update(["status":"starting","executor":"codex","phase":"codex","message":"Enviando a configuração ao Codex por sua solicitação…","ownerPID":Int(getpid()),"threadID":NSNull(),"turnID":NSNull(),"awaitingIdentity":false])
+        }
+        do {
+            let model=try bridge.discoverOnboardingModel()
+            var config:[String:Any]=["sandbox_workspace_write.writable_roots":[core.home.path,try core.vault().path],"sandbox_workspace_write.network_access":false]
+            if let effort=model.effort {config["model_reasoning_effort"]=effort}
             // Explicit skill input, no untrusted project config, no global configuration mutation.
             config["features.multi_agent_v2.enabled"]=false
-            var p:[String:Any]=["cwd":workspace.path,"model":"gpt-6-astra","modelProvider":"openai","approvalPolicy":"on-request","sandbox":"workspace-write","config":config]
+            var p:[String:Any]=["cwd":workspace.path,"model":model.model,"approvalPolicy":"on-request","sandbox":"workspace-write","config":config]
             let response:[String:Any]
             if resume,let thread=initial["threadID"] as? String {p["threadId"]=thread;p["excludeTurns"]=false;response=try bridge.request("thread/resume",p)} else {response=try bridge.request("thread/start",p)}
             guard let thread=response["thread"] as? [String:Any],let threadID=thread["id"] as? String else{throw failure("O Codex não confirmou a tarefa de instalação.")}
-            stateLock.lock();loadedThreadID=threadID;stateLock.unlock()
-            try update(["threadID":threadID])
+            do {
+                stateLock.lock();defer{stateLock.unlock()}
+                guard runGeneration==generation,connectionEpoch==epoch,!completedTurn,bridge.isRunning else{throw failure("A conexão expirou antes de confirmar a tarefa.")}
+                loadedThreadID=threadID;consents.begin(thread:threadID,generation:generation);try update(["threadID":threadID])
+            }
             if let running=(thread["turns"] as? [[String:Any]] ?? []).last(where:{$0["status"] as? String=="inProgress"}),let turn=running["id"] as? String {
-                try update(["turnID":turn,"status":"running","message":"Conectado à instalação que já estava em andamento.","codexStarted":true]);return
+                do {
+                    stateLock.lock();defer{stateLock.unlock()}
+                    guard connectionEpoch==epoch,!completedTurn else{throw failure("A conexão expirou.")}
+                    let rejected=consents.bind(turn:turn);rejected.forEach{bridge.reject(id:$0)}
+                    try update(["turnID":turn,"status":"running","message":"Conectado à instalação opcional já em andamento.","codexStarted":true])
+                }
+                if fm.fileExists(atPath:core.home.appendingPathComponent("onboarding/cancel").path){_ = try cancel()};return
             }
             try core.checkOnboardingCancellation()
             let input:[[String:Any]]=[["type":"skill","name":"oracle-onboarding","path":skill.path],["type":"text","text":installerPrompt(plan:plan),"text_elements":[]]]
-            let turn=try bridge.request("turn/start",["threadId":threadID,"input":input,"effort":"xhigh","model":"gpt-6-astra"],timeout:60)
+            var turnParams:[String:Any]=["threadId":threadID,"input":input,"model":model.model]
+            if let effort=model.effort {turnParams["effort"]=effort}
+            let turn=try bridge.request("turn/start",turnParams,timeout:60)
             guard let t=turn["turn"] as? [String:Any],let turnID=t["id"] as? String else{throw failure("O Codex não confirmou o início.")}
             let cancelled=fm.fileExists(atPath:core.home.appendingPathComponent("onboarding/cancel").path)
-            stateLock.lock()
-            let awaiting=core.onboardingRecord()["request"] as? [String:Any] != nil
-            try update(["turnID":turnID,"status":cancelled ? "cancelling" : awaiting ? "waiting_user" : "running","phase":"preparing","codexStarted":true,"message":cancelled ? "Interrompendo o Codex…" : awaiting ? "O Codex precisa da sua resposta." : "Codex está preparando o seu Oracle."])
-            let early=earlyCompletions.removeValue(forKey:turnID);stateLock.unlock()
+            let early:[String:Any]?
+            do {
+                stateLock.lock();defer{stateLock.unlock()}
+                guard runGeneration==generation,connectionEpoch==epoch,!completedTurn,bridge.isRunning else{throw failure("A conexão expirou antes de confirmar o turno.")}
+                let rejected=consents.bind(turn:turnID);rejected.forEach{bridge.reject(id:$0)}
+                let awaiting = !consents.pending.isEmpty
+                try update(["turnID":turnID,"status":cancelled ? "cancelling" : awaiting ? "waiting_user" : "running","phase":"preparing","codexStarted":true,"message":cancelled ? "Interrompendo o Codex…" : awaiting ? "O Codex precisa da sua resposta." : "Codex está preparando o seu Oracle."])
+                early=earlyCompletions.removeValue(forKey:turnID)
+            }
             if cancelled {_ = try bridge.request("turn/interrupt",["threadId":threadID,"turnId":turnID])}
-            if let early {notifications.async {self.notification("turn/completed",early)}}
-        } catch {let cancelled=fm.fileExists(atPath:core.home.appendingPathComponent("onboarding/cancel").path);try update(["status":cancelled ? "cancelled" : "interrupted","message":error.localizedDescription]);throw error}
+            if let early {notifications.async {self.notification("turn/completed",early,generation:generation)}}
+        } catch {stateLock.lock();_=consents.invalidate();earlyCompletions.removeAll();completedTurn=true;stateLock.unlock();let cancelled=fm.fileExists(atPath:core.home.appendingPathComponent("onboarding/cancel").path);try update(["status":cancelled ? "cancelled" : "interrupted","message":"A execução opcional não iniciou ou perdeu a conexão. A instalação local continua disponível."]);throw error}
     }
     private func installerPrompt(plan:[String:Any])->String {
         let args=[Bundle.main.executableURL!.path,"--state",core.home.path]
@@ -227,18 +391,29 @@ final class OnboardingController {
         """
     }
     func cancel() throws -> [String:Any] {
-        let state=core.onboardingRecord();guard onboardingActiveStatuses.contains(state["status"] as? String ?? "") || state["status"] as? String=="waiting_user" else{return try core.onboardingSnapshot()}
+        let state=core.onboardingRecord();guard onboardingActiveStatuses.contains(state["status"] as? String ?? "") || state["status"] as? String=="waiting_user" else{return try snapshot()}
         try Data("cancel".utf8).write(to:core.home.appendingPathComponent("onboarding/cancel"),options:.atomic)
-        try update(["status":"cancelling","message":"Interrompendo o Codex; os itens confirmados serão preservados."])
-        if state["status"] as? String=="waiting_user",state["awaitingIdentity"] as? Bool==true {try update(["status":"cancelled","message":"Configuração pausada. Seus avanços foram preservados."]);return try core.onboardingSnapshot()}
+        stateLock.lock();let pending=consents.invalidate();let local=localInFlight;stateLock.unlock()
+        try update(["status":"cancelling","message":"Interrompendo a instalação; os itens confirmados serão preservados."])
+        if state["executor"] as? String=="native-local" {
+            if !local {try update(["status":"cancelled","message":"Configuração pausada. Seus avanços foram preservados."])}
+            return try snapshot()
+        }
+        pending.forEach{bridge.reject(id:$0)}
+        if state["status"] as? String=="waiting_user",state["awaitingIdentity"] as? Bool==true {try update(["status":"cancelled","message":"Configuração pausada. Seus avanços foram preservados."]);return try snapshot()}
         if let thread=state["threadID"] as? String,let turn=state["turnID"] as? String,bridge.isRunning {
             do {_=try bridge.request("turn/interrupt",["threadId":thread,"turnId":turn],timeout:15)}catch{try update(["status":"interrupted","message":"Cancelamento solicitado. Reconecte para verificar se o Codex parou."]);throw error}
         } else {try update(["status":"interrupted","message":"Cancelamento registrado; reconecte para conferir a tarefa."])}
-        return try core.onboardingSnapshot()
+        return try snapshot()
     }
     func confirmReadback(_ hash:String) throws {
-        try requireAccess();try core.confirmGBrain(hash)
-        try update(["message":"Respostas confirmadas. Retome para concluir a instalação."])
+        stateLock.lock();defer{stateLock.unlock()}
+        try requireAccess();try ensureNotRunning();core.refreshConfig()
+        guard try core.onboardingReview() != nil else{throw failure("Esta revisão já foi substituída. Revise o plano atual.")}
+        let plan=try core.validatedPlan(),receipt=try readJSON(core.home.appendingPathComponent("setup/gbrain-readback.json"))
+        guard receipt["plan_hash"] as? String==plan["plan_hash"] as? String,receipt["status"] as? String=="awaiting_readback_confirmation",receipt["upstream_hash"] as? String==hash,!hash.isEmpty else{throw failure("Esta revisão expirou ou pertence a outro plano.")}
+        try core.confirmGBrain(hash)
+        try update(["status":"paused","phase":"identity_confirmed","awaitingIdentity":false,"message":"Respostas confirmadas. Retome para concluir a instalação local."])
     }
     func refreshPlugins() throws -> [String:Any] {
         try requireAccess();guard bridge.isRunning else{throw failure("Conecte ao Codex para verificar os plugins.")};let account=try bridge.account();try writeJSON(account,core.home.appendingPathComponent("onboarding/connection.json"));guard account["connected"] as? Bool==true else{throw failure("Autorize sua conta no Codex para verificar os plugins.")}
@@ -246,7 +421,8 @@ final class OnboardingController {
         let result=bridge.inventory(threadID:loaded)
         try writeJSON(result,core.home.appendingPathComponent("onboarding/plugins.json"));return result
     }
-    private func verifyCodexSkill() throws {
+    func verifyCodexSkill() throws {
+        try requireAccess();guard bridge.isRunning else{throw failure("A descoberta no Codex é opcional e exige conexão explícita.")}
         let receipt=try readJSON(core.home.appendingPathComponent("setup/bridge.json"))
         guard let workspace=receipt["workspace"] as? String,let skill=receipt["skill"] as? String else{throw failure("A integração com o Codex ainda não foi preparada.")}
         let result=try bridge.request("skills/list",["cwds":[workspace],"forceReload":true])
@@ -261,41 +437,72 @@ final class OnboardingController {
         let result=try runProcess(CodexBridge.executable(),["app",workspace.path],cwd:core.home,environment:["HOME":fm.homeDirectoryForCurrentUser.path,"PATH":"/usr/bin:/bin:/opt/homebrew/bin"],timeout:15)
         guard result.code==0 else{throw failure("Não foi possível abrir o Codex. Abra o aplicativo pelo Finder.")}
     }
-    private func notification(_ method:String,_ p:[String:Any]) {
-        if method=="account/login/completed" {loginID=nil;try? update(["authorizing":false]);try? writeJSON(["connected":false],core.home.appendingPathComponent("onboarding/connection.json"));return}
-        let state=core.onboardingRecord();guard let thread=p["threadId"] as? String,thread==state["threadID"] as? String else{return}
+    private func notification(_ method:String,_ p:[String:Any],generation:UUID) {
+        stateLock.lock();defer{stateLock.unlock()}
+        if method=="account/login/completed" {
+            guard let id=p["loginId"] as? String,id==loginID else{return}
+            loginID=nil;try? update(["authorizing":false]);try? writeJSON(["connected":false],core.home.appendingPathComponent("onboarding/connection.json"));return
+        }
+        let state=core.onboardingRecord()
+        guard generation==runGeneration,state["executor"] as? String=="codex",let thread=p["threadId"] as? String,thread==state["threadID"] as? String else{return}
+        if method=="serverRequest/resolved",let id=p["requestId"] {
+            if consents.resolve(thread:thread,rpcID:id) {try? publishPending()};return
+        }
+        guard !completedTurn,["starting","running","waiting_user","cancelling"].contains(state["status"] as? String ?? "") else{return}
         if method=="turn/completed",let turn=p["turn"] as? [String:Any],let turnID=turn["id"] as? String {
-            if state["status"] as? String=="starting" {stateLock.lock();earlyCompletions[turnID]=p;stateLock.unlock();return}
+            if state["status"] as? String=="starting",!(state["turnID"] is String) {
+                if earlyCompletions.count<16 {earlyCompletions[turnID]=["threadId":thread,"turn":["id":turnID,"status":turn["status"] as? String ?? "unknown"]]};return
+            }
             guard turnID==state["turnID"] as? String else{return}
-            if state["status"] as? String=="cancelling" || turn["status"] as? String=="interrupted" {try? update(["status":"cancelled","message":"Instalação interrompida. Retome quando quiser.","request":NSNull()]);return}
-            guard turn["status"] as? String=="completed" else{try? update(["status":"failed","message":"O Codex não concluiu esta etapa. Retome para tentar novamente.","request":NSNull()]);return}
+            completedTurn=true;_=consents.invalidate();earlyCompletions.removeAll()
+            if state["status"] as? String=="cancelling" || turn["status"] as? String=="interrupted" {try? update(["status":"cancelled","message":"Instalação interrompida. Os avanços locais foram preservados."]);return}
+            guard turn["status"] as? String=="completed" else{try? update(["status":"failed","message":"O Codex não concluiu esta etapa. A instalação local pode ser retomada."]);return}
             if (try? core.onboardingSnapshot()["readback"]) != nil {try? update(["status":"waiting_user","phase":"identity","awaitingIdentity":true,"message":"Revise suas respostas para continuar."]);return}
-            do {var verified=try core.onboardingFinalVerification();try verifyCodexSkill();verified["skillDiscoveredByCodex"]=true;try update(["existingBrainVerified":true]);let formation=try core.onboardingProgress();try update(["formation":formation,"confirmedAt":ISO8601DateFormatter().string(from:Date()),"status":"completed","phase":"ready","message":"Seu Oracle está pronto.","verification":verified,"existingBrainVerified":true,"request":NSNull()])}
-            catch {try? update(["status":"paused","message":"O Codex terminou o turno. Há etapas a conferir antes de concluir.","detail":error.localizedDescription,"request":NSNull()])}
-        } else if method=="item/started",let item=p["item"] as? [String:Any],item["type"] as? String=="commandExecution" {
-            try? update(["phase":"installing","message":"Codex está instalando e verificando os componentes."])
+            try? update(["status":"running","phase":"verification","message":"Turno encerrado; conferindo os recibos locais."])
+            queue.async { [weak self] in
+                guard let self else{return}
+                do {
+                    let verified=try self.localDriver.verify(self.core)
+                    self.stateLock.lock();defer{self.stateLock.unlock()};guard self.runGeneration==generation,self.core.onboardingRecord()["status"] as? String=="running" else{return}
+                    try self.core.checkOnboardingCancellation();try self.update(["existingBrainVerified":true]);let formation=try self.core.onboardingProgress()
+                    try self.update(["formation":formation,"confirmedAt":ISO8601DateFormatter().string(from:Date()),"status":"completed","phase":"ready","message":"Seu Oracle está pronto para uso local.","verification":verified])
+                } catch {
+                    self.stateLock.lock();defer{self.stateLock.unlock()};guard self.runGeneration==generation else{return}
+                    try? self.update(["status":"paused","message":"O turno terminou, mas os recibos locais ainda não comprovam a instalação. Retome a instalação local para verificar."])
+                }
+            }
+        } else if method=="item/started",p["turnId"] as? String==state["turnID"] as? String,state["turnID"] is String,state["status"] as? String != "cancelling",let item=p["item"] as? [String:Any],item["type"] as? String=="commandExecution" {
+            try? update(["phase":"installing","message":"Codex está executando a etapa opcional."])
         }
     }
-    private func receivedRequest(_ id:Any,_ method:String,_ params:[String:Any]) {
-        guard params["threadId"] as? String==core.onboardingRecord()["threadID"] as? String else{bridge.reject(id:id);return}
-        let supported=["item/commandExecution/requestApproval","item/fileChange/requestApproval","item/permissions/requestApproval","item/tool/requestUserInput"]
-        guard supported.contains(method) else{bridge.reject(id:id);try? update(["status":"waiting_user","message":"O Codex precisa de uma ação que este cliente ainda não oferece. Abra a tarefa no Codex."]);return}
-        let key=UUID().uuidString;stateLock.lock();pendingRequests[key]=(id,method,params);stateLock.unlock()
-        var request:[String:Any]=["id":key,"kind":method,"reason":params["reason"] ?? "O Codex precisa da sua confirmação para esta etapa."]
-        if method=="item/tool/requestUserInput" {request["questions"]=params["questions"] ?? []}
-        else {request["command"]=params["command"] ?? "";request["cwd"]=params["cwd"] ?? "";request["permissions"]=params["permissions"] ?? [:];request["grantRoot"]=params["grantRoot"] ?? NSNull()}
-        try? update(["status":"waiting_user","message":"O Codex precisa da sua resposta.","request":request])
+    private func publishPending() throws {
+        let state=core.onboardingRecord()
+        guard !completedTurn,["starting","running","waiting_user"].contains(state["status"] as? String ?? ""),state["awaitingIdentity"] as? Bool != true else{try update([:]);return}
+        try update(["status":consents.pending.isEmpty ? "running" : "waiting_user","message":consents.pending.isEmpty ? "Aguardando a próxima etapa do Codex." : "O Codex precisa da sua resposta."])
+    }
+    private func receivedRequest(_ id:Any,_ method:String,_ params:[String:Any],generation:UUID) {
+        stateLock.lock();defer{stateLock.unlock()}
+        let state=core.onboardingRecord()
+        guard generation==runGeneration,!completedTurn,state["executor"] as? String=="codex",["starting","running","waiting_user"].contains(state["status"] as? String ?? "") else{bridge.reject(id:id);return}
+        switch consents.receive(id:id,method:method,params:params,generation:generation) {
+        case .queued:try? publishPending()
+        case .deferred,.duplicate:break
+        case .rejected:bridge.reject(id:id)
+        }
     }
     func answerRequest(_ params:[String:Any]) throws {
-        guard let key=params["id"] as? String else{throw failure("Solicitação inválida.")}
-        stateLock.lock();let pending=pendingRequests[key];stateLock.unlock()
-        guard let(id,method,original)=pending else{throw failure("Esta solicitação expirou. Retome a configuração.")}
-        let allow=params["allow"] as? Bool==true
-        var result:[String:Any]
-        if method=="item/tool/requestUserInput" {result=["answers":params["answers"] as? [String:Any] ?? [:]]}
-        else if method=="item/permissions/requestApproval" {result=["permissions":allow ? original["permissions"] as? [String:Any] ?? [:] : [:],"scope":"turn"]}
-        else {result=["decision":allow ? "accept" : "decline"]}
-        try bridge.reply(id:id,result:result);stateLock.lock();pendingRequests.removeValue(forKey:key);stateLock.unlock()
-        try update(["status":"running","request":NSNull(),"message":allow ? "Permissão concedida para esta etapa." : "Resposta enviada ao Codex."])
+        try requireAccess();stateLock.lock();defer{stateLock.unlock()}
+        guard bridge.isRunning,!completedTurn,core.onboardingRecord()["status"] as? String=="waiting_user",let key=params["id"] as? String,
+            let pending=consents.pending.first,pending.id==key,pending.generation==runGeneration else{throw failure("Esta solicitação expirou, já foi respondida ou não é a primeira da fila.")}
+        if let supplied=params["generation"] as? String,UUID(uuidString:supplied) != pending.generation {throw failure("A solicitação pertence a uma execução anterior.")}
+        let result=try pending.response(params) // validate BEFORE consuming the prompt
+        _=try consents.take(id:key,generation:runGeneration)
+        do {try bridge.reply(id:pending.rpcID,result:result);try publishPending()}
+        catch {
+            _=consents.invalidate();completedTurn=true
+            disconnected();bridge.stop()
+            try? update(["status":"interrupted","message":"Não foi possível confirmar o envio. As aprovações expiraram; reconecte antes de decidir novamente."])
+            throw error
+        }
     }
 }

@@ -3,9 +3,9 @@ name: oracle-setup
 description: Configure the Oracle macOS companion through its deterministic scripts, preserving the selected vault and existing GBrain/Codex installations.
 ---
 
-# Oracle setup, executed by Codex Desktop
+# Oracle local setup and optional Codex integration
 
-Codex Desktop is the only AI executor. Oracle is a native viewer/configuration surface. Do not start another agent runtime, use subscription tokens as API credentials, enable model inference in GBrain, or bypass hook trust.
+Oracle performs deterministic setup and resume natively by default, without a Codex account or model. Codex is the only optional AI executor in this integration, and only when explicitly requested. Do not start another agent runtime, use subscription tokens as API credentials, enable model inference in GBrain, or bypass hook trust. No first-experience exercise, training task or post-onboarding demonstration is required or created.
 
 ## Start from the reviewed plan
 
@@ -38,9 +38,9 @@ Run:
 Oracle --state <state> --gbrain prepare
 ```
 
-This initializes the bundled official GBrain 0.48.4.0 (commit 2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d) in `<state>/gbrain/profile`, records the six confirmed answers using official interview commands, and writes `setup/gbrain-readback.json`.
+This initializes the bundled official GBrain 0.48.4.0 (commit 2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d) in `<state>/gbrain/profile`, records the reviewed answers and timezone when provided using official interview commands, and writes `setup/gbrain-readback.json`.
 
-Have the person review **Configuração → Revisar entrevista oficial** in Oracle. The exact official read-back hash must be confirmed. Do not manufacture that confirmation for a real person's identity. Synthetic test fixtures may exercise the confirmation contract automatically.
+Have the person review **Configuração → Confirme sua identidade** in Oracle. The exact official read-back hash must be confirmed. Confirmation leaves the app paused; a separate explicit **Retomar localmente** action continues. Do not manufacture either action for a real person. Synthetic test fixtures may exercise this contract automatically. A default resume never starts another model turn.
 
 After the review:
 

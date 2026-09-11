@@ -1,7 +1,7 @@
 import Foundation
 
 func runUpdateTests(releasePath: String?) throws {
-    let base = fm.temporaryDirectory.appendingPathComponent("oracle-update-test-\(UUID().uuidString)")
+    let base = try oracleTestFixture("updates")
     defer { try? fm.removeItem(at: base) }
     let c = try Core(home: base.appendingPathComponent("state")), root = base.appendingPathComponent("vault")
     try fm.createDirectory(at: root, withIntermediateDirectories: true)
@@ -27,7 +27,11 @@ func runUpdateTests(releasePath: String?) throws {
     let invalid = UpdateFile(path: skill, hash: "invalid", data: Data("test".utf8))
     try rejects("checksum rejects before mutation") { _ = try c.applySkillFiles([invalid], version: "1", repository: "test") }
     try rejects("skill path traversal rejected") { _ = try c.applySkillFiles([file("SISTEMA/skills/code/../escape.md", "invalid")], version: "1", repository: "test") }
-    try rejects("unknown collection rejected") { _ = try c.applySkillFiles([file("SISTEMA/skills/unapproved/test.md", "invalid")], version: "1", repository: "test") }
+    try rejects("invalid specialist identifier rejected") { _ = try c.applySkillFiles([file("SISTEMA/skills/Invalid ID/test.md", "invalid")], version: "1", repository: "test") }
+    try expect(c.skillPathAllowed("SISTEMA/skills/research-lab/agent/SKILL.md"),"dynamic validated specialist IDs accepted beyond seven")
+    try rejects("case-insensitive package path collision rejected") {
+        _=try c.applySkillFiles([file("SISTEMA/skills/research-lab/Agent/SKILL.md","a"),file("SISTEMA/skills/research-lab/agent/SKILL.md","b")],version:"bad",repository:"test")
+    }
     let outside = base.appendingPathComponent("outside"); try fm.createDirectory(at: outside, withIntermediateDirectories: true)
     let link = root.appendingPathComponent("SISTEMA/skills/code/link");try fm.createDirectory(at: link.deletingLastPathComponent(), withIntermediateDirectories: true);try fm.createSymbolicLink(at: link, withDestinationURL: outside)
     try rejects("symlink destination rejected") { _ = try c.applySkillFiles([file("SISTEMA/skills/code/link/SKILL.md", "invalid")], version: "1", repository: "test") }

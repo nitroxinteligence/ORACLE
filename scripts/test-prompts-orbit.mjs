@@ -76,3 +76,19 @@ test('orbit spacing stays collision-free throughout a complete revolution',()=>{
     }
   }
 });
+test('orbit and folder scenes preserve the actual uppercase root spelling',()=>{
+ const upper='SISTEMA/PROMPTS',entries=[dir(upper),dir(upper+'/design'),note(upper+'/design/Nota.md')];
+ assert.equal(prompts.inventory(entries).area.path,upper);
+ assert.ok(prompts.orbit(entries).points.some(p=>p.path===upper+'/design/Nota.md'));
+ assert.equal(prompts.plan(entries,{path:upper+'/design'}).leaves[0].id,upper+'/design/Nota.md');
+ assert.equal(prompts.resolve(entries,{path:root}).path,upper);
+ assert.equal(prompts.inventory(entries).area.color,'#CEC08B');
+});
+test('case-distinct roots require explicit choice and are not merged by the orbit',()=>{
+ const upper='SISTEMA/PROMPTS',entries=[note(upper+'/Upper.md'),note(root+'/Lower.md')];
+ assert.equal(prompts.inventory(entries).ambiguous,true);assert.equal(prompts.orbit(entries).points.length,0);
+ const chosen=prompts.orbit(entries,163,upper);
+ assert.equal(chosen.area.notes,1);assert.ok(chosen.points.some(p=>p.path===upper+'/Upper.md'));
+ assert.ok(!chosen.points.some(p=>p.path===root+'/Lower.md'));
+ assert.equal(prompts.plan(entries,{rootChoice:root,path:root}).leaves[0].id,root+'/Lower.md');
+});

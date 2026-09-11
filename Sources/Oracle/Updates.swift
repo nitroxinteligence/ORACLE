@@ -1,5 +1,6 @@
 import Foundation
 import CryptoKit
+import Darwin
 
 // Update artifacts stay in the application's own state. No git checkout is mutated.
 // Executable versions are an explicit allowlist shipped alongside their compiled adapter.
@@ -151,26 +152,32 @@ extension Core {
     }
     func skillPathAllowed(_ path: String) -> Bool {
         let pieces = path.split(separator: "/", omittingEmptySubsequences: false)
-        guard pieces.count >= 4, pieces[0] == "SISTEMA", pieces[1] == "skills", collections.contains(where: { $0.0 == pieces[2] }), !pieces.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." || $0.hasPrefix(".") }), !path.contains("\\"), path.utf8.count <= 700 else { return false }
+        guard pieces.count >= 4, pieces[0] == "SISTEMA", pieces[1] == "skills", validSpecialistID(String(pieces[2])), !pieces.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." || $0.hasPrefix(".") || $0.unicodeScalars.contains(where:CharacterSet.controlCharacters.contains) }), !path.contains("\\"), path.utf8.count <= 700 else { return false }
         return ["md", "txt", "json", "yaml", "yml", "py", "js", "ts", "sh", "toml", "css", "html", "csv"].contains(URL(fileURLWithPath: path).pathExtension.lowercased())
     }
     func decodeSkillsBundle(_ bytes:Data) throws -> (String,[UpdateFile]) {
         guard bytes.count<=72_000_000,let payload=try JSONSerialization.jsonObject(with:bytes) as? [String:Any],payload["schema_version"] as? Int==1,payload["oracle_compatibility"] as? String=="0.2",let version=payload["version"] as? String,!version.isEmpty,version.utf8.count<=80,let records=payload["files"] as? [[String:Any]],!records.isEmpty,records.count<=5000 else { throw failure("Catálogo fora do contrato Oracle 0.2") }
         var files=[UpdateFile](),total=0,paths=Set<String>()
         for record in records {
-            guard let path=record["path"] as? String,skillPathAllowed(path),paths.insert(path).inserted,let hash=record["sha256"] as? String,let encoded=record["content_base64"] as? String,encoded.utf8.count<=2_700_000,let data=Data(base64Encoded:encoded),data.count<=2_000_000,digest(data)==hash else { throw failure("Arquivo sem integridade ou caminho autorizado") }
+            guard let path=record["path"] as? String,skillPathAllowed(path),paths.insert(portablePathKey(path)).inserted,let hash=record["sha256"] as? String,let encoded=record["content_base64"] as? String,encoded.utf8.count<=2_700_000,let data=Data(base64Encoded:encoded),data.count<=2_000_000,digest(data)==hash else { throw failure("Arquivo sem integridade ou caminho autorizado") }
             total+=data.count;guard total<=50_000_000 else { throw failure("Catálogo maior que 50 MB") }
             files.append(UpdateFile(path:path,hash:hash,data:data))
         }
         return (version,files)
     }
     func applySkillFiles(_ files: [UpdateFile], version: String, repository: String) throws -> [String: Any] {
+        try withVaultWrite {
+            defer { notifyVaultChanged(reason:"skills-update") }
+            return try applySkillFilesLocked(files,version:version,repository:repository)
+        }
+    }
+    private func applySkillFilesLocked(_ files: [UpdateFile], version: String, repository: String) throws -> [String: Any] {
         let root = try vault(), receiptURL = try updatePath("skills/installed.json")
         let prior = (try? readJSON(receiptURL)) ?? [:]
         if let priorRoot = prior["vault"] as? String, priorRoot != root.path { throw failure("O catálogo gerenciado pertence a outro vault. Selecione a fonte original antes de atualizar.") }
         var owned = prior["files"] as? [String: String] ?? [:]
         if prior.isEmpty,let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["vault"] as? String==root.path,let planID=plan["id"] as? String,UUID(uuidString:planID) != nil,let catalog=try? readJSON(home.appendingPathComponent("setup/\(planID).catalog.json")),let created=catalog["created_files"] as? [String:String] { owned=created }
-        guard files.count <= 5000, Set(files.map(\.path)).count == files.count, files.reduce(0, { $0 + $1.data.count }) <= 50_000_000 else { throw failure("Manifesto de skills fora dos limites") }
+        guard files.count <= 5000, Set(files.map { portablePathKey($0.path) }).count == files.count, files.reduce(0, { $0 + $1.data.count }) <= 50_000_000 else { throw failure("Manifesto de skills fora dos limites") }
         for file in files { guard skillPathAllowed(file.path), file.data.count <= 2_000_000, digest(file.data) == file.hash else { throw failure("Arquivo de skill inválido ou hash divergente") } }
         if let pending=try? readJSON(updatePath("skills/transaction.json")),pending["status"] as? String=="applying" { throw failure("Recupere a atualização interrompida antes de começar outra") }
         let id = UUID().uuidString, staging = try updatePath("skills/staging/" + id)
@@ -198,6 +205,8 @@ extension Core {
             for index in operations.indices {
                 let op = operations[index], path = op["path"] as! String, fileIndex = op["index"] as! Int
                 let destination = try scoped(path, root: root)
+                try coordinatedWrite(at:destination) { coordinated in
+                guard try scoped(path,root:root).path == coordinated.path else { throw failure("O destino da atualização mudou.") }
                 let exists = fm.fileExists(atPath: destination.path)
                 let currentHash = try exists ? fileDigest(destination) : nil
                 guard currentHash == op["old_hash"] as? String else { throw failure("A fonte mudou durante a atualização; recuperação preservará a edição") }
@@ -208,6 +217,7 @@ extension Core {
                 operations[index]["intent"] = true; transaction["operations"] = operations; try writeJSON(transaction, transactionURL)
                 try data.write(to: destination, options: exists ? .atomic : .withoutOverwriting)
                 guard try fileDigest(destination) == op["new_hash"] as? String else { throw failure("Não foi possível verificar a gravação") }
+                }
                 operations[index]["applied"] = true; verified[path] = op["new_hash"] as? String
                 transaction["operations"] = operations; try writeJSON(transaction, transactionURL)
                 try recordUpdate("applying", "Atualizando skills", completed: index + 1, total: operations.count)
@@ -223,6 +233,12 @@ extension Core {
         }
     }
     func rollbackSkills() throws -> [String: Any] {
+        try withVaultWrite {
+            defer { notifyVaultChanged(reason:"skills-rollback") }
+            return try rollbackSkillsLocked()
+        }
+    }
+    private func rollbackSkillsLocked() throws -> [String: Any] {
         let transactionURL = try updatePath("skills/transaction.json")
         var transaction = try readJSON(transactionURL)
         guard transaction["status"] as? String != "rolled_back", let id = transaction["id"] as? String, UUID(uuidString: id) != nil, let rootPath = transaction["vault"] as? String, rootPath == config["vault"] as? String else { throw failure("Recuperação não disponível para esta fonte") }
@@ -232,13 +248,16 @@ extension Core {
             guard op["intent"] as? Bool == true, let path = op["path"] as? String, skillPathAllowed(path), let index = op["index"] as? Int else { continue }
             let destination = try scoped(path, root: root)
             guard fm.fileExists(atPath: destination.path) else { continue }
-            guard try fileDigest(destination) == op["new_hash"] as? String else { retained.append(path); continue }
+            try coordinatedWrite(at:destination) { coordinated in
+            guard try scoped(path,root:root).path == coordinated.path else { throw failure("O destino da recuperação mudou.") }
+            guard try fileDigest(destination) == op["new_hash"] as? String else { retained.append(path); return }
             if let expected = op["old_hash"] as? String {
                 let data = try Data(contentsOf: staging.appendingPathComponent("\(index).old"))
                 guard digest(data) == expected else { throw failure("Backup alterado; recuperação interrompida sem sobrescrever a fonte") }
                 try data.write(to: destination, options: .atomic)
-            } else { try fm.removeItem(at: destination) }
+            } else { guard Darwin.unlink(destination.path) == 0 else { throw failure("Arquivo preservado: recuperação não remove pastas recursivamente.") } }
             restored += 1
+            }
         }
         try writeJSON(transaction["previous"] ?? [:], updatePath("skills/installed.json"))
         transaction["status"] = "rolled_back"; transaction["retained"] = retained; try writeJSON(transaction, transactionURL)

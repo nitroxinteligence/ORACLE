@@ -19,3 +19,36 @@ The prompt provides a JSON argument array containing the absolute Oracle executa
 An approval request from Codex is shown by Oracle and must remain pending until the person answers. When cancelled, stop. An existing `<state>/onboarding/cancel` marker means stop; only Oracle's explicit Resume removes it. Completed files remain in place for idempotent continuation. Do not run rollback on cancellation.
 
 No message or timer may claim a phase succeeded. Oracle reads and verifies deterministic receipts. At the end report any remaining permission step clearly: hooks are prepared and require official Codex trust; they are never automatically trusted. No claim of global Desktop visibility, paid-provider configuration, external publishing, or connected apps from installed packages.
+
+
+## Official method, identity and continuous index
+
+`--prepare-bridge` installs the pinned public GBrain method with MIT license,
+provenance, per-file hashes and the available local reference closure. The raw
+upstream library lives at `.oracle/gbrain-method/upstream`, outside automatic
+Codex skill discovery. Use `.agents/skills/oracle-gbrain-method/SKILL.md` as the
+entrypoint and follow its capability boundary before reading upstream methods.
+No upstream model/provider, dream, minion, bootstrap harness or global-hook
+example grants permission to execute it. Codex remains the only AI executor.
+
+The actual Codex workspace receives verified copies of the confirmed GBrain
+SOUL.md and USER.md in `.oracle/identity`. AGENTS.md explicitly directs Codex
+to them. Modified source identity or destination files are preserved as a
+conflict, not silently overwritten. Do not invent a second identity.
+
+Native integration must verify both required skill paths through Codex
+`skills/list` for the effective workspace, with forceReload, and distinguish
+installed-byte verification from runtime discovery and official hook trust.
+Do not synthesize a successful runtime/trust receipt from a file's existence.
+
+The Oracle sync API owns its gbrain writer lock and only refreshes the derived
+oracle-vault source, using official import/link APIs without embeddings. Its
+receipt binds source/target and file/page hashes. Unchanged documents produce
+no page or link mutations. Rename/deletion reconciliation requires a complete
+readable inventory. `INBOX/oracle-memory` is excluded from that derived source,
+because oracle-memory already owns canonical write-through. External/attached
+brains are preserved: do not start a second profile or auto-sync their files.
+
+Do not propose or start any first-memory exercise, guided first use, tutorial
+or cold-start prompt before or after onboarding. End with verified state;
+wait for the user's normal task instead of manufacturing a first task.

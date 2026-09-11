@@ -1,7 +1,7 @@
 import Foundation
 
 func runUpdateTests(releasePath: String?) throws {
-    let base = fm.temporaryDirectory.appendingPathComponent("oracle-update-test-\(UUID().uuidString)")
+    let base = try oracleTestDirectory("oracle-update-test")
     defer { try? fm.removeItem(at: base) }
     let c = try Core(home: base.appendingPathComponent("state")), root = base.appendingPathComponent("vault")
     try fm.createDirectory(at: root, withIntermediateDirectories: true)
@@ -24,6 +24,18 @@ func runUpdateTests(releasePath: String?) throws {
     try rejects("incompatible skill release rejected") { _=try c.decodeSkillsBundle(jsonData(incompatibleBundle)) }
     var duplicateBundle=bundle;duplicateBundle["files"]=(bundle["files"] as! [[String:Any]])+(bundle["files"] as! [[String:Any]])
     try rejects("duplicate bundle targets rejected") { _=try c.decodeSkillsBundle(jsonData(duplicateBundle)) }
+    let legal=Data("MIT fixture license\n".utf8),image=Data([137,80,78,71,13,10,26,10]),sql=Data("-- reference fixture, never executed\n".utf8)
+    var v2=bundle;v2["schema_version"]=2;v2["oracle_compatibility"]="0.3"
+    v2["files"]=[("SISTEMA/skills/code/LICENSE",legal),("SISTEMA/skills/code/assets/reference.png",image),("SISTEMA/skills/code/reference.sql",sql)].map{["path":$0.0,"sha256":digest($0.1),"content_base64":$0.1.base64EncodedString()]}
+    try expect(try c.decodeSkillsBundle(jsonData(v2)).1.count==3,"catalog v2 preserves license image and SQL reference bytes")
+    var collision=bundle
+    collision["files"]=[skill,skill.replacingOccurrences(of:"SKILL.md",with:"skill.md")].map{["path":$0,"sha256":digest(bytes),"content_base64":bytes.base64EncodedString()]}
+    try rejects("case-colliding release targets rejected before filesystem access"){_=try c.decodeSkillsBundle(jsonData(collision))}
+    try rejects("case-colliding availability targets rejected"){_=try c.previewSkillFiles([file(skill,"one"),file(skill.replacingOccurrences(of:"SKILL.md",with:"skill.md"),"two")],version:"2")}
+    let unicodePath="SISTEMA/skills/code/café/SKILL.md"
+    collision["files"]=[unicodePath,unicodePath.decomposedStringWithCanonicalMapping].map{["path":$0,"sha256":digest(bytes),"content_base64":bytes.base64EncodedString()]}
+    try rejects("Unicode-normalization collisions refused"){_=try c.decodeSkillsBundle(jsonData(collision))}
+    try expect(!c.skillPathAllowed("SISTEMA/skills/code/private\nfile.md"),"control characters refused in catalog path")
     let invalid = UpdateFile(path: skill, hash: "invalid", data: Data("test".utf8))
     try rejects("checksum rejects before mutation") { _ = try c.applySkillFiles([invalid], version: "1", repository: "test") }
     try rejects("skill path traversal rejected") { _ = try c.applySkillFiles([file("SISTEMA/skills/code/../escape.md", "invalid")], version: "1", repository: "test") }
@@ -34,9 +46,12 @@ func runUpdateTests(releasePath: String?) throws {
     let first = try c.applySkillFiles([file(skill, "version one"), file(other, "ads one"), file(manual, "upstream")], version: "1", repository: "test")
     try expect(try read(skill) == "version one", "new files installed and verified")
     try expect(try read(manual) == "personal original" && (first["preserved"] as? [String]) == [manual], "unowned personal source preserved")
+    try rejects("different repository cannot take over owned files"){_=try c.applySkillFiles([file(skill,"foreign")],version:"2",repository:"foreign")}
+    try rejects("preview reports source migration instead of false eligibility"){_=try c.previewSkillFiles([file(skill,"foreign")],version:"2",repository:"foreign")}
+    try expect(try read(skill)=="version one","repository conflict leaves bytes untouched")
     _ = try c.applySkillFiles([file(skill, "version two"), file(other, "ads two")], version: "2", repository: "test")
     try expect(try read(skill) == "version two", "owned version upgraded")
-    try Data("user edit after upgrade".utf8).write(to: c.scoped(other, root: root), options: .atomic)
+    try atomicWriteData(Data("user edit after upgrade".utf8),to:c.scoped(other,root:root))
     let rollback = try c.rollbackSkills()
     try expect(try read(skill) == "version one", "rollback restores exact preimage")
     try expect(try read(other) == "user edit after upgrade" && (rollback["preserved"] as? [String]) == [other], "rollback preserves later user edits")
@@ -97,7 +112,7 @@ func runUpdateTests(releasePath: String?) throws {
         let incomplete = try c.updatePath("runtime/versions/" + UUID().uuidString)
         try fm.createDirectory(at: incomplete, withIntermediateDirectories: true)
         try expect(try c.engineResources() == active, "interrupted staging preserves active runtime")
-        try Data("local modification".utf8).write(to: active.appendingPathComponent("gbrain"), options: .atomic)
+        try atomicWriteData(Data("local modification".utf8),to:active.appendingPathComponent("gbrain"))
         try rejects("modified runtime fails closed") { _ = try c.engineResources() }
         _ = try c.rollbackRuntime()
         try expect(try c.engineResources() == c.bundledEngineResources(), "runtime rollback restores bundled release")

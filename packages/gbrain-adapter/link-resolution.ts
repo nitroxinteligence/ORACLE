@@ -17,7 +17,11 @@ export function canonicalizeLocalLinks(content:string,sourcePath:string,byPath:M
       const relative=posix.normalize(ref.startsWith('/')?ref.slice(1):posix.join(posix.dirname(sourcePath),ref));
       if(relative==='..'||relative.startsWith('../'))return whole;
       const slug=byPath.get(relative);
-      return slug?`${label}(${slug})`:whole;
+      // A root slug in (parentheses) without .md is intentionally NOT a
+      // file ref to the pinned extractor. Its root-exact wikilink grammar
+      // keeps the known endpoint even when the origin lives in a subfolder.
+      if (!slug) return whole;
+      return slug.includes('/') ? `${label}(${slug})` : `[[${slug}|${label.slice(1,-1)}]]`;
     });
 }
 export function hasKnownEndpoints(candidate:{targetSlug:string;fromSlug?:string},origin:string,known:Set<string>):boolean {

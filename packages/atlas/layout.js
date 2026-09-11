@@ -7,7 +7,7 @@ export const identities = {
 };
 export function hash(value) { let n=2166136261; for(const c of value) n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0; }
 export function identity(id) {
-  if(identities[id])return identities[id];
+  if(Object.prototype.hasOwnProperty.call(identities,id))return identities[id];
   const hue=hash(id)%360,s=.38,l=.64,a=s*Math.min(l,1-l);
   const f=n=>{const k=(n+hue/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1)))).toString(16).padStart(2,'0')};
   return {angle:hash(id)%360,color:`#${f(0)}${f(8)}${f(4)}`};
@@ -101,7 +101,13 @@ function specialistPlan(collection, entries, context) {
   const root = {...collection, x:0, y:0, angle:-Math.PI/2, color:identity(collection.id).color,
     skills:catalog.flatMap(g=>g.skills), groups:catalog};
   const candidates = context.group ? catalog.filter(g=>g.id===context.group) : catalog;
-  const chosen=sampleGroups(candidates,50,context.group,context.page||0,50);
+  const all=context.group?candidates.flatMap(g=>g.skills):(collection.skills||root.skills).slice().sort((a,b)=>a.path<b.path?-1:a.path>b.path?1:0);
+  const pages=Math.max(1,Math.ceil(all.length/50));
+  const page=Math.min(pages-1,Math.max(0,Number.isFinite(Number(context.page))?Math.floor(Number(context.page)):0));
+  // Hierarchical navigation pages the complete specialist, not a repeated sample
+  // from each alphabetical range. Keep legacy sampling for archived callers.
+  const paths=new Set(all.slice(page*50,(page+1)*50).map(e=>e.path));
+  const chosen=context.fullCatalog?new Map(candidates.map(g=>[g.id,g.skills.filter(e=>paths.has(e.path))])):sampleGroups(candidates,50,context.group,context.page||0,50);
   if(context.leaf&&!Array.from(chosen.values()).flat().some(e=>e.path===context.leaf)){
     const owner=candidates.find(g=>g.skills.some(e=>e.path===context.leaf));
     if(owner){const rows=Array.from(chosen.values());if(rows.flat().length>=50)rows.findLast(items=>items.length)?.pop();chosen.get(owner.id).push(owner.skills.find(e=>e.path===context.leaf));}
@@ -134,13 +140,79 @@ function specialistPlan(collection, entries, context) {
   const points=[root,...groups,...leaves];
   const extent=Math.max(220,...points.map(p=>Math.max(Math.abs(p.x),Math.abs(p.y))))+90;
   const bounds={minX:-extent,maxX:extent,minY:-extent,maxY:extent};
-  return {nodes:[root],groups,leaves,bounds,focusBounds:bounds,dedicated:true};
+  return {nodes:[root],groups,leaves,bounds,focusBounds:bounds,dedicated:true,total:all.length,pages,page};
 }
+
+/**
+ * Department -> discovered specialist -> actual file. Receives the complete
+ * OracleDepartments catalog; it never turns manifest selectors into packages.
+ * Overview deliberately has zero skill leaves and zero alphabetical groups.
+ */
+export function hierarchyPlan(catalog, route = {}, manual = {}, minimumRadius = 248) {
+  const specialist=catalog.specialistByID.get(route.specialist);
+  if(specialist){
+    const geometry=specialistPlan(specialist,specialist.skills,{...route,fullCatalog:true});
+    Object.assign(geometry.nodes[0],{kind:'specialist',department:specialist.department,parent:null,empty:specialist.empty,state:specialist.state});
+    return {...geometry,hierarchy:true,route:{...route,page:geometry.page}};
+  }
+  const department=catalog.departmentByID.get(route.department),nodes=[],leaves=[];
+  const point=(row,x,y,parent=null)=>({...row,x,y,angle:Math.atan2(y,x),parent,groups:row.groups||[]});
+  const safeSaved=id=>{const p=manual.nodes?.[id];return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?p:null};
+  if(!department){
+    const departments=catalog.departments.filter(d=>!d.fallback||d.specialistCount||catalog.departments.length===1);
+    const total=departments.reduce((sum,d)=>sum+Math.max(2,d.specialistCount),0);
+    const radius=Math.max(300,minimumRadius,departments.length*85);let cursor=-Math.PI;
+    for(const d of departments){
+      const sector=Math.PI*2*Math.max(2,d.specialistCount)/Math.max(1,total),angle=cursor+sector/2;cursor+=sector;
+      const saved=safeSaved(d.id),root=point(d,saved?.x??Math.cos(angle)*radius,saved?.y??Math.sin(angle)*radius);
+      root.angle=angle;nodes.push(root);
+      let offset=0,ring=0;
+      while(offset<d.specialists.length){
+        const r=radius+155+ring*135,span=Math.min(Math.PI*1.5,sector*.84),capacity=Math.max(1,Math.floor(r*span/125));
+        const count=Math.min(capacity,d.specialists.length-offset);
+        for(let i=0;i<count;i++){
+          const s=d.specialists[offset+i],a=angle+(i-(count-1)/2)*span/count,saved=safeSaved(s.id);
+          nodes.push(point(s,saved?.x??Math.cos(a)*r,saved?.y??Math.sin(a)*r,d.id));
+        }
+        offset+=count;ring++;
+      }
+    }
+    separateSpecialists(nodes,Math.max(250,radius-20),112);
+    const bounds=boundsOf([{x:-150,y:-150},{x:150,y:150},...nodes],70);
+    return {nodes,groups:[],leaves:[],bounds,focusBounds:bounds,dedicated:false,hierarchy:true,
+      route:{kind:'global',department:null,specialist:null,group:null,leaf:null,page:0},total:catalog.skillCount,pages:1,page:0};
+  }
+  const total=department.skills.length,pages=Math.max(1,Math.ceil(total/50));
+  const page=Math.min(pages-1,Math.max(0,Number.isFinite(Number(route.page))?Math.floor(Number(route.page)):0));
+  const rows=department.skills.slice(page*50,(page+1)*50),members=department.specialists;
+  nodes.push(point(department,0,0));
+  const radius=Math.max(260,members.length*70),tau=Math.PI*2;
+  for(const [index,s] of members.entries()){
+    const angle=-Math.PI/2+index*tau/Math.max(1,members.length),node=point(s,Math.cos(angle)*radius,Math.sin(angle)*radius,department.id);
+    nodes.push(node);
+    const files=rows.filter(e=>catalog.skillByPath.get(e.path)?.specialist===s.id),span=Math.min(1.7,tau/Math.max(1,members.length)*.84);
+    let offset=0,ring=0;
+    while(offset<files.length){
+      const r=radius+145+ring*85,capacity=Math.max(1,Math.floor(r*span/70)),count=Math.min(capacity,files.length-offset);
+      for(let i=0;i<count;i++){
+        const entry=files[offset+i],a=angle+(i-(count-1)/2)*span/count;
+        leaves.push({id:entry.path,parent:s.id,department:department.id,group:null,source:s.id,
+          x:Math.cos(a)*r,y:Math.sin(a)*r,angle:a,dir:Math.cos(a)>=0?1:-1,name:skillName(entry),
+          index:leaves.length,localIndex:offset+i,depth:2,route:null,custom:false});
+      }
+      offset+=count;ring++;
+    }
+  }
+  const bounds=boundsOf(nodes.concat(leaves),90);
+  return {nodes,groups:[],leaves,bounds,focusBounds:bounds,dedicated:true,hierarchy:true,
+    route:{...route,page},department,total,pages,page};
+}
+
 export function plan(collections, entries, selected, detail = 3, manual = {}, minimumRadius = 248, context = {}) {
   const specialist=collections.find(c=>c.id===selected);
   if(specialist)return specialistPlan(specialist,entries,context);
   const sorted = [...collections].sort((a, b) => identity(a.id).angle - identity(b.id).angle || a.id.localeCompare(b.id));
-  const known = sorted.every(c => identities[c.id]) && sorted.length <= 7;
+  const known = sorted.every(c => Object.prototype.hasOwnProperty.call(identities,c.id)) && sorted.length <= 7;
   const radius = Math.max(270, sorted.length * 34, minimumRadius);
   const nodes = sorted.map((c, i) => {
     const angle = (known ? identity(c.id).angle : -140 + i * 360 / sorted.length) * Math.PI / 180;

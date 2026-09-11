@@ -72,7 +72,10 @@ extension Core {
         let normalized = repository.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: #"/+$"#, with: "", options: .regularExpression)
         if !normalized.isEmpty { _ = try githubSlug(normalized) }
         var preferences = updatePreferences(); preferences["skills_repository"] = normalized.isEmpty ? nil : normalized
-        try writeJSON(preferences, updatePath("sources.local.json")); return preferences
+        try writeJSON(preferences, updatePath("sources.local.json"))
+        try writeJSON(["phase":"idle","message":"Fonte alterada. Verifique as atualizações.",
+                       "results":[],"pendingUpdates":[],"availabilitySourceKey":updateSourceKey()],updatePath("status.json"))
+        return preferences
     }
     func githubSlug(_ repository: String) throws -> String {
         guard let url = URLComponents(string: repository), url.scheme == "https", url.host == "github.com", url.user == nil, url.password == nil, url.port == nil, url.query == nil, url.fragment == nil else { throw failure("Use o endereço HTTPS do repositório GitHub, sem credenciais") }
@@ -80,12 +83,29 @@ extension Core {
         guard parts.count == 2, parts.allSatisfy({ $0.range(of: #"^[A-Za-z0-9_.-]+$"#, options: .regularExpression) != nil && $0 != "." && $0 != ".." }) else { throw failure("Endereço esperado: https://github.com/organização/repositório") }
         return parts.joined(separator: "/")
     }
+    private func updateSourceKey() -> String {
+        (updatePreferences()["skills_repository"] as? String ?? "")+"|"+(config["gbrainWorkspace"] as? String ?? "managed")+"|"+(config["vault"] as? String ?? "")
+    }
     func recordUpdate(_ phase: String, _ text: String, completed: Int = 0, total: Int = 0, results: [[String: Any]] = []) throws {
-        try writeJSON(["phase": phase, "message": text, "completed": completed, "total": total, "results": results, "at": ISO8601DateFormatter().string(from: Date())], updatePath("status.json"))
+        let path=try updatePath("status.json"),old=(try? readJSON(path)) ?? [:]
+        let key=updateSourceKey(),oldKey=old["availabilitySourceKey"] as? String
+        let prior=(oldKey == nil || oldKey == key) ? (old["pendingUpdates"] as? [[String:Any]] ?? old["results"] as? [[String:Any]] ?? []) : []
+        let pending=OracleUpdateLedger.reconcile(previous:prior,results:results)
+        let now=ISO8601DateFormatter().string(from:Date())
+        var value:[String:Any]=["phase":phase,"message":text,"completed":completed,"total":total,
+            "results":results,"at":now,"pendingUpdates":pending,"availabilitySourceKey":key]
+        if phase=="complete" {value["checkedAt"]=now}
+        else if let checked=old["checkedAt"] {value["checkedAt"]=checked}
+        try writeJSON(value,path)
     }
     func updateStatus() throws -> [String: Any] {
         var value = (try? readJSON(updatePath("status.json"))) ?? ["phase": "idle", "message": "Pronto para verificar as fontes"]
-        value["available"] = (value["results"] as? [[String:Any]] ?? []).contains { $0["status"] as? String == "available" }
+        let key=updateSourceKey(),storedKey=value["availabilitySourceKey"] as? String
+        let sameSource=storedKey == nil || storedKey == key
+        let pending=OracleUpdateLedger.reconcile(previous:sameSource ? (value["pendingUpdates"] as? [[String:Any]] ?? value["results"] as? [[String:Any]] ?? []) : [],results:[])
+        value["pendingUpdates"]=pending
+        value["available"]=OracleUpdateLedger.installable(pending)
+        value["knownUpdate"]=OracleUpdateLedger.hasNews(pending)
         value["skills_repository"] = updatePreferences()["skills_repository"] ?? NSNull()
         value["gbrain_version"] = ((try? readJSON(updatePath("runtime/current.json")))?["version"] ?? ((try? updateManifest())?["gbrain"] as? [String: Any])?["bundled_version"]) ?? "desconhecida"
         value["gbrain_rollback"] = (try? readJSON(updatePath("runtime/current.json")))?["previous"] != nil
@@ -151,14 +171,19 @@ extension Core {
     }
     func skillPathAllowed(_ path: String) -> Bool {
         let pieces = path.split(separator: "/", omittingEmptySubsequences: false)
-        guard pieces.count >= 4, pieces[0] == "SISTEMA", pieces[1] == "skills", collections.contains(where: { $0.0 == pieces[2] }), !pieces.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." || $0.hasPrefix(".") }), !path.contains("\\"), path.utf8.count <= 700 else { return false }
-        return ["md", "txt", "json", "yaml", "yml", "py", "js", "ts", "sh", "toml", "css", "html", "csv"].contains(URL(fileURLWithPath: path).pathExtension.lowercased())
+        guard pieces.count >= 4, pieces[0] == "SISTEMA", pieces[1] == "skills", collections.contains(where: { $0.0 == pieces[2] }), !pieces.contains(where: { $0.isEmpty || $0 == "." || $0 == ".." || $0.hasPrefix(".") }), !path.contains("\\"), path.utf8.count <= 700,!path.unicodeScalars.contains(where:CharacterSet.controlCharacters.contains) else { return false }
+        let name=String(pieces.last!).uppercased(),ext=URL(fileURLWithPath:path).pathExtension.lowercased()
+        return ["md", "txt", "json", "yaml", "yml", "py", "js", "ts", "sh", "toml", "css", "html", "csv","sql","svg","png","jpg","jpeg","webp"].contains(ext) || ["LICENSE","LICENCE","NOTICE","COPYING"].contains(name)
     }
+    func skillFileLimit(_ path:String)->Int {["png","jpg","jpeg","webp"].contains(URL(fileURLWithPath:path).pathExtension.lowercased()) ? 5_000_000 : 2_000_000}
+    func skillPathIdentity(_ path:String)->String {path.precomposedStringWithCanonicalMapping.lowercased()}
     func decodeSkillsBundle(_ bytes:Data) throws -> (String,[UpdateFile]) {
-        guard bytes.count<=72_000_000,let payload=try JSONSerialization.jsonObject(with:bytes) as? [String:Any],payload["schema_version"] as? Int==1,payload["oracle_compatibility"] as? String=="0.2",let version=payload["version"] as? String,!version.isEmpty,version.utf8.count<=80,let records=payload["files"] as? [[String:Any]],!records.isEmpty,records.count<=5000 else { throw failure("Catálogo fora do contrato Oracle 0.2") }
+        guard bytes.count<=72_000_000,let payload=try JSONSerialization.jsonObject(with:bytes) as? [String:Any],let schema=payload["schema_version"] as? Int,
+              (schema==1 && payload["oracle_compatibility"] as? String=="0.2") || (schema==2 && payload["oracle_compatibility"] as? String=="0.3"),
+              let version=payload["version"] as? String,!version.isEmpty,version.utf8.count<=80,let records=payload["files"] as? [[String:Any]],!records.isEmpty,records.count<=5000 else { throw failure("Catálogo fora dos contratos Oracle 0.2/0.3") }
         var files=[UpdateFile](),total=0,paths=Set<String>()
         for record in records {
-            guard let path=record["path"] as? String,skillPathAllowed(path),paths.insert(path).inserted,let hash=record["sha256"] as? String,let encoded=record["content_base64"] as? String,encoded.utf8.count<=2_700_000,let data=Data(base64Encoded:encoded),data.count<=2_000_000,digest(data)==hash else { throw failure("Arquivo sem integridade ou caminho autorizado") }
+            guard let path=record["path"] as? String,skillPathAllowed(path),paths.insert(skillPathIdentity(path)).inserted,let hash=record["sha256"] as? String,let encoded=record["content_base64"] as? String,encoded.utf8.count<=6_700_000,let data=Data(base64Encoded:encoded),data.count<=(schema==1 ? 2_000_000 : skillFileLimit(path)),digest(data)==hash else { throw failure("Arquivo sem integridade ou caminho autorizado") }
             total+=data.count;guard total<=50_000_000 else { throw failure("Catálogo maior que 50 MB") }
             files.append(UpdateFile(path:path,hash:hash,data:data))
         }
@@ -168,10 +193,11 @@ extension Core {
         let root = try vault(), receiptURL = try updatePath("skills/installed.json")
         let prior = (try? readJSON(receiptURL)) ?? [:]
         if let priorRoot = prior["vault"] as? String, priorRoot != root.path { throw failure("O catálogo gerenciado pertence a outro vault. Selecione a fonte original antes de atualizar.") }
+        if let priorSource=prior["repository"] as? String,priorSource != repository {throw failure("O catálogo pertence a outra fonte. Nenhum arquivo foi adotado automaticamente; revise a migração da fonte.")}
         var owned = prior["files"] as? [String: String] ?? [:]
         if prior.isEmpty,let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["vault"] as? String==root.path,let planID=plan["id"] as? String,UUID(uuidString:planID) != nil,let catalog=try? readJSON(home.appendingPathComponent("setup/\(planID).catalog.json")),let created=catalog["created_files"] as? [String:String] { owned=created }
-        guard files.count <= 5000, Set(files.map(\.path)).count == files.count, files.reduce(0, { $0 + $1.data.count }) <= 50_000_000 else { throw failure("Manifesto de skills fora dos limites") }
-        for file in files { guard skillPathAllowed(file.path), file.data.count <= 2_000_000, digest(file.data) == file.hash else { throw failure("Arquivo de skill inválido ou hash divergente") } }
+        guard files.count <= 5000, Set(files.map {skillPathIdentity($0.path)}).count == files.count, files.reduce(0, { $0 + $1.data.count }) <= 50_000_000 else { throw failure("Manifesto de skills fora dos limites") }
+        for file in files { guard skillPathAllowed(file.path), file.data.count <= skillFileLimit(file.path), digest(file.data) == file.hash else { throw failure("Arquivo de skill inválido ou hash divergente") } }
         if let pending=try? readJSON(updatePath("skills/transaction.json")),pending["status"] as? String=="applying" { throw failure("Recupere a atualização interrompida antes de começar outra") }
         let id = UUID().uuidString, staging = try updatePath("skills/staging/" + id)
         var operations = [[String: Any]](), preserved = [String](), verified = [String: String]()
@@ -206,7 +232,7 @@ extension Core {
                 try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
                 // intent is durable before the write; recovery also recognizes interrupted writes by hash.
                 operations[index]["intent"] = true; transaction["operations"] = operations; try writeJSON(transaction, transactionURL)
-                try data.write(to: destination, options: exists ? .atomic : .withoutOverwriting)
+                if exists {try atomicWriteData(data,to:destination)}else{try data.write(to:destination,options:.withoutOverwriting)}
                 guard try fileDigest(destination) == op["new_hash"] as? String else { throw failure("Não foi possível verificar a gravação") }
                 operations[index]["applied"] = true; verified[path] = op["new_hash"] as? String
                 transaction["operations"] = operations; try writeJSON(transaction, transactionURL)
@@ -236,7 +262,7 @@ extension Core {
             if let expected = op["old_hash"] as? String {
                 let data = try Data(contentsOf: staging.appendingPathComponent("\(index).old"))
                 guard digest(data) == expected else { throw failure("Backup alterado; recuperação interrompida sem sobrescrever a fonte") }
-                try data.write(to: destination, options: .atomic)
+                try atomicWriteData(data,to:destination)
             } else { try fm.removeItem(at: destination) }
             restored += 1
         }
@@ -285,7 +311,6 @@ extension Core {
                 } else { results.append(["id": "gbrain", "status": "compatibility_required", "version": tag, "message": "Release novo encontrado. Aguardando validação do adaptador Oracle e do formato do banco."]) }
             }
         } catch { results.append(["id": "gbrain", "status": "error", "message": error.localizedDescription]) }
-        results.append(["id": "cognee", "status": "not_adopted", "message": "Avaliado, ainda não adotado."])
         if let recoveryError { results.append(["id":"skills","status":"error","message":recoveryError]) }
         else if let repository = updatePreferences()["skills_repository"] as? String, !repository.isEmpty {
             do {
@@ -296,7 +321,7 @@ extension Core {
                 guard asset["digest"] as? String == "sha256:" + digest(bytes) else { throw failure("Checksum do catálogo divergente do release") }
                 try recordUpdate("verifying","Verificando conteúdo e compatibilidade do catálogo")
                 let (version,files)=try decodeSkillsBundle(bytes)
-                results.append(try checkOnly ? previewSkillFiles(files,version:version) : applySkillFiles(files, version: version, repository: repository))
+                results.append(try checkOnly ? previewSkillFiles(files,version:version,repository:repository) : applySkillFiles(files, version: version, repository: repository))
             } catch { results.append(["id": "skills", "status": "error", "message": error.localizedDescription]) }
         } else { results.append(["id": "skills", "status": "not_configured", "message": "Fonte não configurada. Informe o futuro repositório central de skills."]) }
         try recordUpdate("complete", "Verificação concluída", results: results)

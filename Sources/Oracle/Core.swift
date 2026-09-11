@@ -6,19 +6,26 @@ func failure(_ text: String) -> NSError { NSError(domain: "Oracle", code: 1, use
 func digest(_ data: Data) -> String { SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() }
 func jsonData(_ value: Any) throws -> Data { try JSONSerialization.data(withJSONObject: value, options: [.sortedKeys, .prettyPrinted]) }
 func readJSON(_ url: URL) throws -> [String: Any] { guard let v = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any] else { throw failure("JSON inválido") }; return v }
-func writeJSON(_ value: Any, _ url: URL) throws { try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true); try jsonData(value).write(to: url, options: .atomic); try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path) }
+func writeJSON(_ value: Any, _ url: URL) throws { try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true); try atomicWriteData(jsonData(value),to:url,permissions:0o600) }
 let collections: [(String, String, String)] = [("ads","Ads","megaphone"),("code","Code","code"),("contents","Contents","note"),("customer-finder","Customer Finder","search"),("cyber-security","Cybersecurity","shield"),("marketing","Marketing","chart"),("personal-branding","Personal Branding","person")]
 let identityLimits = ["AGENT_NAME":64,"PRINCIPAL_NAME":128,"AGENT_PURPOSE":2048,"AGENT_TOP_JOBS":2048,"PRINCIPAL_CONTEXT":4096,"VOICE_REGISTER":1024]
 let templateFolders = ["INBOX/oracle","INBOX/oracle-history/conversations","INBOX/oracle-memory/people","INBOX/oracle-memory/projects","INBOX/oracle-memory/signals","PROJETOS","AREAS/pessoal","AREAS/profissional","WIKI/pessoas","WIKI/organizacoes","WIKI/conceitos","FONTES","DIARIO","OUTPUTS","ARQUIVO","SISTEMA/agentes","SISTEMA/modelos","SISTEMA/indices","SISTEMA/oracle"] + collections.map { "SISTEMA/skills/" + $0.0 }
+// The first installation creates the functional core, not an empty department
+// catalog or hundreds of optional skills. Existing reviewed plans remain valid.
+let minimalTemplateFolders = ["INBOX/oracle","INBOX/oracle-memory/people","INBOX/oracle-memory/projects","INBOX/oracle-memory/signals","SISTEMA/prompts","SISTEMA/oracle"]
 
 final class Core {
     let home: URL
+    let licenseDevice: OracleLicenseDeviceProviding
+    let licenseTrust: LicenseKeys?
     var config: [String: Any]
     var scopedVaultURL:URL?
     deinit {scopedVaultURL?.stopAccessingSecurityScopedResource()}
     var lastSequence:Int64 = 0
     var configBaseline:[String:Any] = [:]
-    init(home: URL? = nil) throws {
+    init(home: URL? = nil, licenseDevice: OracleLicenseDeviceProviding = OracleMacLicenseDevice(), licenseTrust: LicenseKeys? = nil) throws {
+        self.licenseDevice = licenseDevice
+        self.licenseTrust = licenseTrust
         self.home = home ?? fm.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/OracleCompanion")
         try fm.createDirectory(at: self.home, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         config = (try? readJSON(self.home.appendingPathComponent("config.json"))) ?? [:]
@@ -39,7 +46,8 @@ final class Core {
     func scan(root inputRoot: URL, instructionsOnly: Bool = false) throws -> [[String: Any]] {
         let root=inputRoot.resolvingSymlinksInPath()
         var output = [[String: Any]]()
-        guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey,.isSymbolicLinkKey,.fileSizeKey,.contentModificationDateKey], options: [.skipsHiddenFiles], errorHandler: { _, _ in false }) else { throw failure("Não foi possível ler a pasta") }
+        var scanFailure:Error?
+        guard let walker = fm.enumerator(at: root, includingPropertiesForKeys: [.isDirectoryKey,.isSymbolicLinkKey,.fileSizeKey,.contentModificationDateKey], options: [.skipsHiddenFiles], errorHandler: { _, error in scanFailure=error;return false }) else { throw failure("Não foi possível ler a pasta") }
         for case let file as URL in walker {
             let values = try file.resourceValues(forKeys: [.isDirectoryKey,.isSymbolicLinkKey,.fileSizeKey,.contentModificationDateKey])
             if values.isSymbolicLink == true { walker.skipDescendants(); continue }
@@ -54,6 +62,7 @@ final class Core {
             output.append(["path":rel,"name":file.lastPathComponent,"directory":values.isDirectory == true,"size":values.fileSize ?? 0,"modified":values.contentModificationDate?.timeIntervalSince1970 ?? 0,"source":inputRoot.path])
             if output.count >= 60000 { throw failure("Limite de 60 mil entradas: selecione uma pasta menor") }
         }
+        if let scanFailure {throw scanFailure}
         return output.sorted { ($0["path"] as! String) < ($1["path"] as! String) }
     }
     func snapshot() throws -> [String: Any] {
@@ -67,6 +76,10 @@ final class Core {
         value["onboarding"] = try onboardingSnapshot()
         value["codexPlugins"] = codexPluginSnapshot()
         value["catalog"] = catalogSummary()
+        value["departmentManifest"] = (try? readJSON(bundledEngineResources().deletingLastPathComponent().appendingPathComponent("catalog/departments.json"))) ?? NSNull()
+        value["gbrainMethod"] = officialGBrainSkillsSnapshot()
+        value["gbrainSync"] = gbrainSyncStatus()
+        value["maintenance"] = try maintenanceSnapshot()
         if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["vault"] as? String==config["vault"] as? String { value["setup"]=["plan_id":plan["id"] ?? "", "confirmed":plan["confirmed_hash"] != nil] }
         value["setupBaselinePaths"] = installationBaselinePaths()
         value["projects"] = config["projects"] ?? []
@@ -87,7 +100,7 @@ final class Core {
         guard digest(current) == original else {
             let conflict = home.appendingPathComponent("conflicts/\(UUID().uuidString).md")
             try fm.createDirectory(at: conflict.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try Data(text.utf8).write(to: conflict, options: .atomic)
+            try atomicWriteData(Data(text.utf8),to:conflict)
             throw failure("Conflito: a fonte mudou. Sua proposta foi preservada em \(conflict.path)")
         }
         // A personal version never overwrites a vendor's source.
@@ -105,7 +118,7 @@ final class Core {
         for asset in assets { let values=try asset.resourceValues(forKeys:[.isSymbolicLinkKey,.fileSizeKey]);guard values.isSymbolicLink != true else { throw failure("Pacote com symlink exige revisão manual") };size += values.fileSize ?? 0 }
         guard size<100_000_000 else { throw failure("Pacote pessoal excede 100 MB") }
         try fm.copyItem(at:sourceFolder,to:destination.deletingLastPathComponent())
-        try Data(text.utf8).write(to: destination, options: .atomic)
+        try atomicWriteData(Data(text.utf8),to:destination)
         try writeJSON(["source":path,"source_hash":original,"saved_hash":digest(Data(text.utf8)),"created_at":ISO8601DateFormatter().string(from: Date()),"codex_status":"não verificado"], destination.deletingLastPathComponent().appendingPathComponent("provenance.json"))
         return ["path":relative,"status":"Versão pessoal salva; aplicação no Codex não verificada"]
     }
@@ -136,10 +149,16 @@ final class Core {
     func ingestHook(_ input: [String: Any]) throws {
         let allowed = ["SessionStart","SessionEnd","UserPromptSubmit","PreToolUse","PostToolUse","PermissionRequest","SubagentStart","SubagentStop","Stop","PreCompact","PostCompact"]
         guard let kind = input["hook_event_name"] as? String, allowed.contains(kind) else { throw failure("Evento de hook desconhecido") }
-        // No prompt, tool arguments, output, transcript or reasoning is persisted.
+        // Observability remains metadata-only. Content capture has its own consent below.
         let session = digest(Data((input["session_id"] as? String ?? "unknown").utf8))
         let ref = input["tool_use_id"] as? String ?? input["event_id"] as? String ?? UUID().uuidString
         try event(type:kind,summary:kind == "Stop" ? "Turno encerrado; conclusão do objetivo não verificada" : "Hook \(kind) recebido",source:"codex-hook",id:session+kind+ref)
+        do {_ = try captureMaintenanceHook(input)}
+        catch {
+            // Never persist the rejected content or make a hook block the Codex turn.
+            try? writeJSON(["status":"failed","message":error.localizedDescription,
+                            "at":ISO8601DateFormatter().string(from:Date())],home.appendingPathComponent("maintenance/last-capture.json"))
+        }
     }
     func knowledgeSpaces(_ entries:[[String:Any]]) -> [[String:String]] {
         let directories=entries.filter{$0["directory"] as? Bool==true}.compactMap{$0["path"] as? String}
@@ -149,7 +168,7 @@ final class Core {
             return ["id":id,"name":name,"path":existing ?? defaultPath]
         }
     }
-    func makePlan(answers: [String: String], isNew: Bool, attach: Bool, catalogCollections:[String] = []) throws -> [String: Any] {
+    func makePlan(answers: [String: String], isNew: Bool, attach: Bool, catalogCollections:[String] = [], maintenance:[String:Any]?=nil) throws -> [String: Any] {
         let lock=try acquireOperationLock("setup");defer{releaseOperationLock(lock)}
         let brain=try acquireOperationLock("gbrain");defer{releaseOperationLock(brain)}
         refreshConfig()
@@ -158,8 +177,10 @@ final class Core {
         guard catalogCollections.allSatisfy({id in collections.contains(where:{$0.0==id})}) else { throw failure("Coleção desconhecida") }
         let baseline=try scan(root:root),spaces=knowledgeSpaces(baseline)
         let areaPaths=spaces.compactMap{$0["path"]}
-        let folders=(isNew ? templateFolders.filter{!["AREAS/pessoal","AREAS/profissional"].contains($0)} : [])+areaPaths
+        let folders=(isNew ? minimalTemplateFolders : [])+areaPaths
         var plan: [String: Any] = ["schema_version":1,"id":UUID().uuidString,"vault":root.path,"new_vault":isNew,"attach":attach,"answers":answers,"answers_hash":digest(try jsonData(answers)),"folders":folders,"knowledge_spaces":spaces,"executor":"Codex Desktop","created_at":ISO8601DateFormatter().string(from:Date())]
+        plan["template_profile"]="functional-core-v1"
+        if let maintenance {plan["maintenance"]=try OracleMaintenancePolicy.settings(maintenance)}
         plan["catalog_collections"]=catalogCollections
         if !catalogCollections.isEmpty { plan["catalog_hash"]=try catalogDigest() }
         plan["plan_hash"]=try planDigest(plan)

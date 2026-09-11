@@ -7,6 +7,7 @@ protocol CodexConnection:AnyObject {
     var isRunning:Bool {get}
     var version:String {get}
     func start(cwd:URL) throws
+    func start(cwd:URL,configurationOverrides:[String]) throws
     func request(_ method:String,_ params:[String:Any],timeout:Double) throws -> [String:Any]
     func reply(id:Any,result:[String:Any]) throws
     func reject(id:Any)
@@ -16,6 +17,10 @@ protocol CodexConnection:AnyObject {
 }
 extension CodexConnection {
     func request(_ method:String,_ params:[String:Any]=[:]) throws -> [String:Any] {try request(method,params,timeout:45)}
+    func start(cwd:URL,configurationOverrides:[String]) throws {
+        guard configurationOverrides.isEmpty else{throw failure("Esta conexão não suporta o isolamento de processo da síntese.")}
+        try start(cwd:cwd)
+    }
 }
 
 /// A dedicated public app-server connection. It does not attach to Desktop's private databases,
@@ -36,9 +41,16 @@ final class CodexBridge:CodexConnection {
         guard let path=candidates.first(where:{fm.isExecutableFile(atPath:$0)}) else {throw failure("Instale o Codex para continuar e tente conectar novamente.")};return URL(fileURLWithPath:path)
     }
     func start(cwd:URL) throws {
-        if isRunning {return}
+        try start(cwd:cwd,configurationOverrides:[])
+    }
+    func start(cwd:URL,configurationOverrides:[String]) throws {
+        if isRunning {
+            guard configurationOverrides.isEmpty else{throw failure("Não reutilize uma conexão existente para mudar permissões.")}
+            return
+        }
+        guard configurationOverrides.count<=128,configurationOverrides.allSatisfy({$0.utf8.count<=8192 && !$0.contains("\0")}) else{throw failure("Configuração de processo inválida.")}
         let p=Process(),stdin=Pipe(),stdout=Pipe(),stderr=Pipe()
-        p.executableURL=try Self.executable();p.arguments=["app-server","--stdio"];p.currentDirectoryURL=cwd
+        p.executableURL=try Self.executable();p.arguments=["app-server","--stdio"]+configurationOverrides.flatMap{["-c",$0]};p.currentDirectoryURL=cwd
         // Codex owns its normal login and configuration. API credentials are not passed through.
         p.environment=["HOME":fm.homeDirectoryForCurrentUser.path,"PATH":"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin","LANG":"en_US.UTF-8","TERM":"dumb"]
         p.standardInput=stdin;p.standardOutput=stdout;p.standardError=stderr

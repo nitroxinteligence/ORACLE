@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 struct ProcessResult { let code:Int32; let output:String }
 func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:String], input:Data? = nil, timeout:Double = 90) throws -> ProcessResult {
@@ -7,14 +8,22 @@ func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:
     let lock=NSLock(); var bytes=Data(), errorBytes=Data()
     output.fileHandleForReading.readabilityHandler = { handle in let d=handle.availableData; lock.lock(); if bytes.count < 4_000_000 { bytes.append(d) }; lock.unlock() }
     errors.fileHandleForReading.readabilityHandler = { handle in let d=handle.availableData; lock.lock(); if errorBytes.count < 100_000 { errorBytes.append(d) }; lock.unlock() }
+    defer { output.fileHandleForReading.readabilityHandler=nil; errors.fileHandleForReading.readabilityHandler=nil; try? stdin.fileHandleForWriting.close() }
+    func stopAndReap() {
+        if process.isRunning { process.terminate() }
+        let deadline=Date().addingTimeInterval(2)
+        while process.isRunning && Date()<deadline { Thread.sleep(forTimeInterval:0.02) }
+        if process.isRunning { Darwin.kill(process.processIdentifier,SIGKILL) }
+        process.waitUntilExit()
+    }
     try process.run()
     if let input { stdin.fileHandleForWriting.write(input) }; try? stdin.fileHandleForWriting.close()
     let deadline=Date().addingTimeInterval(timeout)
     while process.isRunning && Date()<deadline {
-        if let path=environment["ORACLE_CANCEL_FILE"],fm.fileExists(atPath:path) {process.terminate();throw failure("Instalação cancelada. Os avanços confirmados foram preservados.")}
+        if let path=environment["ORACLE_CANCEL_FILE"],fm.fileExists(atPath:path) {stopAndReap();throw failure("Instalação cancelada. Os avanços confirmados foram preservados.")}
         Thread.sleep(forTimeInterval:0.03)
     }
-    if process.isRunning { process.terminate(); throw failure("GBrain excedeu o tempo de resposta; confira o estado antes de retomar") }
+    if process.isRunning { stopAndReap(); throw failure("GBrain excedeu o tempo de resposta; confira o estado antes de retomar") }
     process.waitUntilExit(); output.fileHandleForReading.readabilityHandler=nil; errors.fileHandleForReading.readabilityHandler=nil
     let tail=output.fileHandleForReading.readDataToEndOfFile(), errorTail=errors.fileHandleForReading.readDataToEndOfFile()
     lock.lock(); bytes.append(tail); errorBytes.append(errorTail); let out=String(decoding:bytes,as:UTF8.self); let err=String(decoding:errorBytes,as:UTF8.self); lock.unlock()
@@ -29,7 +38,11 @@ extension Core {
         // Intentionally no inherited API keys, DATABASE_URL, proxy, or model settings.
         var env=["PATH":"/usr/bin:/bin:/usr/sbin:/sbin","HOME":fm.homeDirectoryForCurrentUser.path,"LANG":"en_US.UTF-8","GBRAIN_SKIP_UPDATE_CHECK":"1","GBRAIN_HOOKS":"0"]
         env["ORACLE_CANCEL_FILE"]=home.appendingPathComponent("onboarding/cancel").path
-        if !existing { env["GBRAIN_HOME"]=home.appendingPathComponent("gbrain/profile").path }
+        if !existing {
+            env["GBRAIN_HOME"]=home.appendingPathComponent("gbrain/profile").path
+            env["HOME"]=home.appendingPathComponent("gbrain/profile").path
+            env["TMPDIR"]=home.appendingPathComponent("gbrain/profile/tmp").path
+        }
         return env
     }
     func gbrainRead(_ params:[String:Any],allowSetup:Bool=false) throws -> Any {
@@ -40,7 +53,9 @@ extension Core {
         guard fm.fileExists(atPath:cwd.path) else { throw failure("GBrain ainda não foi preparado. Continue a instalação pelo Codex.") }
         let operation=params["operation"] as? String ?? "status"
         guard ["status","search","list","get","graph"].contains(operation) else { throw failure("Operação GBrain não suportada") }
-        let result=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:cwd,environment:engineEnvironment(existing:existing != nil),input:jsonData(params),timeout:35)
+        var request=params
+        if existing==nil {try prepareOwnedGBrainRuntime();request["owned"]=true}
+        let result=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:cwd,environment:engineEnvironment(existing:existing != nil),input:jsonData(request),timeout:35)
         guard let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")}),let data=String(line).data(using:.utf8),let response=try JSONSerialization.jsonObject(with:data) as? [String:Any] else { throw failure("GBrain indisponível: saída incompatível, engine ocupada ou perfil ausente") }
         guard response["ok"] as? Bool == true else { throw failure(response["error"] as? String ?? "Falha de conexão GBrain") }
         try event(type:"gbrain.read",summary:"Consulta \(operation) realizada pela biblioteca oficial; sem inferência")
@@ -48,6 +63,7 @@ extension Core {
         return response["value"] ?? NSNull()
     }
     func official(_ args:[String],workspace:URL) throws -> String {
+        try prepareOwnedGBrainRuntime()
         let r=try runProcess(engineResources().appendingPathComponent("gbrain"),args,cwd:workspace,environment:engineEnvironment(),timeout:180)
         guard r.code==0 else { throw failure("GBrain (\(r.code)): \(r.output.prefix(1800))") }
         return r.output
@@ -56,12 +72,12 @@ extension Core {
         let plan=try validatedPlan()
         guard plan["attach"] as? Bool != true else { throw failure("Instalação existente: use conexão/consulta; não inicialize outro banco") }
         guard let hash=plan["plan_hash"] as? String,let answers=plan["answers"] as? [String:String] else { throw failure("Plano sem confirmação válida") }
+        try bindOwnedGBrainTarget(plan:plan)
         let workspace=home.appendingPathComponent("gbrain/workspace")
         if let cached=try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")),cached["plan_hash"] as? String==hash,fm.fileExists(atPath:home.appendingPathComponent("gbrain/profile/.gbrain/config.json").path),fm.fileExists(atPath:workspace.appendingPathComponent("state/interview.json").path) { return cached }
         try fm.createDirectory(at:workspace,withIntermediateDirectories:true)
         let configURL=home.appendingPathComponent("gbrain/profile/.gbrain/config.json")
         if !fm.fileExists(atPath:configURL.path) { _=try official(["init","--pglite","--no-embedding"],workspace:workspace); try event(type:"gbrain.engine_verified",summary:"GBrain 0.48.4.0 inicializado em perfil isolado PGLite, sem chave") }
-        try writeJSON(["owner":"OracleCompanion","schema_version":1],home.appendingPathComponent("gbrain/profile/oracle-owned.json"))
         let interview=workspace.appendingPathComponent("state/interview.json")
         if !fm.fileExists(atPath:interview.path) { _=try official(["bootstrap","interview","--init","--workspace",workspace.path],workspace:workspace) }
         for key in answers.keys.sorted() { _=try official(["bootstrap","interview","--set",key,answers[key]!,"--workspace",workspace.path],workspace:workspace) }
@@ -108,17 +124,15 @@ extension Core {
         let existingStatus=try gbrainRead(["operation":"status"],allowSetup:true) as? [String:Any]
         let sources=existingStatus?["sources"] as? [[String:Any]] ?? []
         if let source=sources.first(where:{$0["id"] as? String == "oracle-vault"}) {
-            if let path=source["local_path"] as? String, path != root.path { throw failure("Fonte oracle-vault aponta para outro destino; reconciliação necessária") }
+            if source["local_path"] is String { throw failure("oracle-vault precisa ser uma fonte derivada sem destino de escrita; reconciliação necessária") }
         } else { _=try official(["sources","add","oracle-vault","--name","Oracle vault"],workspace:workspace) }
         let memoryRoot=try scoped("INBOX/oracle-memory",root:root);try fm.createDirectory(at:memoryRoot,withIntermediateDirectories:true)
         if let memory=sources.first(where:{$0["id"] as? String=="oracle-memory"}) {
             guard memory["local_path"] as? String==memoryRoot.path else { throw failure("A fonte oracle-memory aponta para outro destino. Revise a fonte no GBrain antes de continuar.") }
         } else { _=try official(["sources","add","oracle-memory","--path",memoryRoot.path,"--name","Oracle memory","--force"],workspace:workspace) }
         _=try official(["config","set","search.mcp_keyword_only","true"],workspace:workspace)
-        let files=try scan(root:root).filter{$0["directory"] as? Bool != true}.compactMap{$0["path"] as? String}
-        var env=engineEnvironment();env["ORACLE_RECEIPT_DIR"]=home.appendingPathComponent("events").path;env["ORACLE_PLAN_EVENTS_DIR"]=home.appendingPathComponent("setup/events/\(plan["id"] as! String)").path
-        let indexed=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:workspace,environment:env,input:jsonData(["operation":"index","source":"oracle-vault","root":root.path,"files":files,"plan_ref":plan["id"] ?? ""]),timeout:600)
-        guard let line=indexed.output.split(separator:"\n").last(where:{$0.hasPrefix("{")}),let data=String(line).data(using:.utf8),let result=try JSONSerialization.jsonObject(with:data) as? [String:Any],let value=result["value"] as? [String:Any],value["complete"] as? Bool==true else { throw failure("Indexação parcial ou indisponível. Veja os recibos; retome o mesmo plano. Nenhum arquivo original foi alterado.") }
+        try bindOwnedGBrainTarget(plan:plan)
+        _=try performOwnedGBrainSyncLocked(reason:"setup",plan:plan)
         try event(type:"gbrain.index_verified",summary:"Vault indexado pelo GBrain sem embeddings ou extração por modelo")
         config["gbrainVaultSource"]="oracle-vault";config["gbrainAccess"]=true;config.removeValue(forKey:"gbrainWorkspace");try persist()
         let status=try gbrainRead(["operation":"status"],allowSetup:true)
@@ -139,7 +153,7 @@ extension Core {
             let existing=try Data(contentsOf:url)
             if digest(existing) != hash {
                 guard owned,prior?["hash"] as? String==digest(existing) else { throw failure("Nota de identidade preservada por conflito: \(url.path). Revise no Codex.") }
-                let backup=home.appendingPathComponent("versions/identity-\(UUID().uuidString).md");try fm.createDirectory(at:backup.deletingLastPathComponent(),withIntermediateDirectories:true);try existing.write(to:backup,options:.atomic);try data.write(to:url,options:.atomic)
+                let backup=home.appendingPathComponent("versions/identity-\(UUID().uuidString).md");try fm.createDirectory(at:backup.deletingLastPathComponent(),withIntermediateDirectories:true);try atomicWriteData(existing,to:backup);try atomicWriteData(data,to:url)
             }
         } else { try fm.createDirectory(at:url.deletingLastPathComponent(),withIntermediateDirectories:true);try data.write(to:url,options:.withoutOverwriting);owned=true }
         try writeJSON(["path":relative,"hash":hash,"owned":owned,"origin_source_path":workspace.path],receiptURL)

@@ -18,7 +18,7 @@ extension App {
                 controller.queue.async {
                     do {
                         if method=="onboardingChooseVault" {try controller.selectVault(url)}
-                        else {try controller.requireAccess();try controller.ensureNotRunning();controller.core.refreshConfig();controller.core.config["gbrainWorkspace"]=url.path;controller.core.config["gbrainAccess"]=true;try controller.core.persist()}
+                        else {try controller.selectExistingBrain(url)}
                         DispatchQueue.main.async{self.reply(id,["name":url.lastPathComponent])}
                     }catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}
                 }
@@ -30,9 +30,11 @@ extension App {
             do {
                 var result:Any=true
                 switch method {
+                case "onboardingDeviceRequest":result=try controller.core.licenseDeviceRequest()
                 case "onboardingActivate":result=try controller.core.activateLicense(params["code"] as? String ?? "")
                 case "onboardingConnect":result=try controller.connect()
                 case "onboardingCheckConnection":result=try controller.checkConnection()
+                case "onboardingSelectModel":try controller.selectModel(params["model"] as? String ?? "")
                 case "onboardingOpenCodex":try controller.openCodexWorkspace()
                 case "onboardingCancelLogin":try controller.cancelLogin()
                 case "onboardingDraft":try controller.saveDraft(params)

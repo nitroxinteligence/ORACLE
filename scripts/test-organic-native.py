@@ -110,7 +110,7 @@ check('only connected plugins enter SOL orbit','document.querySelectorAll("[data
 call('state.codexPlugins=matrixInventory;renderPlugins();renderAtlas();reflectUpdateStatus({available:true,at:new Date().toISOString()});true')
 check('verified fresh availability enables green state','$("#updates").classList.contains("available")')
 call('reflectUpdateStatus({available:true,at:"2000-01-01T00:00:00Z"});true')
-check('stale availability never remains green','!$("#updates").classList.contains("available")')
+check('known availability survives stale cache','$("#updates").classList.contains("available")')
 call('$("#motion").checked=true;renderAtlas();true');time.sleep(.5);call('window.matrixFrames=atlasController.universe.renderCount;true');time.sleep(.4)
 check('reduced motion settles without a running render loop','atlasController.universe.renderCount===matrixFrames && atlasController.universe.pending===0 && atlasController.universe.timeout===0')
 call('$("#motion").checked=false;renderAtlas();true');call(op='hide');time.sleep(.3);call('window.matrixFrames=atlasController.universe.renderCount;true');time.sleep(.4)

@@ -15,6 +15,7 @@ extension Core {
     var onboardingURL:URL {home.appendingPathComponent("onboarding/state.json")}
     func onboardingRecord() -> [String:Any] {(try? readJSON(onboardingURL)) ?? [:]}
     func onboardingLegacyAccess() -> Bool {
+        if let bytes=try? licenseFile("onboarding/license"),bytes.starts(with:Data("ORACLE2.".utf8)){return false}
         // Adopt only an existing configured profile. A newly chosen vault is never an activation.
         let state=onboardingRecord()
         if let legacy=state["legacyAccess"] as? Bool{return legacy}
@@ -26,8 +27,16 @@ extension Core {
             value=["schemaVersion":1,"status":"not_started","legacyAccess":config["vault"] as? String != nil]
             try writeJSON(value,onboardingURL)
         }
+        value.removeValue(forKey:"reviewPlan")
+        if value["status"] as? String=="review",let id=value["runID"] as? String,
+           let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),
+           plan["id"] as? String==id,plan["vault"] as? String==config["vault"] as? String,
+           let hash=plan["plan_hash"] as? String {
+            value["reviewPlan"]=["id":id,"plan_hash":hash]
+        }
         value["licensed"]=activeLicense() != nil
-        value["deviceID"]=try licenseDeviceID()
+        for (key,field) in licenseDeviceSnapshot(){value[key]=field}
+        value["legacyAccess"]=onboardingLegacyAccess()
         value["vaultName"]=(config["vault"] as? String).map{URL(fileURLWithPath:$0).lastPathComponent} ?? ""
         value["hasVault"]=(try? vault()) != nil
         if value["hasVault"] as? Bool==false && value["status"] as? String=="completed" {value["status"]="configuring";value["runID"]=NSNull();value["message"]="Escolha seu Obsidian para continuar."}
@@ -36,7 +45,8 @@ extension Core {
         let progress=try onboardingProgress();value["confirmed"]=progress
         value["completed"]=progress.count;value["total"]=NSNull()
         if onboardingActiveStatuses.contains(value["status"] as? String ?? ""), let pid=value["ownerPID"] as? Int32,kill(pid,0) != 0,errno==ESRCH {value["status"]="interrupted";value["message"]="A configuração foi interrompida. Retome do último ponto confirmado."}
-        if let r=try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")),r["status"] as? String=="awaiting_readback_confirmation",let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),r["plan_hash"] as? String==plan["plan_hash"] as? String,r["confirmed_hash"]==nil {
+        value.removeValue(forKey:"readback")
+        if let run=value["runID"] as? String,let r=try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")),r["status"] as? String=="awaiting_readback_confirmation",let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["id"] as? String==run,plan["vault"] as? String==config["vault"] as? String,r["plan_hash"] as? String==plan["plan_hash"] as? String,r["confirmed_hash"]==nil {
             value["readback"]=["text":r["readback"] ?? "","hash":r["upstream_hash"] ?? ""]
         }
         // Paths and protocol payloads are internal. The view only gets user-facing state.
@@ -77,7 +87,9 @@ extension Core {
         _=try gbrainRead(["operation":"status"])
         let bridge=try readJSON(home.appendingPathComponent("setup/bridge.json"))
         guard let root=bridge["workspace"] as? String,let skill=bridge["skill"] as? String,skill.hasPrefix(root+"/"),let expected=bridge["skill_sha256"] as? String,expected==digest(try Data(contentsOf:URL(fileURLWithPath:skill))) else{throw failure("A instalação da skill no Codex ainda não foi verificada.")}
-        return ["structure":true,"memory":true,"skill":true,"hooksTrusted":false]
+        let method=try verifyGBrainBridge()
+        guard method["identity"] as? Bool==true else{throw failure("A identidade da instalação selecionada ainda não foi verificada. Revise SOUL.md e USER.md no workspace original; nenhum conteúdo foi sobrescrito.")}
+        return ["structure":true,"memory":true,"skill":true,"hooksTrusted":false,"method":method]
     }
 }
 
@@ -91,7 +103,8 @@ final class OnboardingController {
     private let stateLock=NSRecursiveLock()
     private var loadedThreadID:String?
     private var earlyCompletions=[String:[String:Any]]()
-    private var pendingRequests=[String:(Any,String,[String:Any])](),loginID:String?
+    private var approvalQueue=OracleOnboardingApprovalQueue()
+    private var loginID:String?
     private var inventoryTimer:DispatchSourceTimer?
     var openLogin:((URL)->Void)?
     init(home:URL,bridge:CodexConnection=CodexBridge(),automaticallyReconnect:Bool=true) throws {
@@ -102,7 +115,7 @@ final class OnboardingController {
         try writeJSON(["connected":false],home.appendingPathComponent("onboarding/connection.json"))
         if var inventory=try? readJSON(home.appendingPathComponent("onboarding/plugins.json")) {inventory["status"]="unavailable";inventory["reason"]="Reconecte ao Codex para verificar os plugins";inventory["plugins"]=(inventory["plugins"] as? [[String:Any]] ?? []).map{r in var x=r;if x["status"] as? String=="connected"{x["status"]="unavailable"};return x};try writeJSON(inventory,home.appendingPathComponent("onboarding/plugins.json"))}
         let prior=core.onboardingRecord()
-        if onboardingActiveStatuses.contains(prior["status"] as? String ?? "") {try update(["status":"interrupted","message":"Retome a configuração para conferir o último ponto salvo."])}
+        if onboardingActiveStatuses.contains(prior["status"] as? String ?? "") || prior["request"] is [String:Any] {try update(["status":"interrupted","request":NSNull(),"pendingRequestCount":0,"message":"Retome a configuração para conferir o último ponto salvo. Autorizações anteriores não foram reaproveitadas."])}
         bridge.onNotification={ [weak self] method,params in self?.notifications.async { self?.notification(method,params) } }
         bridge.onRequest={ [weak self] id,method,params in self?.notifications.async {self?.receivedRequest(id,method,params)} }
         bridge.onDisconnect={ [weak self] in self?.notifications.async {self?.disconnected()} }
@@ -118,9 +131,10 @@ final class OnboardingController {
     func shutdown() {
         inventoryTimer?.cancel();inventoryTimer=nil
         if onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? "") || core.onboardingRecord()["request"] is [String:Any] {
-            try? Data("cancel".utf8).write(to:core.home.appendingPathComponent("onboarding/cancel"),options:.atomic)
+            try? atomicWriteData(Data("cancel".utf8),to:core.home.appendingPathComponent("onboarding/cancel"))
             try? update(["status":"interrupted","message":"Configuração pausada ao fechar o Oracle. Retome para continuar."])
         }
+        retireApprovalRequests()
         bridge.stop()
         try? writeJSON(["connected":false],core.home.appendingPathComponent("onboarding/connection.json"))
     }
@@ -129,14 +143,15 @@ final class OnboardingController {
         stateLock.lock();defer{stateLock.unlock()};var state=core.onboardingRecord();for(k,v) in changes{state[k]=v};state["updatedAt"]=ISO8601DateFormatter().string(from:Date());try writeJSON(state,core.onboardingURL)
     }
     private func disconnected() {
+        retireApprovalRequests()
         stateLock.lock();loadedThreadID=nil;stateLock.unlock()
         try? writeJSON(["connected":false],core.home.appendingPathComponent("onboarding/connection.json"))
-        if onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? ""){try? update(["status":"interrupted","message":"A conexão com o Codex foi interrompida. Seus avanços foram preservados."])}
+        if onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? "") || core.onboardingRecord()["status"] as? String=="waiting_user" {try? update(["status":"interrupted","message":"A conexão com o Codex foi interrompida. Seus avanços foram preservados."])}
     }
     func connect() throws -> [String:Any] {
         try requireAccess();try bridge.start(cwd:core.home)
         let account=try bridge.account();try writeJSON(account,core.home.appendingPathComponent("onboarding/connection.json"))
-        if account["connected"] as? Bool==true {try update(["codexAuthorized":true]);return account}
+        if account["connected"] as? Bool==true {try update(["codexAuthorized":true]);try refreshModelChoice();return account}
         if loginID != nil {return ["connected":false,"status":"authorizing","message":"Conclua a autorização no navegador ou cancele para tentar novamente."]}
         let login=try bridge.request("account/login/start",["type":"chatgpt"])
         guard let text=login["authUrl"] as? String,let url=URL(string:text),url.scheme=="https",let host=url.host,host=="auth.openai.com" || host.hasSuffix(".openai.com") || host=="auth0.openai.com" else{throw failure("O Codex não retornou uma página de login reconhecida.")}
@@ -145,7 +160,22 @@ final class OnboardingController {
     }
     func checkConnection() throws -> [String:Any] {
         try requireAccess();guard bridge.isRunning else {return ["connected":false,"status":"unavailable"]}
-        let account=try bridge.account();try writeJSON(account,core.home.appendingPathComponent("onboarding/connection.json"));if account["connected"] as? Bool==true{try update(["codexAuthorized":true])};return account
+        let account=try bridge.account();try writeJSON(account,core.home.appendingPathComponent("onboarding/connection.json"));if account["connected"] as? Bool==true{try update(["codexAuthorized":true]);try refreshModelChoice()};return account
+    }
+    private func refreshModelChoice() throws {
+        let rows=try bridge.oracleModels()
+        let preferred=(core.onboardingRecord()["draft"] as? [String:Any])?["model"] as? String
+        try update(["models":rows.filter {row in row["hidden"] as? Bool != true && ((row["inputModalities"] as? [String])?.contains("text") ?? true)}.map { row in
+            ["model":row["model"] ?? "","displayName":row["displayName"] ?? row["model"] ?? "","isDefault":row["isDefault"] ?? false]
+        }])
+        do {let selected=try OracleCodexModel.choose(rows,preferred:preferred);try update(["modelSelection":selected.snapshot,"modelSelectionError":NSNull()])}
+        catch {try update(["modelSelection":NSNull(),"modelSelectionError":error.localizedDescription])}
+    }
+    func selectModel(_ name:String) throws {
+        try requireAccess();try ensureNotRunning()
+        let choice=try OracleCodexModel.choose(bridge.oracleModels(),preferred:name)
+        var draft=core.onboardingRecord()["draft"] as? [String:Any] ?? [:];draft["model"]=choice.id
+        try update(["draft":draft,"modelSelection":choice.snapshot,"modelSelectionError":NSNull()])
     }
     func cancelLogin() throws {
         if let loginID {_ = try bridge.request("account/login/cancel",["loginId":loginID]);self.loginID=nil};try update(["authorizing":false])
@@ -155,6 +185,8 @@ final class OnboardingController {
     }
     func selectVault(_ url:URL) throws {
         try requireAccess();try ensureNotRunning();let root=url.resolvingSymlinksInPath().standardizedFileURL
+        let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
+        let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)}
         guard (try? url.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink) != true,!root.path.contains("Library/Application Support/OracleGBrain/obsidian"),!root.path.contains("/gbrain/profile/") else{throw failure("Escolha a pasta original do Obsidian, sem links ou espelhos de indexação.")}
         let access=root.startAccessingSecurityScopedResource();defer{if access{root.stopAccessingSecurityScopedResource()}}
         _=try fm.contentsOfDirectory(at:root,includingPropertiesForKeys:[],options:[.skipsHiddenFiles])
@@ -165,6 +197,17 @@ final class OnboardingController {
     func ensureNotRunning() throws {
         guard !(core.onboardingRecord()["request"] is [String:Any]),!onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? ""),!core.operationIsRunning("setup"),!core.operationIsRunning("gbrain") else{throw failure("Aguarde ou cancele a instalação antes de mudar a configuração.")}
     }
+    func selectExistingBrain(_ url:URL) throws {
+        try requireAccess();try ensureNotRunning()
+        let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
+        let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)}
+        guard (try? url.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink) != true else{throw failure("Selecione a pasta original do GBrain, sem links simbólicos.")}
+        let root=url.resolvingSymlinksInPath().standardizedFileURL
+        let access=url.startAccessingSecurityScopedResource();defer{if access{url.stopAccessingSecurityScopedResource()}}
+        _=try fm.contentsOfDirectory(at:root,includingPropertiesForKeys:nil)
+        core.refreshConfig();core.config["gbrainWorkspace"]=root.path;core.config["gbrainAccess"]=true;try core.persist()
+        try update(["status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull(),"existingBrainVerified":false])
+    }
     func saveDraft(_ draft:[String:Any]) throws {
         try requireAccess();try ensureNotRunning()
         guard (try jsonData(draft)).count<30000 else{throw failure("Configuração grande demais.")}
@@ -173,8 +216,9 @@ final class OnboardingController {
     func plan(_ params:[String:Any]) throws -> [String:Any] {
         try requireAccess();try ensureNotRunning();core.refreshConfig()
         if params["attach"] as? Bool==true,core.config["gbrainWorkspace"] as? String==nil{throw failure("Selecione a instalação existente do Second Brain.")}
-        let plan=try core.makePlan(answers:params["answers"] as? [String:String] ?? [:],isNew:params["newVault"] as? Bool==true,attach:params["attach"] as? Bool==true,catalogCollections:params["catalogCollections"] as? [String] ?? [])
-        try update(["status":"review","runID":plan["id"]!,"threadID":NSNull(),"turnID":NSNull(),"codexStarted":false,"existingBrainVerified":false,"draft":params])
+        var minimal=params;minimal["catalogCollections"]=[String]()
+        let plan=try core.makePlan(answers:minimal["answers"] as? [String:String] ?? [:],isNew:minimal["newVault"] as? Bool==true,attach:minimal["attach"] as? Bool==true,catalogCollections:[],maintenance:minimal["maintenance"] as? [String:Any])
+        try update(["status":"review","runID":plan["id"]!,"threadID":NSNull(),"turnID":NSNull(),"codexStarted":false,"existingBrainVerified":false,"draft":minimal])
         return plan
     }
     func install(_ hash:String) throws -> [String:Any] {
@@ -189,15 +233,19 @@ final class OnboardingController {
     }
     private func startTurn(resume:Bool) throws {
         core.refreshConfig();let plan=try core.validatedPlan();let workspace=core.home.appendingPathComponent("onboarding/workspace")
+        let priorState=core.onboardingRecord()
+        let preferred=(priorState["draft"] as? [String:Any])?["model"] as? String ?? (priorState["modelSelection"] as? [String:Any])?["model"] as? String
+        let model=try OracleCodexModel.choose(bridge.oracleModels(),preferred:preferred)
+        try update(["modelSelection":model.snapshot])
         try fm.createDirectory(at:workspace,withIntermediateDirectories:true)
         let skill=core.bundledEngineResources().deletingLastPathComponent().appendingPathComponent("skills/oracle-onboarding/SKILL.md")
         guard fm.fileExists(atPath:skill.path) else{throw failure("A skill de instalação não está no pacote. Reinstale o aplicativo.")}
-        let initial=core.onboardingRecord();try update(["status":"starting","phase":"codex","message":"Enviando a configuração ao Codex…","ownerPID":Int(getpid()),"request":NSNull(),"awaitingIdentity":false])
+        let initial=core.onboardingRecord();try update(["status":"starting","phase":"codex","message":"Enviando a configuração ao Codex…","ownerPID":Int(getpid()),"turnID":NSNull(),"request":NSNull(),"awaitingIdentity":false])
         do {
-            var config:[String:Any]=["model_reasoning_effort":"xhigh","sandbox_workspace_write.writable_roots":[core.home.path,try core.vault().path],"sandbox_workspace_write.network_access":false]
+            var config:[String:Any]=["model_reasoning_effort":model.effort,"sandbox_workspace_write.writable_roots":[core.home.path,try core.vault().path],"sandbox_workspace_write.network_access":false]
             // Explicit skill input, no untrusted project config, no global configuration mutation.
             config["features.multi_agent_v2.enabled"]=false
-            var p:[String:Any]=["cwd":workspace.path,"model":"gpt-6-astra","modelProvider":"openai","approvalPolicy":"on-request","sandbox":"workspace-write","config":config]
+            var p:[String:Any]=["cwd":workspace.path,"model":model.id,"modelProvider":"openai","approvalPolicy":"on-request","sandbox":"workspace-write","config":config]
             let response:[String:Any]
             if resume,let thread=initial["threadID"] as? String {p["threadId"]=thread;p["excludeTurns"]=false;response=try bridge.request("thread/resume",p)} else {response=try bridge.request("thread/start",p)}
             guard let thread=response["thread"] as? [String:Any],let threadID=thread["id"] as? String else{throw failure("O Codex não confirmou a tarefa de instalação.")}
@@ -208,7 +256,7 @@ final class OnboardingController {
             }
             try core.checkOnboardingCancellation()
             let input:[[String:Any]]=[["type":"skill","name":"oracle-onboarding","path":skill.path],["type":"text","text":installerPrompt(plan:plan),"text_elements":[]]]
-            let turn=try bridge.request("turn/start",["threadId":threadID,"input":input,"effort":"xhigh","model":"gpt-6-astra"],timeout:60)
+            let turn=try bridge.request("turn/start",["threadId":threadID,"input":input,"effort":model.effort,"model":model.id],timeout:60)
             guard let t=turn["turn"] as? [String:Any],let turnID=t["id"] as? String else{throw failure("O Codex não confirmou o início.")}
             let cancelled=fm.fileExists(atPath:core.home.appendingPathComponent("onboarding/cancel").path)
             stateLock.lock()
@@ -228,7 +276,7 @@ final class OnboardingController {
     }
     func cancel() throws -> [String:Any] {
         let state=core.onboardingRecord();guard onboardingActiveStatuses.contains(state["status"] as? String ?? "") || state["status"] as? String=="waiting_user" else{return try core.onboardingSnapshot()}
-        try Data("cancel".utf8).write(to:core.home.appendingPathComponent("onboarding/cancel"),options:.atomic)
+        try atomicWriteData(Data("cancel".utf8),to:core.home.appendingPathComponent("onboarding/cancel"))
         try update(["status":"cancelling","message":"Interrompendo o Codex; os itens confirmados serão preservados."])
         if state["status"] as? String=="waiting_user",state["awaitingIdentity"] as? Bool==true {try update(["status":"cancelled","message":"Configuração pausada. Seus avanços foram preservados."]);return try core.onboardingSnapshot()}
         if let thread=state["threadID"] as? String,let turn=state["turnID"] as? String,bridge.isRunning {
@@ -251,7 +299,11 @@ final class OnboardingController {
         guard let workspace=receipt["workspace"] as? String,let skill=receipt["skill"] as? String else{throw failure("A integração com o Codex ainda não foi preparada.")}
         let result=try bridge.request("skills/list",["cwds":[workspace],"forceReload":true])
         let skills=(result["data"] as? [[String:Any]] ?? []).flatMap{$0["skills"] as? [[String:Any]] ?? []}
-        guard skills.contains(where:{$0["path"] as? String==skill && $0["enabled"] as? Bool==true}) else{throw failure("O Codex ainda não reconheceu a skill instalada. Abra o espaço Oracle no Codex e verifique suas permissões.")}
+        let required=Set(core.requiredGBrainCodexSkillPaths()+[skill])
+        let discovered=Set(skills.filter{$0["enabled"] as? Bool==true}.compactMap{$0["path"] as? String})
+        guard required.isSubset(of:discovered) else{throw failure("O Codex ainda não reconheceu todos os procedimentos instalados. Abra o espaço Oracle no Codex e verifique suas permissões.")}
+        let method=try core.verifyGBrainBridge()
+        try writeJSON(["workspace":workspace,"skills":required.sorted(),"verifiedAt":ISO8601DateFormatter().string(from:Date()),"skillDiscoveryVerified":true,"identityFilesVerified":method["identity"] ?? false,"modelExecutionVerified":false,"hooksTrusted":false],core.home.appendingPathComponent("setup/codex-discovery.json"))
     }
     func openCodexWorkspace() throws {
         try requireAccess()
@@ -267,35 +319,69 @@ final class OnboardingController {
         if method=="turn/completed",let turn=p["turn"] as? [String:Any],let turnID=turn["id"] as? String {
             if state["status"] as? String=="starting" {stateLock.lock();earlyCompletions[turnID]=p;stateLock.unlock();return}
             guard turnID==state["turnID"] as? String else{return}
+            retireApprovalRequests()
             if state["status"] as? String=="cancelling" || turn["status"] as? String=="interrupted" {try? update(["status":"cancelled","message":"Instalação interrompida. Retome quando quiser.","request":NSNull()]);return}
             guard turn["status"] as? String=="completed" else{try? update(["status":"failed","message":"O Codex não concluiu esta etapa. Retome para tentar novamente.","request":NSNull()]);return}
             if (try? core.onboardingSnapshot()["readback"]) != nil {try? update(["status":"waiting_user","phase":"identity","awaitingIdentity":true,"message":"Revise suas respostas para continuar."]);return}
-            do {var verified=try core.onboardingFinalVerification();try verifyCodexSkill();verified["skillDiscoveredByCodex"]=true;try update(["existingBrainVerified":true]);let formation=try core.onboardingProgress();try update(["formation":formation,"confirmedAt":ISO8601DateFormatter().string(from:Date()),"status":"completed","phase":"ready","message":"Seu Oracle está pronto.","verification":verified,"existingBrainVerified":true,"request":NSNull()])}
+            do {
+                var verified=try core.onboardingFinalVerification();try verifyCodexSkill();verified["skillDiscoveredByCodex"]=true
+                let plan=try core.validatedPlan()
+                if let settings=plan["maintenance"] as? [String:Any] {verified["maintenance"]=try core.configureMaintenance(settings)}
+                try update(["existingBrainVerified":true]);let formation=try core.onboardingProgress()
+                try update(["formation":formation,"confirmedAt":ISO8601DateFormatter().string(from:Date()),"status":"completed","phase":"ready","message":"Seu Oracle está pronto.","verification":verified,"existingBrainVerified":true,"request":NSNull()])
+            }
             catch {try? update(["status":"paused","message":"O Codex terminou o turno. Há etapas a conferir antes de concluir.","detail":error.localizedDescription,"request":NSNull()])}
         } else if method=="item/started",let item=p["item"] as? [String:Any],item["type"] as? String=="commandExecution" {
             try? update(["phase":"installing","message":"Codex está instalando e verificando os componentes."])
         }
     }
+    private func retireApprovalRequests() {
+        stateLock.lock()
+        let pending=approvalQueue.drain()
+        try? update(["request":NSNull(),"pendingRequestCount":0])
+        stateLock.unlock()
+        for request in pending { bridge.reject(id:request.rpcID) }
+    }
     private func receivedRequest(_ id:Any,_ method:String,_ params:[String:Any]) {
-        guard params["threadId"] as? String==core.onboardingRecord()["threadID"] as? String else{bridge.reject(id:id);return}
+        let state=core.onboardingRecord()
+        guard let requestedThread=params["threadId"] as? String,let activeThread=state["threadID"] as? String,requestedThread==activeThread,
+              ["starting","running","waiting_user"].contains(state["status"] as? String ?? "") else{bridge.reject(id:id);return}
+        if let requestedTurn=params["turnId"] as? String,let activeTurn=state["turnID"] as? String,requestedTurn != activeTurn {bridge.reject(id:id);return}
         let supported=["item/commandExecution/requestApproval","item/fileChange/requestApproval","item/permissions/requestApproval","item/tool/requestUserInput"]
         guard supported.contains(method) else{bridge.reject(id:id);try? update(["status":"waiting_user","message":"O Codex precisa de uma ação que este cliente ainda não oferece. Abra a tarefa no Codex."]);return}
-        let key=UUID().uuidString;stateLock.lock();pendingRequests[key]=(id,method,params);stateLock.unlock()
+        let key=UUID().uuidString
         var request:[String:Any]=["id":key,"kind":method,"reason":params["reason"] ?? "O Codex precisa da sua confirmação para esta etapa."]
         if method=="item/tool/requestUserInput" {request["questions"]=params["questions"] ?? []}
         else {request["command"]=params["command"] ?? "";request["cwd"]=params["cwd"] ?? "";request["permissions"]=params["permissions"] ?? [:];request["grantRoot"]=params["grantRoot"] ?? NSNull()}
-        try? update(["status":"waiting_user","message":"O Codex precisa da sua resposta.","request":request])
+        stateLock.lock();defer{stateLock.unlock()}
+        if approvalQueue.containsRPC(id) { return }
+        let entry=OracleOnboardingApprovalQueue.Pending(key:key,rpcID:id,method:method,parameters:params,
+            turnID:params["turnId"] as? String ?? state["turnID"] as? String,presentation:request)
+        guard approvalQueue.append(entry) else {bridge.reject(id:id);return}
+        try? update(["status":"waiting_user","message":"O Codex precisa da sua resposta.",
+                     "request":approvalQueue.first!.presentation,"pendingRequestCount":approvalQueue.count])
     }
     func answerRequest(_ params:[String:Any]) throws {
         guard let key=params["id"] as? String else{throw failure("Solicitação inválida.")}
-        stateLock.lock();let pending=pendingRequests[key];stateLock.unlock()
-        guard let(id,method,original)=pending else{throw failure("Esta solicitação expirou. Retome a configuração.")}
+        stateLock.lock();defer{stateLock.unlock()}
+        guard let pending=approvalQueue.request(key),approvalQueue.first?.key==key else{throw failure("Esta solicitação expirou ou aguarda a anterior.")}
+        let state=core.onboardingRecord()
+        guard OracleOnboardingApprovalQueue.belongsToTurn(pending,currentThread:state["threadID"] as? String,currentTurn:state["turnID"] as? String) else {
+            approvalQueue.remove(key);bridge.reject(id:pending.rpcID)
+            try update(["request":approvalQueue.first?.presentation ?? NSNull(),"pendingRequestCount":approvalQueue.count])
+            throw failure("Solicitação de uma etapa anterior. Nenhuma permissão foi concedida.")
+        }
+        let id=pending.rpcID,method=pending.method,original=pending.parameters
         let allow=params["allow"] as? Bool==true
         var result:[String:Any]
         if method=="item/tool/requestUserInput" {result=["answers":params["answers"] as? [String:Any] ?? [:]]}
         else if method=="item/permissions/requestApproval" {result=["permissions":allow ? original["permissions"] as? [String:Any] ?? [:] : [:],"scope":"turn"]}
         else {result=["decision":allow ? "accept" : "decline"]}
-        try bridge.reply(id:id,result:result);stateLock.lock();pendingRequests.removeValue(forKey:key);stateLock.unlock()
-        try update(["status":"running","request":NSNull(),"message":allow ? "Permissão concedida para esta etapa." : "Resposta enviada ao Codex."])
+        try bridge.reply(id:id,result:result)
+        approvalQueue.remove(key)
+        let next=approvalQueue.first
+        try update(["status":next == nil ? "running" : "waiting_user",
+                    "request":next?.presentation ?? NSNull(),"pendingRequestCount":approvalQueue.count,
+                    "message":next != nil ? "O Codex aguarda outra confirmação." : allow ? "Permissão concedida para esta etapa." : "Resposta enviada ao Codex."])
     }
 }

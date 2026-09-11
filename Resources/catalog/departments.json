@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "fallback_department": "department/other",
+  "departments": [
+    {
+      "id": "department/code",
+      "name": "Código",
+      "icon": "code",
+      "color": "#91b5ed",
+      "collection_ids": ["code", "cyber-security", "cybersecurity", "frontend-design", "impeccable", "frontend", "richard-design"],
+      "aliases": ["Código", "Cybersecurity", "Cyber Security", "Frontend Design", "Impeccable", "Frontend", "Richard Design"]
+    },
+    {
+      "id": "department/marketing",
+      "name": "Marketing",
+      "icon": "chart",
+      "color": "#92c399",
+      "collection_ids": ["ads", "marketing", "personal-branding"],
+      "aliases": ["Ads", "Marketing", "Personal Branding"]
+    },
+    {
+      "id": "department/content",
+      "name": "Conteúdo",
+      "icon": "note",
+      "color": "#7bc8b4",
+      "collection_ids": ["contents"],
+      "aliases": ["Contents"]
+    },
+    {
+      "id": "department/sales",
+      "name": "Vendas",
+      "icon": "search",
+      "color": "#d9c276",
+      "collection_ids": ["customer-finder"],
+      "aliases": ["Customer Finder"]
+    },
+    {
+      "id": "department/other",
+      "name": "Outros especialistas",
+      "icon": "tool",
+      "color": "#a6adb8",
+      "collection_ids": [],
+      "aliases": []
+    }
+  ]
+}

@@ -44,6 +44,12 @@ body.setup-pending #app main,body.setup-pending .header-actions{visibility:hidde
 
 .header-actions{gap:5px}.header-actions>.icon-button,.header-actions>.update-button{width:32px;height:32px;padding:7px;display:inline-grid;place-items:center;border-radius:10px}.header-actions>.icon-button svg,.header-actions>.update-button svg{width:16px;height:16px}
 
+/* A known update remains visible; animation is optional, never the only cue. */
+.update-button.available:not(.busy){animation:oracle-update-notice 2.8s ease-in-out infinite}
+.update-button.available.stale{border-style:dashed}
+@keyframes oracle-update-notice{0%,100%{box-shadow:0 0 0 0 rgba(133,227,165,0)}50%{box-shadow:0 0 0 4px rgba(133,227,165,.15)}}
+body.reduced .update-button.available{animation:none!important}
+@media(prefers-reduced-motion:reduce){.update-button.available{animation:none!important}}
 /* Shared semantic status palette. Informational/category pills remain neutral. */
 .status-badge{--status-rgb:154,163,177;--status-ink:#b8bec8;--status-solid:#292c30;display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;padding:4px 9px;border:1px solid rgba(var(--status-rgb),.3);border-radius:20px;background:rgba(var(--status-rgb),.13);color:var(--status-ink);font-size:10px;font-weight:500;line-height:1.4;white-space:nowrap;vertical-align:middle}
 .status-badge::before{content:'';width:5px;height:5px;flex:none;border-radius:50%;background:currentColor}

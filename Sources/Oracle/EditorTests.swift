@@ -1,7 +1,7 @@
 import Foundation
 
 func runEditorTests() throws {
-    let base=fm.temporaryDirectory.appendingPathComponent("oracle-editor-tests-\(UUID().uuidString)")
+    let base=try oracleTestDirectory("oracle-editor-tests")
     defer { try? fm.removeItem(at:base) }
     let c=try Core(home:base.appendingPathComponent("state")),root=base.appendingPathComponent("vault")
     try fm.createDirectory(at:root,withIntermediateDirectories:true)
@@ -27,7 +27,7 @@ func runEditorTests() throws {
     try expect(try String(contentsOf:c.home.appendingPathComponent("editor-recovery/\(recoveryID).md"),encoding:.utf8)==original,"previous bytes retained for recovery")
     try expect((try fm.attributesOfItem(atPath:file.path)[.posixPermissions] as? NSNumber)?.intValue==0o640,"file permissions preserved")
     try expect(try fm.contentsOfDirectory(atPath:file.deletingLastPathComponent().path)==["Nota.md"],"no alternate document or temporary file in vault")
-    let external=edited+"Alteração externa.\n";try Data(external.utf8).write(to:file,options:.atomic)
+    let external=edited+"Alteração externa.\n";try atomicWriteData(Data(external.utf8),to:file)
     let conflict=try c.saveNote(path:path,original:digest(Data(edited.utf8)),text:edited+"Rascunho pendente.\n")
     try expect(conflict["status"] as? String=="conflict","external edit is detected")
     try expect(try String(contentsOf:file,encoding:.utf8)==external,"conflict preserves external content")

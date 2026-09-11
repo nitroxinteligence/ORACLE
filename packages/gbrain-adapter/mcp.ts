@@ -8,7 +8,8 @@ import {operations} from '../../vendor/gbrain/src/core/operations.ts';
 import {dispatchToolCall} from '../../vendor/gbrain/src/mcp/dispatch.ts';
 import {buildToolDefs} from '../../vendor/gbrain/src/mcp/tool-defs.ts';
 import {createEngine} from '../../vendor/gbrain/src/core/engine-factory.ts';
-import {loadConfig,toEngineConfig} from '../../vendor/gbrain/src/core/config.ts';
+import {ownedConfig,verifyMemorySource} from './owned-runtime.ts';
+import {toEngineConfig} from '../../vendor/gbrain/src/core/config.ts';
 const allowed=['remember','recall','entity','context_pack','delta','forget','search','get_page','list_pages','get_links','get_backlinks','traverse_graph','put_page'];
 const ops=operations.filter(op=>allowed.includes(op.name));
 export async function startMemoryMcp(){
@@ -20,11 +21,10 @@ export async function startMemoryMcp(){
  server.setRequestHandler(CallToolRequestSchema,request=>{
   const work=async()=>{
    const op=ops.find(op=>op.name===request.params.name);if(!op)return {isError:true,content:[{type:'text' as const,text:'Tool is not enabled in Oracle.'}]};
-   const config=loadConfig();if(!config)return {isError:true,content:[{type:'text' as const,text:'Prepare the Oracle GBrain profile first.'}]};
-   const engine=await createEngine(toEngineConfig(config));
-   try{await engine.connect(toEngineConfig(config));return await dispatchToolCall(engine,op.name,request.params.arguments||{},{remote:true,transport:'stdio',sourceId:'oracle-memory',localFederatedSourceIds:['oracle-memory','oracle-vault'],takesHoldersAllowList:['world'],allowedOps:new Set(allowed)});}
+   let engine:Awaited<ReturnType<typeof createEngine>>|undefined;
+   try{const config=ownedConfig();engine=await createEngine(toEngineConfig(config));await engine.connect(toEngineConfig(config));await verifyMemorySource(engine);return await dispatchToolCall(engine,op.name,request.params.arguments||{},{remote:true,transport:'stdio',sourceId:'oracle-memory',localFederatedSourceIds:['oracle-memory','oracle-vault'],takesHoldersAllowList:['world'],allowedOps:new Set(allowed)});}
    catch(error){return {isError:true,content:[{type:'text' as const,text:String(error instanceof Error?error.message:error).replace(/(?:postgres(?:ql)?|https?):\/\/\S+/gi,'[endpoint omitted]').slice(0,1500)}]}}
-   finally{await engine.disconnect()}
+   finally{if(engine)await engine.disconnect()}
   };
   const result=queue.then(work,work);queue=result.then(()=>undefined,()=>undefined);return result;
  });

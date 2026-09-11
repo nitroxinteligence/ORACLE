@@ -65,7 +65,7 @@ extension Core {
                 let backupID = UUID().uuidString
                 let backup = home.appendingPathComponent("editor-recovery/\(backupID).md")
                 try fm.createDirectory(at:backup.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-                try current.write(to:backup,options:.atomic)
+                try atomicWriteData(current,to:backup)
                 try fm.setAttributes([.posixPermissions:0o600],ofItemAtPath:backup.path)
                 try writeJSON(["path":path,"vault":try vault().path,"hash":original,"createdAt":ISO8601DateFormatter().string(from:Date())],backup.deletingPathExtension().appendingPathExtension("json"))
                 // Catch uncoordinated writers that changed the file during backup preparation.
@@ -73,7 +73,7 @@ extension Core {
                     return ["status":"conflict","current":try readNote(path),"draftSaved":true]
                 }
                 let permissions = try fm.attributesOfItem(atPath:destination.path)[.posixPermissions]
-                try replacement.write(to:destination,options:.atomic)
+                try atomicWriteData(replacement,to:destination)
                 if let permissions { try fm.setAttributes([.posixPermissions:permissions],ofItemAtPath:destination.path) }
                 let verified = try readNote(path)
                 guard verified["hash"] as? String == digest(replacement) else {

@@ -26,12 +26,14 @@ do {
     if command=="export-public" {
       let data=try JSONSerialization.data(withJSONObject:["version":1,"keys":[id:pub.base64EncodedString()]],options:[.prettyPrinted,.sortedKeys]);FileHandle.standardOutput.write(data);print("")
     } else {
-      guard let subject=option("--to"),!subject.isEmpty,subject.count<=160 else {fail("Use issue --to 'Nome da pessoa' [--days 365] [--device UUID].")}
-      let now=Int64(Date().timeIntervalSince1970);var payload:[String:Any]=["version":1,"product":"oracle-macos","keyID":id,"licenseID":UUID().uuidString,"subject":subject,"issuedAt":now]
-      if let days=option("--days") {guard let n=Int64(days),n>0,n<=36500 else{fail("Prazo inválido.")};payload["expiresAt"]=now+n*86400}
-      if let device=option("--device") {guard UUID(uuidString:device) != nil else{fail("Identificador do Mac inválido.")};payload["deviceID"]=device}
-      let data=try JSONSerialization.data(withJSONObject:payload,options:[.sortedKeys,.withoutEscapingSlashes]);let signature=try key.signature(for:Data("ORACLE1.".utf8)+data)
-      print("ORACLE1."+b64(data)+"."+b64(signature))
+      guard let subject=option("--to"),!subject.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty,subject.count<=160 else {fail("Use issue --to 'Nome da pessoa' --device ORACLE-MAC2-<identificador>.")}
+      guard option("--days")==nil else {fail("ORACLE2 é permanente e offline; não aceita --days.")}
+      guard let device=option("--device"),device.hasPrefix("ORACLE-MAC2-"),device.utf8.count==76,
+            device.dropFirst(12).allSatisfy({"0123456789abcdef".contains($0)}) else {fail("Informe o pedido ORACLE-MAC2 gerado explicitamente no Mac de destino.")}
+      let now=Int64(Date().timeIntervalSince1970)
+      let payload:[String:Any]=["version":2,"product":"oracle-macos","keyID":id,"licenseID":UUID().uuidString,"subject":subject,"issuedAt":now,"deviceID":device]
+      let data=try JSONSerialization.data(withJSONObject:payload,options:[.sortedKeys,.withoutEscapingSlashes]);let signature=try key.signature(for:Data("ORACLE2.".utf8)+data)
+      print("ORACLE2."+b64(data)+"."+b64(signature))
     }
- } else { print("oracle-license init | export-public | issue --to 'Nome' [--days 365] [--device UUID]\nChave privada padrão: ~/.oracle-issuer (fora do app/repo). --issuer-dir permite um destino privado alternativo.") }
+ } else { print("oracle-license init | export-public | issue --to 'Nome' --device ORACLE-MAC2-<identificador>\nEmissões novas: ORACLE2 permanente, para um vínculo de dispositivo específico. Migração exige nova emissão revisada; esta ferramenta não revoga um Mac remoto offline.\nChave privada padrão: ~/.oracle-issuer (fora do app/repo). --issuer-dir permite um destino privado alternativo.") }
 } catch {fail(error.localizedDescription)}

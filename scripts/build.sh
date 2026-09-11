@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+python3 scripts/build-official-skills.py
 bun run build:atlas
 # Rebuild the adapter whenever its source changes; never ship a stale indexer.
 bun build --compile packages/gbrain-adapter/read.ts --outfile Resources/engine/oracle-gbrain-read

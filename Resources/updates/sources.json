@@ -24,6 +24,6 @@
   "skills": {
     "repository": "https://github.com/nitroxinteligence/ORACLE-SKILLS",
     "manifest_asset": "oracle-skills.json",
-    "schema_version": 1
+    "schema_version": 2
   }
 }

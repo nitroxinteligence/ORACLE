@@ -42,7 +42,7 @@ func runOnboardingTests() throws {
     try check((branded["plugins"] as? [[String:Any]])?.first?["iconURL"] as? String=="https://files.openai.com/github.png","dependent plugin artwork never replaces app identity")
     let lightOnly=CodexBridge.projectInventory(apps:[["id":"canva","name":"Canva","isAccessible":true,"isEnabled":true,"iconUrlDark":NSNull(),"iconUrl":"https://files.openai.com/canva.png"]],runtime:[],packages:[],servers:[])
     try check((lightOnly["plugins"] as? [[String:Any]])?.first?["iconURL"] as? String=="https://files.openai.com/canva.png","null dark artwork falls back to the app original")
-    let home=fm.temporaryDirectory.appendingPathComponent("OracleOnboarding-"+UUID().uuidString);defer{try? fm.removeItem(at:home)}
+    let home=try oracleTestDirectory("OracleOnboarding");defer{try? fm.removeItem(at:home)}
     let core=try Core(home:home);let snapshot=try core.onboardingSnapshot()
     try check(snapshot["legacyAccess"] as? Bool==false && snapshot["licensed"] as? Bool==false,"new profile is locked")
     core.config["vault"]=home.appendingPathComponent("vault").path;try core.persist()
@@ -50,7 +50,7 @@ func runOnboardingTests() throws {
     let controller=try OnboardingController(home:home)
     try rejects({try controller.selectVault(home)},"unlicensed selection denied")
     try rejects({_ = try controller.install("forged")},"unlicensed install denied")
-    try Data("cancel".utf8).write(to:home.appendingPathComponent("onboarding/cancel"),options:.atomic)
+    try atomicWriteData(Data("cancel".utf8),to:home.appendingPathComponent("onboarding/cancel"))
     try rejects({try core.checkOnboardingCancellation()},"cancel marker stops deterministic phases")
     try check(try core.onboardingProgress().isEmpty,"no progress before verified run")
     let legacyHome=home.appendingPathComponent("legacy"),legacy=try Core(home:legacyHome);legacy.config["vault"]=home.path;try legacy.persist()
@@ -65,6 +65,7 @@ private final class FixtureCodex:CodexConnection {
     func request(_ method:String,_ params:[String:Any],timeout:Double)throws->[String:Any]{
         calls.append(method)
         switch method {
+        case "model/list":return ["data":[["model":"fixture-model","displayName":"Fixture","isDefault":true,"hidden":false,"defaultReasoningEffort":"low","supportedReasoningEfforts":[["reasoningEffort":"low"]]]],"nextCursor":NSNull()]
         case "thread/start","thread/resume":return ["thread":["id":thread,"turns":[]]]
         case "turn/start":turn=UUID().uuidString;return ["turn":["id":turn,"status":"inProgress"]]
         case "turn/interrupt":onNotification?("turn/completed",["threadId":thread,"turn":["id":turn,"status":"interrupted"]]);return [:]
@@ -80,16 +81,25 @@ private final class FixtureCodex:CodexConnection {
 func runOnboardingLifecycleTests() throws {
     var count=0
     func check(_ condition:Bool,_ label:String)throws{guard condition else{throw failure("Lifecycle test failed: "+label)};count+=1;print("PASS "+label)}
-    let home=fm.temporaryDirectory.appendingPathComponent("OracleLifecycle-"+UUID().uuidString);defer{try? fm.removeItem(at:home)}
+    let home=try oracleTestDirectory("OracleLifecycle");defer{try? fm.removeItem(at:home)}
     let vault=home.appendingPathComponent("vault").resolvingSymlinksInPath();try fm.createDirectory(at:vault,withIntermediateDirectories:true)
     let c=try Core(home:home);c.config["vault"]=vault.path;c.config["gbrainWorkspace"]=home.appendingPathComponent("existing-brain").path;try c.persist()
     let fake=FixtureCodex(),controller=try OnboardingController(home:home,bridge:fake,automaticallyReconnect:false)
     try controller.selectVault(vault)
     try check(try controller.core.vault().path==vault.path,"selected vault permission survives readback")
     let denied=home.appendingPathComponent("permission-denied");try fm.createDirectory(at:denied,withIntermediateDirectories:true);try fm.setAttributes([.posixPermissions:0o000],ofItemAtPath:denied.path)
-    do {try controller.selectVault(denied);throw failure("denied folder was accepted")}catch{try check(controller.core.config["vault"] as? String==vault.path,"permission denial preserves selected vault")};try fm.setAttributes([.posixPermissions:0o700],ofItemAtPath:denied.path)
+    var accepted=false;do {try controller.selectVault(denied);accepted=true}catch{}
+    try check(!accepted && controller.core.config["vault"] as? String==vault.path,"permission denial preserves selected vault");try fm.setAttributes([.posixPermissions:0o700],ofItemAtPath:denied.path)
     let linked=home.appendingPathComponent("linked-vault");try fm.createSymbolicLink(at:linked,withDestinationURL:vault)
-    do {try controller.selectVault(linked);throw failure("symlink was accepted")}catch{try check(controller.core.config["vault"] as? String==vault.path,"symlink cannot widen vault access")}
+    accepted=false;do {try controller.selectVault(linked);accepted=true}catch{}
+    try check(!accepted && controller.core.config["vault"] as? String==vault.path,"symlink cannot widen vault access")
+    let existing=home.appendingPathComponent("existing-brain");try fm.createDirectory(at:existing,withIntermediateDirectories:true)
+    try controller.selectExistingBrain(existing)
+    try check(controller.core.config["gbrainWorkspace"] as? String==existing.path,"external brain selection stores only chosen path")
+    let held=try controller.core.acquireOperationLock("gbrain")
+    accepted=false;do{try controller.selectExistingBrain(existing);accepted=true}catch{}
+    controller.core.releaseOperationLock(held)
+    try check(!accepted,"external source cannot change during active GBrain operation")
     _=try controller.connect();let plan=try controller.plan(["attach":true,"newVault":true,"answers":[:]])
     _=try controller.install(plan["plan_hash"] as! String)
     try check(controller.core.onboardingRecord()["status"] as? String=="running","Codex acknowledged start")
@@ -98,8 +108,16 @@ func runOnboardingLifecycleTests() throws {
     fake.onRequest?(12,"item/commandExecution/requestApproval",["threadId":thread,"turnId":turn,"command":"fixture --verify","reason":"Fixture permission"]);controller.notifications.sync{}
     let request=controller.core.onboardingRecord()["request"] as! [String:Any]
     try check(controller.core.onboardingRecord()["status"] as? String=="waiting_user","permission remains pending")
+    fake.onRequest?(120,"item/commandExecution/requestApproval",["threadId":thread,"turnId":turn,"command":"fixture second"]);controller.notifications.sync{}
+    try check(controller.core.onboardingRecord()["pendingRequestCount"] as? Int==2,"two overlapping requests remain queued")
+    try check((controller.core.onboardingRecord()["request"] as? [String:Any])?["id"] as? String==request["id"] as? String,"second request does not replace first")
     try controller.answerRequest(["id":request["id"]!,"allow":false])
     try check(fake.replies.last?["decision"] as? String=="decline","denial sent to Codex")
+    let second=controller.core.onboardingRecord()["request"] as! [String:Any]
+    try check(second["id"] as? String != request["id"] as? String && controller.core.onboardingRecord()["status"] as? String=="waiting_user","next approval is promoted")
+    try controller.answerRequest(["id":second["id"]!,"allow":false])
+    fake.onRequest?(121,"item/commandExecution/requestApproval",["threadId":thread,"turnId":"old-turn","command":"must-not-run"]);controller.notifications.sync{}
+    try check(controller.core.onboardingRecord()["request"] is NSNull,"stale turn approval is never presented")
     fake.onRequest?(13,"item/permissions/requestApproval",["threadId":thread,"turnId":turn,"permissions":["network":["enabled":true]]]);controller.notifications.sync{}
     let network=controller.core.onboardingRecord()["request"] as! [String:Any];try controller.answerRequest(["id":network["id"]!,"allow":false])
     try check((fake.replies.last?["permissions"] as? [String:Any])?.isEmpty==true,"denied permissions grant nothing")

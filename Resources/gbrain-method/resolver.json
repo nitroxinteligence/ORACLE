@@ -1,0 +1,1050 @@
+{
+  "automatic_invocation": false,
+  "routes": [
+    {
+      "execution": "reference_only",
+      "name": "academic-verify",
+      "path": "upstream/skills/academic-verify/SKILL.md",
+      "triggers": [
+        "verify this academic claim",
+        "check this study",
+        "academic verify",
+        "validate citation",
+        "is this study real",
+        "Retraction Watch"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "archive-crawler",
+      "path": "upstream/skills/archive-crawler/SKILL.md",
+      "triggers": [
+        "crawl my archive",
+        "find gold in my archive",
+        "archive crawler",
+        "scan my dropbox for",
+        "mine my old files for"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "article-enrichment",
+      "path": "upstream/skills/article-enrichment/SKILL.md",
+      "triggers": [
+        "enrich this article",
+        "enrich the article",
+        "enriching the article",
+        "enrich brain pages",
+        "batch enrich",
+        "enrich pass",
+        "make brain pages useful"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "ask-user",
+      "path": "upstream/skills/ask-user/SKILL.md",
+      "triggers": [
+        "present options",
+        "ask before proceeding",
+        "choice gate",
+        "user decision"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "blog-ingest",
+      "path": "upstream/skills/blog-ingest/SKILL.md",
+      "triggers": [
+        "ingest this publication",
+        "ingest this whole blog",
+        "ingest this feed",
+        "ingest this newsletter archive",
+        "save this whole substack",
+        "backfill this blog",
+        "walk this RSS feed",
+        "ingest every post from"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "book-mirror",
+      "path": "upstream/skills/book-mirror/SKILL.md",
+      "triggers": [
+        "personalized version of this book",
+        "mirror this book",
+        "two-column book analysis",
+        "apply this book to my life",
+        "how does this book apply to me"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "brain-ingest-gate",
+      "path": "upstream/skills/brain-ingest-gate/SKILL.md",
+      "triggers": [
+        "move this to brain",
+        "migrate to brain",
+        "copy these files into the brain",
+        "is this already in the brain",
+        "check for duplicates before writing",
+        "dedup before saving",
+        "raw copy to brain"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "brain-link-discipline",
+      "path": "upstream/skills/brain-link-discipline/SKILL.md",
+      "triggers": [
+        "give me the link",
+        "where is the page",
+        "why does this link 404",
+        "brain link discipline",
+        "rewrite subagent paths",
+        "report the pages you created",
+        "send me a clickable link",
+        "link the page in the same message"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "brain-ops",
+      "path": "upstream/skills/brain-ops/SKILL.md",
+      "triggers": [
+        "any brain read/write/lookup/citation"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "brain-pdf",
+      "path": "upstream/skills/brain-pdf/SKILL.md",
+      "triggers": [
+        "make pdf from brain",
+        "brain pdf",
+        "convert brain page to pdf",
+        "publish this page as pdf",
+        "export brain page"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "brain-taxonomist",
+      "path": "upstream/skills/brain-taxonomist/SKILL.md",
+      "triggers": [
+        "where does this brain page go",
+        "file this in the brain",
+        "brain taxonomist",
+        "taxonomy check",
+        "refile brain page",
+        "create brain page",
+        "which directory does this go",
+        "which directory does this page go"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "briefing",
+      "path": "upstream/skills/briefing/SKILL.md",
+      "triggers": [
+        "daily briefing",
+        "morning briefing",
+        "what's happening today",
+        "brain pulse",
+        "pre-briefing pull"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "bulk-ingestion",
+      "path": "upstream/skills/bulk-ingestion/SKILL.md",
+      "triggers": [
+        "bulk ingest",
+        "bulk import",
+        "ingest all",
+        "ingestion pipeline",
+        "mass ingestion",
+        "bulk backfill",
+        "make a manifest",
+        "processing manifest",
+        "track a large ingest"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "capture",
+      "path": "upstream/skills/capture/SKILL.md",
+      "triggers": [
+        "capture this",
+        "save this thought",
+        "remember this",
+        "ingest this into my brain",
+        "drop this in the inbox",
+        "save to brain"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "chat-connectors",
+      "path": "upstream/skills/chat-connectors/SKILL.md",
+      "triggers": [
+        "connect my chatgpt",
+        "connect my claude account",
+        "sync my chat history",
+        "chatgpt oauth",
+        "auto-import my chats",
+        "keep my conversations synced"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "citation-fixer",
+      "path": "upstream/skills/citation-fixer/SKILL.md",
+      "triggers": [
+        "fix citations",
+        "fix broken citations",
+        "citation audit",
+        "check citations",
+        "citation fixer"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "citation-graph-ingest",
+      "path": "upstream/skills/citation-graph-ingest/SKILL.md",
+      "triggers": [
+        "citation graph",
+        "citation graph ingest",
+        "typed citation graph",
+        "build a reference graph",
+        "graph over a corpus",
+        "overrules / distinguishes graph",
+        "reason over a domain corpus",
+        "trace the argument through these documents"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "cold-start",
+      "path": "upstream/skills/cold-start/SKILL.md",
+      "triggers": [
+        "cold start",
+        "fill my brain",
+        "bootstrap brain",
+        "bootstrap my data",
+        "import my data",
+        "day one",
+        "get started",
+        "what should I import first",
+        "populate brain",
+        "now what?"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "company-brainify",
+      "path": "upstream/skills/company-brainify/SKILL.md",
+      "triggers": [
+        "company brain",
+        "team brain",
+        "brainify",
+        "sanitize the brain",
+        "share my brain with the team",
+        "strip sensitive data from the brain",
+        "scrub employee data",
+        "audit the shared brain",
+        "make the brain safe to share"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "concept-synthesis",
+      "path": "upstream/skills/concept-synthesis/SKILL.md",
+      "triggers": [
+        "concept synthesis",
+        "synthesize my concepts",
+        "find patterns across my notes",
+        "build my intellectual map",
+        "trace idea evolution",
+        "canon vs riff",
+        "cull my concepts",
+        "which concepts to keep",
+        "concept quality rubric"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "context-audit",
+      "path": "upstream/skills/context-audit/SKILL.md",
+      "triggers": [
+        "context audit",
+        "context diet",
+        "system prompt audit",
+        "prompt compression",
+        "reduce context size",
+        "audit my context stack",
+        "context is too big",
+        "token hygiene"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "conversation-archive",
+      "path": "upstream/skills/conversation-archive/SKILL.md",
+      "triggers": [
+        "chatgpt export",
+        "claude export",
+        "perplexity export",
+        "conversation history",
+        "import my conversations",
+        "search my conversations",
+        "when did I first discuss",
+        "archive my session transcripts",
+        "backfill missing conversations"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "correction-pipeline",
+      "path": "upstream/skills/correction-pipeline/SKILL.md",
+      "triggers": [
+        "that's wrong",
+        "that's not true",
+        "I never said that",
+        "where did you get that",
+        "you got that wrong",
+        "correct that fact",
+        "root-cause this error"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "cron-scheduler",
+      "path": "upstream/skills/cron-scheduler/SKILL.md",
+      "triggers": [
+        "schedule a job",
+        "cron",
+        "quiet hours",
+        "what jobs are running"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "cross-modal-review",
+      "path": "upstream/skills/cross-modal-review/SKILL.md",
+      "triggers": [
+        "second opinion",
+        "cross-modal review",
+        "double check this",
+        "get another perspective",
+        "challenge this code",
+        "adversarial review"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "daily-task-manager",
+      "path": "upstream/skills/daily-task-manager/SKILL.md",
+      "triggers": [
+        "add task",
+        "complete task",
+        "what are my tasks",
+        "task list",
+        "defer task"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "daily-task-prep",
+      "path": "upstream/skills/daily-task-prep/SKILL.md",
+      "triggers": [
+        "morning prep",
+        "prepare for today",
+        "what's on my plate",
+        "day prep"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "data-loss-gate",
+      "path": "upstream/skills/data-loss-gate/SKILL.md",
+      "triggers": [
+        "bulk delete",
+        "wipe the",
+        "rm -rf",
+        "purge the",
+        "truncate",
+        "free up space",
+        "bulk forget",
+        "remove the source",
+        "drop the table"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "data-research",
+      "path": "upstream/skills/data-research/SKILL.md",
+      "triggers": [
+        "research",
+        "track",
+        "extract from email",
+        "investor updates",
+        "donations",
+        "build a tracker",
+        "data dig"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "db-repair",
+      "path": "upstream/skills/db-repair/SKILL.md",
+      "triggers": [
+        "GBRAIN_DB_ACCESS",
+        "gbrain database error",
+        "gbrain connection refused",
+        "cannot reach the brain database",
+        "brain database is down",
+        "fix gbrain database access",
+        "repair gbrain postgres"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "draft-in-voice",
+      "path": "upstream/skills/draft-in-voice/SKILL.md",
+      "triggers": [
+        "draft in voice",
+        "write this as",
+        "make this sound like",
+        "ghostwrite",
+        "draft a tweet as",
+        "write a post as",
+        "in their voice",
+        "in my voice",
+        "build a voice profile"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "eiirp",
+      "path": "upstream/skills/eiirp/SKILL.md",
+      "triggers": [
+        "everything in its right place",
+        "eiirp",
+        "store this research",
+        "put this in the brain",
+        "file this properly",
+        "where does this research go",
+        "make this permanent",
+        "archive this research",
+        "archive this research thread",
+        "brain this",
+        "file all of this",
+        "organize all of this",
+        "organize all of this work",
+        "make this re-doable",
+        "DRY this up",
+        "check everything is in the right place",
+        "analyze this document",
+        "deep analysis",
+        "review this report"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "enrich",
+      "path": "upstream/skills/enrich/SKILL.md",
+      "triggers": [
+        "enrich",
+        "create person page",
+        "update company page",
+        "who is this person",
+        "look up this company"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "fact-check",
+      "path": "upstream/skills/fact-check/SKILL.md",
+      "triggers": [
+        "fact check",
+        "fact-check",
+        "verify the facts",
+        "check the claims",
+        "is this accurate",
+        "source check",
+        "verify this output claim by claim",
+        "is this output hallucinating",
+        "re-derive every claim"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "frontmatter-guard",
+      "path": "upstream/skills/frontmatter-guard/SKILL.md",
+      "triggers": []
+    },
+    {
+      "execution": "reference_only",
+      "name": "functional-area-resolver",
+      "path": "upstream/skills/functional-area-resolver/SKILL.md",
+      "triggers": [
+        "compress agents.md",
+        "compress my resolver",
+        "resolver too big",
+        "resolver.md too big",
+        "agents.md too large",
+        "shrink routing table",
+        "slim down agents.md",
+        "functional area resolver",
+        "functional area dispatcher",
+        "context-health agents",
+        "context-health resolver",
+        "reduce context budget"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "gbrain-advisor",
+      "path": "upstream/skills/gbrain-advisor/SKILL.md",
+      "triggers": [
+        "what should I do to get more out of gbrain",
+        "is my brain set up right",
+        "gbrain advisor",
+        "advise me on my brain",
+        "weekly brain checkup"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "gbrain-upgrade",
+      "path": "upstream/skills/gbrain-upgrade/SKILL.md",
+      "triggers": [
+        "gbrain update available",
+        "UPGRADE_AVAILABLE",
+        "upgrade gbrain",
+        "update gbrain",
+        "gbrain is out of date",
+        "gbrain self-upgrade",
+        "is gbrain up to date",
+        "keep gbrain current"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "google-loops",
+      "path": "upstream/skills/google-loops/SKILL.md",
+      "triggers": [
+        "connect gmail",
+        "connect google",
+        "connect calendar",
+        "connect contacts",
+        "who is waiting on me",
+        "what do I owe people",
+        "open loops",
+        "unanswered email",
+        "set up email ingestion",
+        "gbrain waiting"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "idea-ingest",
+      "path": "upstream/skills/idea-ingest/SKILL.md",
+      "triggers": [
+        "shares a link or URL",
+        "read this",
+        "save this",
+        "think about this",
+        "put this in brain"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "idea-lineage",
+      "path": "upstream/skills/idea-lineage/SKILL.md",
+      "triggers": [
+        "idea lineage",
+        "trace the lineage of this idea",
+        "how my thinking about",
+        "how has my thinking about",
+        "current version of this idea",
+        "what is my current version of",
+        "show reversals in my thinking about",
+        "where did this idea come from"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "ingest",
+      "path": "upstream/skills/ingest/SKILL.md",
+      "triggers": [
+        "ingest this",
+        "save this to brain",
+        "process this meeting"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "maintain",
+      "path": "upstream/skills/maintain/SKILL.md",
+      "triggers": [
+        "brain health",
+        "check backlinks",
+        "maintenance",
+        "orphan pages",
+        "stale pages",
+        "extract links",
+        "build link graph",
+        "populate timeline",
+        "populate links",
+        "backfill graph",
+        "extract timeline entries",
+        "retriage the backlog",
+        "re-score the triage",
+        "run dream",
+        "process today's session",
+        "process yesterday's transcripts",
+        "synthesize my conversations",
+        "what patterns did you see",
+        "did the dream cycle run",
+        "consolidate yesterday's conversations"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "measure-before-you-fix",
+      "path": "upstream/skills/measure-before-you-fix/SKILL.md",
+      "triggers": [
+        "keeps timing out",
+        "ETIMEDOUT",
+        "why is this data stale",
+        "freshness alert",
+        "wedged",
+        "job is slow",
+        "sync is stuck",
+        "raise the timeout"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "media-ingest",
+      "path": "upstream/skills/media-ingest/SKILL.md",
+      "triggers": [
+        "watch this video",
+        "process this YouTube link",
+        "ingest this PDF",
+        "save this podcast",
+        "process this book",
+        "PDF book",
+        "summarize this book",
+        "ingest it into my brain",
+        "what's in this screenshot",
+        "check out this repo"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "meeting-ingestion",
+      "path": "upstream/skills/meeting-ingestion/SKILL.md",
+      "triggers": [
+        "meeting transcript",
+        "process this meeting",
+        "meeting notes",
+        "meeting recorder",
+        "ingest this recording",
+        "capture meetings",
+        "audit this meeting",
+        "check the sequence",
+        "did I get the order right",
+        "meeting transcript received"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "migrate",
+      "path": "upstream/skills/migrate/SKILL.md",
+      "triggers": [
+        "migrate from",
+        "import from obsidian",
+        "import from notion"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "minion-orchestrator",
+      "path": "upstream/skills/minion-orchestrator/SKILL.md",
+      "triggers": [
+        "gbrain jobs submit",
+        "submit a gbrain job",
+        "submit a shell job",
+        "shell job",
+        "run shell command in background",
+        "deterministic background task",
+        "spawn agent",
+        "background task",
+        "run in background",
+        "check on agent",
+        "agent progress",
+        "what's running",
+        "steer agent",
+        "change direction",
+        "tell the agent",
+        "pause agent",
+        "stop agent",
+        "resume agent",
+        "parallel tasks",
+        "fan out",
+        "do these in parallel",
+        "long operation",
+        "durable execution",
+        "arm a deadman",
+        "the job went silent",
+        "operation died in the background",
+        "make this pipeline resumable"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "perplexity-research",
+      "path": "upstream/skills/perplexity-research/SKILL.md",
+      "triggers": [
+        "perplexity research",
+        "perplexity-research",
+        "what's new about",
+        "current state of",
+        "web research",
+        "what changed about",
+        "surface new developments"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "postgres-adopt",
+      "path": "upstream/skills/postgres-adopt/SKILL.md",
+      "triggers": [
+        "which gbrain engine",
+        "pglite or postgres",
+        "gbrain engine status",
+        "upgrade to postgres",
+        "switch gbrain to postgres",
+        "install postgres for gbrain",
+        "move my brain to supabase",
+        "set up postgres for the brain"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "publish",
+      "path": "upstream/skills/publish/SKILL.md",
+      "triggers": [
+        "share this page",
+        "publish page",
+        "create shareable link"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "query",
+      "path": "upstream/skills/query/SKILL.md",
+      "triggers": [
+        "what do we know about",
+        "tell me about",
+        "who is",
+        "what happened",
+        "search for",
+        "look up",
+        "background on",
+        "notes on",
+        "who knows who",
+        "relationship between",
+        "connections",
+        "graph query"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "repo-architecture",
+      "path": "upstream/skills/repo-architecture/SKILL.md",
+      "triggers": [
+        "where does this go",
+        "filing rules",
+        "create new page",
+        "which directory"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "reports",
+      "path": "upstream/skills/reports/SKILL.md",
+      "triggers": [
+        "save report",
+        "load latest report",
+        "what's the latest briefing",
+        "show me the pulse",
+        "report quality",
+        "link quality check",
+        "validate report links"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "research-compendium",
+      "path": "upstream/skills/research-compendium/SKILL.md",
+      "triggers": [
+        "compendium",
+        "research everything about",
+        "read them all and summarize",
+        "definitive guide",
+        "comprehensive guide to",
+        "deep research and write up",
+        "archive the sources then summarize",
+        "deepen the compendium"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "resolve-before-asking",
+      "path": "upstream/skills/resolve-before-asking/SKILL.md",
+      "triggers": [
+        "resolve before asking",
+        "before asking the user",
+        "unidentified contact",
+        "unknown relationship",
+        "should I ask who",
+        "don't know who this is",
+        "to be filled by content analysis",
+        "placeholder on this page"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "schema-author",
+      "path": "upstream/skills/schema-author/SKILL.md",
+      "triggers": [
+        "add a page type",
+        "add a type to my schema",
+        "my brain has untyped pages",
+        "schema isn't matching my notes",
+        "propose new types from my corpus",
+        "backfill page types",
+        "evolve my schema",
+        "extend the schema pack",
+        "create a custom type for",
+        "researcher type",
+        "make X an expert type",
+        "schema pack add",
+        "schema mutate",
+        "schema sync",
+        "schema author"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "schema-unify",
+      "path": "upstream/skills/schema-unify/SKILL.md",
+      "triggers": [
+        "unify my types",
+        "migrate to gbrain-base-v2",
+        "94 types to 14",
+        "apply canonical taxonomy",
+        "clean up my page types",
+        "pack upgrade",
+        "shrink type proliferation",
+        "what does the canonical taxonomy look like",
+        "consolidate page types",
+        "retype pages to canonical"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "setup",
+      "path": "upstream/skills/setup/SKILL.md",
+      "triggers": [
+        "set up gbrain",
+        "initialize brain",
+        "gbrain setup"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "signal-detector",
+      "path": "upstream/skills/signal-detector/SKILL.md",
+      "triggers": [
+        "every inbound message (always-on)"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "skill-autobench",
+      "path": "upstream/skills/skill-autobench/SKILL.md",
+      "triggers": [
+        "skill autobench",
+        "autobench",
+        "write the eval from usage history",
+        "synthesize an eval for this skill",
+        "mine how this skill is actually used",
+        "build a benchmark from my corrections",
+        "verify the eval panel",
+        "did all providers return"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "skill-creator",
+      "path": "upstream/skills/skill-creator/SKILL.md",
+      "triggers": [
+        "create a skill",
+        "new skill",
+        "improve this skill"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "skill-optimizer",
+      "path": "upstream/skills/skill-optimizer/SKILL.md",
+      "triggers": [
+        "optimize this skill",
+        "tune the skill against the benchmark",
+        "make the skill better",
+        "run skillopt",
+        "skillopt for"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "skillify",
+      "path": "upstream/skills/skillify/SKILL.md",
+      "triggers": [
+        "skillify this",
+        "skillify",
+        "is this a skill?",
+        "make this proper",
+        "add tests and evals for this",
+        "check skill completeness",
+        "run skillify on a skill",
+        "did this skill regress"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "skillpack-check",
+      "path": "upstream/skills/skillpack-check/SKILL.md",
+      "triggers": [
+        "skillpack check",
+        "is gbrain healthy",
+        "gbrain health",
+        "check the brain",
+        "is the brain working"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "skillpack-harvest",
+      "path": "upstream/skills/skillpack-harvest/SKILL.md",
+      "triggers": [
+        "harvest this skill",
+        "harvest my skill",
+        "publish this skill to gbrain",
+        "lift this skill",
+        "share this skill",
+        "promote this skill",
+        "promote my skill",
+        "skill upstream",
+        "into the gbrain core",
+        "gbrain bundle"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "smoke-test",
+      "path": "upstream/skills/smoke-test/SKILL.md",
+      "triggers": [
+        "smoke test",
+        "run smoke tests",
+        "container restart check",
+        "health check",
+        "did the restart break anything",
+        "did the container restart break anything"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "soul-audit",
+      "path": "upstream/skills/soul-audit/SKILL.md",
+      "triggers": [
+        "soul audit",
+        "customize agent",
+        "who am I",
+        "set up identity",
+        "change my agent's personality"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "strategic-reading",
+      "path": "upstream/skills/strategic-reading/SKILL.md",
+      "triggers": [
+        "strategic reading",
+        "read this through the lens of",
+        "apply this to my problem",
+        "what can I learn from this about",
+        "extract a playbook from"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "testing",
+      "path": "upstream/skills/testing/SKILL.md",
+      "triggers": [
+        "validate skills",
+        "test skills",
+        "skill health check",
+        "run conformance tests",
+        "run the tests",
+        "how are the tests",
+        "what's broken",
+        "daily test run"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "two-tier-extraction",
+      "path": "upstream/skills/two-tier-extraction/SKILL.md",
+      "triggers": [
+        "two-tier extraction",
+        "triage then deep read",
+        "smart model routing",
+        "cheap triage expensive analysis",
+        "model escalation pattern",
+        "route models by content value",
+        "which model tier for bulk extraction"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "voice-note-ingest",
+      "path": "upstream/skills/voice-note-ingest/SKILL.md",
+      "triggers": [
+        "voice note",
+        "ingest this voice memo",
+        "transcribe and file",
+        "voice note ingest",
+        "save this audio note",
+        "audio message"
+      ]
+    },
+    {
+      "execution": "reference_only",
+      "name": "webhook-transforms",
+      "path": "upstream/skills/webhook-transforms/SKILL.md",
+      "triggers": [
+        "set up webhook",
+        "process webhook event",
+        "transform this event"
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "upstream_resolver": "upstream/skills/RESOLVER.md"
+}

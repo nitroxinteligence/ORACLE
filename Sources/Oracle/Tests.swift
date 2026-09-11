@@ -1,6 +1,6 @@
 import Foundation
 func runTests() throws {
-    let base = fm.temporaryDirectory.appendingPathComponent("oracle-test-\(UUID().uuidString)")
+    let base = try oracleTestDirectory("oracle-test")
     defer { try? fm.removeItem(at:base) }
     let c = try Core(home:base.appendingPathComponent("state")); let root = base.appendingPathComponent("vault")
     try fm.createDirectory(at:root,withIntermediateDirectories:true)
@@ -27,7 +27,8 @@ func runTests() throws {
     try rejects("concurrent installation excluded") { _ = try sibling.applyPlan() }
     c.releaseOperationLock(held)
     try expect(!c.operationIsRunning("setup"),"stopped operation never remains live")
-    try expect((first["verified"] as! [String]).count == templateFolders.count,"all planned folders verified")
+    try expect(Set(first["verified"] as! [String]) == Set(plan["folders"] as! [String]),"every reviewed minimal folder is verified")
+    try expect(!(plan["folders"] as! [String]).contains{$0.hasPrefix("SISTEMA/skills/")},"first installation does not create an optional specialist catalog")
     try expect((second["created"] as! [String]).count == (first["created"] as! [String]).count,"idempotent setup")
     let original = "---\nname: fixture\ndescription: Fixture skill\n---\n# Original\n"
     let skill = "SISTEMA/skills/code/fixture/SKILL.md"

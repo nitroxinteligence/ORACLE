@@ -100,19 +100,21 @@ $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal()});
 $('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));modalRevision=++modalSequence;modalDirty=false;settingsTrail=false;modalHistory=[];modalPage=null;hideTooltip();const origin=modalOrigin;modalOrigin=null;if(origin?.isConnected&&!$('#app').inert)origin.focus({preventScroll:true});atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused)});
 $('#modal').addEventListener('close',()=>{$('#prompts')?.setAttribute('aria-expanded','false');$('#tutorials')?.setAttribute('aria-expanded','false')});
 function skills(id){return visibleEntries().filter(e=>!e.directory&&e.path.startsWith(`SISTEMA/skills/${id}/`)&&e.name==='SKILL.md')}
+function departmentCatalog(){return OracleDepartments.createCatalog(state.collections,visibleEntries(),state.departmentManifest||window.OracleDepartmentManifest)}
 function title(e){return e.name==='SKILL.md'?e.path.split('/').slice(-2,-1)[0]:e.name.replace(/\.md$/,'')}
 function entryLocation(e){const collection=state.collections.find(c=>e.path.startsWith(`SISTEMA/skills/${c.id}/`));return collection?`${collection.name} · ${e.name==='SKILL.md'?'Skill':'Documento'}`:e.path.split('/').slice(0,-1).slice(-2).join(' / ')||'Pasta principal'}
-async function refresh(){state=await call('snapshot');render();if(!updateBusy)call('updateStatus').then(reflectUpdateStatus).catch(()=>{});if(state.scanError)toast(state.scanError)}
+async function refresh(){state=await call('snapshot');render();call('updateStatus').then(status=>{reflectUpdateStatus(status);maybeAutomaticUpdateCheck(status)}).catch(()=>{});if(state.scanError)toast(state.scanError)}
 function mountOnboarding(){return window.ORACLE_PREVIEW?Promise.resolve():window.OracleOnboarding?.mount({call,refresh,getState:()=>state,toast,openSettings:settings})}
 function render(){
  renderTree();renderAtlas();renderResults();renderProgress();renderInspector();renderPlugins();
  $('#footer-status').textContent=state.scanError?'Fonte indisponível · consulte os ajustes':'';
  OracleStatusBadge.apply($('#codex-status'),state.codexPlugins?.status==='available'?'connected':state.events.some(e=>e.source==='codex-hook')?'recent_activity':'unverified',state.codexPlugins?.status==='available'?'Conectado':state.events.some(e=>e.source==='codex-hook')?'Atividade recente':'Conexão não verificada');
- OracleStatusBadge.apply($('#gbrain-status'),state.config.gbrainWorkspace?'selected':'pending',state.config.gbrainWorkspace?'Fonte selecionada':'Conectar nos ajustes');
+ const synced=state.gbrainSync?.status==='verified';OracleStatusBadge.apply($('#gbrain-status'),synced?'connected':state.config.gbrainWorkspace?'selected':'pending',synced?'Índice local verificado':state.config.gbrainWorkspace?'Fonte externa preservada':state.gbrainSync?.status==='needs_attention'?'Índice requer atenção':'Configurar memória');
  renderPlayback();
 }
 function renderTree(){
- const opened=new Set($$('#tree details[open]>summary').map(e=>e.dataset.folder||e.dataset.collection));
+ const opened=new Set($$('#tree details[open]>summary').map(e=>e.dataset.folder||e.dataset.collection||e.dataset.department));
+ const catalog=departmentCatalog();
  const areas=OracleKnowledge.areas(visibleEntries());
  const childrenByParent=new Map();for(const e of visibleEntries()){const parent=e.path.split('/').slice(0,-1).join('/');if(!childrenByParent.has(parent))childrenByParent.set(parent,[]);childrenByParent.get(parent).push(e)};const folder=(path,label,open=false)=>{const children=(childrenByParent.get(path)||[]).filter(e=>(path!=='SISTEMA'||e.name!=='skills')&&(path!=='AREAS'||!areas.some(a=>a.path===e.path)));return `<details ${open||opened.has(path)?'open':''}><summary data-folder="${esc(path)}">${icon('folder')}${esc(label||path.split('/').at(-1))}</summary><div>${children.slice(0,30).map(e=>e.directory?folder(e.path,e.name):`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}<span>${esc(e.name.replace('.md',''))}</span></button>`).join('')}${children.length>30?`<button data-prefix="${esc(path)}">Ver todos →</button>`:''}</div></details>`};
  const roots=new Set(visibleEntries().filter(e=>e.directory&&!e.path.includes('/')).map(e=>e.path));
@@ -120,25 +122,27 @@ function renderTree(){
  if(roots.has('INBOX'))html+=folder('INBOX','Inbox',false);
  if(roots.has('PROJETOS'))html+=folder('PROJETOS','Projetos');
  const knowledge=['AREAS','WIKI','FONTES'].filter(x=>roots.has(x)&&(x!=='AREAS'||(childrenByParent.get('AREAS')||[]).some(e=>!areas.some(a=>a.path===e.path))));if(knowledge.length)html+=`<details><summary>${icon('folder')}Conhecimento</summary><div>${knowledge.map(p=>folder(p,p==='AREAS'?'Áreas':p==='WIKI'?'Wiki':'Fontes')).join('')}</div></details>`;
- html+=`<div class="tree-section-label">Especialistas</div>`+state.collections.map((c,i)=>`<details ${selected===c.id||opened.has(c.id)?'open':''}><summary data-collection="${c.id}">${icon('folder')}<i class="collection-dot" style="background:${colors[i]}"></i>${esc(c.name)}<span class="count">${skills(c.id).length}</span></summary><div>${skills(c.id).filter(e=>!query||title(e).toLowerCase().includes(query)).slice(0,9).map(e=>`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}${esc(title(e).replace(/-/g,' '))}</button>`).join('')}${skills(c.id).length>9?`<button data-prefix="SISTEMA/skills/${c.id}">Ver todas →</button>`:''}${!skills(c.id).length?'<small class="empty-collection">Nenhuma skill nesta fonte</small>':''}</div></details>`).join('');
+ html+=`<div class="tree-section-label">Departamentos</div>`+catalog.departments.map(d=>`<details ${selectedDepartment===d.id||opened.has(d.id)?'open':''}><summary data-department="${esc(d.id)}">${icon(d.icon)}<i class="collection-dot" style="background:${d.color}"></i>${esc(d.name)}<span class="count">${d.specialistCount}</span></summary><div>${d.specialists.map(c=>`<details ${selected===c.id||opened.has(c.id)?'open':''}><summary data-collection="${esc(c.id)}">${icon('folder')}${esc(c.name)}<span class="count">${c.skillCount}</span></summary><div>${c.skills.slice(0,9).map(e=>`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}${esc(title(e).replace(/-/g,' '))}</button>`).join('')}${c.skillCount>9?`<button data-prefix="${esc(c.originPath)}">Ver todas →</button>`:''}${!c.skillCount?'<small class="empty-collection">Nenhuma skill nesta fonte</small>':''}</div></details>`).join('')}${d.empty?'<small class="empty-collection">Nenhum especialista instalado</small>':''}</div></details>`).join('');
  const extraRoots=[...roots].filter(p=>!areas.some(a=>a.path===p)&&!['INBOX','PROJETOS','AREAS','WIKI','FONTES'].includes(p)&&!(p==='SISTEMA'&&!(childrenByParent.get(p)||[]).some(e=>e.name!=='skills')));if(extraRoots.length)html+='<div class="tree-section-label">Pastas</div>'+extraRoots.map(p=>folder(p)).join('');
  html+=(childrenByParent.get('')||[]).filter(e=>!e.directory).map(e=>`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}${esc(title(e))}</button>`).join('');
  if(!state.config.vault)html='<p class="empty">Seu conhecimento, no seu espaço.<button class="primary" data-connect>Conectar vault</button></p>'+html;
- if($('#tree').oracleHTML===html)return;$('#tree').oracleHTML=html;$('#tree').innerHTML=html;$('#tree').querySelectorAll('[data-collection]').forEach(e=>e.onclick=()=>{selected=e.dataset.collection;selectedSkill=null;renderAtlas();renderInspector()});bindPaths($('#tree'));$('#tree').querySelectorAll('[data-folder],[data-knowledge-path]').forEach(el=>{const path=el.dataset.folder||el.dataset.knowledgePath,area=areas.find(a=>path===a.path||path.startsWith(a.path+'/'));if(area)el.addEventListener('click',()=>atlasController?.navigateKnowledge(area.id,path))});$('#tree').querySelector('[data-connect]')?.addEventListener('click',()=>showSetup(0));$('#tree').querySelectorAll('[data-prefix]').forEach(e=>e.onclick=()=>{openSearch(e.dataset.prefix)});
+ if($('#tree').oracleHTML===html)return;$('#tree').oracleHTML=html;$('#tree').innerHTML=html;$('#tree').querySelectorAll('[data-collection]').forEach(e=>e.onclick=()=>{selected=e.dataset.collection;selectedDepartment=catalog.specialistByID.get(selected)?.department||null;selectedSkill=null;renderAtlas();renderInspector()});$('#tree').querySelectorAll('[data-department]').forEach(e=>e.onclick=()=>atlasController?.setDepartment(e.dataset.department));bindPaths($('#tree'));$('#tree').querySelectorAll('[data-folder],[data-knowledge-path]').forEach(el=>{const path=el.dataset.folder||el.dataset.knowledgePath,area=areas.find(a=>path===a.path||path.startsWith(a.path+'/'));if(area)el.addEventListener('click',()=>atlasController?.navigateKnowledge(area.id,path))});$('#tree').querySelector('[data-connect]')?.addEventListener('click',()=>showSetup(0));$('#tree').querySelectorAll('[data-prefix]').forEach(e=>e.onclick=()=>{openSearch(e.dataset.prefix)});
 }
 function bindPaths(container){container.querySelectorAll('[data-path]').forEach(e=>e.onclick=safe(()=>{const entry=visibleEntries().find(n=>n.path===e.dataset.path);if(entry?.directory){openSearch(entry.path)}else return openNote(e.dataset.path)}))}
 let inspectorOpenedByMap=false;
-let atlasController=null, selectedSkill=null, visualPaused=false,replaySession=null,replayProjection=null;
+let atlasController=null, selectedSkill=null, selectedDepartment=null, visualPaused=false,replaySession=null,replayProjection=null;
 function renderAtlas(){
  const installation=OracleInstallationVisual.projection(state);document.body.classList.toggle('setup-pending',installation.coreReady===false);
- if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf)=>{selected=id;selectedSkill=leaf;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onPlugin:id=>plugin(id),onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
- atlasController.update({collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:state.codexPlugins?.plugins||[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||$('#modal').open});
+ if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf,keyboard,selection)=>{selected=id;selectedSkill=leaf;selectedDepartment=selection?.department||null;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onPlugin:id=>plugin(id),onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
+ atlasController.update({departmentManifest:state.departmentManifest||window.OracleDepartmentManifest,selectedDepartment,collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:state.codexPlugins?.plugins||[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||$('#modal').open});
 }
 function setView(next){view=next;$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#atlas').hidden=view!=='map';$('#results').hidden=view==='map';$('.map-tools').hidden=view!=='map';renderResults();atlasController?.setPaused(view!=='map'||document.hidden)}
 function renderResults(){if(view==='map')return;let entries=visibleEntries().filter(e=>(view==='folders'||!e.directory)&&(!query||(e.path+' '+title(e)).toLowerCase().includes(query)));$('#results').innerHTML=`<h2>${view==='list'?'Documentos':'Pastas e documentos'} <small>${entries.length} resultados · fonte local</small></h2>`+(entries.length?entries.slice(0,300).map(e=>`<button class="result" data-path="${esc(e.path)}">${icon(e.directory?'folder':'note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div></button>`).join('')+(entries.length>300?'<p class="empty">Mostrando 300 resultados. Refine a busca.</p>':''):'<p class="empty">Nenhum resultado nesta pasta e filtro.</p>');bindPaths($('#results'))}
 const collectionDescriptions={ads:'Estratégia, criação e análise de campanhas.',code:'Procedimentos para projetar, construir e revisar software.',contents:'Seu espaço para procedimentos de conteúdo.','customer-finder':'Pesquisa e descoberta de potenciais clientes.','cyber-security':'Conhecimento e procedimentos de segurança.',marketing:'Pesquisa, posicionamento e crescimento.','personal-branding':'Seu espaço para identidade e marca pessoal.'};
 function renderInspector(){
  if(selectedSkill){renderSkillInspector();return}
+ const department=atlasController?.catalog?.departmentByID.get(selectedDepartment);
+ if(department&&!selected){$('#inspector-title').textContent=department.name;$('#inspector').innerHTML=`<span class="pill">Departamento</span><div class="big-count">${department.specialistCount}</div><small>${department.specialistCount===1?'especialista instalado':'especialistas instalados'} · ${department.skillCount} skills</small><p class="muted">A organização é visual. Seus arquivos continuam nas pastas originais.</p>${department.specialists.map(s=>`<button class="secondary" data-inspect-specialist="${esc(s.id)}">${esc(s.name)} · ${s.skillCount}</button>`).join('')}${department.empty?'<p>Nenhum especialista instalado neste departamento.</p>':''}${department.skillCount?'<button class="secondary" id="department-search">Buscar neste departamento</button>':''}`;$$('[data-inspect-specialist]').forEach(b=>b.onclick=()=>atlasController.focus(b.dataset.inspectSpecialist));$('#department-search')?.addEventListener('click',()=>openSearch('',{department:department.id}));return}
  const c=state.collections.find(c=>c.id===selected),group=atlasController?.groups.get(atlasController?.context.group);
  if(group){$('#inspector-title').textContent=group.name;$('#inspector').innerHTML=`<span class="pill">${group.kind==='folder'?'Pasta':'Por nome'} · ${esc(c?.name||'')}</span><div class="big-count">${group.skills.length}</div><small>${group.skills.length===1?'skill neste grupo':'skills neste grupo'}</small><p class="muted">${group.kind==='folder'?'Arquivos reunidos na mesma pasta.':'Uma faixa alfabética para explorar sua coleção.'}</p><button id="group-parent" class="secondary">Voltar ao especialista</button>`;$('#group-parent').onclick=()=>atlasController.focus(selected);return}
  $('#inspector-title').textContent=c?c.name:'Observatório';
@@ -437,6 +441,8 @@ function settings(){
  ${row('gbrain-memory','Consultar memória','Encontrar notas e suas conexões')}
  ${row('gbrain-connect','Conectar Second Brain','Usar uma instalação que você já possui')}
  ${row('gbrain-review','Revisar contexto','Conferir as informações sobre você')}
+ ${row('maintenance-settings','Sincronização e manutenção','Índice local, consentimento e último resultado')}
+ ${row('backup-settings','Backup privado do banco','Consentimento, integridade e restauração de teste')}
  </div></section>
  <section class="settings-section"><h2>Conexões e privacidade</h2><div class="setting-group">
  ${row('bridge-review','Codex e plugins','Ver e gerenciar suas conexões')}
@@ -453,11 +459,35 @@ function settings(){
  </div><div class="source">${window.ORACLE_PREVIEW||state.config.fixture?'Ambiente de validação · dados sintéticos':'Instalação local'}<br>Pasta: ${esc(state.config.vault||'Não selecionada')}<br>Oracle 0.3.0 · distribuição de desenvolvimento</div></details>${actions()}`,{family:'settings'});
  $('#restart-setup').onclick=()=>{if(window.OracleOnboarding){closeModal();OracleOnboarding.open({fromSettings:true})}else showSetup(0)};
  $('#gbrain-memory').onclick=safe(memory);$('#gbrain-review').onclick=safe(reviewGBrain);$('#bridge-review').onclick=safe(reviewBridge);
+ $('#maintenance-settings').onclick=safe(maintenanceSettings);$('#backup-settings').onclick=safe(backupSettings);
  $('#graphics-diagnostics').onclick=graphicsDiagnostics;$('#activity-settings').onclick=activity;$('#updates-settings').onclick=safe(()=>showUpdates(false));
  $('#export-view').onclick=safe(async()=>{closeModal();const path=await call('exportSnapshot');if(path)toast('Imagem salva.')});
  $('#gbrain-connect').onclick=safe(async()=>{await call('chooseGBrain');await refresh();settings()});
  $('#protect-settings').onclick=safe(async()=>{await call('protect');await refresh();settings();toast('Bloqueio ativado')});
  $('#revoke').onclick=()=>{modal(`<h1>Desconectar pastas?</h1><p>O Oracle deixará de acessar seus documentos. Os arquivos continuam no Obsidian e você pode conectar a pasta novamente.</p>${actions('<button class="secondary" id="revoke-cancel">Voltar</button><button class="primary" id="confirm-revoke">Desconectar</button>')}`);$('#revoke-cancel').onclick=settings;$('#confirm-revoke').onclick=safe(async()=>{await call('revoke');live();selected=null;selectedSkill=null;query='';await refresh();settings()})};
+}
+async function maintenanceSettings(){
+ const value=await call('maintenanceStatus'),sync=state.gbrainSync||{},last=value.lastRun?.lastSuccess;
+ const capture=value.autoCapture===true&&value.captureSource==='codex_workspace_hooks_v1';
+ const remote=value.remoteProcessing===true&&value.synthesisScope==='captured_messages_codex_v1';
+ modal(`<h1>Sincronização e manutenção</h1>
+ <p>O índice acompanha o vault enquanto o Oracle estiver aberto e desbloqueado. A indexação básica é local e preserva instalações externas.</p>
+ <dl class="ob-review"><dt>Índice</dt><dd>${esc(sync.status==='verified'?'Verificado':sync.status==='external_preserved'?'Instalação externa preservada':sync.status==='needs_attention'?'Precisa de atenção':'Aguardando configuração')}</dd><dt>Última rotina completa</dt><dd>${last?esc(new Date(last).toLocaleString('pt-BR')):'Nenhuma execução confirmada'}</dd><dt>Agendamento externo</dt><dd>${value.scheduleState==='disabled'?'Não solicitado':'Pendente de confirmação no aplicativo oficial'}</dd></dl>
+ <label class="ob-check"><input type="checkbox" id="maintenance-enabled" ${value.enabled?'checked':''} ${value.external?'disabled':''}>Manutenção local diária</label>
+ <div class="ob-fields"><label for="maintenance-hour">Horário preferencial</label><select id="maintenance-hour">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===value.hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select><label for="maintenance-zone">Fuso horário</label><input id="maintenance-zone" value="${esc(value.timezone)}" maxlength="80"></div>
+ <label class="ob-check"><input type="checkbox" id="maintenance-capture" ${capture?'checked':''}>Capturar prompts e últimas respostas do workspace Oracle</label>
+ <p class="muted">Somente mensagens novas recebidas por hooks que você confiou no Codex, inclusive quando o Oracle estiver fechado. Não lê histórico privado, transcrições, raciocínio ou resultados de ferramentas. As mensagens serão guardadas localmente e projetadas em INBOX/oracle-history/conversations. Reativar não recupera mensagens de uma autorização revogada.</p>
+ <label class="ob-check"><input type="checkbox" id="maintenance-remote" ${remote?'checked':''}>Enviar essas capturas ao Codex para gerar sínteses</label>
+ <p class="muted">Consentimento separado para processamento remoto. Usa a conexão e um modelo disponível no Codex; sem conexão, a fase falha e pode ser retomada. As sínteses são notas separadas, com fontes e revisão humana recomendada; não alteram sua identidade automaticamente.</p>
+ <p class="muted">Pausar interrompe novas capturas e a rotina diária; a indexação básica continua. Uma síntese em andamento recebe cancelamento. Conteúdo já enviado não pode ser recolhido. Mensagens já salvas não são apagadas.</p>
+ <details><summary>Backup e agendamento</summary><p>Backup do banco exige o consentimento separado nos Ajustes de backup. Preparar um pedido não registra uma tarefa no host. O comando confere novamente consentimento e vault antes de executar; nenhum ID de tarefa é inventado.</p></details>
+ <p role="status">${esc(value.message)}</p><p>Última tentativa: ${esc(value.lastRun?.status||'Nenhuma')}${value.lastRun?.message?' · '+esc(value.lastRun.message):''}. ${value.lastRun?.complete===false?'Há fases pendentes; a rotina completa não foi confirmada.':''}</p>
+ ${actions('<button class="secondary" id="maintenance-run" '+(!value.enabled||value.external?'disabled':'')+'>Executar agora</button><button class="secondary" id="maintenance-request" '+(!value.enabled||value.external?'disabled':'')+'>Preparar pedido para o Codex</button><button class="primary" id="maintenance-save">Salvar preferências</button>')}`,{key:'maintenance-settings'});
+ const updateConsentControls=()=>{const enabled=$('#maintenance-enabled').checked&&!value.external;$('#maintenance-capture').disabled=!enabled;$('#maintenance-remote').disabled=!enabled||!$('#maintenance-capture').checked;if($('#maintenance-remote').disabled)$('#maintenance-remote').checked=false};
+ $('#maintenance-enabled').onchange=updateConsentControls;$('#maintenance-capture').onchange=updateConsentControls;updateConsentControls();
+ $('#maintenance-save').onclick=safe(async()=>{const enabled=$('#maintenance-enabled').checked,capture=enabled&&$('#maintenance-capture').checked,remote=capture&&$('#maintenance-remote').checked;await call('configureMaintenance',{enabled,timezone:$('#maintenance-zone').value,hour:Number($('#maintenance-hour').value),autoCapture:capture,remoteProcessing:remote,captureSource:capture?'codex_workspace_hooks_v1':null,synthesisScope:remote?'captured_messages_codex_v1':null});await refresh();await maintenanceSettings()});
+ $('#maintenance-run').onclick=safe(async()=>{const result=await call('maintenanceRun');await maintenanceSettings();toast(result.status==='local_complete'?(result.complete?'Rotina local verificada.':'Parte local verificada; as demais fases continuam pendentes.'):'Manutenção não concluída: '+result.status)});
+ $('#maintenance-request').onclick=safe(async()=>{const result=await call('maintenanceScheduleRequest');modal(`<h1>Pedido de agendamento</h1><p>Pedido preparado, ainda não registrado. O aplicativo oficial deverá localizar ou criar a tarefa e confirmar sua existência.</p><pre class="ob-readback">${esc(result.request)}</pre>${actions('<button class="primary" id="copy-maintenance-request">Copiar pedido</button>')}`);$('#copy-maintenance-request').onclick=safe(async()=>{await call('copy',{text:result.request});toast('Pedido copiado. O registro continua pendente de confirmação no host.')})});
 }
 function renderPlayback(){
  const journal=replaySession?.kind==='journal',formation=atlasController?.getFormation(),playing=journal?!!timer:!!formation?.playing;
@@ -586,28 +616,32 @@ async function reviewBridge(){
 }
 
 // One search surface serves the launcher, collection navigation and wiki links.
-function openSearch(initial=''){
+function openSearch(initial='',scope={}){
  const prefix=/^(SISTEMA|INBOX|PROJETOS|AREAS|WIKI|FONTES)\//i.test(initial)?initial:'';
- let selectedIndex=0,hits=[];
+ const catalog=departmentCatalog(),department=catalog.departmentByID.get(scope.department);
+ let selectedIndex=0,hits=[],page=0;
  modal(`<span class="step-label">MEU UNIVERSO</span><h1>Encontre uma skill</h1>
  <label class="search search-field">${icon('search')}<input id="universe-query" type="search" autocomplete="off" spellcheck="false" aria-label="Buscar notas e skills" placeholder="Nome, assunto ou caminho…" value="${esc(prefix?'':initial)}" aria-controls="search-results"></label>
- ${prefix?`<button class="search-scope" id="clear-search-scope">${icon('folder')}${esc(prefix)} ${icon('close')}</button>`:''}
+ ${prefix||department?`<button class="search-scope" id="clear-search-scope">${icon('folder')}${esc(department?.name||prefix)} ${icon('close')}</button>`:''}
  <div class="search-meta" id="search-count" role="status" aria-live="polite"></div>
  <div id="search-results" class="search-results" role="listbox" aria-label="Resultados da busca"></div>
+ <nav id="search-pages" aria-label="Páginas de resultados"></nav>
  <div class="actions"><span class="keyboard-guide"><kbd>↑</kbd><kbd>↓</kbd> navegar <kbd>↵</kbd> abrir <kbd>esc</kbd> fechar</span></div>`,{family:'search',focus:'#universe-query'});
  const input=$('#universe-query');input.setAttribute('role','combobox');input.setAttribute('aria-expanded','true');input.setAttribute('aria-autocomplete','list');
  const select=()=>{const buttons=$$('#search-results [role=option]');buttons.forEach((b,i)=>{b.setAttribute('aria-selected',String(i===selectedIndex));b.classList.toggle('active',i===selectedIndex)});if(buttons[selectedIndex]){input.setAttribute('aria-activedescendant',buttons[selectedIndex].id);buttons[selectedIndex].scrollIntoView({block:'nearest'})}else input.removeAttribute('aria-activedescendant')};
- const open=safe(async index=>{const entry=hits[index];if(!entry)return;const collection=state.collections.find(c=>entry.path.startsWith(`SISTEMA/skills/${c.id}/`));if(collection){selected=collection.id;selectedSkill=entry.path;renderAtlas();renderInspector()}await openNote(entry.path)});
+ const open=safe(async index=>{const entry=hits[index];if(!entry)return;if(catalog.skillByPath.has(entry.path)){atlasController?.revealSkill(entry.path);renderInspector()}await openNote(entry.path)});
  const search=()=>{
-  const terms=input.value.trim().toLocaleLowerCase('pt-BR').split(/\s+/).filter(Boolean);
-  const all=state.entries.filter(e=>!e.directory&&(!prefix||e.path.startsWith(prefix))&&terms.every(t=>(title(e)+' '+e.path).toLocaleLowerCase('pt-BR').includes(t)));
+  const terms=OracleDepartments.normalize(input.value).split(/\s+/).filter(Boolean);
+  const all=state.entries.filter(e=>!e.directory&&(!prefix||e.path===prefix||e.path.startsWith(prefix+'/'))&&(!department||catalog.skillByPath.get(e.path)?.department===department.id)&&terms.every(t=>OracleDepartments.normalize(title(e)+' '+e.path+' '+entryLocation(e)+' '+(catalog.departmentByID.get(catalog.skillByPath.get(e.path)?.department)?.name||'')).includes(t)));
   all.sort((a,b)=>{const q=input.value.trim().toLowerCase();return Number(title(b).toLowerCase()===q)-Number(title(a).toLowerCase()===q)||title(a).localeCompare(title(b))});
-  hits=all.slice(0,100);selectedIndex=0;
-  $('#search-count').textContent=all.length?`${all.length} ${all.length===1?'resultado':'resultados'}${all.length>100?' · refine para ver mais':''}`:'Nenhum resultado';
+  const pages=Math.max(1,Math.ceil(all.length/100));page=Math.min(page,pages-1);hits=all.slice(page*100,(page+1)*100);selectedIndex=0;
+  $('#search-count').textContent=all.length?`${all.length} ${all.length===1?'resultado':'resultados'} · página ${page+1} de ${pages}`:'Nenhum resultado';
+  $('#search-pages').innerHTML=pages>1?`<button class="secondary" id="search-previous" ${page===0?'disabled':''}>← Anterior</button><button class="secondary" id="search-next" ${page+1>=pages?'disabled':''}>Próxima →</button>`:'';
+  $('#search-previous')?.addEventListener('click',()=>{page--;search();input.focus()});$('#search-next')?.addEventListener('click',()=>{page++;search();input.focus()});
   $('#search-results').innerHTML=hits.length?hits.map((e,i)=>`<button role="option" aria-selected="${i===0}" tabindex="-1" class="result" id="search-option-${i}" data-hit="${i}">${icon('note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div><span class="result-enter" aria-hidden="true">↵</span></button>`).join(''):`<div class="search-empty">${icon('search')}<h2>${input.value?'Não encontramos resultados.':'Seu universo ainda está vazio.'}</h2><p>${input.value?'Experimente outro nome ou parte do caminho.':'Conecte uma pasta nos ajustes para explorar notas e skills.'}</p></div>`;
   $$('[data-hit]').forEach(b=>{b.onclick=()=>open(Number(b.dataset.hit));b.onpointermove=()=>{selectedIndex=Number(b.dataset.hit);select()}});select();
  };
- input.oninput=search;input.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();selectedIndex=Math.max(0,Math.min(hits.length-1,selectedIndex+(e.key==='ArrowDown'?1:-1)));select()}else if(e.key==='Enter'){e.preventDefault();open(selectedIndex)}};
+ input.oninput=()=>{page=0;search()};input.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();selectedIndex=Math.max(0,Math.min(hits.length-1,selectedIndex+(e.key==='ArrowDown'?1:-1)));select()}else if(e.key==='Enter'){e.preventDefault();open(selectedIndex)}};
  $('#clear-search-scope')?.addEventListener('click',()=>openSearch(input.value));search();
 }
 
@@ -631,31 +665,58 @@ document.addEventListener('keydown',e=>{if(!['Shift','Control','Alt','Meta'].inc
 // WebKit on macOS does not focus every clicked control by default. Keep the
 // native app's modal origin and keyboard controls consistent with the browser.
 document.addEventListener('click',e=>{const control=e.target.closest('button,input[type=range],summary');if(control&&!control.disabled)control.focus({preventScroll:true})},true);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideTooltip();if(!e.defaultPrevented&&!$('#modal').open&&view==='map'&&(atlasController?.selected||atlasController?.knowledge)){e.preventDefault();atlasController.back()}}if($('#app').inert)return;if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(!modalDirty)openSearch()}if(e.metaKey&&e.key===','){e.preventDefault();if(!modalDirty)settings()}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){hideTooltip();if(!e.defaultPrevented&&!$('#modal').open&&view==='map'&&(atlasController?.selected||atlasController?.department||atlasController?.knowledge)){e.preventDefault();atlasController.back()}}if($('#app').inert)return;if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();if(!modalDirty)openSearch()}if(e.metaKey&&e.key===','){e.preventDefault();if(!modalDirty)settings()}});
 
 let updatePolling=null,updateBusy=false;
 const updateNames={gbrain:'Second Brain',cognee:'Memory',skills:'Skills'};
 const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',external:'Instalação existente',compatibility_required:'Aguardando validação',not_adopted:'Ainda não conectado',not_configured:'Sem atualização disponível',error:'Tente novamente',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
 function reflectUpdateStatus(status){
  updateBusy=!!status.busy;$('#updates').classList.toggle('busy',updateBusy);
- const recent=status.at&&Date.now()-Date.parse(status.at)<86400000;
- $('#updates').classList.toggle('available',!!status.available&&!!recent&&!updateBusy);
- $('#updates').setAttribute('aria-label',status.available&&recent?'Atualizar — atualização disponível':'Atualizações');
+ const pending=!!status.knownUpdate||!!status.available;
+ const age=Date.now()-Date.parse(status.checkedAt||status.at||'');
+ const recent=Number.isFinite(age)&&age>=-300000&&age<86400000;
+ $('#updates').classList.toggle('available',pending);
+ $('#updates').classList.toggle('stale',pending&&!recent);
+ const label=updateBusy?(pending?'Atualizações — verificando; atualização conhecida':'Atualizações — verificando'):
+  pending?(recent?'Atualizações — atualização disponível':'Atualizações — atualização conhecida; verificar novamente'):'Atualizações';
+ $('#updates').setAttribute('aria-label',label);$('#updates').dataset.tooltip=label;
+}
+let automaticUpdateAttempt=0,automaticUpdateFailures=0;
+function maybeAutomaticUpdateCheck(status){
+ if(window.ORACLE_PREVIEW||state.config?.fixture||document.hidden||window.oracleWindowVisible===false||!$('#lock-screen').hidden||$('#modal').open||updateBusy||status.busy)return;
+ const onboarding=window.OracleOnboarding?.getState?.();
+ if(!onboarding||!onboarding.hasVault||(!onboarding.legacyAccess&&onboarding.status!=='completed')||(!onboarding.licensed&&!onboarding.legacyAccess)||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
+ const now=Date.now(),checked=Date.parse(status.checkedAt||(status.phase==='complete'?status.at:'')||'');
+ const hasError=status.phase==='failed'||status.results?.some(r=>r.status==='error');
+ if(!hasError&&Number.isFinite(checked)&&now-checked>=0&&now-checked<6*3600000)return;
+ const delay=Math.min(3600000,300000*2**Math.min(automaticUpdateFailures,4));
+ if(automaticUpdateAttempt&&now-automaticUpdateAttempt<delay)return;
+ automaticUpdateAttempt=now;updateBusy=true;
+ call('updateStart',{operation:'check-only'}).then(()=>pollAutomaticUpdateStatus(0)).catch(()=>{automaticUpdateFailures++;updateBusy=false});
+}
+async function pollAutomaticUpdateStatus(attempt){
+ try{
+  const status=await call('updateStatus');reflectUpdateStatus(status);
+  if(status.busy){if(attempt<600)setTimeout(()=>pollAutomaticUpdateStatus(attempt+1),1000);else{automaticUpdateFailures++;updateBusy=false}return}
+  automaticUpdateFailures=(status.phase==='failed'||status.results?.some(r=>r.status==='error'))?automaticUpdateFailures+1:0;
+ }catch(error){automaticUpdateFailures++;updateBusy=false;$('#updates').classList.remove('busy')}
 }
 async function showUpdates(operation=null){
  if(operation===true)operation='check-apply';if(operation===false)operation=null;
  if(operation){await call('updateStart',{operation});updateBusy=true}
- modal(`<h1>Atualizações</h1><div class="update-status" role="status" aria-live="polite"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso das atualizações"></progress></div><div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="secondary" id="check-updates">Verificar</button><button class="primary" id="apply-updates" hidden>Instalar atualização</button>')}`,{family:'updates'});
+ modal(`<h1>Atualizações</h1><p>Verifica as fontes e instala atualizações compatíveis, preservando suas personalizações.</p><div class="update-status" role="status" aria-live="polite"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso das atualizações"></progress></div><div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="primary" id="check-updates">Verificar</button><button class="secondary" id="apply-updates" hidden>Instalar atualização</button>')}`,{family:'updates'});
  const revision=modalRevision;
- $('#check-updates').onclick=safe(()=>showUpdates('check-only'));$('#apply-updates').onclick=safe(()=>showUpdates('check-apply'));
+ $('#check-updates').onclick=safe(()=>showUpdates('check-apply'));$('#apply-updates').onclick=safe(()=>showUpdates('check-apply'));
  const poll=async()=>{
   try{
    const status=await call('updateStatus');reflectUpdateStatus(status);
    if($('#modal').open&&modalRevision===revision){
-    $('#update-message').textContent=updateBusy?'Verificando e preparando…':status.phase==='interrupted'?'A atualização foi interrompida. Você pode tentar novamente.':status.available?'Há uma atualização pronta para instalar.':status.phase==='complete'?'Verificação concluída.':'Confira se há novidades para seu Oracle.';
+    $('#update-message').textContent=updateBusy?'Verificando e preparando…':status.phase==='interrupted'?'A atualização foi interrompida. Você pode tentar novamente.':status.available?'Há uma atualização pronta para instalar.':status.knownUpdate?'Há uma versão nova aguardando compatibilidade.':status.phase==='complete'?'Verificação concluída.':'Confira se há novidades para seu Oracle.';
     const progress=$('#update-progress');progress.hidden=!updateBusy;if(status.total>0){progress.max=status.total;progress.value=status.completed||0}else progress.removeAttribute('value');
     $('#check-updates').disabled=updateBusy;$('#apply-updates').hidden=!status.available;$('#apply-updates').disabled=updateBusy;
-    const results=status.results?.length?status.results:[{id:'gbrain',status:'not_checked',version:status.gbrain_version},{id:'cognee',status:'not_adopted'},{id:'skills',status:'not_checked'}];
+    const displayed=new Map((status.pendingUpdates||[]).map(r=>[r.id,r]));
+    for(const row of status.results||[])displayed.set(row.id,row);
+    const results=displayed.size?[...displayed.values()]:[{id:'gbrain',status:'not_checked',version:status.gbrain_version},{id:'skills',status:'not_checked'}];
     const descriptions={current:'Você já está usando a versão disponível.',updated:'A atualização foi instalada.',available:'Pronta para instalar.',external:'Gerenciada na instalação que você conectou.',compatibility_required:'Esta versão ainda precisa ser validada para o Oracle.',not_adopted:'Nenhuma integração ativa.',not_configured:'Nenhum pacote novo disponível.',not_checked:'Use Verificar para consultar novidades.',preserved_edits:'Suas alterações foram mantidas.',error:'Não foi possível concluir a consulta.'};
     $('#update-results').innerHTML=results.map(r=>`<section class="update-result"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${descriptions[r.status]||'Confira os detalhes abaixo.'}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.message&&r.status!=='not_adopted'?`<details class="source-details"><summary>Detalhes</summary><p>${esc(r.message)}</p></details>`:''}</section>`).join('');
     $('#update-recovery').innerHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar skills anteriores</button>':'');
@@ -715,3 +776,17 @@ function syncFloatingSurfaces(){
 }
 const floatingSurfaceObserver=new MutationObserver(records=>{if(records.some(r=>r.target instanceof Element&&(r.target.matches('dialog,.ob-progress-card')||r.type==='childList'&&[...r.addedNodes].some(n=>n instanceof Element&&n.matches('.oracle-onboarding')))))syncFloatingSurfaces()});
 floatingSurfaceObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['open','hidden'],childList:true});
+
+async function backupSettings(){
+ const value=await call('backupStatus'),last=value.lastRun||{},id=last.id||last.backup_id;
+ const verified=last.complete===true&&last.integrity_verified===true;
+ modal(`<h1>Backup privado do banco</h1><p>Cópia local do banco GBrain, sem envio remoto. Não inclui Markdown, anexos ou todo o aplicativo. No mesmo disco, não protege contra perda física. Os arquivos são privados, mas não têm criptografia própria.</p><label class="ob-check"><input type="checkbox" id="backup-enabled" ${value.enabled?'checked':''} ${!value.available?'disabled':''}>Autorizar backup privado para este vault</label><p>Consentimento separado da manutenção, captura e processamento remoto. Quando autorizado, a manutenção cria o backup depois da sincronização. Você também pode criar uma cópia manual.</p>${!value.available?'<p role="alert">Configure o perfil local Oracle e autorize seu acesso antes de habilitar backups. Instalações externas são preservadas.</p>':''}<dl class="ob-review"><dt>Última operação verificada</dt><dd>${verified?(last.restore_verified?'Restauração de teste verificada, sem ativação':'Integridade verificada; restauração ainda não testada'):'Nenhuma operação confirmada'}</dd><dt>Identificador</dt><dd>${esc(id||'Nenhum')}</dd></dl><p>A verificação de integridade não prova uma restauração. Restaurar para teste exige confirmação e cria um estado novo, sem substituir ou ativar o banco atual.</p>${actions('<button class="secondary" id="backup-save">Salvar consentimento</button><button class="primary" id="backup-create" '+(!value.enabled?'disabled':'')+'>Criar backup</button><button class="secondary" id="backup-verify" '+(!value.available||!id?'disabled':'')+'>Verificar integridade</button><button class="secondary" id="backup-restore" '+(!value.available||!id?'disabled':'')+'>Testar restauração…</button>')}`,{key:'backup-settings'});
+ $('#backup-save').onclick=safe(async()=>{await call('configureBackup',{enabled:$('#backup-enabled').checked});await backupSettings()});
+ $('#backup-create').onclick=safe(async()=>{await call('backupCreate');await backupSettings();toast('Backup criado e integridade verificada. A restauração ainda não foi testada.')});
+ $('#backup-verify').onclick=safe(async()=>{await call('backupVerify',{id});await backupSettings();toast('Integridade verificada. Isso não confirma uma restauração.')});
+ $('#backup-restore').onclick=()=>{
+  modal(`<h1>Testar restauração?</h1><p>O backup ${esc(id)} será restaurado somente em um estado privado novo. O banco ativo e os documentos do vault não serão substituídos. Esta operação não ativa o estado restaurado.</p>${actions('<button class="secondary" id="backup-restore-cancel">Voltar</button><button class="primary" id="backup-restore-confirm">Confirmar restauração de teste</button>')}`);
+  $('#backup-restore-cancel').onclick=safe(backupSettings);
+  $('#backup-restore-confirm').onclick=safe(async()=>{await call('backupRestore',{id,confirmed:true});await backupSettings();toast('Restauração de teste verificada em estado novo. O banco ativo foi preservado.')});
+ };
+}

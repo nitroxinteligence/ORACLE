@@ -4,6 +4,14 @@ import LocalAuthentication
 
 let arguments = CommandLine.arguments
 func argument(_ key: String) -> String? { guard let i = arguments.firstIndex(of:key), arguments.count > i+1 else { return nil }; return arguments[i+1] }
+for key in ["--state","--gbrain","--backup","--backup-id","--maintenance","--maintenance-config","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update"] where arguments.contains(key) {
+    guard let value=argument(key),!value.hasPrefix("--") else{fputs("Argumento obrigatório ausente: \(key)\n",stderr);exit(2)}
+}
+if arguments.contains(where:{$0.hasPrefix("--self-test")}) {
+    guard let state=argument("--state"),URL(fileURLWithPath:state).standardizedFileURL.pathComponents.contains(".work"),ProcessInfo.processInfo.environment["ORACLE_TEST_ROOT"] != nil else {
+        fputs("Testes exigem --state descartável dentro de .work e ORACLE_TEST_ROOT explícito.\n",stderr);exit(2)
+    }
+}
 // A validation bundle may pin its disposable profile, including relaunches from Finder.
 // The distributed application has neither this identifier nor this Info.plist key.
 let validationState = Bundle.main.bundleIdentifier?.hasSuffix(".validation") == true ? Bundle.main.object(forInfoDictionaryKey:"OracleQAState") as? String : nil
@@ -14,20 +22,56 @@ if arguments.contains("--hook") {
 }
 if arguments.contains("--prepare-bridge") { do { print(String(decoding:try jsonData(core.prepareBridge()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if let operation = argument("--gbrain") {
-    do { let lock=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(lock)};let value = try operation == "prepare" ? core.prepareGBrain() : core.finishGBrain(); print(String(decoding:try jsonData(value),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
+    do {guard ["prepare","finish"].contains(operation) else{throw failure("Operação GBrain inválida.")};let lock=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(lock)};let value = try operation == "prepare" ? core.prepareGBrain() : core.finishGBrain(); print(String(decoding:try jsonData(value),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
+}
+if arguments.contains("--sync-gbrain") {
+    do {let lock=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(lock)};print(String(decoding:try jsonData(core.syncGBrainVault()),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
+}
+if let operation=argument("--backup") {
+    do {
+        let value:[String:Any]
+        switch operation {
+        case "status":value=core.gbrainBackupStatus()
+        case "enable":value=try core.configureGBrainBackupConsent(enabled:true)
+        case "disable":value=try core.configureGBrainBackupConsent(enabled:false)
+        case "create":value=try core.createGBrainBackup()
+        case "verify":value=try core.verifyGBrainBackup(id:argument("--backup-id") ?? "")
+        case "restore":value=try core.restoreGBrainBackup(id:argument("--backup-id") ?? "",confirmed:arguments.contains("--confirm-restore"))
+        default:throw failure("Operação de backup inválida: status, enable, disable, create, verify ou restore.")
+        }
+        print(String(decoding:try jsonData(value),as:UTF8.self));exit(0)
+    }catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
+}
+if let operation=argument("--maintenance") {
+    do {
+        let value:Any
+        switch operation {
+        case "status":value=try core.maintenanceSnapshot()
+        case "request":value=["request":try core.maintenanceScheduleRequest(),"registered":false]
+        case "configure":
+            guard let file=argument("--maintenance-config") else{throw failure("Informe --maintenance-config com o arquivo de consentimento.")}
+            value=try core.configureMaintenance(readJSON(URL(fileURLWithPath:file)))
+        case "run":value=try core.performMaintenance {try core.syncGBrainVault()}
+        case "run-now":value=try core.performMaintenance(force:true) {try core.syncGBrainVault()}
+        default:throw failure("Operação de manutenção inválida.")
+        }
+        print(String(decoding:try jsonData(value),as:UTF8.self));exit(0)
+    }catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
 }
 if let file = argument("--create-plan") {
-    do { let params=try readJSON(URL(fileURLWithPath:file)); let plan=try core.makePlan(answers:params["answers"] as? [String:String] ?? [:],isNew:params["newVault"] as? Bool == true,attach:params["attach"] as? Bool == true,catalogCollections:params["catalogCollections"] as? [String] ?? []); print(String(decoding:try jsonData(plan),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
+    do { let params=try readJSON(URL(fileURLWithPath:file)); let plan=try core.makePlan(answers:params["answers"] as? [String:String] ?? [:],isNew:params["newVault"] as? Bool == true,attach:params["attach"] as? Bool == true,catalogCollections:params["catalogCollections"] as? [String] ?? [],maintenance:params["maintenance"] as? [String:Any]); print(String(decoding:try jsonData(plan),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
 if let hash = argument("--confirm-plan") { do { try core.confirmPlan(hash:hash); print("Plan confirmed"); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) } }
 if let hash = argument("--confirm-gbrain") { do { try core.confirmGBrain(hash); print("GBrain readback confirmed"); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) } }
 if let operation = argument("--setup") {
-    do { let result = try core.applyPlan(rollback:operation == "rollback",verifyOnly:operation == "verify"); print(String(decoding:try jsonData(result),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
+    do {guard ["apply","verify","rollback"].contains(operation) else{throw failure("Operação de configuração inválida.")};let result = try core.applyPlan(rollback:operation == "rollback",verifyOnly:operation == "verify"); print(String(decoding:try jsonData(result),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
+if arguments.contains("--self-test-backup") { do { try runGBrainBackupTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
+if arguments.contains("--self-test-maintenance") { do { try runMaintenanceCaptureTests();try runMaintenanceSynthesisTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-editor") { do { try runEditorTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--codex-inventory") { do {let bridge=CodexBridge();defer{bridge.stop()};try bridge.start(cwd:core.home);let account=try bridge.account();guard account["connected"] as? Bool==true else{throw failure("Conecte sua conta no Codex primeiro.")};print(String(decoding:try jsonData(bridge.inventory()),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)} }
 if arguments.contains("--onboarding-verify") { do { print(String(decoding:try jsonData(core.onboardingFinalVerification()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
-if arguments.contains("--self-test-onboarding") { do { try runOnboardingTests();try runOnboardingLifecycleTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
+if arguments.contains("--self-test-onboarding") { do { try runOnboardingTests();try runOnboardingLifecycleTests();try runImplementationPolicyTests();try runLicenseDeviceTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-updates") { do { try runUpdateTests(releasePath:argument("--test-release"));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test") { do { try runTests(); exit(0) } catch { fputs("FAIL: \(error)\n",stderr); exit(1) } }
 
@@ -37,6 +81,7 @@ if let operation = argument("--update") {
 
 final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSWindowDelegate {
     var onboardingController:OnboardingController?
+    var localServices:OracleLocalServices?
     var window: NSWindow!
     var web: WKWebView!
     var locked = true
@@ -63,6 +108,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         window.setFrameAutosaveName("OracleUniverse"); window.center(); window.makeKeyAndOrderFront(nil)
         buildMenu()
         locked = core.config["protected"] as? Bool == true
+        localServices=OracleLocalServices(home:core.home);localServices?.start(paused:locked)
         web.loadFileURL(resourceRoot.appendingPathComponent("index.html"),allowingReadAccessTo:resourceRoot)
         NSApp.activate(ignoringOtherApps:true)
         NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(accessibilityChanged),name:NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,object:nil)
@@ -90,7 +136,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         return .terminateLater
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {NSApp.terminate(nil);return false}
-    func applicationWillTerminate(_ notification:Notification) {onboardingController?.shutdown()}
+    func applicationWillTerminate(_ notification:Notification) {localServices?.stop();onboardingController?.shutdown()}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication) -> Bool { true }
     func buildMenu() {
         let bar = NSMenu()
@@ -114,6 +160,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     @objc func about() { let a = NSAlert(); a.messageText = "Oracle 0.3.0"; a.informativeText = "Seu conhecimento, conectado. Codex e Obsidian, em um só universo."; addAlertBreadcrumb(a,"Oracle › Sobre o Oracle");a.addButton(withTitle:"Voltar");a.runModal() }
     @objc func lockApp() {
         lockGeneration += 1;locked=true
+        localServices?.setPaused(true)
         web?.evaluateJavaScript("window.oracleTakeDraftAndLock?.()") {value,_ in
             guard let draft=value as? [String:String],let path=draft["path"],let hash=draft["hash"],let text=draft["text"] else {return}
             self.queue.async {if draft["vault"]==core.config["vault"] as? String {_ = try? core.saveDraft(path:path,original:hash,text:text)}}
@@ -139,7 +186,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         let p = body["params"] as? [String:Any] ?? [:]
         if method == "lock" { lockApp(); reply(id,true); return }
         if method == "boot" { reply(id,["locked":locked,"accessibility":["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]]); return }
-        if method == "unlock" { authenticate { ok,error in if ok { self.locked = false }; self.reply(id,ok,error) }; return }
+        if method == "unlock" { authenticate { ok,error in if ok { self.locked = false;self.localServices?.setPaused(false);self.localServices?.request() }; self.reply(id,ok,error) }; return }
         guard !locked else { reply(id,nil,"Oracle bloqueado"); return }
         if handleOnboarding(id,method:method,params:p) { return }
         if !core.onboardingLegacyAccess() && core.activeLicense()==nil && !["snapshot","copy","openExternal","openCodex"].contains(method) {reply(id,nil,"Ative seu código para continuar.");return}
@@ -165,7 +212,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             updateQueue.async {
                 do { let updater=try Core(home:core.home);_ = try updater.performUpdates(operation:operation) }
                 catch { try? core.recordUpdate("failed",error.localizedDescription) }
-                DispatchQueue.main.async { self.updating=false }
+                DispatchQueue.main.async { self.updating=false;self.localServices?.request() }
             };return
         }
         if method == "protect" { authenticate { ok,error in if ok { self.queue.async { core.config["protected"] = true; try? core.persist(); DispatchQueue.main.async { self.reply(id,true) } } } else { self.reply(id,nil,error) } }; return }
@@ -177,13 +224,23 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             let panel=NSSavePanel(); panel.nameFieldStringValue="Oracle-universo.png"; panel.allowedContentTypes=[.png]; panel.message="Exportar a visão atual do Oracle como imagem."
             panel.beginSheetModal(for:window) { result in guard result == .OK,let url=panel.url else { self.reply(id,NSNull()); return }
                 DispatchQueue.main.asyncAfter(deadline:.now()+0.25) { self.web.takeSnapshot(with:nil) { image,error in
-                    do { guard let image,let tiff=image.tiffRepresentation,let rep=NSBitmapImageRep(data:tiff),let png=rep.representation(using:.png,properties:[:]) else { throw error ?? failure("Não foi possível gerar a imagem") }; try png.write(to:url,options:.atomic); self.reply(id,url.path) } catch { self.reply(id,nil,error.localizedDescription) }
+                    do { guard let image,let tiff=image.tiffRepresentation,let rep=NSBitmapImageRep(data:tiff),let png=rep.representation(using:.png,properties:[:]) else { throw error ?? failure("Não foi possível gerar a imagem") }; try atomicWriteData(png,to:url); self.reply(id,url.path) } catch { self.reply(id,nil,error.localizedDescription) }
                 } }
             }; return
         }
         if method == "importConversations" {
             let panel = NSOpenPanel(); panel.allowedContentTypes = [.json]; panel.message = "Importe uma exportação Oracle Conversations v1. Não lê histórico privado nem conteúdo cloud automaticamente."
             panel.beginSheetModal(for:window) { result in guard result == .OK,let url = panel.url else { self.reply(id,NSNull()); return }; self.queue.async { do { let data = try Data(contentsOf:url); guard data.count < 10_000_000 else { throw failure("Exportação maior que 10 MB") }; let doc = try readJSON(url); guard doc["schema_version"] as? Int == 1,let items = doc["conversations"] as? [[String:Any]], items.count <= 1000 else { throw failure("Formato: schema_version 1, conversations[]") }; var clean = [[String:Any]](); for item in items { guard let title = item["title"] as? String,let messages = item["messages"] as? [[String:String]] else { throw failure("Conversa inválida") }; clean.append(["title":title,"source":url.lastPathComponent,"messages":messages.filter { ["user","assistant"].contains($0["role"] ?? "") }.map { ["role":$0["role"]!,"text":$0["text"] ?? ""] }]) }; try writeJSON(["schema_version":1,"conversations":clean],core.home.appendingPathComponent("conversations.json")); DispatchQueue.main.async { self.reply(id,clean) } } catch { DispatchQueue.main.async { self.reply(id,nil,error.localizedDescription) } } } }; return
+        }
+        if method == "maintenanceRun" {
+            // Do not occupy the settings queue: pause/revoke must work mid-turn.
+            DispatchQueue.global(qos:.utility).async {
+                do {
+                    let service=try Core(home:core.home)
+                    let result=try service.performMaintenance(force:true,cancelled:{self.localServices?.isPaused() ?? true}) {try service.syncGBrainVault()}
+                    DispatchQueue.main.async {self.reply(id,result)}
+                } catch {DispatchQueue.main.async {self.reply(id,nil,error.localizedDescription)}}
+            };return
         }
         let updaterBusy=updating
         queue.async {
@@ -196,6 +253,14 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                     core.config["layout"]=layout; try core.persist(); result=true
                 case "updateStatus": var status=try core.updateStatus();status["busy"]=updaterBusy;if !updaterBusy,["checking","downloading","verifying","applying"].contains(status["phase"] as? String ?? "") {status["phase"]="interrupted";status["message"]="Operação interrompida. Verifique novamente para recuperar com segurança."};result=status
                 case "configureSkillSource": result = try core.configureSkillSource(p["repository"] as? String ?? "")
+                case "maintenanceStatus":result=try core.maintenanceSnapshot()
+                case "configureMaintenance":result=try core.configureMaintenance(p)
+                case "backupStatus":result=core.gbrainBackupStatus()
+                case "configureBackup":result=try core.configureGBrainBackupConsent(enabled:p["enabled"] as? Bool == true)
+                case "backupCreate":result=try core.createGBrainBackup()
+                case "backupVerify":result=try core.verifyGBrainBackup(id:p["id"] as? String ?? "")
+                case "backupRestore":result=try core.restoreGBrainBackup(id:p["id"] as? String ?? "",confirmed:p["confirmed"] as? Bool == true)
+                case "maintenanceScheduleRequest":result=["request":try core.maintenanceScheduleRequest(),"registered":false]
                 case "snapshot": result = try core.snapshot()
                 case "gbrainRead": result = try core.gbrainRead(p)
                 case "gbrainReadback": result = (try? readJSON(core.home.appendingPathComponent("setup/gbrain-readback.json"))) ?? [:]
@@ -214,10 +279,13 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 case "conversations": result = (try? readJSON(core.home.appendingPathComponent("conversations.json")))?["conversations"] ?? []
                 case "instructions": result = try (core.config["projects"] as? [String] ?? []).flatMap { try core.scan(root:URL(fileURLWithPath:$0),instructionsOnly:true).filter { $0["directory"] as? Bool != true } }
                 case "readInstruction": guard let root = p["source"] as? String,(core.config["projects"] as? [String] ?? []).contains(root),let path = p["path"] as? String,["AGENTS.md","AGENTS.override.md"].contains(URL(fileURLWithPath:path).lastPathComponent) else { throw failure("Fonte não autorizada") }; let url = try core.scoped(path,root:URL(fileURLWithPath:root)); result = ["text":try String(contentsOf:url,encoding:.utf8),"path":url.path]
-                case "revoke": core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark"); core.config.removeValue(forKey:"projects"); core.config.removeValue(forKey:"gbrainWorkspace");core.config["gbrainAccess"] = false; try core.persist(); result = true
+                case "revoke":
+                    let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
+                    let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)}
+                    core.refreshConfig();core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark");core.config.removeValue(forKey:"projects");core.config.removeValue(forKey:"gbrainWorkspace");core.config["gbrainAccess"]=false;try core.persist();result=true
                 default: throw failure("Operação não suportada")
                 }
-                DispatchQueue.main.async { self.reply(id,result) }
+                DispatchQueue.main.async { self.reply(id,result);if ["saveNote","saveVersion","configureMaintenance"].contains(method){self.localServices?.request()} }
             } catch { DispatchQueue.main.async { self.reply(id,nil,error.localizedDescription) } }
         }
     }

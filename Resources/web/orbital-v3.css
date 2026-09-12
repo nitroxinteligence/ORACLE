@@ -747,7 +747,8 @@ body { background:var(--bg); }
 .modal-header>div:not(:has(.modal-breadcrumb)) { align-self:center; }
 .modal-transition-snapshot { position:absolute!important;inset:0;display:flex;flex-direction:column;max-height:100%;overflow:hidden;pointer-events:none;background:var(--floating-fill);z-index:4;margin:0!important; }
 .modal-transition-snapshot .modal-body { pointer-events:none; }
-.oracle-onboarding .ob-content { display:flex;flex-direction:column;min-height:0;max-height:inherit;flex:1; }
+/* An auto basis preserves intrinsic dialog height in WKWebView. */
+.oracle-onboarding .ob-content { display:flex;flex-direction:column;min-height:0;max-height:inherit;flex:1 1 auto; }
 .ob-step-navigation { display:flex;align-items:center;gap:18px;min-height:24px;color:#999;font-size:11px; }
 .ob-step-navigation button { padding:4px 0;color:#bbb; }
 .oracle-onboarding .ob-close { border-radius:10px; }

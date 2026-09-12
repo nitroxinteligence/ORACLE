@@ -62,6 +62,18 @@ disables compiled-executable automatic dotenv/bunfig loading. Missing local prer
 fail clearly; no fallback download or installation is started. Minimum deployment target
 is macOS 13 and all three bundle executables must report arm64.
 
+An explicitly provisioned local compiler can be selected with `ORACLE_BUN_BIN`, an
+absolute path to an executable regular file named `bun`. Build, package and release
+use the same selection, including their Python provenance checks. Paths with spaces
+are supported. A missing, relative or symlink binary is rejected; the scripts do not
+download it or alter the global Bun installation. The version must still satisfy the
+pinned GBrain requirement. For example, after provisioning and verifying the tool:
+
+```sh
+ORACLE_BUN_BIN="$PWD/.work/onboarding-v2/toolchains/bun-1.3.10/bun" \
+  bash scripts/build.sh --channel developer --preflight
+```
+
 Input hashes before and after resource generation detect concurrent source edits while
 allowing only the listed generated resources to change. Release checks cleanliness again
 after generation. A source snapshot before compilation and a final comparison before

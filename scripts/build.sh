@@ -4,6 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$PWD"
 export PATH="${HOME}/.bun/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
+source "$ROOT/scripts/build-toolchain.sh"
 CHANNEL=""; PREFLIGHT=false; EXTERNAL_NETWORK_SANDBOX=false
 while [ "$#" -gt 0 ]; do
   case "$1" in

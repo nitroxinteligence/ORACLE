@@ -34,6 +34,17 @@ export async function indexVault(engine:BrainEngine,input:any){
   const selected=process.env.GBRAIN_HOME,receiptDir=process.env.ORACLE_RECEIPT_DIR;
   if(!selected||!receiptDir)throw Error('Indexing requires the isolated Oracle-owned profile');
   const profile=realpathSync(selected),marker=join(profile,'oracle-owned.json');
+  if(input.inventory_file!==undefined){
+    const hash=input.inventory_sha256,path=String(input.inventory_file),directory=join(profile,'oracle-index-input');
+    if(input.files!==undefined||typeof hash!=='string'||!/^[a-f0-9]{64}$/.test(hash)||path!==join(directory,hash+'.json')||realpathSync(directory)!==directory||lstatSync(path).isSymbolicLink())throw Error('Index inventory transport is outside the owned profile');
+    const before=lstatSync(path);
+    if(!before.isFile()||before.nlink!==1||before.size>64_000_000||(before.size>0&&before.blocks===0))throw Error('Invalid inventory transport file');
+    const bytes=readFileSync(path),after=lstatSync(path);
+    if(sha(bytes)!==hash||before.ino!==after.ino||before.mtimeMs!==after.mtimeMs||before.size!==bytes.length)throw Error('Index inventory transport changed');
+    const inventory=JSON.parse(bytes.toString('utf8'));
+    if(inventory.schema_version!==1||inventory.root!==input.root||!Array.isArray(inventory.files)||inventory.files.length!==input.inventory_count||inventory.files.length>60_000)throw Error('Incomplete inventory transport');
+    input={...input,files:inventory.files};
+  }
   if(resolve(selected)!==profile||lstatSync(selected).isSymbolicLink()||lstatSync(marker).isSymbolicLink())throw Error('Profile ownership path changed');
   const ownership=JSON.parse(readFileSync(marker,'utf8'));
   const requested=resolve(String(input.root)),root=realpathSync(requested);
@@ -77,8 +88,11 @@ export async function indexVault(engine:BrainEngine,input:any){
     atomicJSON(join(receiptDir,id+'.json'),document);
     if(process.env.ORACLE_PLAN_EVENTS_DIR)atomicJSON(join(process.env.ORACLE_PLAN_EVENTS_DIR,id+'.json'),document);
   };
-  const save=()=>atomicJSON(checkpointPath,{schema_version:2,run_id:run,root,phase,records,managed:[...managed.values()],failures,complete:false,
-                                         generation:input.generation??null,scan_complete:input.scan_complete===true,at:now()});
+  const save=()=>{
+    const checkpoint={schema_version:2,run_id:run,root,phase,records,managed:[...managed.values()],failures,complete:false,
+                      generation:input.generation??null,scan_complete:input.scan_complete===true,at:now()};
+    atomicJSON(checkpointPath,{...checkpoint,receipt_sha256:sha(canonical(checkpoint))});
+  };
   const check=()=>{
     if(process.env.ORACLE_CANCEL_FILE&&existsSync(process.env.ORACLE_CANCEL_FILE))throw Error('Indexing cancelled');
     if(Date.now()>deadline){needsResume=true;throw Error('Bounded indexing budget reached; resume from checkpoint')}

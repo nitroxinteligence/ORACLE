@@ -7,9 +7,9 @@
   const labels={AGENT_NAME:'Nome do seu companheiro',PRINCIPAL_NAME:'Como podemos chamar você?',AGENT_PURPOSE:'Para que o Oracle deve servir?',AGENT_TOP_JOBS:'Quais tarefas são importantes?',PRINCIPAL_CONTEXT:'Seu trabalho, responsabilidades e projetos',VOICE_REGISTER:'Como prefere que o Oracle se comunique?',PRINCIPAL_TIMEZONE:'Fuso horário'};
   const limits={AGENT_NAME:64,PRINCIPAL_NAME:128,AGENT_PURPOSE:2048,AGENT_TOP_JOBS:2048,PRINCIPAL_CONTEXT:4096,VOICE_REGISTER:1024,PRINCIPAL_TIMEZONE:80};
   const groups=[['AGENT_NAME','PRINCIPAL_NAME','PRINCIPAL_TIMEZONE'],['AGENT_PURPOSE','AGENT_TOP_JOBS'],['PRINCIPAL_CONTEXT','VOICE_REGISTER']];
-  const fresh=()=>({answers:{AGENT_NAME:'Oracle',PRINCIPAL_TIMEZONE:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'},catalogCollections:[],newVault:false,attach:false});
+  const fresh=()=>({answers:{},catalogCollections:[],newVault:true,attach:false});
   let api,root,dialog,card,timer,epoch=0,pollPromise=null,open=false,suspended=true,stage='',group=0,current={},draft=fresh(),review=null,origin=null,fromSettings=false;
-  let saveTimer,lastSignature='',lastView='',dirty=false,draftWrites=Promise.resolve(),licenseCode='',connectionRequested=false,checkingConnection=false;
+  let saveTimer,lastSignature='',lastView='',dirty=false,draftWrites=Promise.resolve(),licenseCode='',connectionRequested=false,checkingConnection=false,replaceLegacy=false;
   const $=selector=>root?.querySelector(selector);
   const invoke=async(method,params={})=>{
     const generation=epoch,value=await api.call(method,params);
@@ -47,13 +47,14 @@
   }
   function resolveStage(){
     if(!current.licensed)return 'license';
+    if(stage==='activation')return 'activation';
     if(current.request)return 'request';
     if(current.readback)return 'readback';
     if(current.status==='review'&&review&&!review.confirmed_hash)return 'review';
     if(current.runID&&['starting','running','cancelling','waiting_user','paused','cancelled','interrupted','failed','completed'].includes(current.status))return 'progress';
     if(!current.hasVault)return 'vault';
     const saved=current.ui?.step||current.draft?.step;
-    return saved==='identity'?'identity':'vault';
+    return current.review?.schema_version===1&&saved==='identity'?'identity':saved==='install'?'install':'vault';
   }
   async function navigate(next){await flushInputs();stage=next;render();if(current.licensed)await invoke('onboardingDraftUI',{step:next});}
   async function dismiss(){open=false;const closed=await OracleTransitions.dismissDialog(dialog);if(!closed)return;renderCard();if(origin?.isConnected)origin.focus({preventScroll:true});}
@@ -65,7 +66,7 @@
     origin=document.activeElement;open=true;OracleTransitions.cancelDialog(dialog);if(!dialog.open)dialog.showModal();render();renderCard();OracleTransitions.enterDialog(dialog);
   }
   function frame(title,body,buttons=''){
-    const names={license:'Acesso',vault:'Obsidian',identity:['Identidade','Objetivos','Preferências'][group],review:'Revisão',progress:'Instalação local',readback:'Confirmação',request:'Solicitação',connection:'Codex opcional'};
+    const names={license:'Acesso',activation:'Acesso',install:'Instalação',vault:'Obsidian',identity:['Identidade','Objetivos','Preferências'][group],review:'Revisão',progress:'Instalação local',readback:'Confirmação',request:'Solicitação',connection:'Codex opcional'};
     const frameKey=stage+':'+group+':'+title,previous=dialog.dataset.frameKey!==frameKey?OracleTransitions.captureContent(dialog.querySelector('.ob-content')):null;dialog.dataset.frameKey=frameKey;
     const template=document.createElement('template');template.innerHTML=`<div class="ob-content"><div class="ob-heading"><img class="ob-brand" src="brand/lockup-white.svg" alt="Oracle" width="143"><button type="button" class="ob-close" aria-label="Fechar configuração"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="ob-navigation"><div class="ob-step-navigation">${stage==='identity'||stage==='review'||fromSettings?'<button type="button" id="ob-breadcrumb-back">← Voltar</button>':''}<span>${names[stage]||'Configuração'}</span></div></div><div class="ob-body"><h1 id="ob-title" tabindex="-1">${esc(title)}</h1>${body}<p data-ob-message role="alert" hidden></p></div><footer>${buttons}</footer></div>`;
     const existing=dialog.querySelector('.ob-content');existing?existing.replaceWith(template.content.firstElementChild):dialog.append(template.content.firstElementChild);
@@ -73,7 +74,7 @@
     $('.ob-close').onclick=action(close);
     $('#ob-breadcrumb-back')?.addEventListener('click',action(async()=>{
       if(stage==='identity'&&group>0){await flushInputs();group--;dirty=true;render();}
-      else if(stage==='identity')await navigate('vault');
+      else if(stage==='identity'||stage==='install')await navigate('vault');
       else if(stage==='review')await navigate(draft.attach?'vault':'identity');
       else{await close();if(fromSettings)api.openSettings?.();}
     }));
@@ -88,13 +89,24 @@
     if(stage==='license'){
       capture();
       frame('Ative seu Oracle.',`<label for="ob-code">Chave de acesso</label><input id="ob-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" value="${esc(licenseCode)}">`,button('ob-activate','Ativar'));
-      $('#ob-activate').onclick=action(async()=>{capture();await invoke('onboardingActivate',{code:licenseCode});$('#ob-code').value='';licenseCode='';await refreshStatus();if(current.resumeExisting){await dismiss();await api.refresh?.();}else{stage=resolveStage();render();}});
+      $('#ob-activate').onclick=action(async()=>{capture();await invoke('onboardingActivate',{code:licenseCode});$('#ob-code').value='';licenseCode='';await refreshStatus();stage='activation';render();});
+    }else if(stage==='activation'){
+      frame('Acesso ativado.', '<p role="status">Sua licença foi validada neste Mac. Continue para escolher seu Obsidian.</p>',button('ob-access-next','Prosseguir'));
+      $('#ob-access-next').onclick=action(async()=>{if(current.resumeExisting){await dismiss();await api.refresh?.();}else await navigate('vault');});
     }else if(stage==='vault'){
-      frame('Escolha seu Obsidian.',`<p>As notas originais permanecem na pasta escolhida. O GBrain oficial mantém um índice local derivado, que pode ser reconstruído.</p><div class="ob-selection"><span>${esc(current.vaultName||'Nenhuma pasta selecionada')}</span>${button('ob-vault','Escolher pasta…',false)}</div><label class="ob-check"><input id="ob-new" type="checkbox" ${draft.newVault?'checked':''}>Criar a estrutura Oracle nesta pasta</label><label class="ob-check"><input id="ob-attach" type="checkbox" ${draft.attach?'checked':''}>Conectar um GBrain local existente</label><div id="ob-existing" ${draft.attach?'':'hidden'}>${button('ob-brain','Escolher workspace e perfil…',false)}<p class="ob-muted">O perfil é escolhido explicitamente. Não será usado outro banco por padrão.</p></div><p class="ob-muted">Pessoal e Profissional aproveitam as pastas existentes. Pacotes opcionais não serão instalados nesta configuração.</p><p class="ob-muted">Conectar o Codex é opcional. A instalação abaixo usa somente operações locais verificáveis.</p>`,button('ob-vault-next','Continuar'));
-      $('#ob-attach').onchange=()=>{$('#ob-existing').hidden=!$('#ob-attach').checked;dirty=true;};
-      $('#ob-vault').onclick=action(async()=>{await save();const result=await invoke('onboardingChooseVault');if(result){await api.refresh?.();await refreshStatus();render();}});
-      $('#ob-brain').onclick=action(async()=>{await save();await invoke('onboardingChooseBrain');await refreshStatus();render();});
-      $('#ob-vault-next').onclick=action(async()=>{capture();if(!current.hasVault)throw Error('Escolha uma pasta para continuar.');if(draft.attach&&!current.hasExistingBrain)throw Error('Escolha o workspace e o perfil existentes.');if(draft.attach)await plan();else{group=0;await navigate('identity');}});
+      frame('Escolha seu Obsidian.',`<p>Selecione o vault que você já criou no Obsidian. As notas e os arquivos serão instalados nessa pasta.</p><div class="ob-selection"><span>${esc(current.vaultName||'Nenhuma pasta selecionada')}</span>${button('ob-vault','Escolher pasta…',false)}</div>`,button('ob-vault-back','Voltar',false)+button('ob-vault-next','Prosseguir'));
+      $('#ob-vault').onclick=action(async()=>{const result=await invoke('onboardingChooseVault');if(result){await api.refresh?.();await refreshStatus();render();}});
+      $('#ob-vault-back').onclick=action(()=>navigate('activation'));
+      $('#ob-vault-next').disabled=!current.hasVault;
+      $('#ob-vault-next').onclick=action(async()=>{if(!current.hasVault)throw Error('Escolha uma pasta para continuar.');await navigate('install');});
+    }else if(stage==='install'){
+      frame('Instale seu segundo cérebro.',`<p>O Oracle vai baixar os componentes e instalar o acervo completo em <strong>${esc(current.vaultName)}</strong>, com as skills também preparadas para o Codex neste computador.</p><p class="ob-muted">Ao terminar: arquivos, memória estruturada, busca textual, links e edição local.</p>`,button('ob-install-back','Voltar',false)+button('ob-install-complete','Instalar'));
+      $('#ob-install-back').onclick=action(()=>navigate('vault'));
+      $('#ob-install-complete').onclick=action(async()=>{
+        dismiss();
+        try{await invoke('onboardingInstallMemoryOnly',{replaceLegacy});await refreshStatus();await api.refresh?.();}
+        catch(error){stage='install';reveal();throw error;}
+      });
     }else if(stage==='identity'){
       group=Math.max(0,Math.min(2,group));
       frame(['Vamos nos conhecer.','Seu contexto de trabalho.','Suas preferências.'][group],`<p>Registre somente informações que deseja usar no seu segundo cérebro. Você revisará o conteúdo antes da criação.</p><div class="ob-fields">${groups[group].map(k=>`<label for="ob-${k}">${labels[k]}</label>${limits[k]<=128?`<input id="ob-${k}" data-answer="${k}" maxlength="${limits[k]}" value="${esc(draft.answers[k]||'')}">`:`<textarea id="ob-${k}" data-answer="${k}" maxlength="${limits[k]}" rows="3">${esc(draft.answers[k]||'')}</textarea>`}`).join('')}</div>`,button('ob-identity-next',group===2?'Revisar plano':'Continuar'));
@@ -139,10 +151,26 @@
       $('#ob-cancel-login')?.addEventListener('click',action(async()=>{await invoke('onboardingCancelLogin');connectionRequested=false;await refreshStatus();render();}));
     }else{
       const done=current.status==='completed',busy=active.has(current.status),cancelable=busy||current.status==='waiting_user';
-      frame(done?'Seu Oracle está pronto.':'Configuração do Oracle.',`<p role="status">${esc(current.message||'Continue a configuração local.')}</p><ul class="ob-confirmed">${(current.confirmed||[]).filter(x=>x.kind!=='skill').map(x=>'<li>✓ '+esc(x.label)+'</li>').join('')}</ul><p>${(current.confirmed||[]).filter(x=>x.kind==='skill').length} skills verificadas</p>${done?'<p class="ob-muted">Arquivos, identidade e índice local conferidos. Conexões externas e confiança dos hooks têm verificações separadas.</p>':''}`,button('ob-progress-close','Voltar ao universo',false)+(cancelable?button('ob-cancel',current.status==='cancelling'?'Cancelamento solicitado':'Pausar instalação',false):!done&&current.runID?button('ob-resume','Retomar localmente'):''));
+      frame(done?'Seu Oracle está pronto.':'Configuração do Oracle.',`<p role="status">${esc(current.message||'Continue a configuração local.')}</p><ul class="ob-confirmed">${(current.confirmed||[]).filter(x=>x.kind!=='skill').map(x=>'<li>✓ '+esc(x.label)+'</li>').join('')}</ul><p>${(current.confirmed||[]).filter(x=>x.kind==='skill').length} skills verificadas</p>${done?'<p class="ob-muted">Arquivos, memória e índice local conferidos. Conexões externas e confiança dos hooks têm verificações separadas.</p>':''}`,button('ob-progress-close','Voltar ao universo',false)+(cancelable?button('ob-cancel',current.status==='cancelling'?'Cancelamento solicitado':'Pausar instalação',false):!done&&current.runID?button('ob-resume',current.profileMode==='memory-only'?(current.status==='failed'?'Tentar novamente':'Continuar instalação'):'Retomar plano anterior'):''));
+      if(!busy&&!done&&current.libraryRootChoices?.length){
+        const choices=document.createElement('section');choices.innerHTML='<p>Há pastas com o mesmo nome em maiúsculas e minúsculas. Escolha qual biblioteca usar.</p>'+current.libraryRootChoices.map(row=>'<div>'+row.paths.map(path=>'<button class="secondary" data-library="'+esc(row.library)+'" data-library-path="'+esc(path)+'">'+esc(path)+'</button>').join('')+'</div>').join('');dialog.querySelector('.ob-body').append(choices);
+        choices.querySelectorAll('[data-library-path]').forEach(button=>button.onclick=action(async()=>{await invoke('saveLibraryRoot',{library:button.dataset.library,path:button.dataset.libraryPath});await refreshStatus();render();}));
+      }
+      if(!busy&&!done&&current.legacyPlanAvailable&&current.profileMode!=='memory-only'){
+        const option=document.createElement('div');option.innerHTML='<p>Você pode preservar os recibos anteriores e iniciar a instalação completa sem perguntas de identidade.</p>'+button('ob-new-flow','Iniciar novo fluxo',false);dialog.querySelector('.ob-body').append(option);
+        $('#ob-new-flow').onclick=action(async()=>{replaceLegacy=true;await navigate('vault');});
+      }
+      if(!busy&&(current.distributionConflicts||[]).length){
+        const conflicts=document.createElement('section');conflicts.innerHTML='<p>'+current.distributionConflicts.length+' arquivos possuem alterações locais. Guarde cópias dos arquivos editados e aplique os arquivos da distribuição. Arquivos retirados da release também serão guardados antes da remoção.</p><details><summary>Arquivos em conflito</summary><ul>'+current.distributionConflicts.map(item=>'<li>'+esc(item.path)+'</li>').join('')+'</ul></details>'+button('ob-resolve-conflicts','Guardar cópias e tentar novamente',false);dialog.querySelector('.ob-body').append(conflicts);
+        $('#ob-resolve-conflicts').onclick=action(async()=>{await invoke('onboardingResolveConflicts');await invoke('onboardingResume');await refreshStatus();dismiss();await api.refresh?.();});
+      }
       $('#ob-progress-close').onclick=action(close);
       $('#ob-cancel')?.addEventListener('click',action(cancel));if($('#ob-cancel'))$('#ob-cancel').disabled=current.status==='cancelling';
-      $('#ob-resume')?.addEventListener('click',action(async()=>{await invoke('onboardingResume');await refreshStatus();stage=resolveStage();render();}));
+      $('#ob-resume')?.addEventListener('click',action(async()=>{await invoke('onboardingResume');await refreshStatus();stage=resolveStage();if(current.profileMode==='memory-only'&&active.has(current.status)){dismiss();await api.refresh?.();}else render();}));
+    }
+    if(current.legacyPlanAvailable&&current.profileMode!=='memory-only'&&!active.has(current.status)&&['readback','review','identity'].includes(stage)){
+      const option=document.createElement('div');option.innerHTML=button('ob-new-flow','Iniciar novo fluxo sem identidade',false);dialog.querySelector('.ob-body').append(option);
+      $('#ob-new-flow').onclick=action(async()=>{replaceLegacy=true;await navigate('vault');});
     }
   }
   function readbackText(text){const names={...labels,SOUL_RELATIONSHIP:'Papel na colaboração',SOUL_MODE_DEFAULT:'Como agir diante de dúvidas',SOUL_WINCE:'O que evitar',SOUL_WORLDVIEW:'Visão de mundo',SOUL_GOOD_OUTPUT:'O que define uma boa entrega'};return String(text).replace(/^read-back hash:.*$/gm,'').replace(/^(?:\* )?\s*([A-Z_]+):/gm,(_,k)=>(names[k]||k)+':').replace(/\(default:/g,'(padrão:').trim();}
@@ -150,7 +178,7 @@
     if(!card)return;
     card.hidden=suspended||open||current.status==='completed'||current.resumeExisting;if(card.hidden)return;
     const cancelable=active.has(current.status)||current.status==='waiting_user';
-    card.innerHTML=`<div class="ob-card-copy"><strong>${esc(!current.licensed?'Ative seu Oracle':current.message||'Continue a configuração local')}</strong><span>${esc(current.phase||'')}</span></div><div class="ob-card-actions">${button('ob-continue',current.request?'Responder':current.readback?'Revisar respostas':'Continuar',false)}${cancelable?button('ob-card-cancel','Pausar',false):''}</div>${active.has(current.status)?'<div class="ob-working" aria-label="Instalação local em andamento"></div>':''}`;
+    card.innerHTML=`<div class="ob-card-copy"><strong>${esc(!current.licensed?'Ative seu Oracle':current.message||'Continue a configuração local')}</strong><span>${esc(current.profileMode==='memory-only'?({preparing:'Preparação',downloading:'Download',installing:'Instalação',indexing:'Busca e links',verifying:'Verificação'}[current.phase]||''):current.phase||'')}</span></div><div class="ob-card-actions">${button('ob-continue',current.request?'Responder':current.readback?'Revisar respostas':active.has(current.status)?'Detalhes':current.profileMode==='memory-only'?'Continuar instalação':'Continuar',false)}${cancelable?button('ob-card-cancel','Pausar',false):''}</div>${active.has(current.status)?'<div class="ob-working" aria-label="Instalação local em andamento"></div>':''}`;
     $('#ob-continue').onclick=()=>{stage=resolveStage();reveal();};$('#ob-card-cancel')?.addEventListener('click',action(cancel));
   }
   const requestKey=value=>JSON.stringify([value.runID,value.request?.id,value.request?.generation]);
@@ -172,7 +200,7 @@
           // Preserve the same question while typing. A new run/generation is a new question.
           if(automatic&&viewSignature()!==lastView&&!(stage==='request'&&requestKey(prior)===requestKey(current)))render();
           if(stage==='connection'&&viewSignature()!==lastView)render();
-          if(stage==='license'&&current.licensed){if(current.resumeExisting){await dismiss();await api.refresh?.();}else{stage=resolveStage();render();}}
+          if(stage==='license'&&current.licensed){stage='activation';render();}
         }
       }
       renderCard();

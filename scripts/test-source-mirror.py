@@ -103,6 +103,19 @@ class MirrorTests(unittest.TestCase):
             self.apply(plan, **kwargs)
         self.assertEqual(before, self.files())
 
+    def test_all_libraries_mirror_reviewed_snapshot_and_resources(self):
+        write(self.source / 'SISTEMA/prompts/Hello.md', b'# Hello')
+        write(self.source / 'SISTEMA/Tutoriais/Guide.md', b'# Guide')
+        write(self.source / 'SISTEMA/Tutoriais/task.mjs', b'// Never run')
+        response = self.cli('--libraries', 'all')
+        self.assertEqual(response.returncode, 0, response.stderr)
+        plan = json.loads(self.plan_path.read_bytes())
+        self.assertEqual(set(self.actions(plan)), {SKILL, ASSET, 'SISTEMA/prompts/Hello.md', 'SISTEMA/Tutoriais/Guide.md', 'SISTEMA/Tutoriais/task.mjs'})
+        response = self.cli('--libraries', 'all', '--apply', '--reviewed-plan-sha256', plan['plan_sha256'])
+        self.assertEqual(response.returncode, 0, response.stderr)
+        self.assertEqual((self.dest / 'SISTEMA/Tutoriais/task.mjs').read_bytes(), b'// Never run')
+        self.assertFalse((self.source / 'executed-marker').exists())
+
     def test_default_dry_run_is_deterministic_manifest_not_release(self):
         before = self.files()
         response = self.cli()

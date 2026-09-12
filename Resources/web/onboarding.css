@@ -21,3 +21,7 @@
 body.reduce-transparency .ob-progress-card,body.reduce-transparency .ob-dialog{background:#181818;backdrop-filter:none}body.reduce-motion .ob-working,body.reduce-motion .ob-dialog{animation:none}
 
 .ob-dialog h1:focus{outline:none}.ob-dialog{background-color:rgba(20,20,20,.98)}
+.ob-validating::before{content:"";display:inline-block;width:12px;height:12px;margin-right:8px;border:1px solid currentColor;border-right-color:transparent;border-radius:50%;vertical-align:-2px;animation:ob-validation-spin .8s linear infinite}
+@keyframes ob-validation-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.ob-validating::before{animation:none}}
+body.reduce-motion .ob-validating::before{animation:none}

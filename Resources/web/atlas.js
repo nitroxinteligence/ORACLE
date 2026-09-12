@@ -116,8 +116,8 @@ class OracleAtlas {
   }
   update(data,immediate=false){
     const manifest=data.departmentManifest??window.OracleDepartmentManifest;
-    const catalogKey=JSON.stringify([data.collections||[],(data.entries||[]).map(e=>[e.path,e.name,!!e.directory]),manifest,data.departmentAssignments||{}]);
-    if(catalogKey!==this.catalogKey){this.catalog=OracleDepartments.createCatalog(data.collections||[],data.entries||[],manifest,data.departmentAssignments);this.catalogKey=catalogKey}
+    const catalogKey=JSON.stringify([data.collections||[],(data.entries||[]).map(e=>[e.path,e.name,!!e.directory]),manifest,data.departmentAssignments||{},data.skillRoot,data.forming]);
+    if(catalogKey!==this.catalogKey){this.catalog=OracleDepartments.createCatalog(data.collections||[],data.entries||[],manifest,data.departmentAssignments,data.skillRoot,data.forming);this.catalogKey=catalogKey}
     const incomingDepartment=Object.prototype.hasOwnProperty.call(data,'selectedDepartment')?data.selectedDepartment||null:this.department;
     const selectionChanged=!this.data||this.selected!==(data.selected||null)||this.selectedLeaf!==(data.selectedLeaf||null)||this.department!==incomingDepartment;
     const route=OracleDepartments.resolveSelection(this.catalog,{specialist:data.selected,leaf:data.selectedLeaf,department:incomingDepartment,group:selectionChanged?null:this.context.group,page:selectionChanged?0:this.context.page});

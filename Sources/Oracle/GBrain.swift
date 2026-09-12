@@ -323,16 +323,28 @@ extension Core {
             } else {env.removeValue(forKey:"ORACLE_CANCEL_FILE")}
             if let cancellation {env["ORACLE_CANCEL_FILE"]=cancellation.path}
             let files=snapshot.files.filter {let path=$0.lowercased();return path != "inbox/oracle-memory" && !path.hasPrefix("inbox/oracle-memory/")}
+            // Large path inventories use a verified profile-local transport file;
+            // the 16 MB subprocess request limit and 5,000-upsert slices stay intact.
+            let inventoryData=try jsonData(["schema_version":1,"root":root.path,"files":files])
+            guard inventoryData.count<=64_000_000 else{throw failure("Inventário de caminhos excede o transporte suportado; nenhuma página foi removida.")}
+            let inventoryHash=digest(inventoryData),inventoryURL=try scoped("gbrain/profile/oracle-index-input/"+inventoryHash+".json",root:home)
+            try fm.createDirectory(at:inventoryURL.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+            if !fm.fileExists(atPath:inventoryURL.path){try atomicWriteData(inventoryData,to:inventoryURL,permissions:0o600)}
+            guard try fileDigest(inventoryURL)==inventoryHash else{throw failure("Inventário de entrada alterado.")}
             let payload:[String:Any]=["operation":"index","source":"oracle-vault","root":root.path,
-                "files":files,"scan_complete":snapshot.complete,"generation":generation,"owned":true,"force":force,
+                "inventory_file":inventoryURL.path,"inventory_sha256":inventoryHash,"inventory_count":files.count,"scan_complete":snapshot.complete,"generation":generation,"owned":true,"force":force,
                 "snapshot_signature":snapshot.signature,"budget_ms":Int(budget*1000),"max_upserts":maxUpserts,"plan_ref":planRef ?? ""]
             let receipt=try scoped("setup/gbrain-sync.json",root:home)
             do {
                 let result=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],
                     cwd:try scoped("gbrain/workspace",root:home),environment:env,input:jsonData(payload),timeout:budget+15)
-                guard result.code==0,let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")}),
-                      let response=try JSONSerialization.jsonObject(with:Data(line.utf8)) as? [String:Any],response["ok"] as? Bool==true,
-                      var value=response["value"] as? [String:Any] else{throw failure("O motor não confirmou a indexação. Checkpoint e notas preservados.")}
+                let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")})
+                let response=line.flatMap{(try? JSONSerialization.jsonObject(with:Data($0.utf8))) as? [String:Any]}
+                guard result.code==0,response?["ok"] as? Bool==true,var value=response?["value"] as? [String:Any] else{
+                    let reason=(response?["error"] as? String).map{String($0.prefix(1000))} ?? "Processo encerrado com código \(result.code)."
+                    try? writeJSON(["exit_code":result.code,"error":reason,"output_bytes":result.output.utf8.count],home.appendingPathComponent("setup/index-failure.json"))
+                    throw failure("O motor não confirmou a indexação. Checkpoint e notas preservados. "+reason)
+                }
                 if value["complete"] as? Bool==true {
                     let manifest=try scoped("gbrain/profile/oracle-vault-manifest.json",root:home)
                     guard value["manifest_file_sha256"] as? String==digest(try Data(contentsOf:manifest)) else{throw failure("O recibo do índice mudou antes da verificação final.")}

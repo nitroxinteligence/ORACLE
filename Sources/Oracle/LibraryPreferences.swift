@@ -11,7 +11,8 @@ extension Core {
     }
     func saveLibraryRoot(library:String, path:String) throws -> [String:Any] {
         try requireCapability(.configure)
-        let expected:[String:String] = ["prompt":"SISTEMA/prompts", "tutorial":"SISTEMA/Tutoriais"]
+        let lease=try acquireOperationLock("installation");defer{releaseOperationLock(lease)}
+        let expected:[String:String] = ["skills":"SISTEMA/skills", "prompt":"SISTEMA/prompts", "tutorial":"SISTEMA/Tutoriais"]
         guard let canonical=expected[library],path.split(separator:"/").count==2,
               path.precomposedStringWithCanonicalMapping.lowercased()==canonical.lowercased() else {
             throw failure("Pasta fora do escopo desta biblioteca.")
@@ -21,6 +22,10 @@ extension Core {
             throw failure("A pasta escolhida não está disponível no vault autorizado.")
         }
         refreshConfig()
+        if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),isMemoryOnly(plan),plan["vault"] as? String==config["vault"] as? String,
+           let pinned=(plan["library_roots"] as? [String:String])?[library],pinned != path {
+            throw failure("A instalação atual está vinculada a \(pinned). Preserve essa raiz ou selecione outro vault para um plano separado.")
+        }
         var choices=config["libraryRoots"] as? [String:String] ?? [:]
         choices[library]=path;config["libraryRoots"]=choices;try persist()
         return ["library":library,"path":path]

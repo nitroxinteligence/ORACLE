@@ -63,9 +63,14 @@ final class Core {
         value["operations"] = ["setup":operationIsRunning("setup"),"gbrain":operationIsRunning("gbrain")]
         value["home"] = home.path
         value["onboarding"] = try onboardingSnapshot()
+        if onboardingRecord()["profileMode"] as? String=="memory-only",onboardingRecord()["status"] as? String != "completed" {
+            value["entries"]=try installationEntries(value["entries"] as? [[String:Any]] ?? [])
+            value["collections"]=discoveredCollections(value["entries"] as? [[String:Any]] ?? [])
+        }
         value["codexPlugins"] = codexPluginSnapshot()
         value["catalog"] = catalogSummary()
         value["departmentManifest"] = (try? readJSON(bundledEngineResources().deletingLastPathComponent().appendingPathComponent("catalog/departments.json"))) ?? NSNull()
+        value["distributionDepartmentAssignments"] = distributionDepartmentAssignments()
         value["gbrainMethod"] = officialGBrainSkillsSnapshot()
         value["gbrainSync"] = gbrainSyncStatus()
         value["maintenance"] = try maintenanceSnapshot()
@@ -191,7 +196,13 @@ final class Core {
     }
     func validatedPlan() throws -> [String:Any] {
         let plan=try readJSON(home.appendingPathComponent("setup/plan.json"))
-        guard let hash=plan["plan_hash"] as? String,hash==plan["confirmed_hash"] as? String,hash==(try planDigest(plan)),plan["answers_hash"] as? String==digest(try jsonData(plan["answers"] ?? [:])),plan["vault"] as? String==config["vault"] as? String else { throw failure("Plano mudou ou não foi confirmado. Revise a configuração no Oracle.") }
+        guard let hash=plan["plan_hash"] as? String,hash==plan["confirmed_hash"] as? String,hash==(try planDigest(plan)),plan["vault"] as? String==config["vault"] as? String else { throw failure("Plano mudou ou não foi confirmado. Revise a configuração no Oracle.") }
+        if isMemoryOnly(plan) {
+            guard plan["answers"]==nil,plan["answers_hash"]==nil,plan["attach"] as? Bool==false else{throw failure("Plano de memória sem identidade contém campos incompatíveis.")}
+            _=try distributionForPlan(plan)
+        } else {
+            guard plan["schema_version"] as? Int==1,plan["answers_hash"] as? String==digest(try jsonData(plan["answers"] ?? [:])) else{throw failure("Versão do plano ou respostas inválidas.")}
+        }
         return plan
     }
     func confirmPlan(hash: String) throws {
@@ -252,7 +263,7 @@ final class Core {
             guard fm.fileExists(atPath:url.path,isDirectory:&directory), directory.boolValue else { throw failure("Colisão: \(path) não é pasta") }
             if !verified.contains(path) { verified.append(path); journal["verified"] = verified; try writeJSON(journal,journalURL); try event(type:"setup.folder_verified",summary:path,id:id+path,details:["run_id":id,"phase":"structure","completed":verified.count,"total":(plan["folders"] as? [String] ?? []).count,"subject_refs":[["path":path,"directory":true]]]) }
         }
-        journal["status"] = "structure_verified"; journal["gbrain"] = "requires_official_bootstrap"; try writeJSON(journal,journalURL)
+        journal["status"] = "structure_verified"; journal["gbrain"] = isMemoryOnly(plan) ? "memory_only" : "requires_official_bootstrap"; try writeJSON(journal,journalURL)
         try event(type:"setup.structure_verified",summary:"Estrutura verificada; GBrain e confiança Codex têm verificações separadas",id:id+"structure",details:["run_id":id,"phase":"structure","completed":verified.count,"total":verified.count])
         _ = try applyCatalog(plan:plan,verifyOnly:verifyOnly)
         return journal

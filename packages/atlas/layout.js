@@ -20,8 +20,8 @@ export function visibleCount(total, selected, detail=3, zoom=1) {
 // These are alphabetical browsing ranges, not subject areas or prerequisites.
 const alphabet = ['A–C', 'D–F', 'G–I', 'J–L', 'M–O', 'P–R', 'S–U', 'V–Z', '#'];
 export function skillName(entry) { return entry.path.split('/').at(-2).replace(/-/g, ' '); }
-export function catalogGroups(collection, entries) {
-  const root = `SISTEMA/skills/${collection}/`, groups = new Map();
+export function catalogGroups(collection, entries, skillRoot='SISTEMA/skills') {
+  const root = `${skillRoot}/${collection}/`, groups = new Map();
   for (const entry of entries) {
     if (entry.directory || entry.name !== 'SKILL.md' || !entry.path.startsWith(root)) continue;
     const parts = entry.path.slice(root.length).split('/');

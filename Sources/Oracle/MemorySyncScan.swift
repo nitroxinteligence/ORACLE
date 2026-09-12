@@ -62,6 +62,8 @@ extension Core {
                     if instructionsOnly && !["AGENTS.md","AGENTS.override.md"].contains(file.lastPathComponent) { continue }
                     if file.pathExtension.lowercased() != "md" { continue }
                     guard values.isRegularFile == true else { issue(file,"Markdown não é arquivo regular.");continue }
+                    var local=stat()
+                    guard lstat(file.path,&local)==0,local.st_flags & 0x40000000==0 else{issue(file,"Markdown ainda não está disponível localmente; conclua o download no macOS.");continue}
                     // Explicit omission: a note that grew cannot be mistaken for a deletion.
                     guard (values.fileSize ?? Int.max) <= 2_000_000 else { issue(file,"Markdown excede 2 MB e não foi indexado.");continue }
                 }

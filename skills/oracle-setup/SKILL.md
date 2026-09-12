@@ -9,6 +9,21 @@ Oracle performs deterministic setup and resume natively by default, without a Co
 
 ## Start from the reviewed plan
 
+Inspect the version before using legacy commands. A v3 `memory-only` plan has
+no identity answers, interview, SOUL/USER requirement or readback. Install and
+resume it through the native Oracle controller. The Install click confirms
+the distribution's immutable plan; no extra review or Resume is required on
+the normal path. All declared skills, prompts, tutorials and supporting files
+are installed from authenticated packages. The complete source snapshot stays
+outside the vault. The official runtime and adapter stay in the app-approved
+version set. Do not replace a missing release with an empty/example catalog.
+
+For v3 report identity as `not_applicable`. Verify `setup/memory-only.json`, the
+complete distribution ledger, canonical files, index, method and Codex link
+receipt. Locally installed links in `~/.agents/skills` do not prove discovery
+by the host or skill execution. Never mutate another skill or trust setting.
+The interview commands and confirmation rules below apply only to version 1.
+
 The Oracle briefing supplies the absolute app executable and state directory. Read `<state>/setup/plan.json`. Its `confirmed_hash` must match the full `plan_hash`, including destination and catalog choices. Editing answers or changing vault requires a new review. An installed package never proves an active agent.
 
 Run the supplied executable using argument arrays or safe shell quoting:

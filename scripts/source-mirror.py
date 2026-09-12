@@ -24,6 +24,9 @@ import uuid
 from catalog_safety import check_publication_bytes
 
 PREFIX = 'SISTEMA/skills'
+PREFIXES = (PREFIX,)
+ALL_LIBRARIES = False
+PUBLICATION_EXAMPLES = {}
 CONTROL = '.oracle-source-mirror'
 LEDGER = CONTROL + '/ownership.json'
 JOURNAL = CONTROL + '/journal.json'
@@ -290,7 +293,7 @@ class Tree:
             before = os.fstat(fd)
             check_stat(before, True)
             rows[path or '.'] = record_stat(before, True)
-            require(len(rows) <= 20000, 'Inventory exceeds directory budget')
+            require(len(rows) <= (100000 if ALL_LIBRARIES else 20000), 'Inventory exceeds directory budget')
             children = sorted(os.listdir(fd))
             for name in children:
                 full = (path + '/' if path else '') + name
@@ -304,7 +307,7 @@ class Tree:
                     check_stat(info, True)
                     continue
                 if source:
-                    require(not name.startswith('.'), 'Hidden source item refused')
+                    require(name not in {'.git','.env','.DS_Store','node_modules','.gbrain'} if ALL_LIBRARIES else not name.startswith('.'), 'Private or hidden source item refused')
                 if stat.S_ISDIR(info.st_mode):
                     child = self._child(fd, name)
                     try:
@@ -316,19 +319,19 @@ class Tree:
                     limit = 32_000_000
                     if source:
                         extension = Path(name).suffix.lstrip('.').lower()
-                        require(extension in EXTENSIONS or name.upper() in LICENSES, 'Unsupported source file type')
-                        require(len(full.split('/')) >= 4 and full.startswith(PREFIX + '/'), 'Source outside skill collection')
+                        require(extension in EXTENSIONS or name.upper() in LICENSES or (ALL_LIBRARIES and not extension), 'Unsupported source file type')
+                        require(len(full.split('/')) >= (3 if ALL_LIBRARIES else 4) and any(full.startswith(prefix + '/') for prefix in PREFIXES), 'Source outside approved libraries')
                         require(name.casefold() not in ('credentials.json', 'token.json', 'secrets.json'), 'Credential file refused')
-                        limit = 5_000_000 if extension in IMAGES else 2_000_000
+                        limit = (2_000_000 if extension=='md' else 32_000_000) if ALL_LIBRARIES else (5_000_000 if extension in IMAGES else 2_000_000)
                     data, record = self.read(full, limit)
                     byte_count[0] += len(data)
                     require(byte_count[0] <= (MAX_SOURCE if source else MAX_DESTINATION), 'Inventory exceeds total byte budget')
                     rows[full] = record
                     file_count[0] += 1
-                    require(len(rows) <= 20000 and file_count[0] <= (MAX_FILES if source else 10000), 'Inventory exceeds file budget')
+                    require(len(rows) <= (100000 if ALL_LIBRARIES else 20000) and file_count[0] <= (MAX_FILES if source else (60000 if ALL_LIBRARIES else 10000)), 'Inventory exceeds file budget')
                     if source:
                         try:
-                            check_publication_bytes(full, data)
+                            check_publication_bytes(full, data, PUBLICATION_EXAMPLES)
                             check_publication_bytes('source-path', full.encode())
                         except ValueError:
                             raise Refused('Credential-like source material refused; content omitted') from None
@@ -347,7 +350,7 @@ class Tree:
             require(info is not None and record_stat(info, expected['kind'] == 'directory') ==
                     {k: v for k, v in expected.items() if k != 'sha256'}, 'Inventory changed after preflight')
         if source:
-            require(blobs and any(p.endswith('/SKILL.md') for p in blobs), 'Missing or empty complete skill source refused')
+            require(blobs and (any(p.endswith('/SKILL.md') for p in blobs) if prefix == PREFIX else any(p.lower().endswith('.md') for p in blobs)), 'Missing or empty complete library source refused')
         return rows, blobs
 
 
@@ -424,6 +427,16 @@ def git_state(destination, expected_head, remote_ref, remote_head):
             'control_ignored': True, 'control_tracked': False}
 
 
+def source_inventory(source):
+    rows, blobs = {}, {}
+    for prefix in PREFIXES:
+        current, data = source.inventory(prefix, source=True)
+        require(not (set(rows) & set(current)), 'Duplicate library inventory')
+        rows.update(current);blobs.update(data)
+    require(len(blobs)<=MAX_FILES and sum(len(data) for data in blobs.values())<=MAX_SOURCE, 'Complete library inventory exceeds declared budget')
+    return rows, blobs
+
+
 def ledger_value(source, destination):
     value = destination.json(LEDGER)
     if value is None:
@@ -432,7 +445,7 @@ def ledger_value(source, destination):
     require(value.get('source_root') == str(source.path) and value.get('destination_root') == str(destination.path), 'Ownership belongs to different roots')
     for path, record in value['owned'].items():
         relative(path)
-        require(path.startswith(PREFIX + '/') and isinstance(record, dict) and
+        require(any(path.startswith(prefix + '/') for prefix in PREFIXES) and isinstance(record, dict) and
                 re.fullmatch(r'[0-9a-f]{64}', record.get('sha256', '')) and
                 isinstance(record.get('mode'), int) and 0 <= record['mode'] <= 0o777, 'Invalid ownership entry')
     return value
@@ -474,7 +487,7 @@ def plan_for(source, destination, expected_head, remote_ref, remote_head):
     active = destination.json(JOURNAL)
     require(not active or active.get('state') == 'committed', 'Pending transaction: resume its reviewed plan first')
     git = git_state(destination, expected_head, remote_ref, remote_head)
-    source_rows, _ = source.inventory(PREFIX, source=True)
+    source_rows, _ = source_inventory(source)
     dest_rows, _ = destination.inventory()
     ledger = ledger_value(source, destination)
     plan = {'schema_version': 1, 'kind': KIND, 'source_root': str(source.path), 'destination_root': str(destination.path),
@@ -483,6 +496,7 @@ def plan_for(source, destination, expected_head, remote_ref, remote_head):
             'git': git, 'actions': actions_for(source_rows, dest_rows, ledger, git['tracked_paths']),
             'deletion_policy': 'retain-all-originals', 'published': False, 'release_asset': False,
             'content_and_license_review_required': True}
+    if ALL_LIBRARIES:plan['source_prefixes']=list(PREFIXES)
     require(git_state(destination, expected_head, remote_ref, remote_head) == git, 'Git metadata changed during planning')
     plan['plan_sha256'] = sha(canonical(plan))
     return plan
@@ -577,7 +591,7 @@ def execute(source, destination, plan, reviewed_hash, expected_head, remote_ref,
             plan.get('source_identity') == source.root_identity and plan.get('destination_identity') == destination.root_identity,
             'Reviewed roots changed')
     require(git_state(destination, expected_head, remote_ref, remote_head) == plan['git'], 'Reviewed Git state changed')
-    source_rows, blobs = source.inventory(PREFIX, source=True)
+    source_rows, blobs = source_inventory(source)
     require(source_rows == plan['source_snapshot'], 'Source changed since review')
     require(actions_for(plan['source_snapshot'], plan['destination_snapshot'], plan['ownership_before'], plan['git']['tracked_paths']) == plan['actions'],
             'Plan actions differ from ownership-preserving policy')
@@ -668,7 +682,7 @@ def execute(source, destination, plan, reviewed_hash, expected_head, remote_ref,
             journal.update(cursor=index + 1, phase='ready', staged=None)
             save_journal(destination, journal)
             checkpoint('operation_recorded')
-        require(source.inventory(PREFIX, source=True)[0] == plan['source_snapshot'], 'Source changed during application; resume refused until reviewed')
+        require(source_inventory(source)[0] == plan['source_snapshot'], 'Source changed during application; resume refused until reviewed')
         require(git_state(destination, expected_head, remote_ref, remote_head) == plan['git'], 'Git changed before final receipt')
         verify_effects(destination, plan, journal)
         checkpoint('before_ledger')
@@ -692,6 +706,7 @@ def summary(plan, status):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', required=True, type=Path)
+    parser.add_argument('--libraries', choices=['skills','all'], default='skills', help='all mirrors only the three approved roots; use the reviewed publication snapshot')
     parser.add_argument('--destination', required=True, type=Path)
     parser.add_argument('--plan', required=True, type=Path, help='New dry-run JSON path, or existing reviewed plan for apply/resume')
     parser.add_argument('--expected-head', required=True)
@@ -701,8 +716,27 @@ def main(argv=None):
     mode.add_argument('--apply', action='store_true')
     mode.add_argument('--resume', action='store_true')
     parser.add_argument('--reviewed-plan-sha256')
+    parser.add_argument('--publication-review', type=Path, help='Explicit final-byte example review exported by distribution publisher; all libraries only')
     args = parser.parse_args(argv)
+    global PREFIXES, ALL_LIBRARIES, MAX_FILES, MAX_SOURCE, MAX_DESTINATION, EXTENSIONS, PUBLICATION_EXAMPLES
+    PUBLICATION_EXAMPLES={}
+    ALL_LIBRARIES=args.libraries=='all'
+    PREFIXES=(PREFIX,)
+    EXTENSIONS=set('md txt json yaml yml py js ts sh toml css html csv sql svg png jpg jpeg webp'.split())
+    MAX_FILES,MAX_SOURCE,MAX_DESTINATION=5000,50_000_000,200_000_000
+    if ALL_LIBRARIES:
+        from oracle_distribution import TEXT_EXTENSIONS, RESOURCE_EXTENSIONS
+        PREFIXES=('SISTEMA/skills','SISTEMA/prompts','SISTEMA/Tutoriais')
+        EXTENSIONS=TEXT_EXTENSIONS|RESOURCE_EXTENSIONS
+        MAX_FILES,MAX_SOURCE,MAX_DESTINATION=30000,512_000_000,1_024_000_000
     try:
+        if args.publication_review:
+            require(ALL_LIBRARIES, 'Publication example review requires all-library mode')
+            from oracle_distribution import read_stable, decode
+            review=decode(read_stable(args.publication_review.absolute()))
+            require(review.get('schema_version')==3 and isinstance(review.get('publication_examples'),dict), 'Invalid publication example review')
+            PUBLICATION_EXAMPLES=review['publication_examples']
+            require(len(PUBLICATION_EXAMPLES)<=30000 and all(re.fullmatch(r'[a-f0-9]{64}',key) for key in PUBLICATION_EXAMPLES), 'Invalid example file hashes')
         plan_path = absolute(args.plan)
         with Tree(args.source) as source, Tree(args.destination) as destination, Tree(plan_path.parent) as plans:
             require(not plan_path.is_relative_to(source.path) and not plan_path.is_relative_to(destination.path),

@@ -11,7 +11,7 @@ extension App {
         }
         guard let controller=onboardingController else {reply(id,nil,"A configuração do Oracle não pôde ser aberta.");return true}
         if method=="onboardingChooseVault" || method=="onboardingChooseBrain" {
-            let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.canCreateDirectories=method=="onboardingChooseVault"
+            let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.canCreateDirectories=false
             panel.message=method=="onboardingChooseVault" ? "Escolha a pasta original do seu vault Obsidian." : "Escolha a pasta da sua instalação existente do Second Brain (GBrain)."
             panel.beginSheetModal(for:window) {response in
                 guard response == .OK,let url=panel.url else{self.reply(id,NSNull());return}
@@ -35,7 +35,7 @@ extension App {
             };return true
         }
         // Interrupt has its own queue so it can cancel an in-flight turn/start or inventory call.
-        let workQueue=["onboardingCancel","onboardingDraft","onboardingDraftUI"].contains(method) ? DispatchQueue.global(qos:.userInitiated) : controller.queue
+        let workQueue=["onboardingCancel","onboardingDraft","onboardingDraftUI","onboardingInstallMemoryOnly"].contains(method) ? DispatchQueue.global(qos:.userInitiated) : controller.queue
         workQueue.async {
             do {
                 var result:Any=true
@@ -52,6 +52,8 @@ extension App {
                 case "onboardingDraftUI":try controller.saveUIState(params)
                 case "onboardingPlan":result=try controller.plan(params)
                 case "onboardingInstall":result=try controller.install(params["hash"] as? String ?? "")
+                case "onboardingInstallMemoryOnly":result=try controller.installMemoryOnly(replaceLegacy:params["replaceLegacy"] as? Bool==true)
+                case "onboardingResolveConflicts":try controller.requireAccess();try controller.ensureNotRunning();result=try controller.core.resolveDistributionConflicts()
                 case "onboardingResume":result=try controller.resume()
                 case "onboardingInstallWithCodex":result=try controller.installWithCodex(params["hash"] as? String ?? "")
                 case "onboardingResumeWithCodex":result=try controller.resumeWithCodex()

@@ -47,8 +47,8 @@ extension Core {
         let manifestData=try Data(contentsOf:bundle.appendingPathComponent("manifest.json"))
         let manifestRelative=".oracle/gbrain-method/manifest.json"
         generated[manifestRelative]=manifestData;expected[manifestRelative]=digest(manifestData)
-        let attached=plan["attach"] as? Bool==true
-        let identityRoot=attached ? (config["gbrainWorkspace"] as? String).map{URL(fileURLWithPath:$0)} : home.appendingPathComponent("gbrain/workspace")
+        let attached=plan["attach"] as? Bool==true,memoryOnly=isMemoryOnly(plan)
+        let identityRoot:URL?=memoryOnly ? nil : attached ? (config["gbrainWorkspace"] as? String).map{URL(fileURLWithPath:$0)} : home.appendingPathComponent("gbrain/workspace")
         let rendered=(try? readJSON(home.appendingPathComponent("setup/identity-render.json"))) ?? [:]
         var identitySources=[String:String](),identityHashes=[String:String]()
         if let identityRoot {
@@ -61,7 +61,7 @@ extension Core {
             }
         }
         let hasIdentity=identityHashes[".oracle/identity/SOUL.md"] != nil && identityHashes[".oracle/identity/USER.md"] != nil
-        if !attached && !hasIdentity {throw failure("Confirme a identidade oficial antes de preparar o Codex.")}
+        if !memoryOnly && !attached && !hasIdentity {throw failure("Confirme a identidade oficial antes de preparar o Codex.")}
         let wrapper="""
         ---
         name: oracle-gbrain-method
@@ -148,10 +148,24 @@ extension Core {
             // Copies are read-only references to an agent, not executable hooks.
             try fm.setAttributes([.posixPermissions:0o600],ofItemAtPath:target.path)
         }
-        for path in old.keys where expected[path]==nil {let target=try scoped(path,root:workspace);if fm.fileExists(atPath:target.path){try fm.removeItem(at:target)}}
+        // A new memory-only plan never deletes a legacy identity. Archive only
+        // the verified copies, preserving their original workspace and receipts.
+        for path in old.keys where expected[path]==nil {
+            let target=try scoped(path,root:workspace)
+            if fm.fileExists(atPath:target.path) {
+                if memoryOnly,path.hasPrefix(".oracle/identity/") {
+                    let archived=try scoped("setup/legacy-identities/"+(plan["id"] as! String)+"/"+String(path.dropFirst(".oracle/identity/".count)),root:home)
+                    try fm.createDirectory(at:archived.deletingLastPathComponent(),withIntermediateDirectories:true)
+                    if !fm.fileExists(atPath:archived.path){try fm.copyItem(at:target,to:archived)}
+                    guard try fileDigest(archived)==old[path] else{throw failure("Arquivo de identidade anterior preservado; recuperação divergente.")}
+                }
+                guard Darwin.unlink(target.path)==0 else{throw failure("Arquivo antigo preservado; não foi possível concluir a atualização do método.")}
+            }
+        }
         let receipt:[String:Any]=["schema_version":1,"id":oracleGBrainMethodID,"version":oracleGBrainPinnedVersion,"commit":oracleGBrainPinnedCommit,
             "workspace":workspace.path,"files":expected,"manifest_sha256":digest(manifestData),"identity_sources":identitySources,"identity_hashes":identityHashes,
-            "identity_status":hasIdentity ? "source_and_workspace_verified" : "external_identity_unavailable","status":"installed_not_runtime_verified",
+            "profile_mode":memoryOnly ? "memory-only":"identity","plan_hash":plan["plan_hash"] ?? "",
+            "identity_status":memoryOnly ? "not_applicable" : hasIdentity ? "source_and_workspace_verified" : "external_identity_unavailable","status":"installed_not_runtime_verified",
             "skill":workspace.appendingPathComponent(wrapperPath).path,"resolver":workspace.appendingPathComponent(".oracle/gbrain-method/resolver.json").path,"runtime_verified":false]
         try writeJSON(receipt,receiptURL);return receipt
     }
@@ -180,7 +194,7 @@ extension Core {
         if bridge["mcp_status"] as? String != "existing_installation_preserved" {
             guard digest(try Data(contentsOf:scoped(".codex/config.toml",root:workspace)))==bridge["mcp_sha256"] as? String else {throw failure("Configuração MCP alterada.")}
         }
-        return ["officialMethod":true,"identity":installed["identity_status"] as? String=="source_and_workspace_verified","workspace":workspace.path,
+        return ["officialMethod":true,"identity":installed["identity_status"] as? String=="source_and_workspace_verified","identity_status":installed["identity_status"] ?? "unknown","workspace":workspace.path,
                 "requiredSkillPaths":requiredGBrainCodexSkillPaths(),"skillFilesVerified":true,"runtimeDiscoveryVerified":false,"hooksTrusted":false,"mcpExecutionVerified":false]
     }
 }

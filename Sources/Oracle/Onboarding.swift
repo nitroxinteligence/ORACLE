@@ -44,10 +44,25 @@ extension Core {
             value["localStarted"] as? Bool != true && value["codexStarted"] as? Bool != true &&
             ["not_started", "review", "configuring"].contains(value["status"] as? String ?? "")
         if value["hasVault"] as? Bool==false && value["status"] as? String=="completed" {value["status"]="configuring";value["runID"]=NSNull();value["message"]="Escolha seu Obsidian para continuar."}
+        value["libraryRootChoices"]=distributionLibraryChoices()
         value["hasExistingBrain"]=config["gbrainWorkspace"] as? String != nil
+        if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),!isMemoryOnly(plan) {
+            value["legacyPlanAvailable"]=true
+        }
+        if let conflicts=try? readJSON(home.appendingPathComponent("distribution/conflicts.json")),
+           let plan=try? validatedPlan(),conflicts["plan_hash"] as? String==plan["plan_hash"] as? String {
+            value["distributionConflicts"]=(conflicts["conflicts"] as? [[String:String]] ?? []).map{["path":$0["path"] ?? "","code":$0["code"] ?? ""]}
+        }
         value["codexConnected"]=(try? readJSON(home.appendingPathComponent("onboarding/connection.json")))?["connected"] as? Bool ?? false
         let progress=try onboardingProgress();value["confirmed"]=progress
         value["completed"]=progress.count;value["total"]=NSNull()
+        if value["profileMode"] as? String=="memory-only",let id=value["runID"] as? String,UUID(uuidString:id) != nil {
+            if let projection=try? readJSON(home.appendingPathComponent("onboarding/installations/"+id+"/progress.json")) {
+                value["installationProgress"]=projection.filter{["sequence","plan_hash","phase","completed","total","bytes_downloaded","bytes_total"].contains($0.key)}
+            }
+            value["capabilitySummary"]="Arquivos, memória estruturada, busca textual, links e edição local."
+            value["codexSkills"]=(try? readJSON(home.appendingPathComponent("setup/codex-distribution.json")))?.filter{["files_installed","host_discovered","execution_verified","status"].contains($0.key)} ?? [:]
+        }
         value.removeValue(forKey:"readback")
         if onboardingActiveStatuses.contains(value["status"] as? String ?? ""), let pid=value["ownerPID"] as? Int, pid > 0, pid <= Int(Int32.max),kill(Int32(pid),0) != 0,errno==ESRCH {value["status"]="interrupted";value["message"]="A configuração foi interrompida. Retome do último ponto confirmado."}
         if let review=try onboardingReview() {value["review"]=review} else {value.removeValue(forKey:"review")}
@@ -59,6 +74,7 @@ extension Core {
         return value
     }
     func onboardingProgress() throws -> [[String:Any]] {
+        if onboardingRecord()["profileMode"] as? String=="memory-only" {return try memoryOnlyProgress()}
         let record=onboardingRecord();guard let run=record["runID"] as? String,let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),plan["id"] as? String==run,plan["vault"] as? String==config["vault"] as? String else{return []}
         if record["status"] as? String=="completed",let saved=record["formation"] as? [[String:Any]],record["confirmedAt"] is String {return saved}
         var confirmed=[[String:Any]]()
@@ -85,7 +101,9 @@ extension Core {
         if fm.fileExists(atPath:home.appendingPathComponent("onboarding/cancel").path){throw failure("Instalação cancelada. Os itens já confirmados foram preservados.")}
     }
     func onboardingFinalVerification() throws -> [String:Any] {
-        refreshConfig();let plan=try validatedPlan();_ = try applyPlan(verifyOnly:true)
+        refreshConfig();let plan=try validatedPlan()
+        if isMemoryOnly(plan){return try completeMemoryOnly(plan:plan)}
+        _ = try applyPlan(verifyOnly:true)
         if plan["attach"] as? Bool != true {
             let receipt=try readJSON(home.appendingPathComponent("setup/gbrain-readback.json"))
             guard receipt["status"] as? String=="identity_and_index_verified",receipt["plan_hash"] as? String==plan["plan_hash"] as? String else{throw failure("A memória ainda não concluiu a configuração.")}
@@ -124,18 +142,24 @@ final class OnboardingController {
     private var completedTurn=false,localInFlight=false
     private let localDriver:OfflineInstallationDriver
     private let accessCheck:(()throws->Void)?
+    private let distributionResolver:(Core)throws->DistributionManifest
     var openLogin:((URL)->Void)?
-    init(home:URL,bridge:CodexConnection=CodexBridge(),automaticallyReconnect:Bool=false,localDriver:OfflineInstallationDriver=NativeOfflineInstallation(),accessCheck:(()throws->Void)?=nil) throws {
+    init(home:URL,bridge:CodexConnection=CodexBridge(),automaticallyReconnect:Bool=false,localDriver:OfflineInstallationDriver=NativeOfflineInstallation(),accessCheck:(()throws->Void)?=nil,distributionResolver:@escaping(Core)throws->DistributionManifest={try $0.resolveDistribution()}) throws {
         self.bridge=bridge
-        self.localDriver=localDriver;self.accessCheck=accessCheck
+        self.localDriver=localDriver;self.accessCheck=accessCheck;self.distributionResolver=distributionResolver
         core=try Core(home:home)
         _=try core.onboardingSnapshot()
+        let installationActive=core.operationIsRunning("installation")
+        // A second window must not rewrite the active installation owned by this process.
+        if !installationActive {
         // A cached login or inventory is never treated as a live connection after launch.
         try writeJSON(["connected":false],home.appendingPathComponent("onboarding/connection.json"))
         if var inventory=try? readJSON(home.appendingPathComponent("onboarding/plugins.json")) {inventory["status"]="unavailable";inventory["reason"]="Reconecte ao Codex para verificar os plugins";inventory["plugins"]=(inventory["plugins"] as? [[String:Any]] ?? []).map{r in var x=r;if x["status"] as? String=="connected"{x["status"]="unavailable"};return x};try writeJSON(inventory,home.appendingPathComponent("onboarding/plugins.json"))}
         let prior=core.onboardingRecord()
-        if onboardingActiveStatuses.contains(prior["status"] as? String ?? "") || prior["request"] is [String:Any] || (prior["pendingRequestCount"] as? Int ?? 0)>0 {try update(["status":"interrupted","message":"Retome a configuração para conferir o último ponto salvo.","request":NSNull()])}
+        let otherLiveOwner=(prior["ownerPID"] as? Int).map{$0 != Int(getpid()) && $0>0 && $0<=Int(Int32.max) && kill(Int32($0),0)==0} ?? false
+        if !otherLiveOwner && (onboardingActiveStatuses.contains(prior["status"] as? String ?? "") || prior["request"] is [String:Any] || (prior["pendingRequestCount"] as? Int ?? 0)>0) {try update(["status":"interrupted","message":"Retome a configuração para conferir o último ponto salvo.","request":NSNull()])}
         try update(["pendingRequestCount":0,"request":NSNull(),"authorizing":false])
+        }
         bindBridgeCallbacks()
         if automaticallyReconnect && core.onboardingRecord()["codexAuthorized"] as? Bool==true {
             queue.async { [weak self] in self?.restoreConnection() }
@@ -232,14 +256,23 @@ final class OnboardingController {
     func selectVault(_ url:URL) throws {
         stateLock.lock();defer{stateLock.unlock()}
         try requireAccess();try ensureNotRunning();let root=url.resolvingSymlinksInPath().standardizedFileURL
+        let installation=try core.acquireOperationLock("installation");defer{core.releaseOperationLock(installation)}
         let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
         let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)}
         guard (try? url.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink) != true,!root.path.contains("Library/Application Support/OracleGBrain/obsidian"),!root.path.contains("/gbrain/profile/") else{throw failure("Escolha a pasta original do Obsidian, sem links ou espelhos de indexação.")}
         let access=root.startAccessingSecurityScopedResource();defer{if access{root.stopAccessingSecurityScopedResource()}}
         _=try fm.contentsOfDirectory(at:root,includingPropertiesForKeys:[],options:[.skipsHiddenFiles])
-        core.refreshConfig();core.config["vault"]=root.path;core.config.removeValue(forKey:"vaultBookmark")
-        if let bookmark=try? root.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil){core.config["vaultBookmark"]=bookmark.base64EncodedString()}
+        core.refreshConfig()
+        let bookmark=(try? root.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil))?.base64EncodedString()
+        if let old=core.config["vault"] as? String,old != root.path,
+           fm.fileExists(atPath:core.home.appendingPathComponent("gbrain/profile/oracle-owned.json").path) || fm.fileExists(atPath:core.home.appendingPathComponent("vault-profiles/index.json").path) {
+            _=try core.runRuntimeGeneration(["operation":"runtime-generation","action":"switch-vault","id":UUID().uuidString,"vault":root.path,"bookmark":bookmark as Any? ?? NSNull()])
+            core.refreshConfig();bridge.stop()
+        }
+        core.config["vault"]=root.path;core.config.removeValue(forKey:"vaultBookmark")
+        if let bookmark{core.config["vaultBookmark"]=bookmark}
         try core.persist();try update(["status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull()])
+        core.notifyVaultChanged(reason:"vault-selected")
     }
     func selectBrain(workspace:URL,profile:URL) throws {
         stateLock.lock();defer{stateLock.unlock()}
@@ -255,7 +288,7 @@ final class OnboardingController {
     }
     func ensureNotRunning() throws {
         stateLock.lock();defer{stateLock.unlock()}
-        guard consents.pending.isEmpty,consents.early.isEmpty,!localInFlight,!onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? ""),!core.operationIsRunning("setup"),!core.operationIsRunning("gbrain") else{throw failure("Aguarde ou cancele a instalação antes de mudar a configuração.")}
+        guard consents.pending.isEmpty,consents.early.isEmpty,!localInFlight,!onboardingActiveStatuses.contains(core.onboardingRecord()["status"] as? String ?? ""),!core.operationIsRunning("setup"),!core.operationIsRunning("gbrain"),!core.operationIsRunning("installation") else{throw failure("Aguarde ou cancele a instalação antes de mudar a configuração.")}
     }
     func selectExistingBrain(_ url:URL) throws {
         try requireAccess();try ensureNotRunning()
@@ -307,6 +340,7 @@ final class OnboardingController {
     }
     private func clearCancel() throws {let path=core.home.appendingPathComponent("onboarding/cancel");if fm.fileExists(atPath:path.path){try fm.removeItem(at:path)}}
     func resume() throws -> [String:Any] {
+        if core.onboardingRecord()["profileMode"] as? String=="memory-only" {return try installMemoryOnly(resuming:true)}
         stateLock.lock();defer{stateLock.unlock()}
         try requireAccess();try ensureNotRunning();core.refreshConfig()
         guard try core.onboardingReview() != nil else{throw failure("Não há um plano revisado para retomar.")}
@@ -331,6 +365,77 @@ final class OnboardingController {
         do {try update(["status":"starting","executor":"native-local","phase":"structure","message":"Preparando a instalação local…","ownerPID":Int(getpid()),"threadID":NSNull(),"turnID":NSNull(),"awaitingIdentity":false,"localStarted":true])}
         catch {localInFlight=false;throw error}
         queue.async { [weak self] in self?.runLocalPhases(generation) }
+    }
+    /// One click selects a native immutable distribution plan. The shell can open
+    /// immediately; resolution and network work run on the existing worker queue.
+    func installMemoryOnly(resuming:Bool=false,replaceLegacy:Bool=false) throws -> [String:Any] {
+        stateLock.lock();defer{stateLock.unlock()}
+        try requireAccess();core.refreshConfig()
+        let prior=core.onboardingRecord()
+        if prior["profileMode"] as? String=="memory-only",onboardingActiveStatuses.contains(prior["status"] as? String ?? ""),core.operationIsRunning("installation") {return try snapshot()}
+        try ensureNotRunning()
+        let installationLock=try core.acquireOperationLock("installation")
+        var handedOff=false
+        defer{if !handedOff{localInFlight=false;core.releaseOperationLock(installationLock)}}
+        if !resuming,let old=try? readJSON(core.home.appendingPathComponent("setup/plan.json")),!core.isMemoryOnly(old),
+           old["vault"] as? String==core.config["vault"] as? String,prior["status"] as? String != "completed",!replaceLegacy {
+            throw failure("Existe uma instalação anterior. Continue esse plano ou escolha iniciar a nova instalação; os recibos antigos serão preservados.")
+        }
+        let id:String
+        if resuming {
+            guard prior["profileMode"] as? String=="memory-only",let run=prior["runID"] as? String,UUID(uuidString:run) != nil else{throw failure("Não há instalação nova para continuar.")}
+            id=run
+        } else {
+            if let old=prior["runID"] as? String,UUID(uuidString:old) != nil {try writeJSON(prior,core.home.appendingPathComponent("onboarding/installations/"+old+"/state.json"))}
+            id=UUID().uuidString
+        }
+        _=try core.vault();try clearCancel()
+        runGeneration=UUID();let generation=runGeneration;localInFlight=true;completedTurn=false
+        try update(["schemaVersion":3,"profileMode":"memory-only","runID":id,"status":"starting","executor":"native-local","phase":"preparing","message":"Preparando seu segundo cérebro…","ownerPID":Int(getpid()),"localStarted":true,"awaitingIdentity":false,"codexStarted":false,"threadID":NSNull(),"turnID":NSNull(),"confirmedAt":NSNull(),"verification":NSNull(),"formation":[]])
+        handedOff=true
+        queue.async { [weak self] in
+            guard let self else{flock(installationLock,LOCK_UN);Darwin.close(installationLock);return}
+            defer{self.core.releaseOperationLock(installationLock)}
+            self.runMemoryOnly(generation,id:id,resuming:resuming)
+        }
+        return try snapshot()
+    }
+    private func runMemoryOnly(_ generation:UUID,id:String,resuming:Bool) {
+        defer{stateLock.lock();localInFlight=false;stateLock.unlock()}
+        do {
+            core.refreshConfig()
+            try localPhase("preparing","Conferindo o vault e a distribuição disponível.",generation)
+            let plan:[String:Any],manifest:DistributionManifest
+            if resuming,let saved=try? readJSON(core.home.appendingPathComponent("setup/plan.json")),saved["id"] as? String==id {
+                plan=try core.validatedPlan();manifest=try core.distributionForPlan(plan)
+            } else {
+                manifest=try distributionResolver(core);try core.checkOnboardingCancellation()
+                plan=try core.makeMemoryOnlyPlan(manifest:manifest,id:id)
+            }
+            try core.distributionEvent(plan:plan,phase:"preparing",kind:"core",itemID:"sol",status:"verified",paths:[],completed:0,total:manifest.files.count,extra:["name":"Oracle"])
+            try core.distributionEvent(plan:plan,phase:"preparing",kind:"connector",itemID:"obsidian",status:"verified",paths:[],completed:0,total:manifest.files.count,extra:["name":try core.vault().lastPathComponent])
+            try localPhase("downloading","Baixando e verificando os componentes.",generation)
+            try core.stageDistribution(manifest,plan:plan)
+            try localPhase("preparing","Inicializando a memória local.",generation)
+            _=try core.initializeMemoryOnly(plan:plan)
+            try localPhase("installing","Criando as pastas e instalando o acervo.",generation)
+            _=try core.applyPlan();_=try core.applyDistribution(manifest,plan:plan)
+            try localPhase("indexing","Preparando busca textual e links das notas.",generation)
+            _=try core.indexMemoryOnly(plan:plan)
+            try localPhase("installing","Preparando as skills locais e a integração com o Codex.",generation)
+            _=try core.installDistributionSkills(manifest,plan:plan);_=try core.prepareBridge()
+            try localPhase("verifying","Conferindo arquivos, bibliotecas, memória e recuperação.",generation)
+            let verification=try core.completeMemoryOnly(plan:plan)
+            try core.checkOnboardingCancellation();try requireAccess()
+            stateLock.lock();defer{stateLock.unlock()};guard runGeneration==generation else{return}
+            let formation=try core.onboardingProgress()
+            try update(["formation":formation,"confirmedAt":ISO8601DateFormatter().string(from:Date()),"status":"completed","phase":"ready","message":"Seu Oracle está pronto. Skills preparadas; verificação no Codex pendente.","verification":verification,"awaitingIdentity":false])
+            core.notifyVaultChanged(reason:"memory-only-completed")
+        } catch {
+            stateLock.lock();defer{stateLock.unlock()};guard runGeneration==generation else{return}
+            let cancelled=fm.fileExists(atPath:core.home.appendingPathComponent("onboarding/cancel").path)
+            try? update(["status":cancelled ? "paused":"failed","message":cancelled ? "Instalação pausada; os avanços foram preservados.":error.localizedDescription,"errorCode":cancelled ? "cancelled":"installation_failed"])
+        }
     }
     private func localPhase(_ phase:String,_ message:String,_ generation:UUID) throws {
         stateLock.lock();defer{stateLock.unlock()}
@@ -470,8 +575,13 @@ final class OnboardingController {
         guard let workspace=receipt["workspace"] as? String,let skill=receipt["skill"] as? String else{throw failure("A integração com o Codex ainda não foi preparada.")}
         let result=try bridge.request("skills/list",["cwds":[workspace],"forceReload":true])
         let skills=(result["data"] as? [[String:Any]] ?? []).flatMap{$0["skills"] as? [[String:Any]] ?? []}
-        let required=Set(core.requiredGBrainCodexSkillPaths()+[skill])
-        let discovered=Set(skills.filter{$0["enabled"] as? Bool==true}.compactMap{$0["path"] as? String})
+        let required=Set(core.requiredGBrainCodexSkillPaths()+[skill]+core.distributionRequiredCodexSkillPaths())
+        // Hosts may report a symlink or its canonical target; compare both only
+        // after the locally managed entries themselves have been revalidated.
+        if let plan=try? core.validatedPlan(),core.isMemoryOnly(plan){_=try core.verifyDistributionSkills(core.distributionForPlan(plan),plan:plan)}
+        let discoveredPaths=skills.filter{$0["enabled"] as? Bool==true}.compactMap{$0["path"] as? String}
+        let canonicalDiscovered=Set(discoveredPaths.map{URL(fileURLWithPath:$0).resolvingSymlinksInPath().path})
+        let discovered=Set(required.filter{canonicalDiscovered.contains(URL(fileURLWithPath:$0).resolvingSymlinksInPath().path)})
         guard required.isSubset(of:discovered) else{throw failure("O Codex ainda não reconheceu todos os procedimentos instalados. Abra o espaço Oracle no Codex e verifique suas permissões.")}
         let method=try core.verifyGBrainBridge()
         try writeJSON(["workspace":workspace,"skills":required.sorted(),"verifiedAt":ISO8601DateFormatter().string(from:Date()),"skillDiscoveryVerified":true,"identityFilesVerified":method["identity"] ?? false,"modelExecutionVerified":false,"hooksTrusted":false],core.home.appendingPathComponent("setup/codex-discovery.json"))

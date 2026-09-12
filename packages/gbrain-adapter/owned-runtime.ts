@@ -5,11 +5,13 @@ import {join,resolve} from 'node:path';
 import {loadConfig,type GBrainConfig} from '../../vendor/gbrain/src/core/config.ts';
 import {isAvailable} from '../../vendor/gbrain/src/core/ai/gateway.ts';
 import type {BrainEngine} from '../../vendor/gbrain/src/core/engine.ts';
+import {assertRuntimeAvailable} from './runtime-gate.ts';
 
 export function ownedConfig():GBrainConfig {
   const input=process.env.GBRAIN_HOME;
   if (!input) throw Error('Explicit Oracle profile required');
   const profile=realpathSync(input);
+  assertRuntimeAvailable(profile);
   if (resolve(input)!==profile || lstatSync(input).isSymbolicLink()) throw Error('Profile symlink refused');
   const marker=join(profile,'oracle-owned.json');
   if (!existsSync(marker) || lstatSync(marker).isSymbolicLink()) throw Error('Missing Oracle ownership receipt');

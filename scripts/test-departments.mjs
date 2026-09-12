@@ -201,3 +201,15 @@ test('all specialists in a growing department remain reachable with bounded page
 test('catalog source reordering preserves geometry and membership',()=>{
  assert.deepEqual(plan(groups,entries),plan([...groups].reverse(),[...entries].reverse()));
 });
+
+
+test('resolved skills root and forming receipts exclude phantom departments', () => {
+  const entries=[{path:'SISTEMA/Skills/research-lab/example/SKILL.md',name:'SKILL.md'},
+    {path:'SISTEMA/Skills/code',name:'code',directory:true}];
+  const model=createCatalog([],entries,manifest,{'research-lab':'research'},'SISTEMA/Skills',true);
+  assert.equal(model.skillCount,1);
+  assert.equal(model.specialistByID.has('code'),false);
+  assert.equal(model.specialistByID.get('research-lab').department,'department/research');
+  assert.equal(model.departments.length,1);
+  assert.equal(createCatalog([],entries,manifest,{},'SISTEMA/skills',true).skillCount,0);
+});

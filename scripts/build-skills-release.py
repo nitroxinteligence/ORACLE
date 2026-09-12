@@ -1,8 +1,18 @@
 #!/usr/bin/env python3
 """Build a complete Oracle 0.3 release asset. Never publishes or runs skills."""
-import argparse, base64, hashlib, json, os, stat, unicodedata, uuid
+import argparse, base64, hashlib, json, os, stat, unicodedata, uuid, sys
 from pathlib import Path
 from catalog_safety import check_publication_bytes
+
+# Legacy assets remain reproducible for older apps. New onboarding always uses
+# the complete authenticated format and cannot fall back to an unsigned asset.
+if '--distribution' in sys.argv:
+    from oracle_distribution import main, Refused
+    try:
+        sys.exit(main([arg for arg in sys.argv[1:] if arg != '--distribution']))
+    except (Refused, OSError, ValueError) as error:
+        print('Distribution refused: ' + str(error), file=sys.stderr)
+        sys.exit(2)
 
 def safe_name(value):
     try:check_publication_bytes('source-path',os.fsencode(value))

@@ -153,7 +153,8 @@ extension Core {
         try atomicWriteData(skillData,to:skill,permissions:0o600)
         var mcpStatus="existing_installation_preserved"
         if plan["attach"] as? Bool != true {
-            guard (try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")))?["status"] as? String=="identity_and_index_verified" else { throw failure("Finalize GBrain com --gbrain finish antes de preparar sua conexão MCP.") }
+            if isMemoryOnly(plan) {_=try verifyMemoryOnly(plan:plan)}
+            else {guard (try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")))?["status"] as? String=="identity_and_index_verified" else { throw failure("Finalize GBrain com --gbrain finish antes de preparar sua conexão MCP.") }}
             func toml(_ value:String)->String { let data=try! JSONSerialization.data(withJSONObject:[value],options:[.withoutEscapingSlashes]);return String(decoding:data,as:UTF8.self).dropFirst().dropLast().description }
             let adapter=try engineResources().appendingPathComponent("oracle-gbrain-read").path
             let content="""

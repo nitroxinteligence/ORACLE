@@ -29,7 +29,8 @@ extension Core {
         guard let plan = try? readJSON(home.appendingPathComponent("setup/plan.json")),
             let hash = plan["plan_hash"] as? String, let id = plan["id"] as? String,
             id == onboardingRecord()["runID"] as? String, plan["vault"] as? String == config["vault"] as? String,
-            hash == (try planDigest(plan)), plan["answers_hash"] as? String == digest(try jsonData(plan["answers"] ?? [:])) else { return nil }
+            hash == (try planDigest(plan)) else { return nil }
+        if !isMemoryOnly(plan),plan["answers_hash"] as? String != digest(try jsonData(plan["answers"] ?? [:])) {return nil}
         // The plan's private canonical vault path does not need to cross the UI bridge.
         var review = plan
         review.removeValue(forKey: "vault"); review["executor"] = "native-local"

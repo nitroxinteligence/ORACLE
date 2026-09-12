@@ -18,12 +18,16 @@ let validationState = Bundle.main.bundleIdentifier?.hasSuffix(".validation") == 
 let core = try Core(home: (argument("--state") ?? validationState).map { URL(fileURLWithPath:$0) })
 // A CLI is another entrypoint, not an authorization bypass. Test switches only
 // run their own synthetic suites, never a second mutating command in the same invocation.
-let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-backup","--self-test-maintenance"]
+let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-backup","--self-test-maintenance","--self-test-distribution"]
 let mutatingSwitches:Set<String>=["--prepare-bridge","--gbrain","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update","--sync-gbrain","--backup","--maintenance"]
+if arguments.contains("--self-test-distribution") {
+    do {guard !arguments.contains(where:{mutatingSwitches.contains($0)}) else{throw failure("Testes e operações de produto precisam de invocações separadas.")};try runDistributionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
+}
 if arguments.contains(where:{mutatingSwitches.contains($0)}) {
     do {
         guard !arguments.contains(where:{testSwitches.contains($0)}) else {throw failure("Execute testes e operações de produto separadamente.")}
-        try core.requireCapability(.configure)
+        let recoveryOnly=arguments.filter{mutatingSwitches.contains($0)}==["--update"] && ["rollback-gbrain","rollback-skills"].contains(argument("--update") ?? "")
+        if !recoveryOnly{try core.requireCapability(.configure)}
     } catch {fputs(error.localizedDescription+"\n",stderr);exit(1)}
 }
 if arguments.contains("--hook") {
@@ -120,8 +124,17 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         buildMenu()
         locked = core.config["protected"] as? Bool == true
         let canRun = !locked && core.activeLicense() != nil
-        localServices=OracleLocalServices(home:core.home);localServices?.start(paused:!canRun)
-        if canRun {core.memorySync.start()}
+        let recovering=fm.fileExists(atPath:core.home.appendingPathComponent("updates/runtime/transition.json").path)
+        localServices=OracleLocalServices(home:core.home);localServices?.start(paused:!canRun || recovering)
+        if canRun && !recovering {core.memorySync.start()}
+        if recovering {
+            queue.async {
+                do {
+                    let service=try Core(home:core.home);_=try service.recoverRuntimeGenerationIfNeeded()
+                    DispatchQueue.main.async {if !self.locked && core.activeLicense() != nil {self.localServices?.setPaused(false);core.memorySync.start()}}
+                } catch {try? writeJSON(["status":"recovery_required","message":error.localizedDescription],core.home.appendingPathComponent("updates/runtime/recovery-error.json"))}
+            }
+        }
         web.loadFileURL(resourceRoot.appendingPathComponent("index.html"),allowingReadAccessTo:resourceRoot)
         NSApp.activate(ignoringOtherApps:true)
         NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(accessibilityChanged),name:NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,object:nil)
@@ -217,8 +230,10 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         if method=="snapshot" && !hasAccess {
             queue.async {do{let onboarding=try self.onboardingController?.snapshot() ?? core.onboardingSnapshot();DispatchQueue.main.async{self.reply(id,["config":[:],"entries":[],"events":[],"collections":[],"catalog":[],"onboarding":onboarding,"build":OracleBuildIdentity.metadata()])}}catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}};return
         }
-        if !hasAccess && !["copy","openExternal","openCodex"].contains(method) {reply(id,nil,"Ative a licença deste Mac para continuar.");return}
+        let recoveryOnly=method=="updateStart" && ["rollback-gbrain","rollback-skills"].contains(p["operation"] as? String ?? "")
+        if !hasAccess && !recoveryOnly && !["copy","openExternal","openCodex"].contains(method) {reply(id,nil,"Ative a licença deste Mac para continuar.");return}
         if method=="chooseGBrain" {_ = handleOnboarding(id,method:"onboardingChooseBrain",params:p);return}
+        if method=="chooseVault" {_ = handleOnboarding(id,method:"onboardingChooseVault",params:p);return}
         if method=="confirmGBrain" {_ = handleOnboarding(id,method:"onboardingConfirmIdentity",params:p);return}
         if method=="snapshot" {core.memorySync.start();self.localServices?.setPaused(false);self.localServices?.request()}
         if method=="gbrainRead" {

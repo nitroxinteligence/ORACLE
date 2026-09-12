@@ -12,12 +12,13 @@ import {createEngine} from '../../vendor/gbrain/src/core/engine-factory.ts';
 import type {BrainEngine} from '../../vendor/gbrain/src/core/engine.ts';
 import {resolvePageWriteTarget} from '../../vendor/gbrain/src/core/write-through.ts';
 import {importFromContent} from '../../vendor/gbrain/src/core/import-file.ts';
-import {readFileSync,realpathSync} from 'node:fs';
-import {relative} from 'node:path';
+import {readFileSync,realpathSync,existsSync} from 'node:fs';
+import {relative,join,dirname} from 'node:path';
 import {scopedNote} from './scope.ts';
 import {assertFreshPage} from './freshness.ts';
 import {ownedConfig,verifyMemorySource} from './owned-runtime.ts';
 import {toEngineConfig} from '../../vendor/gbrain/src/core/config.ts';
+import {assertRuntimeAvailable,acquireRuntimeAccess,releaseRuntimeAccess} from './runtime-gate.ts';
 const allowed=['remember','recall','entity','context_pack','delta','forget','search','get_page','list_pages','get_links','get_backlinks','traverse_graph','put_page'];
 const ops=operations.filter(op=>allowed.includes(op.name));
 const memorySource='oracle-memory',readSources=[memorySource,'oracle-vault'];
@@ -41,6 +42,13 @@ async function refreshMemoryPage(engine:BrainEngine,slug:string){
 export async function startMemoryMcp(){
  // Dependencies may log; stdout is exclusively the MCP protocol stream.
  console.log=(...args)=>console.error(...args);
+ const boundProfile=realpathSync(process.env.GBRAIN_HOME!);
+ const boundOwner=JSON.parse(readFileSync(join(boundProfile,'oracle-owned.json'),'utf8'));
+ const boundVault=boundOwner.vault_root;
+ const epochFile=join(dirname(boundProfile),'vault-epoch.json');
+ const epoch=()=>existsSync(epochFile)?readFileSync(epochFile,'utf8'):'';
+ const boundEpoch=epoch();
+ if(typeof boundVault!=='string')throw Error('MCP requires a verified vault binding');
  const server=new Server({name:'oracle-gbrain',version:'0.1.0'},{capabilities:{tools:{}}});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:buildToolDefs(ops,{strictParams:true})}));
  let queue:Promise<any>=Promise.resolve(),pending=0;
@@ -57,6 +65,10 @@ export async function startMemoryMcp(){
    // advertises closed schemas, so never silently ignore a source override.
    // Keep upstream required/type validation ahead of unknown-key validation.
    if(!invalid&&findUnknownParams(op,params).length)return rejected(JSON.stringify(new OperationError('invalid_params','Unknown parameters are not allowed by the Oracle tool schema.').toJSON()));
+   const access=await acquireRuntimeAccess(process.env.GBRAIN_HOME!);
+   try {
+   const currentOwner=JSON.parse(readFileSync(join(boundProfile,'oracle-owned.json'),'utf8'));
+   if(currentOwner.vault_root!==boundVault||epoch()!==boundEpoch)return rejected('The selected vault changed. Reconnect Oracle before using memory.');
    const config=ownedConfig(),engineConfig=toEngineConfig(config);
    if(config.engine!=='pglite')return rejected('Offline memory requires an explicit local PGLite profile.');
    const engine=await createEngine(engineConfig);
@@ -65,6 +77,7 @@ export async function startMemoryMcp(){
    const timer=setTimeout(()=>{console.error('Oracle memory request deadline exceeded; reconnect to resume.');process.exit(124)},35_000-(Date.now()-received));
    try{
     await engine.connect(engineConfig);
+    assertRuntimeAvailable(process.env.GBRAIN_HOME!);
     await verifyMemorySource(engine);
     // `gbrain config set` persists this setting in the official database;
     // ops/search.ts uses the same DB value. The file-only config above still
@@ -89,6 +102,7 @@ export async function startMemoryMcp(){
    }
    catch(error){return {isError:true,content:[{type:'text' as const,text:String(error instanceof Error?error.message:error).replace(/(?:postgres(?:ql)?|https?):\/\/\S+/gi,'[endpoint omitted]').slice(0,1500)}]}}
    finally{try{await engine.disconnect()}finally{clearTimeout(timer)}}
+   } finally {await releaseRuntimeAccess(access)}
   };
   const result=queue.then(work,work).catch(error=>rejected(String(error instanceof Error?error.message:error).replace(/(?:postgres(?:ql)?|https?):\/\/\S+/gi,'[endpoint omitted]').slice(0,600))).finally(()=>{pending--});
   queue=result.then(()=>undefined,()=>undefined);return result;

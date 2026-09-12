@@ -1,6 +1,6 @@
 /** Scope and identity checks around (not instead of) the pinned official engine. */
 import {lstatSync,realpathSync,readFileSync,readdirSync} from 'node:fs';
-import {resolve,join,isAbsolute} from 'node:path';
+import {resolve,join,isAbsolute,basename} from 'node:path';
 import {createHash} from 'node:crypto';
 import {parseMarkdown} from '../../vendor/gbrain/src/core/markdown.ts';
 import {slugifyPath,hasMalformedPathSegment} from '../../vendor/gbrain/src/core/sync.ts';
@@ -28,16 +28,28 @@ export function scopedNote(root:string,relative:string):string {
 export function readCandidate(root:string,relative:string){
   const path=scopedNote(root,relative),bytes=readFileSync(path);
   if(bytes.length>2_000_000)throw Error('Canonical note exceeds 2 MB');
-  const text=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+  const original=new TextDecoder('utf-8',{fatal:true}).decode(bytes);
+  let text=original;
   if(hasMalformedPathSegment(relative))throw Error('Filename cannot be indexed by the pinned GBrain version');
-  const parsed=parseMarkdown(text,relative,{validate:true});
-  if(parsed.errors?.some(e=>e.code==='YAML_PARSE'))throw Error('Invalid YAML frontmatter');
+  let parsed=parseMarkdown(text,relative,{validate:true});
+  if(parsed.errors?.some(e=>e.code==='YAML_PARSE')){
+    // Upstream agent assets can contain unresolved template variables in the
+    // YAML fence. Index the complete source as body text, without evaluating
+    // variables or rewriting the canonical file. Ordinary malformed YAML fails.
+    const header=original.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1];
+    if(!header||!/{{[A-Z][A-Z0-9_]*}}/.test(header))throw Error('Invalid YAML frontmatter');
+    text='# Source template\n\n'+original;
+    parsed=parseMarkdown(text,relative,{validate:true});
+    if(parsed.errors?.some(e=>e.code==='YAML_PARSE'))throw Error('Invalid template projection');
+  }
   const expected=slugifyPath(relative);
   let slug=expected;
   if(!expected)slug=parsed.slug;
   else if(parsed.slug!==expected){
-    if(slugifyPath(parsed.slug)!==expected)throw Error('Frontmatter slug conflicts with path identity');
-    slug=parsed.slug;
+    if(slugifyPath(parsed.slug)===expected)slug=parsed.slug;
+    // A portable basename slug is common in Obsidian tutorials. Keep the full
+    // path authoritative: it cannot redirect this note onto another page.
+    else if(parsed.slug!==slugifyPath(basename(relative)))throw Error('Frontmatter slug conflicts with path identity');
   }
   if(!slug)throw Error('Filename has no usable slug');
   const externalID=parsed.frontmatter?.id;

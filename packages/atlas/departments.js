@@ -57,10 +57,10 @@ export function validateManifest(input) {
 }
 
 /** Canonical local path evidence, not a search over labels or package metadata. */
-export function collectionForEntry(entry) {
+export function collectionForEntry(entry, skillRoot='SISTEMA/skills') {
   if (!entry || typeof entry.path !== 'string') return null;
   const parts = entry.path.split('/');
-  if (parts.length < 3 || parts[0] !== 'SISTEMA' || parts[1] !== 'skills' || !parts.every(segment)) return null;
+  if (parts.length < 3 || parts.slice(0,2).join('/') !== skillRoot || !parts.every(segment)) return null;
   if (parts.length === 3 && !entry.directory) return null;
   return parts[2];
 }
@@ -89,7 +89,7 @@ export function departmentID(value) {
   return `department/${id === 'unassigned' ? 'other' : id}`;
 }
 
-export function createCatalog(collections = [], entries = [], input = FALLBACK_MANIFEST, assignments = {}) {
+export function createCatalog(collections = [], entries = [], input = FALLBACK_MANIFEST, assignments = {}, skillRoot='SISTEMA/skills', installedOnly=false) {
   const validation = validateManifest(input), manifest = validation.manifest || validateManifest(FALLBACK_MANIFEST).manifest;
   const exact = new Map(), aliases = new Map(), descriptions = new Map(), discovered = new Map();
   for (const department of manifest.departments) {
@@ -98,7 +98,8 @@ export function createCatalog(collections = [], entries = [], input = FALLBACK_M
   }
   for (const collection of collections) if (collection && segment(collection.id) && !descriptions.has(collection.id)) descriptions.set(collection.id, collection);
   for (const entry of entries) {
-    const id = collectionForEntry(entry); if (!id) continue;
+    if(installedOnly&&(entry.directory||entry.name!=='SKILL.md'))continue;
+    const id = collectionForEntry(entry,skillRoot); if (!id) continue;
     if (!discovered.has(id)) discovered.set(id, new Map());
     if (!entry.directory && entry.name === 'SKILL.md' && entry.path.endsWith('/SKILL.md')) discovered.get(id).set(entry.path, entry);
   }
@@ -118,11 +119,11 @@ export function createCatalog(collections = [], entries = [], input = FALLBACK_M
   }
   const specialists = [...discovered].sort(([a],[b]) => compare(a,b)).map(([id, docs]) => {
     const description = descriptions.get(id), name = text(description?.name) ? description.name : id.replace(/[-_]/g, ' ');
-    const groups = catalogGroups(id, [...docs.values()]);
+    const groups = catalogGroups(id, [...docs.values()],skillRoot);
     const department = assigned.get(id) || exact.get(id) || aliases.get(normalize(id)) || aliases.get(normalize(name)) || manifest.fallback_department;
     const skills = [...docs.values()].sort((a,b) => compare(a.path,b.path));
     return {id, name, icon:description?.icon || 'tool', color:identity(id).color,
-      kind:'specialist', department, originPath:`SISTEMA/skills/${id}`, groups, skills,
+      kind:'specialist', department, originPath:`${skillRoot}/${id}`, groups, skills,
       skillCount:skills.length, empty:!skills.length, state:skills.length ? 'ready' : 'empty',
       assignment:assigned.has(id) ? 'user' : exact.has(id) ? 'manifest-id' : aliases.has(normalize(id)) || aliases.has(normalize(name)) ? 'manifest-alias' : 'fallback'};
   });
@@ -132,7 +133,7 @@ export function createCatalog(collections = [], entries = [], input = FALLBACK_M
       specialistCount:members.length, empty:!members.length,
       state:!members.length ? 'empty' : !skills.length ? 'no-skills' : 'ready',
       fallback:row.id === manifest.fallback_department};
-  });
+  }).filter(row=>!installedOnly||row.skillCount>0);
   const specialistByID = new Map(specialists.map(s => [s.id,s])), departmentByID = new Map(departments.map(d => [d.id,d]));
   const skillByPath = new Map();
   for (const specialist of specialists) for (const entry of specialist.skills) {

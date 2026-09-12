@@ -111,6 +111,9 @@ extension Core {
         value["gbrain_version"] = ((try? readJSON(updatePath("runtime/current.json")))?["version"] ?? ((try? updateManifest())?["gbrain"] as? [String: Any])?["bundled_version"]) ?? "desconhecida"
         value["gbrain_rollback"] = (try? readJSON(updatePath("runtime/current.json")))?["previous"] != nil
         value["skills_rollback"] = ((try? readJSON(updatePath("skills/transaction.json")))?["status"] as? String).map { $0 != "rolled_back" } ?? false
+        if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),isMemoryOnly(plan),let id=plan["id"] as? String,UUID(uuidString:id) != nil {
+            value["skills_rollback"]=((try? readJSON(home.appendingPathComponent("staging/"+id+"/transaction.json")))?["status"] as? String).map{["applying","files_installed","rolling_back"].contains($0)} ?? false
+        }
         value["catalog_origins"] = catalogSummary().filter { $0["repo"] as? String != nil }.map { ["id":$0["id"] ?? "", "repo":$0["repo"] ?? "", "commit":$0["commit"] ?? ""] }
         return value
     }
@@ -127,6 +130,7 @@ extension Core {
         return root
     }
     func engineResources() throws -> URL {
+        if fm.fileExists(atPath:try updatePath("runtime/transition.json").path){throw failure("Há uma transação do motor interrompida. Reabra o Oracle para recuperar a geração anterior.")}
         let current = try updatePath("runtime/current.json")
         guard fm.fileExists(atPath: current.path) else { return bundledEngineResources() }
         return try verifiedRuntime(readJSON(current))
@@ -150,13 +154,19 @@ extension Core {
         try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
         let adapter = slot.appendingPathComponent("oracle-gbrain-read")
         try fm.copyItem(at: bundledEngineResources().appendingPathComponent("oracle-gbrain-read"), to: adapter)
+        try validateDownloadedRuntime(executable,release:release)
         // Version check has no database, vault, credentials or home profile available.
         if let validate { try validate(executable) } else {
             let result = try runProcess(executable, ["--version"], cwd: slot, environment: ["PATH": "/usr/bin:/bin", "HOME": slot.path, "GBRAIN_HOME": slot.path, "GBRAIN_SKIP_UPDATE_CHECK": "1", "GBRAIN_HOOKS": "0"], timeout: 20)
             guard result.code == 0, result.output.contains(version) else { throw failure("O motor não passou na verificação de versão") }
         }
-        let metadata: [String: Any] = ["directory": id, "version": version, "commit": commit, "files": ["gbrain": try fileDigest(executable), "oracle-gbrain-read": try fileDigest(adapter)], "previous": previous]
+        let metadata: [String: Any] = ["directory": id, "version": version, "commit": commit, "upstream_sha256":release["upstream_sha256"] ?? expected,"distributed_sha256":expected,"files": ["gbrain": try fileDigest(executable), "oracle-gbrain-read": try fileDigest(adapter)], "previous": previous]
         try writeJSON(metadata, slot.appendingPathComponent("receipt.json"))
+        if fm.fileExists(atPath:home.appendingPathComponent("gbrain/profile/.gbrain/config.json").path) {
+            guard release["database_compatibility"] as? String=="same-schema" else{throw failure("A migração deste banco ainda não foi homologada na matriz do aplicativo.")}
+            _=try runRuntimeGeneration(["operation":"runtime-generation","action":"activate","id":UUID().uuidString,"commit":commit,"database_compatibility":"same-schema","metadata":metadata])
+            return try readJSON(currentURL)
+        }
         // Until this one atomic write, every client keeps using the previous version.
         try writeJSON(metadata, currentURL)
         return metadata
@@ -165,6 +175,23 @@ extension Core {
         let currentURL = try updatePath("runtime/current.json")
         let current = try readJSON(currentURL)
         guard let previous = current["previous"] as? [String: Any] else { throw failure("Nenhuma versão anterior registrada") }
+        if current["generation"] is String,fm.fileExists(atPath:home.appendingPathComponent("gbrain/profile/.gbrain/config.json").path) {
+            // The supported matrix has the same adapter/schema. Clone the current
+            // database, retaining writes since activation, and validate it with
+            // the previous runtime as a new atomic generation. Never restore an
+            // old database over new canonical memory.
+            let metadata:[String:Any]
+            if previous["bundled"] as? Bool==true {
+                let id=UUID().uuidString,slot=try updatePath("runtime/versions/"+id)
+                try fm.createDirectory(at:slot,withIntermediateDirectories:true)
+                for file in ["gbrain","oracle-gbrain-read"]{try fm.copyItem(at:bundledEngineResources().appendingPathComponent(file),to:slot.appendingPathComponent(file))}
+                metadata=["directory":id,"version":oracleGBrainPinnedVersion,"commit":oracleGBrainPinnedCommit,"bundled_generation":true,"files":["gbrain":try fileDigest(slot.appendingPathComponent("gbrain")),"oracle-gbrain-read":try fileDigest(slot.appendingPathComponent("oracle-gbrain-read"))],"previous":current]
+            } else {_=try verifiedRuntime(previous);metadata=previous}
+            _=try runRuntimeGeneration(["operation":"runtime-generation","action":"activate","id":UUID().uuidString,"commit":oracleGBrainPinnedCommit,"database_compatibility":"same-schema","metadata":metadata])
+            if metadata["bundled_generation"] as? Bool==true {try fm.removeItem(at:currentURL)}
+            notifyVaultChanged(reason:"runtime-recovered-current-canonical-files")
+            return ["id":"gbrain","status":"rolled_back","message":"Motor anterior validado com o banco atual; novas memórias e notas preservadas."]
+        }
         // A modified active slot is retained for inspection, never deleted by rollback.
         if previous["bundled"] as? Bool == true { try fm.removeItem(at: currentURL) }
         else { _ = try verifiedRuntime(previous); try writeJSON(previous, currentURL) }
@@ -290,6 +317,9 @@ extension Core {
         return ["id": "skills", "status": "rolled_back", "message": "\(restored) arquivos restaurados; \(retained.count) edições posteriores preservadas.", "preserved": retained]
     }
     func performUpdates(operation: String = "check-apply") throws -> [String: Any] {
+        if (try? updateManifest()["skills"] as? [String:Any])?["schema_version"] as? Int==3,operation != "rollback-gbrain" {
+            return try performDistributionUpdates(operation:operation)
+        }
         let lock = try acquireOperationLock("updates"); defer { releaseOperationLock(lock) }
         let setup = try acquireOperationLock("setup"); defer { releaseOperationLock(setup) }
         let engine = try acquireOperationLock("gbrain"); defer { releaseOperationLock(engine) }

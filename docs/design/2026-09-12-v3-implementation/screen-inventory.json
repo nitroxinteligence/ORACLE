@@ -1,0 +1,721 @@
+[
+  {
+    "id": "S01",
+    "name": "Janela e navegação global",
+    "source": "index.html:1; app.js:133",
+    "content": "Logo, árvore, busca, Atlas, observatório, bibliotecas, ajustes, atualização e bloqueio",
+    "states": "aberta; recolhida; foco de teclado; 1440x900; 840x620",
+    "evidence": "V",
+    "boards": [
+      "01",
+      "03",
+      "20"
+    ]
+  },
+  {
+    "id": "S02",
+    "name": "Atlas geral",
+    "source": "app.js:180; atlas.js; flat-universe.js",
+    "content": "Departamentos, especialistas, Pessoal, Profissional, prompts, conectores",
+    "states": "sem seleção; carregando; vazio; parcial; indisponível; fallback SVG",
+    "evidence": "V+C",
+    "boards": [
+      "01",
+      "19"
+    ]
+  },
+  {
+    "id": "S03",
+    "name": "Departamento",
+    "source": "app.js:188; atlas.js",
+    "content": "Código, Marketing, Conteúdo, Vendas, Outros; contagem e busca no escopo",
+    "states": "selecionado; sem especialistas; especialistas agrupados",
+    "evidence": "V",
+    "boards": [
+      "02"
+    ]
+  },
+  {
+    "id": "S04",
+    "name": "Especialista e grupos de skills",
+    "source": "app.js:188; app.js:530; atlas.js",
+    "content": "Coleção, grupos por pasta/letra, skills, voltar e enquadrar",
+    "states": "selecionado; grupo expandido; mais itens; sem skills",
+    "evidence": "V+C",
+    "boards": [
+      "02"
+    ]
+  },
+  {
+    "id": "S05",
+    "name": "Skill e inspetor",
+    "source": "app.js:530",
+    "content": "Ler procedimento, editar, enquadrar coleção",
+    "states": "nó selecionado; nota ausente; leitura em curso",
+    "evidence": "C",
+    "boards": [
+      "02",
+      "05"
+    ]
+  },
+  {
+    "id": "S06",
+    "name": "Árvore de pastas",
+    "source": "app.js:161",
+    "content": "Pessoal, Profissional, INBOX, PROJETOS, Conhecimento, SISTEMA e raízes reais",
+    "states": "fechada; expandida; selecionada; vazia; Ver todos",
+    "evidence": "V",
+    "boards": [
+      "03"
+    ]
+  },
+  {
+    "id": "S07",
+    "name": "Pasta no grafo e busca por caminho",
+    "source": "app.js:177; flat-universe.js",
+    "content": "Subpastas/notas e caminho de origem",
+    "states": "vazia; nota selecionada; pasta ainda não criada",
+    "evidence": "V+C",
+    "boards": [
+      "03"
+    ]
+  },
+  {
+    "id": "S08",
+    "name": "Controles do Atlas",
+    "source": "index.html; app.js:464; app.js:718",
+    "content": "Enquadrar, voltar, densidade 0–6, reduzir movimento/transparência, economia, restaurar posições",
+    "states": "mouse; teclado; pausa visual; preferência do sistema",
+    "evidence": "V+C",
+    "boards": [
+      "01",
+      "20"
+    ]
+  },
+  {
+    "id": "S09",
+    "name": "Observatório geral/contextual",
+    "source": "app.js:188; app.js:700",
+    "content": "Contexto selecionado + conexões + controles gráficos",
+    "states": "aberto; recolhido; geral; departamento; coleção; grupo; skill",
+    "evidence": "V",
+    "boards": [
+      "01",
+      "02"
+    ]
+  },
+  {
+    "id": "S10",
+    "name": "Timelapse e formação",
+    "source": "app.js:410",
+    "content": "Reproduzir, pausar, cursor, velocidade, reiniciar e voltar ao vivo",
+    "states": "ao vivo; formação; pausado; concluído; controles indisponíveis",
+    "evidence": "V+C",
+    "boards": [
+      "21"
+    ]
+  },
+  {
+    "id": "S11",
+    "name": "Replay de recibos",
+    "source": "app.js:428; app.js:452; replay.js",
+    "content": "Histórico real projetado separadamente da formação visual",
+    "states": "sem eventos; reproduzindo; pausado; fim; retorno ao vivo",
+    "evidence": "C",
+    "boards": [
+      "21"
+    ]
+  },
+  {
+    "id": "S12",
+    "name": "Busca global",
+    "source": "app.js:574",
+    "content": "Nome/caminho de notas e skills; escopo; 100 resultados por página",
+    "states": "com resultados; nenhum resultado; teclado; página seguinte",
+    "evidence": "V+C",
+    "boards": [
+      "07"
+    ]
+  },
+  {
+    "id": "S13",
+    "name": "Biblioteca de prompts",
+    "source": "app.js:325; library.js",
+    "content": "Pastas reais, busca, lista e prévia; 80 documentos por página",
+    "states": "inicial; selecionado; carregando; vazio; sem correspondência; erro; retry",
+    "evidence": "V+C",
+    "boards": [
+      "04",
+      "19"
+    ]
+  },
+  {
+    "id": "S14",
+    "name": "Biblioteca de tutoriais",
+    "source": "app.js:326; library.js",
+    "content": "Mesmo componente; fontes SISTEMA/Tutoriais e variantes reconhecidas",
+    "states": "pastas; documento; vazio; fonte ambígua; ausência de raiz; leitura parcial",
+    "evidence": "V+C",
+    "boards": [
+      "04",
+      "19"
+    ]
+  },
+  {
+    "id": "S15",
+    "name": "Prévia Markdown",
+    "source": "library.js; reader.js",
+    "content": "Prévia, copiar, abrir nota original",
+    "states": "carregando; pronto; erro; link local/wiki/externo",
+    "evidence": "V+C",
+    "boards": [
+      "04"
+    ]
+  },
+  {
+    "id": "S16",
+    "name": "Leitor da nota original",
+    "source": "app.js:219; reader.js",
+    "content": "Texto original, metadados, Finder e editar",
+    "states": "Markdown; código; tabelas; imagens; link ambíguo; nota removida",
+    "evidence": "V+C",
+    "boards": [
+      "05"
+    ]
+  },
+  {
+    "id": "S17",
+    "name": "Editor",
+    "source": "app.js:229; app.js:250",
+    "content": "Textarea, reler, descartar, ver alterações, salvar no .md original",
+    "states": "limpo; alterado; salvando; salvo; erro; digitação durante save",
+    "evidence": "V+C",
+    "boards": [
+      "05"
+    ]
+  },
+  {
+    "id": "S18",
+    "name": "Diff",
+    "source": "app.js:272",
+    "content": "Linhas adicionadas/removidas e decisão salvar/voltar",
+    "states": "sem diferença; com diferença; conteúdo longo",
+    "evidence": "V",
+    "boards": [
+      "06"
+    ]
+  },
+  {
+    "id": "S19",
+    "name": "Conflito de edição",
+    "source": "app.js:241",
+    "content": "Comparar versão atual em disco com rascunho; adotar base",
+    "states": "arquivo alterado por fora; preservar texto; tentar novamente",
+    "evidence": "C",
+    "boards": [
+      "06"
+    ]
+  },
+  {
+    "id": "S20",
+    "name": "Rascunho e saída",
+    "source": "app.js:219; app.js:278; main.swift:146",
+    "content": "Recuperar rascunho; continuar, guardar e fechar, descartar",
+    "states": "rascunho recuperável; saída com alterações; falha ao guardar",
+    "evidence": "V+C",
+    "boards": [
+      "06"
+    ]
+  },
+  {
+    "id": "S21",
+    "name": "Memória / fontes",
+    "source": "app.js:483",
+    "content": "Selecionar fonte, listar/buscar e atualizar índice local",
+    "states": "conectando; lista; busca; vazio; erro; fonte trocada",
+    "evidence": "V+C",
+    "boards": [
+      "07"
+    ]
+  },
+  {
+    "id": "S22",
+    "name": "Nota derivada e proveniência",
+    "source": "app.js:516",
+    "content": "Texto, origem canônica, hash indexado e conexões",
+    "states": "origem conhecida/ausente; grafo disponível/indisponível",
+    "evidence": "C",
+    "boards": [
+      "08"
+    ]
+  },
+  {
+    "id": "S23",
+    "name": "Atualidade do índice",
+    "source": "app.js:139; app.js:523",
+    "content": "Estado local associado à fonte",
+    "states": "current; stale; partial; external; unavailable; indexing",
+    "evidence": "C",
+    "boards": [
+      "07",
+      "19"
+    ]
+  },
+  {
+    "id": "S24",
+    "name": "Conversas importadas",
+    "source": "app.js:311",
+    "content": "Lista e importação explícita de Oracle Conversations v1",
+    "states": "vazia; preenchida; importando; JSON inválido; erro",
+    "evidence": "V+C",
+    "boards": [
+      "08"
+    ]
+  },
+  {
+    "id": "S25",
+    "name": "Leitura de conversa",
+    "source": "app.js:311",
+    "content": "Mensagens por papel; somente leitura de importação",
+    "states": "conteúdo longo; conversa vazia",
+    "evidence": "C",
+    "boards": [
+      "08"
+    ]
+  },
+  {
+    "id": "S26",
+    "name": "Instruções de projetos",
+    "source": "app.js:318",
+    "content": "Lista por projeto autorizado; autorizar pasta",
+    "states": "vazio; lista; erro de permissão",
+    "evidence": "V+C",
+    "boards": [
+      "08"
+    ]
+  },
+  {
+    "id": "S27",
+    "name": "Leitura de instrução",
+    "source": "app.js:318",
+    "content": "AGENTS.md ou override encontrado, fonte e texto",
+    "states": "encontrada; ausência; acesso revogado",
+    "evidence": "C",
+    "boards": [
+      "08"
+    ]
+  },
+  {
+    "id": "S28",
+    "name": "Plugins / ferramentas",
+    "source": "app.js:300; app.js:305",
+    "content": "Lista, ícone, estado, abrir Codex",
+    "states": "conectado; desconectado; instalado; precisa de login; não verificado; erro; indisponível",
+    "evidence": "V+C",
+    "boards": [
+      "12"
+    ]
+  },
+  {
+    "id": "S29",
+    "name": "Detalhe de plugin",
+    "source": "app.js:305; status-badges.js",
+    "content": "Origem do estado, evidência e data de verificação",
+    "states": "available; installed; unverified; disabled; pending; running; error",
+    "evidence": "C",
+    "boards": [
+      "12"
+    ]
+  },
+  {
+    "id": "S30",
+    "name": "Ajustes",
+    "source": "app.js:348",
+    "content": "Seu Oracle; conexões/privacidade; aplicativo; avançado",
+    "states": "licença comum; owner; preferência persistida; falha de gravação",
+    "evidence": "V+C",
+    "boards": [
+      "09"
+    ]
+  },
+  {
+    "id": "S31",
+    "name": "Organizar departamentos",
+    "source": "app.js:332",
+    "content": "Associar especialistas aos departamentos sem mover arquivos",
+    "states": "lista; vazio; alteração; salvando; erro",
+    "evidence": "V+C",
+    "boards": [
+      "09"
+    ]
+  },
+  {
+    "id": "S32",
+    "name": "Revisar contexto",
+    "source": "app.js:528",
+    "content": "Leitura do contexto e acesso à configuração",
+    "states": "disponível; não preparado; erro",
+    "evidence": "C",
+    "boards": [
+      "14"
+    ]
+  },
+  {
+    "id": "S33",
+    "name": "Sincronização e manutenção",
+    "source": "app.js:387",
+    "content": "Índice, último resultado, horário/fuso e consentimentos separados",
+    "states": "habilitado; pausado; externo; parcial; erro; pendente; rotina completa",
+    "evidence": "C",
+    "boards": [
+      "10"
+    ]
+  },
+  {
+    "id": "S34",
+    "name": "Pedido de agendamento",
+    "source": "app.js:408",
+    "content": "Texto a copiar; pedido preparado ainda sem tarefa registrada",
+    "states": "preparado; copiado; registro pendente",
+    "evidence": "C",
+    "boards": [
+      "10"
+    ]
+  },
+  {
+    "id": "S35",
+    "name": "Backup privado do banco",
+    "source": "app.js:769",
+    "content": "Consentimento, criar, verificar e testar restauração",
+    "states": "não autorizado; indisponível; criado; integridade verificada; restauração testada; falha",
+    "evidence": "C",
+    "boards": [
+      "10"
+    ]
+  },
+  {
+    "id": "S36",
+    "name": "Confirmar restauração de teste",
+    "source": "app.js:777",
+    "content": "Explicar estado novo e preservação do banco ativo",
+    "states": "aguardando confirmação; em andamento; verificado; erro",
+    "evidence": "C",
+    "boards": [
+      "18"
+    ]
+  },
+  {
+    "id": "S37",
+    "name": "Codex e plugins",
+    "source": "app.js:567",
+    "content": "Conexão opcional; plugins; abrir Codex; conexão/modelo",
+    "states": "não verificada; conectada; indisponível",
+    "evidence": "C",
+    "boards": [
+      "12"
+    ]
+  },
+  {
+    "id": "S38",
+    "name": "Desconectar pastas",
+    "source": "app.js:385",
+    "content": "Confirmar perda de acesso, preservando documentos",
+    "states": "cancelar; confirmar; erro",
+    "evidence": "C",
+    "boards": [
+      "18"
+    ]
+  },
+  {
+    "id": "S39",
+    "name": "Atualizações",
+    "source": "app.js:673",
+    "content": "Fontes Second Brain/skills, versões, disponibilidade, instalar e recuperação",
+    "states": "not_checked; current; available; updated; offline; error; external; compatibility_required; preserved_edits; not_configured; interrupted",
+    "evidence": "C",
+    "boards": [
+      "11",
+      "19"
+    ]
+  },
+  {
+    "id": "S40",
+    "name": "Restaurar atualização anterior",
+    "source": "app.js:690",
+    "content": "Restaurar Second Brain / skills conforme backup disponível",
+    "states": "disponível; executando; concluída; falha",
+    "evidence": "C",
+    "boards": [
+      "11"
+    ]
+  },
+  {
+    "id": "S41",
+    "name": "Fonte oficial de skills / owner",
+    "source": "app.js:341",
+    "content": "Repositório HTTPS; capacidade administrativa assinada",
+    "states": "owner; proibido; URL inválida; salva; erro",
+    "evidence": "C",
+    "boards": [
+      "21"
+    ]
+  },
+  {
+    "id": "S42",
+    "name": "Diagnóstico do Atlas",
+    "source": "app.js:532",
+    "content": "Métricas da janela e renderer; detalhes técnicos",
+    "states": "SVG; fallback; falha de renderização",
+    "evidence": "C",
+    "boards": [
+      "21"
+    ]
+  },
+  {
+    "id": "S43",
+    "name": "Histórico técnico",
+    "source": "app.js:319",
+    "content": "Até 50 registros recentes; hooks recebidos; reproduzir",
+    "states": "sem recibos; eventos presentes; observação parcial",
+    "evidence": "C",
+    "boards": [
+      "21"
+    ]
+  },
+  {
+    "id": "S44",
+    "name": "Ativação individual",
+    "source": "onboarding.js:85",
+    "content": "Código ORACLE2, acesso offline, erro associado ao campo",
+    "states": "sem licença; validando; inválida; ativada",
+    "evidence": "C",
+    "boards": [
+      "13"
+    ]
+  },
+  {
+    "id": "S45",
+    "name": "Pedido de acesso / convite",
+    "source": "onboarding.js:85",
+    "content": "ORACLE-MAC2; convite ORACLEINV2 e solicitação ORACLEREQ2",
+    "states": "recolhido; expandido; gerado; copiado; dispositivo incompatível; erro",
+    "evidence": "C",
+    "boards": [
+      "13"
+    ]
+  },
+  {
+    "id": "S46",
+    "name": "Escolha do Obsidian",
+    "source": "onboarding.js:98",
+    "content": "Pasta original; criar estrutura; conectar GBrain existente",
+    "states": "sem pasta; selecionada; criar; anexar; cancelado",
+    "evidence": "C",
+    "boards": [
+      "13"
+    ]
+  },
+  {
+    "id": "S47",
+    "name": "Workspace e perfil existentes",
+    "source": "onboarding.js:98; OnboardingUIBridge.swift:14",
+    "content": "Seleção explícita; preservar instalação externa",
+    "states": "workspace escolhido; perfil escolhido; acesso negado",
+    "evidence": "C",
+    "boards": [
+      "13",
+      "20"
+    ]
+  },
+  {
+    "id": "S48",
+    "name": "Identidade",
+    "source": "onboarding.js:104",
+    "content": "Nome do Oracle, nome da pessoa, fuso",
+    "states": "vazio; preenchido; validando; erro ao guardar rascunho",
+    "evidence": "C",
+    "boards": [
+      "14"
+    ]
+  },
+  {
+    "id": "S49",
+    "name": "Objetivos",
+    "source": "onboarding.js:104",
+    "content": "Propósito e tarefas importantes",
+    "states": "preenchido; limites do campo; voltar preserva respostas",
+    "evidence": "C",
+    "boards": [
+      "14"
+    ]
+  },
+  {
+    "id": "S50",
+    "name": "Preferências",
+    "source": "onboarding.js:104",
+    "content": "Contexto profissional; forma de comunicação; manutenção opcional",
+    "states": "preenchido; consentimento marcado/desmarcado",
+    "evidence": "C",
+    "boards": [
+      "14"
+    ]
+  },
+  {
+    "id": "S51",
+    "name": "Revisão do plano",
+    "source": "onboarding.js:111",
+    "content": "Respostas, pastas e plano antes de instalar",
+    "states": "pronto; plano mudou; editar; instalar localmente",
+    "evidence": "C",
+    "boards": [
+      "14"
+    ]
+  },
+  {
+    "id": "S52",
+    "name": "Confirmar identidade / readback",
+    "source": "onboarding.js:116",
+    "content": "Leitura oficial e confirmação vinculada ao hash",
+    "states": "aguardando; confirmado; revisão alterada; erro",
+    "evidence": "C",
+    "boards": [
+      "15"
+    ]
+  },
+  {
+    "id": "S53",
+    "name": "Instalação e retomada local",
+    "source": "onboarding.js:150",
+    "content": "Recibos confirmados; skills verificadas; pausar/retomar",
+    "states": "starting; running; cancelling; paused; cancelled; interrupted; failed; completed",
+    "evidence": "C",
+    "boards": [
+      "15",
+      "17"
+    ]
+  },
+  {
+    "id": "S54",
+    "name": "Cartão de continuidade e progresso no shell",
+    "source": "onboarding.js:155; installation-visual.js; app.js:198",
+    "content": "Estado pequeno persistente fora do diálogo",
+    "states": "em curso; precisa responder; precisa revisar; pausa; desaparece ao concluir",
+    "evidence": "C",
+    "boards": [
+      "15",
+      "17"
+    ]
+  },
+  {
+    "id": "S55",
+    "name": "Permissão pontual",
+    "source": "onboarding.js:122",
+    "content": "Motivo, ação, diretório; permitir uma vez ou recusar",
+    "states": "aguardando; permitida; recusada; cancelada",
+    "evidence": "C",
+    "boards": [
+      "16"
+    ]
+  },
+  {
+    "id": "S56",
+    "name": "Perguntas do Codex",
+    "source": "onboarding.js:122",
+    "content": "Até 3 perguntas; opções e texto livre; campo sigiloso sem rascunho",
+    "states": "incompleta; válida; enviada; nova geração; cancelada",
+    "evidence": "C",
+    "boards": [
+      "16"
+    ]
+  },
+  {
+    "id": "S57",
+    "name": "Conexão Codex opcional",
+    "source": "onboarding.js:139",
+    "content": "Login externo no Codex; verificar/cancelar autorização",
+    "states": "desconectado; aguardando; conectado; erro",
+    "evidence": "C",
+    "boards": [
+      "12",
+      "17"
+    ]
+  },
+  {
+    "id": "S58",
+    "name": "Modelo disponível na conta",
+    "source": "onboarding.js:144",
+    "content": "Select dos modelos recebidos; esforço padrão compatível",
+    "states": "lista; selecionado; ausente; seleção inválida",
+    "evidence": "C",
+    "boards": [
+      "12"
+    ]
+  },
+  {
+    "id": "S59",
+    "name": "Bloqueio Oracle",
+    "source": "index.html:9; app.js:101; main.swift:189",
+    "content": "Tela de bloqueio e botão de desbloquear",
+    "states": "bloqueado; autenticando; desbloqueado; cancelado/erro",
+    "evidence": "C",
+    "boards": [
+      "20"
+    ]
+  },
+  {
+    "id": "S60",
+    "name": "Autenticação nativa",
+    "source": "main.swift:189",
+    "content": "LocalAuthentication; Touch ID ou senha do Mac",
+    "states": "desafio do sistema; sucesso; falha; cancelamento",
+    "evidence": "C",
+    "boards": [
+      "20"
+    ]
+  },
+  {
+    "id": "S61",
+    "name": "Seletores nativos",
+    "source": "main.swift:230; main.swift:259; main.swift:267; OnboardingUIBridge.swift:14",
+    "content": "Pasta vault/projeto/GBrain, importar JSON, exportar PNG",
+    "states": "seleção; cancelamento; falha de acesso",
+    "evidence": "C",
+    "boards": [
+      "20"
+    ]
+  },
+  {
+    "id": "S62",
+    "name": "Menus e Sobre",
+    "source": "main.swift:156; main.swift:173",
+    "content": "Oracle, Editar, Janela; Sobre com build",
+    "states": "menu aberto; janela Sobre; minimizar/tela cheia",
+    "evidence": "C",
+    "boards": [
+      "20"
+    ]
+  },
+  {
+    "id": "S63",
+    "name": "Avisos, campos e feedback transversais",
+    "source": "app.js:41; app.js:605; onboarding.js:20",
+    "content": "Tooltip, toast, alertas, detalhes, radio/checkbox/select, botões e foco",
+    "states": "normal; hover; foco; selecionado; disabled; busy; sucesso; aviso; erro",
+    "evidence": "V+C",
+    "boards": [
+      "18",
+      "19"
+    ]
+  },
+  {
+    "id": "S64",
+    "name": "Lista/pastas legadas sem entrada no shell",
+    "source": "app.js:185; app.js:186; index.html",
+    "content": "renderResults existe, mas não há controles data-view no HTML atual",
+    "states": "implementado sem navegação visível; limite de 300",
+    "evidence": "C · latente",
+    "boards": [
+      "03"
+    ]
+  }
+]

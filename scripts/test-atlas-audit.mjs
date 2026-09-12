@@ -9,6 +9,7 @@ import * as OracleKnowledge from '../packages/atlas/knowledge.js';
 import * as OraclePrompts from '../packages/atlas/prompts.js';
 import * as OracleAtmosphere from '../packages/atlas/atmosphere.js';
 import * as OracleMotion from '../packages/atlas/motion.js';
+import '../Resources/web/library.js';
 
 // Reuse only the existing fixture declarations. Its legacy variable-zoom tests
 // are run separately, unchanged; no production source is substituted here.
@@ -20,15 +21,15 @@ const prelude = fixture.slice(0,boundary).replace(/^import .*;\n/gm,'').replaceA
 const {harness,data} = vm.runInNewContext(prelude+'\n({harness,data})', {
   fs,vm,URL,fixtureURL:fixtureURL.href,OracleDepartments,OracleLayout,OracleKnowledge,
   OraclePrompts,OracleAtmosphere,OracleMotion,structuredClone,performance,console,
-  AbortController,setTimeout,clearTimeout,
+  OracleLibrary:globalThis.OracleLibrary,AbortController,setTimeout,clearTimeout,
 });
 const manifest = JSON.parse(fs.readFileSync(new URL('../Resources/catalog/departments.json',import.meta.url),'utf8'));
 const skill = (id,name='actual') => ({path:`SISTEMA/skills/${id}/${name}/SKILL.md`,name:'SKILL.md',directory:false});
 const note = path => ({path,name:path.split('/').at(-1),directory:false});
 const close = (actual,expected,label) => assert.ok(Math.abs(actual-expected)<1e-8,`${label}: ${actual} != ${expected}`);
 const fixed = atlas => {
-  close(atlas.camera.k/atlas.baseScale,1.18,'camera zoom');
-  close(atlas.target.k/atlas.baseScale,1.18,'target zoom');
+  close(atlas.camera.k/atlas.baseScale,1.2,'camera zoom');
+  close(atlas.target.k/atlas.baseScale,1.2,'target zoom');
 };
 const center = (atlas,camera=atlas.target) => ({x:(atlas.viewCenter().x-camera.x)/camera.k,y:(atlas.viewCenter().y-camera.y)/camera.k});
 const fire = (atlas,type,event) => {for(const handler of atlas.el.listeners.get(type)||[])handler({preventDefault(){},stopPropagation(){},altKey:false,...event});};
@@ -90,7 +91,7 @@ test('history restores pages and world center while rejecting legacy variable zo
   atlas.back(true);fixed(atlas);assert.equal(atlas.context.kind,'global');
 });
 
-test('wheel, keyboard, resize, reset and refresh retain 118 percent in all graph routes',()=>{
+test('wheel, keyboard, resize, reset and refresh retain 120 percent in all graph routes',()=>{
   const {atlas}=harness();atlas.bind();atlas.data.replay=true;
   for(const navigate of [()=>atlas.select(null),()=>atlas.setDepartment('department/code'),()=>atlas.focus('code'),()=>atlas.revealSkill('SISTEMA/skills/code/alpha-0124/SKILL.md'),()=>atlas.navigateKnowledge('prompts','SISTEMA/prompts')]){
     navigate();fixed(atlas);atlas.zoomAt(4);fixed(atlas);

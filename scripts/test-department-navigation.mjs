@@ -9,6 +9,8 @@ import * as OracleKnowledge from '../packages/atlas/knowledge.js';
 import * as OraclePrompts from '../packages/atlas/prompts.js';
 import * as OracleAtmosphere from '../packages/atlas/atmosphere.js';
 import * as OracleMotion from '../packages/atlas/motion.js';
+import '../Resources/web/library.js';
+const OracleLibrary=globalThis.OracleLibrary;
 
 const manifest=JSON.parse(fs.readFileSync(new URL('../Resources/catalog/departments.json',import.meta.url),'utf8'));
 const source=fs.readFileSync(new URL('../Resources/web/atlas.js',import.meta.url),'utf8');
@@ -36,6 +38,8 @@ function harness(input=data()) {
     getAttribute(name){return this.attributes.get(name)??null}
     removeAttribute(name){this.attributes.delete(name)}
     append(...children){for(const child of children){child.remove();child.parentElement=this;this.children.push(child)}}
+    insertBefore(child,reference){child.remove();child.parentElement=this;const index=this.children.indexOf(reference);if(index<0)this.children.push(child);else this.children.splice(index,0,child);return child}
+    getComputedTextLength(){return this.textContent.length*7}
     replaceChildren(...children){for(const child of this.children)child.parentElement=null;this.children=[];this.append(...children)}
     remove(){if(this.parentElement){this.parentElement.children=this.parentElement.children.filter(e=>e!==this);this.parentElement=null}}
     contains(element){return element===this||this.children.some(c=>c.contains(element))}
@@ -57,21 +61,22 @@ function harness(input=data()) {
     addEventListener(type,handler){if(!this.listeners.has(type))this.listeners.set(type,[]);this.listeners.get(type).push(handler)}
     getBoundingClientRect(){return {left:0,top:0,right:1000,bottom:700,width:1000,height:700}}
   }
-  document={hidden:false,documentElement:{dataset:{inputMode:'pointer'}},activeElement:null,
+  document={addEventListener(){},hidden:false,documentElement:{dataset:{inputMode:'pointer'}},activeElement:null,
     createElement:tag=>new Element(tag),createElementNS:(_,tag)=>new Element(tag),querySelector:()=>null};
   const window={OracleDepartmentManifest:manifest,oracleWindowVisible:true};
-  const scope={window,document,OracleDepartments,OracleLayout,OracleKnowledge,OraclePrompts,OracleAtmosphere,OracleMotion,
+  const scope={window,document,OracleDepartments,OracleLayout,OracleKnowledge,OraclePrompts,OracleAtmosphere,OracleMotion,OracleLibrary,
     structuredClone,performance,console,paths:{code:'M0 0',note:'M0 0',folder:'M0 0',tool:'M0 0'},
     requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},setTimeout,clearTimeout,getComputedStyle:()=>({display:'block'})};
   vm.runInNewContext(source,scope,{filename:'Resources/web/atlas.js'});
   const atlas=Object.create(window.OracleAtlas.prototype),events=[];
   const add=(tag,attrs,parent)=>{const element=new Element(tag);for(const [key,value]of Object.entries(attrs||{}))element.setAttribute(key,value);parent?.append(element);return element};
   const host=add('div'),el=add('div',{},host),svg=add('svg',{},el),world=add('g',{},svg);
+  add('defs',{},svg);
   const nav=add('nav',{class:'atlas-context'},el);add('button',{'data-map-back':''},nav);add('div',{class:'atlas-breadcrumb'},nav);
   const page=add('div',{class:'atlas-page'},nav);add('button',{'data-map-page':'-1'},page);add('span',{},page);add('button',{'data-map-page':'1'},page);
   add('g',{class:'oracle-core','data-core':'true'},world);
   Object.assign(atlas,{el,svg,world,ns:'http://www.w3.org/2000/svg',abort:new AbortController(),disposed:false,
-    nodeLayer:add('g',{},world),edgeLayer:add('g',{},world),groupLayer:add('g',{},world),leafLayer:add('g',{},world),
+    contextNav:nav,nodeLayer:add('g',{},world),edgeLayer:add('g',{},world),groupLayer:add('g',{},world),leafLayer:add('g',{},world),
     expansionWorld:add('g',{},el),expansionRings:Array.from({length:OracleAtmosphere.RING_COUNT},()=>add('circle')),
     starfield:add('svg',{},el),specialistHeading:add('h3',{},el),atmosphereSeconds:0,
     nodes:new Map(),groups:new Map(),leaves:new Map(),orbitTracks:new Map(),history:[],layout:{nodes:{},leaves:{}},
@@ -93,7 +98,7 @@ test('controller overview renders typed department-to-specialist edges and no sk
   assert.equal(atlas.nodes.get('department/code').g.dataset.kind,'department');
   assert.equal(atlas.nodes.get('department/code').label.style.display,'block');
   assert.equal(atlas.nodes.get('department/code').label.style.fill,'#eee');
-  assert.equal(atlas.target.k/atlas.baseScale,1.18);
+  assert.equal(atlas.target.k/atlas.baseScale,1.2);
 });
 
 test('department selection is separate from code and reports its typed native/app callback contract',()=>{
@@ -125,11 +130,11 @@ test('specialist and department pagers display disjoint complete catalogs and di
   atlas.pageGroup(1);assert.equal(atlas.context.page,2);
 });
 
-test('back restores department, catalog page and custom pan at the fixed 118% scale',()=>{
+test('back restores department, catalog page and custom pan at the fixed 120% scale',()=>{
   const {atlas}=harness();atlas.setDepartment('department/code',{page:1});
-  atlas.target={x:611,y:249,k:atlas.baseScale*1.18};atlas.autoFit=false;const departmentCamera={...atlas.target};
+  atlas.target={x:611,y:249,k:atlas.baseScale*1.2};atlas.autoFit=false;const departmentCamera={...atlas.target};
   atlas.focus('code');atlas.pageGroup(1);
-  atlas.target={x:459,y:330,k:atlas.baseScale*1.18};atlas.autoFit=false;const specialistCamera={...atlas.target};
+  atlas.target={x:459,y:330,k:atlas.baseScale*1.2};atlas.autoFit=false;const specialistCamera={...atlas.target};
   atlas.revealSkill(skill('code',124).path);assert.equal(atlas.context.kind,'skill');
   atlas.back(true);assert.equal(atlas.context.kind,'specialist');assert.equal(atlas.context.page,1);
   for(const key of ['x','y','k'])assert.ok(Math.abs(atlas.target[key]-specialistCamera[key])<1e-8);
@@ -137,7 +142,7 @@ test('back restores department, catalog page and custom pan at the fixed 118% sc
   atlas.back(true);assert.equal(atlas.context.kind,'department');assert.equal(atlas.department,'department/code');assert.equal(atlas.context.page,1);
   for(const key of ['x','y','k'])assert.ok(Math.abs(atlas.target[key]-departmentCamera[key])<1e-8);
   atlas.back(true);assert.equal(atlas.context.kind,'global');assert.equal(atlas.department,null);
-  assert.equal(atlas.target.k/atlas.baseScale,1.18);
+  assert.equal(atlas.target.k/atlas.baseScale,1.2);
 });
 
 test('search reveals a hidden skill from overview and back restores the overview without leftover leaves',()=>{
@@ -173,11 +178,11 @@ test('refresh recovers removed leaves and specialists, with no phantom packages 
   assert.doesNotThrow(()=>atlas.back(true));
 });
 
-test('empty department and empty discovered specialist have distinct visible explanations',()=>{
+test('empty department stays quiet while an empty discovered specialist explains its source',()=>{
   const input=data();input.entries.push({path:'SISTEMA/skills/contents',name:'contents',directory:true});
   const {atlas}=harness(input);
   atlas.setDepartment('department/sales');
-  assert.match(atlas.el.querySelector('.knowledge-empty').textContent,/Nenhum especialista/);
+  assert.equal(atlas.el.querySelector('.knowledge-empty').hidden,true);
   atlas.setDepartment('department/content');
   assert.match(atlas.el.querySelector('.knowledge-empty').textContent,/presentes, mas ainda não contêm skills/);
   atlas.select('contents');
@@ -202,7 +207,7 @@ test('Pessoal, Profissional and Prompts routes and colors survive department nav
   atlas.update({...input});assert.equal(atlas.context.kind,'knowledge');assert.equal(atlas.knowledge.area,'prompts');
   atlas.back(true);assert.equal(atlas.context.kind,'department');assert.equal(atlas.context.page,1);
   atlas.select(null);assert.deepEqual(atlas.knowledgeOrbit.areas.map(a=>[a.name,a.color]),colors);
-  assert.equal(atlas.promptOrbit.points[0].color,promptColor);assert.equal(atlas.target.k/atlas.baseScale,1.18);
+  assert.equal(atlas.promptOrbit.points[0].color,promptColor);assert.equal(atlas.target.k/atlas.baseScale,1.2);
 });
 
 test('keyboard Enter opens a department and specialist arrows remain inside that department',()=>{

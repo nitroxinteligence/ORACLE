@@ -1,7 +1,10 @@
 /* Stable SVG scene: per-frame updates touch only camera and moved geometry.
  * Folder membership is evidence. Ambient motion is decorative, never telemetry. */
 class OracleAtlas {
-  static DEFAULT_ZOOM=1.18;
+  static DEFAULT_ZOOM=1.20;
+  static departmentColor(id,fallback='#b6bac1'){
+    return {'department/code':'#8ac8fa','department/marketing':'#91cdaa','department/content':'#c79de3','department/sales':'#e5c27e'}[id]||fallback;
+  }
   constructor(element, callbacks) {
     this.el=element;this.cb=callbacks;this.abort=new AbortController();this.disposed=false;this.ns='http://www.w3.org/2000/svg';
     this.defaults=[[-188,-177],[184,-188],[322,8],[-314,-3],[-208,184],[238,187],[14,277]];
@@ -9,50 +12,90 @@ class OracleAtlas {
     this.nodes=new Map();this.groups=new Map();this.leaves=new Map();this.context={kind:'global',group:null,page:0};this.department=null;this.catalog=null;this.knowledge=null;this.orbitTracks=new Map();this.history=[];this.layout={nodes:{},leaves:{}};
     this.camera={x:0,y:0,k:1};this.target={...this.camera};this.baseScale=1;this.frame=0;this.selected=null;this.selectedLeaf=null;this.first=true;this.lastDetail='';this.interactionFrames=[];this.updateCosts=[];this.suppressClick=false;
     this.el.innerHTML=`<svg class="atlas-scene" aria-label="Atlas do conhecimento" role="group" tabindex="0"><defs>
-      <radialGradient id="oracle-core-fill"><stop offset="0" stop-color="#252628"/><stop offset=".55" stop-color="#101112"/><stop offset="1" stop-color="#030405"/></radialGradient>
+      <radialGradient id="oracle-core-fill" cx=".38" cy=".30" r=".75"><stop offset="0" stop-color="#5c5b58"/><stop offset=".6" stop-color="#292a2a"/><stop offset=".88" stop-color="#363735"/><stop offset="1" stop-color="#b7b8b2"/></radialGradient>
       <radialGradient id="oracle-core-halo"><stop stop-color="#eeeeec" stop-opacity=".09"/><stop offset=".35" stop-color="#b5bbc3" stop-opacity=".035"/><stop offset="1" stop-color="#b5bbc3" stop-opacity="0"/></radialGradient>
       <linearGradient id="orbit-silver" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f2f2ef" stop-opacity=".5"/><stop offset=".45" stop-color="#8c929b" stop-opacity=".04"/><stop offset="1" stop-color="#dddeda" stop-opacity=".32"/></linearGradient>
       <radialGradient id="planet-fill" cx=".3" cy=".15" r=".9"><stop stop-color="#232526"/><stop offset=".7" stop-color="#0c0e0f"/><stop offset="1" stop-color="#07090a"/></radialGradient>
     </defs><g class="atlas-camera"><g class="orbital-scaffolding" aria-hidden="true">
-      <ellipse rx="245" ry="113" transform="rotate(-28)"/><ellipse rx="355" ry="188" transform="rotate(-28)"/><ellipse rx="425" ry="268" transform="rotate(-28)"/>
-      <path d="M-398 229 A460 285 -28 0 1 346 -262"/><path class="orbit-dash" d="M-267 -270 A394 237 -28 0 1 405 107"/>
-      <path class="axis-line" d="M-440 0H440 M0-315V350"/>
+      <circle r="154"/><circle r="172"/><circle r="190"/><circle r="208"/><circle r="226"/><circle r="244"/><circle r="262"/><circle r="280"/><circle r="298"/><circle r="316"/><circle r="334"/><circle r="352"/><circle r="370"/><circle r="388"/><circle r="406"/><circle r="424"/>
     </g><g class="atlas-edges"></g><g class="atlas-groups"></g><g class="atlas-leaves"></g><g class="atlas-nodes"></g>
-    <g class="oracle-core" role="button" tabindex="0" data-core="true" aria-label="Oracle, núcleo central. Enquadrar todo o atlas" data-tooltip="Enquadrar todo o universo">
+    <g class="oracle-core" transform="scale(.46)" role="img" tabindex="-1" data-core="true" aria-label="Oracle">
       <circle r="155" fill="url(#oracle-core-halo)" class="core-atmosphere"/><circle r="57" class="core-outline"/>
       <g class="core-orbit ambient"><circle r="62" fill="none" stroke="url(#orbit-silver)" stroke-width=".7" stroke-dasharray="100 38 34 100 18 100"/><circle cx="62" r="2" fill="#d5d6d4"/></g>
-      <g class="core-orbit reverse ambient"><ellipse rx="76" ry="28" fill="none" stroke="#bfc2c5" stroke-opacity=".18" stroke-width=".7" transform="rotate(-31)"/><circle cx="-65" cy="-14" r="1.4" fill="#9fa4ac"/></g>
+      <g class="core-orbit reverse ambient"><circle r="76" fill="none" stroke="#bfc2c5" stroke-opacity=".18" stroke-width=".7"/><circle cx="-76" r="1.4" fill="#9fa4ac"/></g>
       <circle r="49" fill="url(#oracle-core-fill)" stroke="#a9afb6" stroke-opacity=".65" stroke-width=".8"/>
       <circle r="45" fill="none" stroke="#d9dcdd" stroke-opacity=".08" stroke-width=".6"/>
-      <image x="-21" y="-21" width="42" height="42" href="brand/symbol-white.svg" aria-hidden="true"/>
+      <image x="-29" y="-29" width="58" height="58" href="brand/symbol-white.svg" aria-hidden="true"/>
       <circle r="55" fill="transparent" class="core-hit"/>
-    </g></g></svg><div class="atlas-caption"><span class="atlas-instruction">Arraste para explorar · Zoom fixo em 118%</span></div><nav class="atlas-context glass" aria-label="Navegação do mapa" hidden><button data-map-back aria-label="Voltar um nível">←</button><div class="atlas-breadcrumb"></div><div class="atlas-page" hidden><button data-map-page="-1" aria-label="Skills anteriores">‹</button><span></span><button data-map-page="1" aria-label="Próximas skills">›</button></div></nav>`;
+    </g><path class="central-hub-hit" data-central-hub="true" role="button" tabindex="0" aria-label="Abrir conhecimento: vida pessoal, vida profissional e memórias" fill="transparent" fill-rule="evenodd" d="M145 0a145 145 0 1 0-290 0a145 145 0 1 0 290 0 M26 0a26 26 0 1 1-52 0a26 26 0 1 1 52 0"/></g></svg><div class="atlas-caption"><span class="atlas-instruction">Role para girar departamentos · Arraste para explorar</span></div><nav class="atlas-context glass" aria-label="Navegação do mapa" hidden><button data-map-back aria-label="Voltar um nível">←</button><div class="atlas-breadcrumb"></div><div class="atlas-page" hidden><button data-map-page="-1" aria-label="Skills anteriores">‹</button><span></span><button data-map-page="1" aria-label="Próximas skills">›</button></div></nav>`;
     this.specialistHeading=document.createElement('h3');this.specialistHeading.className='specialist-hover-name';this.specialistHeading.hidden=true;this.specialistHeading.setAttribute('aria-hidden','true');this.el.append(this.specialistHeading);
+    this.contextNav=this.el.querySelector('.atlas-context');
+    const tabs=document.querySelector('.workspace-tabs');
+    if(tabs){let navigation=tabs.closest('.workspace-navigation');if(!navigation){navigation=document.createElement('div');navigation.className='workspace-navigation';tabs.before(navigation);navigation.append(tabs)}navigation.prepend(this.contextNav)}
     this.svg=this.el.querySelector('svg');this.world=this.el.querySelector('.atlas-camera');this.edgeLayer=this.el.querySelector('.atlas-edges');this.nodeLayer=this.el.querySelector('.atlas-nodes');this.leafLayer=this.el.querySelector('.atlas-leaves');this.groupLayer=this.el.querySelector('.atlas-groups');
+    this.contextBackdrop=this.make('g',{class:'department-backdrop','aria-hidden':'true',display:'none'},this.svg);this.svg.insertBefore(this.contextBackdrop,this.world);
+    this.contextRings=Array.from({length:5},()=>this.make('circle',{class:'department-backdrop-ring'},this.contextBackdrop));
+    this.contextTitle=this.make('text',{class:'department-backdrop-title','text-anchor':'middle',dy:'.32em'},this.contextBackdrop);
     this.atmosphereSeconds=0;
     this.starfield=this.make('svg',{class:'oracle-starfield','aria-hidden':'true',focusable:'false'},this.el.closest('#app')||this.el);
     this.expansion=this.make('svg',{class:'atlas-expansion','aria-hidden':'true',focusable:'false'},this.el);
     this.expansionWorld=this.make('g',{},this.expansion);
     this.expansionRings=Array.from({length:OracleAtmosphere.RING_COUNT},()=>this.make('circle',{},this.expansionWorld));
     try{this.universe=new OracleUniverse2D(this.el)}catch(error){this.renderError=String(error);this.el.classList.add('svg-fallback')}
+    document.fonts?.load('14px "Oracle Michroma"').then(()=>{if(!this.disposed){this.departmentLabelWidths=null;this.renderContextBackdrop();this.invalidate();}});
     this.bind();this.observer=new ResizeObserver(()=>this.resize());this.observer.observe(this.el.parentElement);for(const panel of document.querySelectorAll('#navigation-panel,#observatory-panel'))this.observer.observe(panel);
     this.listen(document,'visibilitychange',()=>this.setPaused(document.hidden||window.oracleWindowVisible===false||this.data?.hidden||this.data?.paused));
+    this.listen(window,'blur',()=>{this.windowInactive=true;this.setPaused(this.pauseRequested)});
+    this.listen(window,'focus',()=>{this.windowInactive=false;this.setPaused(this.pauseRequested)});
     this.motionPreference=matchMedia('(prefers-reduced-motion: reduce)');
     this.listen(this.motionPreference,'change',()=>{if(this.data)this.update(this.data)});
   }
   listen(target,type,handler,options={}){target.addEventListener(type,handler,{...options,signal:this.abort.signal})}
+  finishReveal(){
+    for(const element of this.revealElements||[])window.OracleTransitions?.cancel(element);
+    this.revealElements=null;this.el.removeAttribute('data-revealing');
+  }
+  revealGraph(){
+    this.finishReveal();
+    if(!window.OracleTransitions||this.reduced||this.data?.hidden||document.hidden||this.selected||this.department||this.knowledge||document.querySelector('dialog[open]'))return;
+    const elements=new Set(),pending=[];this.revealElements=elements;this.el.dataset.revealing='true';
+    const fade=(element,delay,duration=480,expand=false)=>{
+      if(!element||!element.isConnected)return;
+      const opacity=getComputedStyle(element).opacity;
+      elements.add(element);
+      const frames=expand?[{opacity:0,transform:'scale(.55)',transformOrigin:'0px 0px'},{opacity,transform:'scale(1)',transformOrigin:'0px 0px'}]:[{opacity:0},{opacity}];
+      pending.push(OracleTransitions.animate(element,frames,{delay,duration,name:'graph-reveal'}));
+    };
+    fade(this.el.querySelector('.oracle-core'),0,360);
+    this.el.querySelectorAll('.orbital-scaffolding circle').forEach((ring,i)=>fade(ring,140+i*24,700,true));
+    fade(this.starfield,260,700);fade(document.querySelector('#galaxy'),260,700);
+    (this.centralNodes||[]).forEach((node,i)=>{const delay=440+Math.min(i,30)*14;fade(node.edge,delay,420);fade(node.g,delay+60,420)});
+    this.el.querySelectorAll('[data-department-orbit]').forEach((orbit,i)=>fade(orbit,780+i*45,520));
+    fade(this.junctionLayer,970,500);
+    let departments=0,specialists=0;
+    for(const node of this.nodes.values()){
+      const delay=node.kind==='department'?930+departments++*65:1200+Math.min(specialists++,12)*32;
+      fade(node.g,delay,440);fade(node.edge,delay+50,480);fade(node.flow,delay+160,480);
+    }
+    let leaves=0;for(const node of this.leaves.values()){const delay=1430+Math.min(leaves++,15)*18;fade(node.g,delay,400);fade(node.edge,delay,400)}
+    fade(this.el.querySelector('.plugin-orbit-layer'),1400,440);fade(this.el.querySelector('.verified-connectors'),1400,440);
+    void Promise.all(pending).then(()=>{if(this.revealElements===elements){this.revealElements=null;this.el.removeAttribute('data-revealing')}});
+  }
   make(tag,attrs={},parent){const el=document.createElementNS(this.ns,tag);if(['path','circle','ellipse','rect','svg'].includes(tag))el.setAttribute('aria-hidden','true');for(const [key,value]of Object.entries(attrs))el.setAttribute(key,String(value));parent?.append(el);return el}
   measureViewport(){
     const visible=id=>{const el=document.querySelector(id);return el&&!el.hidden&&getComputedStyle(el).display!=='none'?el.getBoundingClientRect():null};
     const nav=visible('#navigation-panel'),inspector=visible('#observatory-panel'),header=visible('.app-header');
     const left=nav?nav.right+16:24,right=inspector?inspector.left-16:this.width-24;
-    const top=(header?.bottom||82)+74,bottom=this.height-76;
+    const global=!this.selected&&!this.department&&!this.knowledge;
+    const margin=((header?.bottom||82)+74+76)/2;
+    const top=global?margin:(header?.bottom||82)+74,bottom=this.height-(global?margin:76);
     return {left,right,top,bottom,width:Math.max(160,right-left),height:Math.max(120,bottom-top),cx:(left+right)/2,cy:(top+bottom)/2};
   }
   viewCenter(){return this.viewport?{x:this.viewport.cx,y:this.viewport.cy}:{x:(this.width||1000)/2,y:(this.height||700)/2}}
   fittedCamera(){
     const v=this.viewport||{left:24,top:156,width:(this.width||1000)-48,height:(this.height||700)-232};
     const c=OracleLayout.fitCamera(this.geometry?.focusBounds||{minX:-470,maxX:470,minY:-390,maxY:390},v.width,v.height,0,18,this.context.group?1.45:Infinity);
+    if(!this.selected&&!this.department&&!this.knowledge)return {x:v.left+v.width/2,y:v.top+v.height/2,k:c.k};
     return {x:c.x+v.left,y:c.y+v.top,k:c.k};
   }
   fittedScale(){return this.fittedCamera().k}
@@ -60,7 +103,7 @@ class OracleAtlas {
     const r=this.el.parentElement.getBoundingClientRect(),oldBase=this.baseScale,oldCenter=this.viewCenter();
     this.width=r.width;this.height=r.height;if(!r.width||!r.height)return;
     this.resizeStarfield();
-    this.viewport=this.measureViewport();this.contentTop=this.viewport.top;const center=this.viewCenter(),v=this.viewport;
+    this.viewport=this.measureViewport();this.contentTop=this.viewport.top;const center=this.viewCenter(),v=this.viewport;this.renderContextBackdrop();
     const style=this.el.parentElement.style;style.setProperty('--atlas-center-x',center.x+'px');style.setProperty('--atlas-safe-width',v.width+'px');style.setProperty('--atlas-safe-left',v.left+'px');style.setProperty('--atlas-safe-right',(this.width-v.right)+'px');style.setProperty('--atlas-safe-top',v.top+'px');style.setProperty('--atlas-safe-bottom',(this.height-v.bottom)+'px');
     if(this.context.kind==='skill'&&this.selectedLeaf&&!this.first&&this.geometry.leaves.some(l=>l.id===this.selectedLeaf)){const focal=this.geometry.leaves.find(l=>l.id===this.selectedLeaf);this.baseScale=this.fittedScale();const k=this.baseScale*OracleAtlas.DEFAULT_ZOOM;this.target={x:center.x-focal.x*k,y:center.y-focal.y*k,k};this.contextTravelling=true;}
     else if(this.autoFit||this.first){this.fit();if(this.first){this.camera={...this.target};this.first=false}}
@@ -88,9 +131,9 @@ class OracleAtlas {
     this.el.classList.toggle('motion-reduced',this.reduced);this.setPaused(document.hidden||data.hidden||data.paused);
     if(!this.loadedLayout&&data.layout){this.layout=structuredClone({nodes:data.layout.nodes||{},leaves:data.layout.leaves||{}});this.loadedLayout=true}
     const knowledgeAreas=OracleKnowledge.areas(data.entries||[]);
-    const key=JSON.stringify([this.catalogKey,data.detail,this.selected,this.department,this.context,this.knowledge,data.promptRoot,(data.entries||[]).filter(e=>OraclePrompts.contains(e.path)||knowledgeAreas.some(a=>e.path===a.path||e.path.startsWith(a.path+'/'))).map(e=>[e.path,e.directory]),Object.keys(this.layout.nodes),Object.keys(this.layout.leaves),(data.plugins||[]).filter(p=>p.status==='connected').map(p=>p.id).sort()]);
+    const key=JSON.stringify([this.catalogKey,data.detail,this.selected,this.department,this.context,this.knowledge,data.promptRoot,data.tutorialRoot,(data.entries||[]).filter(e=>/^SISTEMA\/Tutoriais(?:\/|$)/i.test(e.path)||OraclePrompts.contains(e.path)||knowledgeAreas.some(a=>e.path===a.path||e.path.startsWith(a.path+'/'))).map(e=>[e.path,e.directory]),Object.keys(this.layout.nodes),Object.keys(this.layout.leaves),(data.plugins||[]).filter(p=>p.status==='connected').map(p=>p.id).sort()]);
     if(key!==this.topologyKey){this.topologyKey=key;this.relayout();if(routeChanged||this.autoFit!==false)this.fit()}
-    this.updatePlugins(data.plugins||[]);this.updateKnowledge(data.entries||[]);this.updatePrompts();this.updateConnectors(data.connectors||[]);this.el.classList.toggle('installation-waiting',data.coreReady===false);this.selection();this.draw();
+    this.updatePlugins(data.plugins||[]);this.updateCentralKnowledge(data.entries||[]);this.updateConnectors(data.connectors||[]);this.el.classList.toggle('installation-waiting',data.coreReady===false);this.selection();this.draw();
     if(data.events?.length)this.universe?.signalReceipt(data.events.at(-1));
     if(routeChanged)this.notifySelection();
   }
@@ -102,6 +145,155 @@ class OracleAtlas {
   notifySelection(keyboard=false){this.cb.onSelect?.(this.selected,this.selectedLeaf,keyboard,this.getSelection())}
   searchSkills(query,options={}){return OracleDepartments.search(this.catalog,query,options)}
   revealSkill(path,keyboard=false){const route=OracleDepartments.selectionForSkill(this.catalog,path);if(!route)return false;this.navigate(route.specialist,route.group,route.leaf,route.page,keyboard);return true}
+  /** V3 is a presentation of the existing catalog and page, never a new taxonomy. */
+  composeOrbitalScene(geometry){
+    const colorOf=id=>OracleAtlas.departmentColor(id,this.catalog.departmentByID.get(id)?.color);
+    if(this.knowledge)return geometry;
+    if(this.selected){
+      const color=colorOf(this.catalog.specialistByID.get(this.selected)?.department);
+      for(const item of [...geometry.nodes,...geometry.groups,...geometry.leaves])item.color=color;
+      for(const item of geometry.nodes)if(item.kind!=='department')item.visualRadius=9;
+      return geometry;
+    }
+    // A department opens its own scene. Keep the complete real page and its
+    // navigation, showing no other departments or central knowledge libraries.
+    if(this.department){
+      const root=geometry.nodes.find(n=>n.kind==='department'),members=geometry.nodes.filter(n=>n.parent===root.id),color=colorOf(root.id);
+      const radius=Math.max(170,members.length*32);
+      Object.assign(root,{color,visualRadius:27});
+      for(const [index,n] of members.entries()){
+        const angle=-Math.PI*.78+index*Math.PI*2/Math.max(1,members.length);
+        Object.assign(n,{x:Math.cos(angle)*radius,y:Math.sin(angle)*radius,color,visualRadius:8.25});
+        const files=geometry.leaves.filter(l=>l.parent===n.id);
+        for(const [i,l] of files.entries()){
+          const tier=Math.floor(i/5),count=Math.min(5,files.length-tier*5),a=angle+((i%5)-(count-1)/2)*.28,r=70+tier*42;
+          Object.assign(l,{x:n.x+Math.cos(a)*r,y:n.y+Math.sin(a)*r,color,dir:Math.cos(a)>=0?1:-1});
+        }
+      }
+      const points=[{x:-140,y:-140},{x:140,y:140},...geometry.nodes,...geometry.leaves];
+      const bounds={minX:Math.min(...points.map(p=>p.x))-100,maxX:Math.max(...points.map(p=>p.x))+100,minY:Math.min(...points.map(p=>p.y))-90,maxY:Math.max(...points.map(p=>p.y))+90};
+      return {...geometry,bounds,focusBounds:bounds,orbitalRings:[{parent:root.id,x:0,y:0,radius,color}]};
+    }
+    const hidden=new Set(geometry.nodes.filter(n=>n.id==='department/other'||n.parent==='department/other').map(n=>n.id));
+    const scene={...geometry,nodes:geometry.nodes.filter(n=>!hidden.has(n.id)),groups:geometry.groups.filter(n=>!hidden.has(n.parent)),leaves:geometry.leaves.filter(n=>!hidden.has(n.parent))};
+    const departments=scene.nodes.filter(n=>n.kind==='department');
+    const angles={'department/code':-2.48,'department/marketing':-.66,'department/content':2.48,'department/sales':.66};
+    const rings=[];
+    const clouds=departments.map((d,index)=>{
+      const members=scene.nodes.filter(n=>n.parent===d.id);
+      const radius=members.length?Math.max(94,Math.ceil(members.length/8)*68+26):64;
+      const angle=departments.length<=5&&angles[d.id]!==undefined?angles[d.id]:Math.PI/2+(index-4)*Math.PI*2/departments.length;
+      const distance=Math.max(260,departments.length*52,radius*2.15)+52;
+      const saved=this.layout.nodes?.[d.id];
+      d.x=Number.isFinite(saved?.x)?saved.x:Math.cos(angle)*distance;
+      d.y=Number.isFinite(saved?.y)?saved.y:Math.sin(angle)*distance;
+      return {d,members,radius,fixed:Number.isFinite(saved?.x)&&Number.isFinite(saved?.y)};
+    });
+    // Local orbit bounds, including names, separate dense departments without
+    // deleting outliers or turning their sources into a different department.
+    for(let pass=0;pass<24;pass++)for(let i=0;i<clouds.length;i++)for(let j=i+1;j<clouds.length;j++){
+      const a=clouds[i],b=clouds[j],dx=b.d.x-a.d.x,dy=b.d.y-a.d.y,dist=Math.hypot(dx,dy)||1,min=a.radius+b.radius+110;
+      if(dist<min&&!(a.fixed&&b.fixed)){const move=(min-dist)/(a.fixed||b.fixed?1:2),ux=dx/dist,uy=dy/dist;if(!a.fixed){a.d.x-=ux*move;a.d.y-=uy*move}if(!b.fixed){b.d.x+=ux*move;b.d.y+=uy*move}}
+    }
+    for(const {d,members,radius} of clouds){
+      d.color=colorOf(d.id);d.visualRadius=24;
+      const phase=Math.atan2(d.y,d.x)-Math.PI/2;
+      for(const [index,n] of members.entries()){
+        const ring=Math.floor(index/8),count=Math.min(8,members.length-ring*8),r=94+ring*68;
+        const angle=phase+(index%8)*Math.PI*2/Math.max(1,count);
+        const saved=this.layout.nodes?.[n.id];
+        n.x=Number.isFinite(saved?.x)?saved.x:d.x+Math.cos(angle)*r;
+        n.y=Number.isFinite(saved?.y)?saved.y:d.y+Math.sin(angle)*r;
+        Object.assign(n,{color:d.color,visualRadius:7.5,localOrbit:Number.isFinite(saved?.x)&&Number.isFinite(saved?.y)?null:{parent:d.id,radius:r,angle},angle:Math.atan2(n.y,n.x)});
+        if(index%8===0)rings.push({parent:d.id,x:d.x,y:d.y,radius:r,color:d.color});
+      }
+      if(!members.length)rings.push({parent:d.id,x:d.x,y:d.y,radius:64,color:d.color});
+    }
+    const leaves=scene.leaves;
+    for(const n of scene.nodes.filter(n=>n.parent)){
+      const files=leaves.filter(l=>l.parent===n.id),parent=scene.nodes.find(d=>d.id===n.parent),angle=Math.atan2(n.y-parent.y,n.x-parent.x);
+      for(const [index,l] of files.entries()){
+        // Compact fans grow in short tiers from their actual specialist.
+        const tier=Math.floor(index/5),count=Math.min(5,files.length-tier*5),a=angle+((index%5)-(count-1)/2)*.30,r=60+tier*40;
+        Object.assign(l,{x:n.x+Math.cos(a)*r,y:n.y+Math.sin(a)*r,color:n.color,dir:Math.cos(a)>=0?1:-1});
+      }
+    }
+    if(this.departmentRotation)this.rotateOrbitalGeometry(scene,this.departmentRotation,rings);
+    const points=[{x:-170,y:-170},{x:170,y:170},...scene.nodes,...leaves];
+    const bounds={minX:Math.min(-530,Math.min(...points.map(p=>p.x))-160),maxX:Math.max(530,Math.max(...points.map(p=>p.x))+160),minY:Math.min(-445,Math.min(...points.map(p=>p.y))-105),maxY:Math.max(445,Math.max(...points.map(p=>p.y))+105)};
+    return {...geometry,nodes:scene.nodes,groups:scene.groups,leaves,orbitalRings:rings,bounds,focusBounds:bounds,dedicated:false};
+  }
+  rotateOrbitalGeometry(scene,angle,rings=[]){
+    const c=Math.cos(angle),s=Math.sin(angle);
+    for(const n of [...scene.nodes,...scene.groups,...scene.leaves,...rings]){
+      const x=n.x,y=n.y;n.x=x*c-y*s;n.y=x*s+y*c;
+      if(n.localOrbit)n.localOrbit.angle+=angle;
+    }
+  }
+  rotateDepartments(angle){
+    if(!angle||this.selected||this.department||this.knowledge)return;
+    const c=Math.cos(angle),s=Math.sin(angle);
+    for(const n of [...this.nodes.values(),...this.groups.values(),...this.leaves.values()]){
+      const x=n.x,y=n.y;n.x=n.tx=x*c-y*s;n.y=n.ty=x*s+y*c;
+      if(n.localOrbit)n.localOrbit.angle+=angle;
+    }
+    for(const [index,ring] of (this.geometry.orbitalRings||[]).entries()){
+      const x=ring.x,y=ring.y;ring.x=x*c-y*s;ring.y=x*s+y*c;
+      this.orbitalGuides.children[index]?.setAttribute('transform',`translate(${ring.x} ${ring.y})`);
+    }
+    this.departmentRotation=(this.departmentRotation||0)+angle;
+  }
+  snapDepartments(){
+    if(this.disposed||this.selected||this.department||this.knowledge||this.drag)return;
+    const pending=(this.departmentRotationTarget||0)-(this.departmentRotation||0);
+    let closest=null;
+    for(const n of this.nodes.values())if(n.kind==='department'){
+      const angle=Math.atan2(n.y,n.x)+pending;
+      const delta=Math.atan2(Math.sin(Math.PI/2-angle),Math.cos(Math.PI/2-angle));
+      if(!closest||Math.abs(delta)<Math.abs(closest.delta))closest={id:n.id,delta};
+    }
+    if(closest){this.departmentRotationTarget=(this.departmentRotationTarget||0)+closest.delta;this.el.dataset.snappedDepartment=closest.id;this.invalidate();}
+  }
+  positionDepartmentLabels(){
+    if(this.selected||this.department||this.knowledge)return;
+    const {x,y,k}=this.camera,v=this.viewport||{left:20,right:this.width-20,top:80,bottom:this.height-20};
+    const font=Math.max(10,Math.min(14,(v.right-v.left)/65));
+    this.departmentLabelWidths??=new Map();
+    for(const n of this.nodes.values())if(n.kind==='department'){
+      const angle=Math.atan2(n.y,n.x),ux=Math.cos(angle),uy=Math.sin(angle);
+      const orbit=Math.max(64,...(this.geometry.orbitalRings||[]).filter(r=>r.parent===n.id).map(r=>r.radius));
+      n.label.style.fontSize=font/k+'px';
+      const metric=n.name+':'+font+':'+k;
+      let width=this.departmentLabelWidths.get(metric);
+      if(width===undefined){width=n.label.getComputedTextLength()*k;this.departmentLabelWidths.set(metric,width);}
+      const offset=orbit*k+30,anchor=Math.abs(ux)<.35?'middle':ux>0?'start':'end';
+      let sx=x+n.x*k+ux*offset,sy=y+n.y*k+uy*offset;
+      const left=anchor==='middle'?width/2:anchor==='end'?width:0,right=width-left;
+      sx=Math.max(v.left+left+8,Math.min(v.right-right-8,sx));
+      sy=Math.max(94,Math.min(this.height-26,sy));
+      n.label.setAttribute('text-anchor',anchor);n.label.setAttribute('x',(sx-x-n.x*k)/k);n.label.setAttribute('y',(sy-y-n.y*k)/k);
+    }
+  }
+  renderOrbitalMaterials(){
+    this.orbitalGuides?.remove();this.orbitalGuides=this.make('g',{class:'department-orbits','aria-hidden':'true'},this.world);this.world.insertBefore(this.orbitalGuides,this.edgeLayer);
+    for(const ring of this.geometry.orbitalRings||[]){
+      const g=this.make('g',{transform:`translate(${ring.x} ${ring.y})`,'data-department-orbit':ring.parent},this.orbitalGuides);g.style.setProperty('--node-accent',ring.color);
+      this.make('circle',{r:ring.radius,class:'department-orbit'},g);
+      for(let i=0;i<6;i++){const a=i*Math.PI/3;this.make('circle',{cx:Math.cos(a)*ring.radius,cy:Math.sin(a)*ring.radius,r:1.5,class:'orbit-marker'},g);}
+    }
+    this.junctionLayer?.remove();this.junctionLayer=this.make('g',{class:'department-junctions','aria-hidden':'true'},this.edgeLayer);this.departmentJunctions=new Map();
+    if(!this.selected&&!this.department&&!this.knowledge)for(const n of this.geometry.nodes.filter(n=>n.kind==='department')){
+      const edge=this.make('path',{class:'department-junction-link',fill:'none'},this.junctionLayer);
+      const dot=this.make('circle',{r:2.7,class:'department-junction'},this.junctionLayer);dot.style.fill=n.color;
+      this.departmentJunctions.set(n.id,{edge,dot});
+    }
+    this.el.querySelectorAll('.department-gradient').forEach(el=>el.remove());
+    for(const [index,n] of this.geometry.nodes.entries()){
+      const id=`v3-planet-${index}`;n.gradient=id;
+      const gradient=this.make('radialGradient',{id,cx:'.3',cy:'.22',r:'.85',class:'department-gradient'},this.svg.querySelector('defs'));
+      for(const [offset,opacity] of [[0,.30],[.4,.10],[.74,.015],[.94,.24],[1,.60]])this.make('stop',{offset,'stop-color':n.color,'stop-opacity':opacity},gradient);
+    }
+  }
   relayout(){
     this.spotlight=undefined;let recovered=false;
     if(!this.knowledge){const route=OracleDepartments.resolveSelection(this.catalog,this.getSelection());recovered=!this.sameSelection(route);this.applySelection(route)}
@@ -110,10 +302,11 @@ class OracleAtlas {
     const pluginRadius=OracleMotion.pluginOrbitRadius(OracleKnowledge.orbitPlugins(this.data.plugins||[]).length);
     this.knowledgeOrbit=OracleKnowledge.orbit(this.data.entries||[],pluginRadius);
     this.promptOrbit=OraclePrompts.orbit(this.data.entries||[],this.knowledgeOrbit.radius,this.data.promptRoot);
-    const folderSource=this.knowledge?.area==='prompts'?OraclePrompts:OracleKnowledge;
+    const folderSource=this.knowledgeSource(this.knowledge?.area);
     // One outer ring fits the existing 110-unit clearance: ordinary libraries do not move specialists.
     const clearance=Math.max(this.knowledgeOrbit.radius+110,this.promptOrbit.radius+72);
-    this.geometry=this.knowledge?folderSource.plan(this.data.entries||[],{...this.knowledge,rootChoice:this.data.promptRoot}):OracleLayout.hierarchyPlan(this.catalog,this.getSelection(),this.layout,clearance);
+    this.geometry=this.composeOrbitalScene(this.knowledge?folderSource.plan(this.data.entries||[],{...this.knowledge,rootChoice:this.data.promptRoot}):OracleLayout.hierarchyPlan(this.catalog,this.getSelection(),this.layout,clearance));
+    this.renderOrbitalMaterials();
     if(!this.selected&&!this.department&&!this.knowledge&&this.promptOrbit.points.length){const r=this.promptOrbit.radius+25,b=this.geometry.focusBounds;this.geometry.focusBounds={minX:Math.min(b.minX,-r),maxX:Math.max(b.maxX,r),minY:Math.min(b.minY,-r),maxY:Math.max(b.maxY,r)}}
     if(this.knowledge){this.knowledge={...this.geometry.route};this.knowledgeOrbitTimes=[0,0,0];}
     const present=new Set(this.geometry.nodes.map(n=>n.id));
@@ -126,7 +319,21 @@ class OracleAtlas {
       let n=this.nodes.get(p.id);
       if(!n){
         const edge=this.make('path',{class:'category-edge',fill:'none','data-edge':p.id},this.edgeLayer);
-        const flow=this.make('path',{class:'edge-flow ambient',fill:'none',pathLength:1},this.edgeLayer);flow.style.animationDelay=`${-i*2.3}s`;
+        const flow=this.make('g',{class:'edge-flow ambient','aria-hidden':'true'},this.edgeLayer);
+        const colors=['#92d9f3','#c3a2ef','#eeafbc','#e8d28e','#93d6b9','#a7bbf4'];
+        const duration=(p.kind==='department'?8.4:6.8)+(i%3)*.7;
+        const particleCount=p.kind==='specialist'?2:6,perDirection=particleCount/2;
+        for(let j=0;j<particleCount;j++){
+          const returning=j>=perDirection;
+          const particle=this.make('g',{class:'fluid-particle','data-direction':returning?'return':'outbound'},flow);
+          const scale=this.make('g',{class:'fluid-scale'},particle);
+          const body=this.make('circle',{class:'fluid-body',r:1.65,fill:colors[(i+j)%colors.length]},scale);
+          body.style.setProperty('--fluid-color',colors[(i+j)%colors.length]);
+          body.style.animationDelay=`${-j*.8-i*.3}s`;
+          const begin=-duration*(((j%perDirection)/perDirection+(returning?1/(2*perDirection):0)+i*.173)%1);
+          this.make('animateMotion',{dur:`${duration}s`,begin:`${begin}s`,repeatCount:'indefinite',rotate:'auto',calcMode:'linear',keyPoints:returning?'1;0':'0;1',keyTimes:'0;1'},particle);
+          this.make('animate',{attributeName:'opacity',values:'0;.85;.85;0',keyTimes:'0;.08;.92;1',dur:`${duration}s`,begin:`${begin}s`,repeatCount:'indefinite'},particle);
+        }
         const g=this.make('g',{class:'category-node',role:'button',tabindex:0,'data-category':p.id},this.nodeLayer);
         this.make('circle',{r:31,class:'selection-ring'},g);this.make('circle',{r:25,class:'planet-surface',fill:'url(#planet-fill)'},g);
         const symbol=this.make('svg',{x:-10,y:-10,width:20,height:20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':1.1,'stroke-linecap':'round','stroke-linejoin':'round',class:'category-symbol'},g);
@@ -135,18 +342,19 @@ class OracleAtlas {
         n={id:p.id,x:p.x,y:p.y,edge,flow,g,label,count};this.nodes.set(p.id,n);
       }
       if(!this.selected&&!this.department&&!this.knowledge){n.g.querySelector('.category-symbol').removeAttribute('transform');n.g.querySelector('.selection-ring').setAttribute('r',31);n.g.querySelector('.planet-surface').setAttribute('r',25)}
-      Object.assign(n,{name:p.name,color:p.color,tx:p.x,ty:p.y,index:i,skills:p.skills,angle:p.angle,kind:p.kind,parent:p.parent,department:p.department,empty:p.empty,state:p.state,specialistCount:p.specialistCount});this.palette[i]=p.color;
+      Object.assign(n,{name:p.name,color:p.color,tx:p.x,ty:p.y,index:i,skills:p.skills,angle:p.angle,kind:p.kind,parent:p.parent,department:p.department,empty:p.empty,state:p.state,specialistCount:p.specialistCount,visualRadius:p.visualRadius,localOrbit:p.localOrbit});this.palette[i]=p.color;
+      n.g.querySelector('.planet-surface').style.fill=`url(#${p.gradient})`;
       n.g.dataset.kind=p.kind||'knowledge';n.g.dataset.state=p.state||'';n.g.classList.toggle('department-node',p.kind==='department');
-      n.g.style.setProperty('--node-accent',p.color);n.edge.style.setProperty('--node-accent',p.color);n.label.textContent=p.name;
+      n.g.style.setProperty('--node-accent',p.color);n.edge.style.setProperty('--node-accent',p.color);n.flow.style.setProperty('--node-accent',p.color);n.label.textContent=p.kind==='department'?p.name.toLocaleUpperCase('pt-BR'):p.name;
       n.label.style.display=p.kind==='department'?'block':'';
       n.label.style.fill=p.kind==='department'?'#eee':'';
       n.count.textContent=p.kind==='department'?`${p.specialistCount} especialistas`:`${p.skills.length} ${this.knowledge?.area==='prompts'?'prompts':this.knowledge?'notas':'skills'}`;
       const description=this.knowledge?`${p.name} · Pasta · ${n.count.textContent}`:p.kind==='department'?`${p.name} · Departamento · ${n.count.textContent} · ${p.skills.length} skills`:`${p.name} · Especialista · ${p.skills.length?`${p.skills.length} skills`:'Fonte presente, sem skills'}`;
-      n.g.dataset.tooltip=description;
+
       n.g.setAttribute('aria-label',`${description}. Enter explora; espaço enquadra; Alt e arrasto reorganizam.`);
       // Existing dedicated-scene CSS hides category edges; department members
       // need their real parent edge in SVG fallback as well as in WebGL.
-      const edgeDisplay=this.geometry.dedicated?(p.parent?'block':'none'):'';n.edge.style.display=edgeDisplay;n.flow.style.display=edgeDisplay;
+      const edgeDisplay=this.geometry.dedicated?(p.parent?'block':'none'):'block';n.edge.style.display=edgeDisplay;n.flow.style.display=edgeDisplay;
     });
     const groupIDs=new Set(this.geometry.groups.map(g=>g.id));
     for(const [id,g] of this.groups)if(!groupIDs.has(id)){g.g.remove();g.edge.remove();g.bus.remove();this.groups.delete(id)}
@@ -167,7 +375,7 @@ class OracleAtlas {
       group.g.style.display=p.rootMembership?'none':'';group.g.setAttribute('aria-hidden',String(!!p.rootMembership));
       group.label.textContent=p.name.length>22?p.name.slice(0,20)+'…':p.name;
       const description=p.kind==='specialist'?'Especialista digital':p.kind==='folder'?'Pasta':'Faixa alfabética';
-      group.g.dataset.tooltip=`${description} ${p.name} · ${p.skills.length} skills`;
+
       group.g.setAttribute('aria-label',`${description} ${p.name}, ${p.skills.length} skills. Enter explora este grupo.`);
     }
     if(this.width){this.baseScale=this.fittedScale();const k=this.baseScale*ratio;this.target={x:this.viewCenter().x-anchor.x*k,y:this.viewCenter().y-anchor.y*k,k};this.camera.k=k;this.lastZoom=null}
@@ -192,14 +400,14 @@ class OracleAtlas {
         this.make('path',{d:'M-2.5 -4h3l2 2v6h-5z M.5 -4v2h2 M-1 0h2 M-1 2h2',class:'skill-glyph'},g);
         const label=this.make('text',{y:4,class:'skill-name'},g);
         const name=p.name;label.textContent=name.length>34?name.slice(0,32)+'…':name;
-        g.dataset.tooltip=name;g.setAttribute('aria-label',`${name}. Enter seleciona; espaço abre documento.`);
+        g.setAttribute('aria-label',`${name}. Enter seleciona; espaço abre documento.`);
         l={...p,x:this.reduced?p.x:group.x,y:this.reduced?p.y:group.y,g,edge,label,hit,life:0};this.leaves.set(p.id,l);this.lastSelectionKey=null;
         l.arriveAt=performance.now()+(this.reduced?0:group.index*22+p.localIndex*12);
       }
       Object.assign(l,{tx:p.x,ty:p.y,parent:p.parent,name:p.name,source:p.source,group:p.group,depth:p.depth,index:p.index,localIndex:p.localIndex,route:p.route,dir:p.dir,custom:p.custom,retiring:false,lifeTarget:1});
       Object.assign(l,{knowledge:!!p.knowledge,directory:!!p.directory,area:p.area,color:p.color});
       l.g.classList.toggle('knowledge-node',!!p.knowledge);l.g.classList.toggle('knowledge-folder',!!p.directory);
-      l.g.dataset.tooltip=p.tooltip||p.name;
+
       if(p.knowledge){l.orbitAngle=p.angle;l.orbitRadius=Math.hypot(p.x,p.y);l.orbitRing=Math.round((l.orbitRadius-260)/105);l.g.dataset.orbitTrack=`scene-${l.orbitRing}`;l.g.setAttribute('aria-label',p.tooltip);l.g.querySelector('.skill-dot').style.fill=p.color;l.g.querySelector('.skill-glyph').setAttribute('d',p.directory?'M-4 -2h3l1 1h4v5h-8z M-4 -2v-2h3l1 2':'M-2.5 -4h3l2 2v6h-5z M.5 -4v2h2 M-1 0h2 M-1 2h2')}
       l.g.style.pointerEvents='';l.g.setAttribute('tabindex','0');
       l.g.style.setProperty('--node-accent',p.color||this.palette[n.index]);l.edge.style.setProperty('--node-accent',p.color||this.palette[n.index]);
@@ -225,40 +433,119 @@ class OracleAtlas {
     });
     this.drawOrbitTrack(track);
   }
-  updateKnowledge(entries){
-    const plan=this.knowledgeOrbit||OracleKnowledge.orbit(entries,this.pluginRadius||105);
-    const key=JSON.stringify(plan.points.map(p=>[p.path,p.x,p.y,p.color,p.tooltip]));if(key===this.knowledgeOrbitKey)return;this.knowledgeOrbitKey=key;
-    this.knowledgeLayer?.remove();this.knowledgeLayer=this.make('g',{class:'knowledge-orbit-layer'},this.world);
-    for(const key of this.orbitTracks.keys())if(key.startsWith('knowledge-')&&Number(key.slice(10))>=plan.rings.length)this.orbitTracks.delete(key);
-    plan.rings.forEach((radius,index)=>{const track=this.setOrbitTrack(`knowledge-${index}`,radius,96+index*24,index%2?-1:1,2.5);track.guide=this.make('circle',{r:radius,class:'knowledge-orbit-ring'},this.knowledgeLayer)});
-    for(const p of plan.points){
-      const index=plan.rings.findIndex(r=>Math.abs(r-Math.hypot(p.x,p.y))<.01),key=`knowledge-${index}`,track=this.orbitTracks.get(key);
-      const g=this.make('g',{class:'knowledge-orbit-node',role:'button',tabindex:0,'data-knowledge-path':p.path,'data-knowledge-area':p.area,'data-orbit-track':key,transform:`translate(${p.x} ${p.y})`,'aria-label':p.tooltip},this.knowledgeLayer);g.dataset.tooltip=p.tooltip;track.nodes.push({el:g,angle:Math.atan2(p.y,p.x)});
-      this.make('circle',{r:p.r+5,fill:'transparent',class:'knowledge-orbit-hit'},g);
-      this.make('circle',{r:p.r,fill:p.color,class:'knowledge-orbit-dot'},g);
+  updateCentralKnowledge(entries){
+    const prompts=OraclePrompts.inventory(entries,this.data.promptRoot);
+    const tutorials=OracleLibrary.inventory(entries,'SISTEMA/Tutoriais',this.data.tutorialRoot);
+    const areas=[...OracleKnowledge.areas(entries).map(area=>({...area,color:area.id==='personal'?'#d4a1cc':'#84cbbb',entries:OracleKnowledge.areaEntries(entries,area)})),
+      {...prompts.area,entries:prompts.entries},
+      {id:'tutorials',name:'Tutoriais',path:tutorials.root,color:'#9db9e6',exists:tutorials.exists&&!tutorials.ambiguous,entries:tutorials.ambiguous?[]:[...tutorials.folders.map(path=>({path,directory:true})),...tutorials.documents]}];
+    const key=JSON.stringify(areas.map(a=>[a.id,a.path,a.exists,a.entries.map(e=>[e.path,e.name,e.directory])]));
+    if(key===this.centralKnowledgeKey)return;this.centralKnowledgeKey=key;
+    for(const layer of [this.knowledgeLayer,this.promptLayer,this.tutorialLayer])layer?.remove();
+    this.knowledgeLayer=this.make('g',{class:'knowledge-orbit-layer central-knowledge-layer','aria-label':'Rede de conhecimento'},this.world);
+    this.promptLayer=this.make('g',{class:'prompt-orbit-layer central-knowledge-layer'},this.world);
+    this.tutorialLayer=this.make('g',{class:'tutorial-orbit-layer central-knowledge-layer'},this.world);
+    for(const layer of [this.knowledgeLayer,this.promptLayer,this.tutorialLayer])this.world.insertBefore(layer,this.world.querySelector('.oracle-core'));
+    this.centralNodes=[];this.centralSeconds=0;
+    const hash=path=>{let value=2166136261;for(const char of path)value=Math.imul(value^char.charCodeAt(0),16777619);return (value>>>0)/4294967295;};
+    for(const [index,area] of areas.entries()){
+      if(!area.exists&&['prompts','tutorials'].includes(area.id))continue;
+      const layer=area.id==='prompts'?this.promptLayer:area.id==='tutorials'?this.tutorialLayer:this.knowledgeLayer;
+      // Only actual path membership is connected. The overview is bounded;
+      // opening any root keeps the existing complete folder/page navigation.
+      const ordered=[...new Map(area.entries.filter(e=>e.path!==area.path&&(e.directory||/\.md$/i.test(e.path))).map(e=>[e.path,e])).values()]
+        .sort((a,b)=>a.path.split('/').length-b.path.split('/').length||a.path.localeCompare(b.path,'pt-BR'));
+      const items=[{path:area.path,name:area.name,directory:true,root:true},...ordered.slice(0,49)];
+      const byPath=new Map(items.map(item=>[item.path,{...item,children:[],area:area.id,color:area.color,seed:hash(item.path)}]));
+      const root=byPath.get(area.path),angle=-Math.PI*.75+index*Math.PI/2;
+      for(const n of byPath.values())if(!n.root){
+        let path=n.path.slice(0,n.path.lastIndexOf('/'));
+        while(path!==area.path&&!byPath.has(path)&&path.includes('/'))path=path.slice(0,path.lastIndexOf('/'));
+        n.parent=byPath.get(path)||root;n.parent.children.push(n);
+      }
+      const weight=n=>n.weight=n.children.length?n.children.reduce((sum,child)=>sum+weight(child),0):1;
+      weight(root);
+      const place=(n,start,span,depth)=>{
+        const a=n.root?start+span/2+(n.seed-.5)*.5:n.seed*Math.PI*2,r=n.root?37:45+depth*8+n.seed*55;
+        n.bx=Math.cos(a)*r;n.by=Math.sin(a)*r;n.angle=a;n.depth=depth;
+        let cursor=start;
+        for(const child of n.children){const width=span*child.weight/n.weight;place(child,cursor,width,depth+1);cursor+=width;}
+      };
+      place(root,angle-.68,1.36,0);
+      // A short, deterministic separation pass keeps close descendants distinct
+      // without producing more orbital rings or changing folder relationships.
+      const nodes=[...byPath.values()];
+      for(let pass=0;pass<28;pass++)for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+        const a=nodes[i],b=nodes[j],dx=b.bx-a.bx,dy=b.by-a.by,d=Math.hypot(dx,dy)||.1,min=a.root||b.root?14:8;
+        if(d<min){const step=(min-d)*.3,ux=d===.1?1:dx/d,uy=d===.1?0:dy/d;if(!a.root){a.bx-=ux*step;a.by-=uy*step}if(!b.root){b.bx+=ux*step;b.by+=uy*step}}
+      }
+      const edges=this.make('g',{class:'central-knowledge-edges','aria-hidden':'true'},layer);
+      for(const n of nodes){
+        const name=n.name?.replace(/\.md$/i,'')||n.path.split('/').at(-1).replace(/\.md$/i,'');
+        const type=n.root?'área':n.directory?'pasta':'nota';
+        n.edge=this.make('path',{class:'central-knowledge-edge',fill:'none','data-parent-path':n.parent?.path||'','data-child-path':n.path},edges);
+        const attrs={class:`knowledge-orbit-node central-knowledge-node${n.directory?' central-folder':''}`,role:'button',tabindex:0,'data-knowledge-path':n.path,'data-knowledge-area':area.id,'data-orbit-track':'central-knowledge','aria-label':`${name} · ${type}${n.root&&ordered.length>49?' · 49 de '+ordered.length+' itens nesta visão; abra para explorar todos':''}`};
+        const g=n.g=this.make('g',attrs,layer);g.dataset.nodeName=name;const colors=['#8ac8fa','#e5c27e','#c79de3','#91cdaa','#e899a6','#8ed2d8','#d6a184','#a9b7ed'];g.style.setProperty('--library-color',n.root?area.color:colors[Math.min(7,Math.floor(n.seed*8))]);
+        this.make('circle',{r:n.root?18:5,fill:'transparent',class:'knowledge-orbit-hit'},g);
+        this.make('circle',{r:n.root?12:n.directory?3.8:2.1,class:'knowledge-orbit-dot'},g);
+        if(n.root)this.decorateAreaRoot(g,name,area.color);
+        else if(n.directory)this.make('path',{d:'M-3 -1.5h2l1 1h3v3.5h-6z M-3 -1.5v-1.5h2l1 1.5',class:'central-folder-glyph'},g);
+        this.centralNodes.push(n);
+      }
     }
-    for(const track of this.orbitTracks.values())if(track.key.startsWith('knowledge-'))this.drawOrbitTrack(track);
-    this.lastSelectionKey=null;
+    this.relaxCentralKnowledge();this.drawCentralKnowledge();this.lastSelectionKey=null;
   }
-  updatePrompts(){
-    const plan=this.promptOrbit;
-    const key=JSON.stringify(plan.points.map(p=>[p.path,p.x,p.y,p.color,p.tooltip]));
-    if(key===this.promptOrbitKey)return;this.promptOrbitKey=key;
-    this.promptLayer?.remove();this.promptLayer=this.make('g',{class:'prompt-orbit-layer','aria-label':'Órbita de prompts'},this.world);
-    for(const name of this.orbitTracks.keys())if(name.startsWith('prompts-')&&Number(name.slice(8))>=plan.rings.length)this.orbitTracks.delete(name);
-    plan.rings.forEach((radius,index)=>{const track=this.setOrbitTrack(`prompts-${index}`,radius,168+index*24,index%2?1:-1,2.5);track.guide=this.make('circle',{r:radius,class:'knowledge-orbit-ring'},this.promptLayer)});
-    for(const p of plan.points){
-      const index=plan.rings.findIndex(r=>Math.abs(r-Math.hypot(p.x,p.y))<.01),track=this.orbitTracks.get(`prompts-${index}`);
-      const g=this.make('g',{class:'prompt-orbit-node',role:'button',tabindex:0,'data-knowledge-path':p.path,'data-knowledge-area':'prompts','data-orbit-track':track.key,transform:`translate(${p.x} ${p.y})`,'aria-label':p.tooltip},this.promptLayer);
-      g.dataset.tooltip=p.tooltip;track.nodes.push({el:g,angle:Math.atan2(p.y,p.x)});
-      this.make('circle',{r:p.r+5,fill:'transparent',class:'knowledge-orbit-hit'},g);
-      this.make('circle',{r:p.r,fill:p.color,class:'knowledge-orbit-dot'},g);
+  relaxCentralKnowledge(){
+    for(const n of this.centralNodes||[]){
+      n.x=n.bx;n.y=n.by;n.vx=0;n.vy=0;
+      n.radius=Math.min(5.4,1.5+Math.sqrt(n.children.length+(n.parent?1:0))*.7);
+      n.g.querySelector('.knowledge-orbit-dot').style.r=n.radius+'px';
     }
-    for(const track of this.orbitTracks.values())if(track.key.startsWith('prompts-'))this.drawOrbitTrack(track);
-    this.lastSelectionKey=null;
+    for(let pass=0;pass<180;pass++)this.stepCentralKnowledge(1,false);
+  }
+  stepCentralKnowledge(step,ambient=true){
+    const nodes=this.centralNodes||[],time=this.centralSeconds||0;
+    for(const n of nodes){n.ax=-n.x*.0007;n.ay=-n.y*.0007;}
+    // Center force, repulsion, link tension and link distance keep a live mesh.
+    // These edges express real folder ancestry, not unprovided note backlinks.
+    for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){
+      const a=nodes[i],b=nodes[j],dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.1;
+      const force=Math.min(.65,12/(d*d));
+      a.ax-=dx/d*force;a.ay-=dy/d*force;b.ax+=dx/d*force;b.ay+=dy/d*force;
+    }
+    for(const n of nodes){
+      const parent=n.parent||{x:0,y:0},dx=n.x-parent.x,dy=n.y-parent.y,d=Math.hypot(dx,dy)||1;
+      const force=(d-(n.parent?23:43))*(n.parent?.root ? .0018 : .003);
+      n.ax-=dx/d*force;n.ay-=dy/d*force;
+      if(n.parent){n.parent.ax+=dx/d*force;n.parent.ay+=dy/d*force;}
+      if(ambient){n.ax+=Math.sin(time*.55+n.seed*19)*.018;n.ay+=Math.cos(time*.48+n.seed*23)*.018;}
+    }
+    for(const n of nodes){
+      n.vx=(n.vx+n.ax*step)*.82;n.vy=(n.vy+n.ay*step)*.82;
+      n.x+=n.vx*step;n.y+=n.vy*step;
+      const radius=Math.hypot(n.x,n.y)||1,limit=Math.max(31+n.radius,Math.min(142,radius));
+      if(radius!==limit){n.x*=limit/radius;n.y*=limit/radius;n.vx*=.4;n.vy*=.4;}
+    }
+  }
+  drawCentralKnowledge(){
+    for(const n of this.centralNodes||[])n.g.setAttribute('transform',`translate(${n.x} ${n.y})`);
+    for(const n of this.centralNodes||[]){
+      const a=Math.atan2(n.y,n.x),parent=n.parent||{x:Math.cos(a)*24,y:Math.sin(a)*24};
+      const dx=n.x-parent.x,dy=n.y-parent.y,d=Math.hypot(dx,dy)||1,start=n.parent?.radius||0,end=n.radius;
+      n.edge.setAttribute('d',`M${parent.x+dx/d*start} ${parent.y+dy/d*start} L${n.x-dx/d*end} ${n.y-dy/d*end}`);
+    }
   }
   setOrbitTrack(key,radius,period,direction,breathing){
     const track=this.orbitTracks.get(key)||{key,seconds:0};Object.assign(track,{radius,period,direction,breathing,nodes:[],guide:null});this.orbitTracks.set(key,track);return track;
+  }
+  decorateAreaRoot(g,name,color){
+    g.classList.add('area-root');
+    const id=`v3-area-${g.dataset.knowledgeArea||'tutorials'}`;
+    this.svg.querySelector(`#${id}`)?.remove();
+    const gradient=this.make('radialGradient',{id,cx:'.3',cy:'.22',r:'.85'},this.svg.querySelector('defs'));
+    for(const [offset,opacity] of [[0,.30],[.4,.10],[.74,.015],[.94,.24],[1,.60]])this.make('stop',{offset,'stop-color':color,'stop-opacity':opacity},gradient);
+    const disc=g.querySelector('.knowledge-orbit-dot');disc.style.fill=`url(#${id})`;disc.style.stroke=color;
+    const label=this.make('text',{y:30,'text-anchor':'middle',class:'area-root-label'},g);label.textContent=name;
   }
   drawOrbitTrack(track){
     for(const node of track.nodes){const p=OracleMotion.orbitalPosition(track.radius,node.angle,track.seconds,track.period,track.direction,track.breathing);node.el.setAttribute('transform',`translate(${p.x} ${p.y})`)}
@@ -289,10 +576,24 @@ class OracleAtlas {
       if(changed)this.draw(false);
       return changed;
     }
+    // Collective inspection enlarges the network without stopping its motion.
+    this.centralSeconds=(this.centralSeconds||0)+Math.min(100,Math.max(0,delta))/1000;this.stepCentralKnowledge(Math.min(2,Math.max(0,delta)/33));this.drawCentralKnowledge();
     for(const track of this.orbitTracks.values()){
       // Freeze the whole ring during inspection: a paused item can never be overtaken.
       if(track.key===this.hovered?.orbit||track.key===keyboard)continue;
       track.seconds+=Math.min(100,Math.max(0,delta))/1000;this.drawOrbitTrack(track);
+    }
+    // The existing clock drives a very slow local orbit. It freezes while a
+    // department, specialist, modal, hover or keyboard target is being read.
+    if(!this.hovered?.category&&!this.keyboardFocus?.category){
+      let moved=false;
+      for(const n of this.nodes.values())if(n.localOrbit){
+        const parent=this.nodes.get(n.parent);if(!parent)continue;
+        n.localOrbit.angle+=Math.min(100,Math.max(0,delta))/1000*Math.PI*2/420;
+        const x=parent.x+Math.cos(n.localOrbit.angle)*n.localOrbit.radius,y=parent.y+Math.sin(n.localOrbit.angle)*n.localOrbit.radius;
+        this.translateNode(n,x-n.x,y-n.y,n.id);moved=true;
+      }
+      if(moved)this.draw(false);
     }
     // Share the ambient scheduler and its pause/reduced-motion/visibility guards.
     this.atmosphereSeconds+=Math.min(100,Math.max(0,delta))/1000;
@@ -314,8 +615,8 @@ class OracleAtlas {
   selection(){
     const detail=Number(this.data?.detail??3),level=this.camera.k/this.baseScale;
     const key=[this.selected,this.department,this.selectedLeaf,this.context.group,this.context.page,this.knowledge?.path,this.knowledge?.page,Math.round(level*10),this.leaves.size,this.nodes.size,detail].join('|');if(key===this.lastSelectionKey)return;this.lastSelectionKey=key;
-    this.el.dataset.context=this.context.kind;
-    for(const layer of this.el.querySelectorAll('.oracle-core,.plugin-orbit-layer,.verified-connectors,.orbital-scaffolding,.knowledge-orbit-layer,.prompt-orbit-layer')){layer.style.display=this.selected||this.department||this.knowledge?'none':'';layer.setAttribute('aria-hidden',String(!!this.selected||!!this.department||!!this.knowledge))}
+    this.el.dataset.context=this.context.kind;this.el.dataset.library=this.knowledge?.area||'';
+    for(const layer of this.el.querySelectorAll('.central-hub-hit,.oracle-core,.plugin-orbit-layer,.verified-connectors,.orbital-scaffolding,.knowledge-orbit-layer,.prompt-orbit-layer,.tutorial-orbit-layer')){layer.style.display=this.selected||this.department||this.knowledge?'none':'';layer.setAttribute('aria-hidden',String(!!this.selected||!!this.department||!!this.knowledge))}
     for(const n of this.nodes.values()){const active=n.id===this.selected||!!this.knowledge||n.kind==='department'&&n.id===this.department&&!this.selected;n.g.classList.toggle('selected',active);n.g.classList.toggle('subdued',!!this.selected&&!active);n.edge.classList.toggle('selected',active);n.edge.classList.toggle('subdued',!!this.selected&&!active);n.flow.classList.toggle('flow-visible',active||!this.selected);n.g.setAttribute('aria-pressed',String(active))}
     for(const g of this.groups.values()){
       const active=g.id===this.context.group,member=g.parent===this.selected,dim=!!this.selected&&!member||!!this.context.group&&!active;
@@ -325,7 +626,8 @@ class OracleAtlas {
     this.renderContext();
   }
   renderContext(){
-    const nav=this.el.querySelector('.atlas-context');nav.hidden=!this.selected&&!this.department&&!this.knowledge;
+    this.renderContextBackdrop();
+    const nav=this.contextNav;nav.hidden=!this.selected&&!this.department&&!this.knowledge;
     const crumbs=nav.querySelector('.atlas-breadcrumb');crumbs.replaceChildren();
     const add=(label,action,current=false)=>{const b=document.createElement('button');b.textContent=label;if(current)b.setAttribute('aria-current','page');else b.onclick=action;crumbs.append(b)};
     add('Universo',()=>this.select(null));
@@ -344,7 +646,7 @@ class OracleAtlas {
     }
     let empty=this.el.querySelector('.knowledge-empty');if(!empty){empty=document.createElement('div');empty.className='knowledge-empty';empty.setAttribute('role','status');this.el.append(empty)}
     const department=this.catalog.departmentByID.get(this.department),specialist=this.catalog.specialistByID.get(this.selected);
-    const message=!this.catalog.manifestValid?'Classificação indisponível. As fontes descobertas continuam em Outros especialistas.':specialist?.empty?'Esta fonte está presente, mas não contém arquivos SKILL.md.':department?.empty?'Nenhum especialista deste departamento foi encontrado nesta fonte.':department?.state==='no-skills'?'Os especialistas deste departamento estão presentes, mas ainda não contêm skills.':'';
+    const message=!this.catalog.manifestValid?'Classificação indisponível. As fontes descobertas continuam em Outros especialistas.':specialist?.empty?'Esta fonte está presente, mas não contém arquivos SKILL.md.':department?.state==='no-skills'?'Os especialistas deste departamento estão presentes, mas ainda não contêm skills.':'';
     empty.hidden=!message;empty.textContent=message;
     if(department)add(department.name,()=>this.setDepartment(department.id),!this.selected);
     if(this.selected)add(this.nodes.get(this.selected)?.name||this.selected,()=>this.focus(this.selected),!this.context.group);
@@ -354,13 +656,49 @@ class OracleAtlas {
     const page=nav.querySelector('.atlas-page'),total=this.geometry.pages||1;page.hidden=total<=1||!!this.selectedLeaf;
     page.querySelector('span').textContent=`${this.context.page+1} / ${total}`;page.querySelector('[data-map-page="-1"]').disabled=this.context.page===0;page.querySelector('[data-map-page="1"]').disabled=this.context.page>=total-1;
   }
+  renderContextBackdrop(){
+    if(!this.contextBackdrop)return;
+    const department=this.knowledge?null:this.catalog?.departmentByID.get(this.department||this.catalog?.specialistByID.get(this.selected)?.department);
+    const active=!!department&&(!!this.department||!!this.selected),key=active?department.id:null,changed=key!==this.backdropDepartment;
+    this.backdropDepartment=key;this.contextBackdrop.setAttribute('display',active?'inline':'none');
+    if(!active||!this.viewport)return;
+    const {cx,cy,width,height}=this.viewport;
+    this.contextBackdrop.setAttribute('transform',`translate(${cx} ${cy})`);
+    this.contextTitle.textContent=department.name.toLocaleUpperCase('pt-BR');
+    const size=Math.min(116,width*.8/(this.contextTitle.textContent.length*.95));
+    this.contextTitle.setAttribute('font-size',size);
+    const measured=this.contextTitle.getComputedTextLength();if(measured>width*.86)this.contextTitle.setAttribute('font-size',size*width*.86/measured);
+    const spacing=Math.max(width,height)*.115;
+    this.contextRings.forEach((ring,i)=>ring.setAttribute('r',spacing*(i+1)));
+    if(changed&&!this.reduced&&window.OracleTransitions){
+      void OracleTransitions.animate(this.contextTitle,[{opacity:0},{opacity:1}],{duration:600,name:'department-background'});
+      this.contextRings.forEach((ring,i)=>{void OracleTransitions.animate(ring,[{opacity:0,transform:'scale(.55)',transformOrigin:'0px 0px'},{opacity:1,transform:'scale(1)',transformOrigin:'0px 0px'}],{duration:800,delay:i*70,name:'department-background'});});
+    }
+  }
   edgePath(x1,y1,x2,y2,bend=.035){const dx=x2-x1,dy=y2-y1;return `M${x1} ${y1} C${x1+dx*.34-dy*bend} ${y1+dy*.34+dx*bend},${x1+dx*.72-dy*bend*.5} ${y1+dy*.72+dx*bend*.5},${x2} ${y2}`}
+  planetEdge(parent,node,flow=false){
+    const px=parent?.x||0,py=parent?.y||0,dx=node.x-px,dy=node.y-py,distance=Math.hypot(dx,dy)||1,k=this.camera.k;
+    const from=parent?Math.max(parent.visualRadius||25,(parent.kind==='department'?15:4.5)/k):!flow&&this.departmentJunctions?.has(node.id)?72:23;
+    const to=Math.max(node.visualRadius||25,(node.kind==='department'?15:4.5)/k);
+    return this.edgePath(px+dx/distance*from,py+dy/distance*from,node.x-dx/distance*to,node.y-dy/distance*to,.055);
+  }
   draw(syncUniverse=true){
     if(this.disposed)return;const started=performance.now(),{x,y,k}=this.camera;
     this.world.setAttribute('transform',`translate(${x} ${y}) scale(${k})`);
     this.expansionWorld.setAttribute('transform',`translate(${x} ${y}) scale(${k})`);this.drawExpandingRings();
-    for(const n of this.nodes.values()){const parent=this.nodes.get(n.parent),px=parent?.x||0,py=parent?.y||0;if(n._x!==n.x||n._y!==n.y||n._px!==px||n._py!==py){n.g.setAttribute('transform',`translate(${n.x} ${n.y})`);const d=this.edgePath(px,py,n.x,n.y);n.edge.setAttribute('d',d);n.flow.setAttribute('d',d);n._x=n.x;n._y=n.y;n._px=px;n._py=py}}
-    if(k!==this.lastLabelK)for(const n of this.nodes.values()){n.label.style.fontSize=`${(this.selected||this.department||this.knowledge?13:11)/k}px`;n.label.setAttribute('y',38/k);if(this.selected||this.department||this.knowledge){n.g.querySelector('.category-symbol').setAttribute('transform',`scale(${Math.max(1,1/k)})`);n.g.querySelector('.selection-ring').setAttribute('r',Math.max(31,31/k));n.g.querySelector('.planet-surface').setAttribute('r',Math.max(25,25/k))}}
+    for(const [id,junction] of this.departmentJunctions||[]){const n=this.nodes.get(id);if(!n)continue;const angle=Math.atan2(n.y,n.x),x=Math.cos(angle),y=Math.sin(angle);junction.dot.setAttribute('cx',x*70);junction.dot.setAttribute('cy',y*70);junction.edge.setAttribute('d',`M${x*23} ${y*23} L${x*70} ${y*70}`);}
+    for(const n of this.nodes.values()){const parent=this.nodes.get(n.parent),px=parent?.x||0,py=parent?.y||0;if(n._x!==n.x||n._y!==n.y||n._px!==px||n._py!==py||k!==this.lastLabelK){n.g.setAttribute('transform',`translate(${n.x} ${n.y})`);n.edge.setAttribute('d',this.planetEdge(parent,n));for(const motion of n.flow.querySelectorAll('animateMotion'))motion.setAttribute('path',this.planetEdge(parent,n,true));for(const scale of n.flow.querySelectorAll('.fluid-scale'))scale.setAttribute('transform',`scale(${(n.kind==='specialist'?.58:1)/k})`);n._x=n.x;n._y=n.y;n._px=px;n._py=py}}
+    if(k!==this.lastLabelK){
+      for(const dot of this.el.querySelectorAll('.prompt-orbit-node:not(.area-root):not(.central-knowledge-node) .knowledge-orbit-dot,.tutorial-orbit-node:not(.area-root):not(.central-knowledge-node) .knowledge-orbit-dot'))dot.style.r=`${4/k}px`;
+      for(const n of this.nodes.values()){
+        const radius=n.visualRadius||25,screenRadius=Math.max(radius*k,n.kind==='department'?15:4.5);
+        n.g.querySelector('.planet-surface').setAttribute('r',screenRadius/k);
+        n.g.querySelector('.selection-ring').setAttribute('r',(screenRadius+5)/k);
+        n.g.querySelector('.category-symbol').setAttribute('transform',`scale(${(n.kind==='department' ? .72 : 1)*Math.max(1,.85/k)})`);
+        n.label.style.fontSize=`${(n.kind==='department'?14:11)/k}px`;n.label.setAttribute('y',(screenRadius+20)/k);
+      }
+      for(const label of this.el.querySelectorAll('.area-root-label'))label.style.fontSize=`${11/k}px`;
+    }
     for(const group of this.groups.values()){
       const parent=this.nodes.get(group.parent);
       if(group._x!==group.x||group._y!==group.y||group._px!==parent.x||group._py!==parent.y){
@@ -385,34 +723,40 @@ class OracleAtlas {
     }
     if(k!==this.lastLabelK||this.geometryMoving||this.drag||!syncUniverse)this.layoutTargets();
     this.lastLabelK=k;if(this.lastZoom!==k){this.cb.onZoom?.((this.contextTravelling?this.target.k:k)/this.baseScale);this.lastZoom=k}
-    this.selection();this.layoutLabels();this.renderSpecialistHeading();if(syncUniverse)this.universe?.sync(this);this.updateCosts.push(performance.now()-started);if(this.updateCosts.length>180)this.updateCosts.shift();
+    this.selection();this.layoutLabels();this.positionDepartmentLabels();this.renderSpecialistHeading();if(syncUniverse)this.universe?.sync(this);this.updateCosts.push(performance.now()-started);if(this.updateCosts.length>180)this.updateCosts.shift();
   }
   setSpecialistSpotlight(id){
     if(this.spotlight===id)return;this.spotlight=id;
     this.el.classList.toggle('specialist-spotlight',!!id);
-    const mark=(element,parent)=>{element.classList.toggle('hover-muted',!!id&&parent!==id);element.classList.toggle('hover-focused',!!id&&parent===id)};
-    for(const n of this.nodes.values()){mark(n.g,n.id);mark(n.edge,n.id);mark(n.flow,n.id)}
-    for(const g of this.groups.values()){mark(g.g,g.parent);mark(g.edge,g.parent);mark(g.bus,g.parent)}
-    for(const l of this.leaves.values()){mark(l.g,l.parent);mark(l.edge,l.parent)}
-    this.layoutLabels();
+    const mark=(element,match)=>{element.classList.toggle('hover-muted',!!id&&!match);element.classList.toggle('hover-focused',!!id&&match)};
+    const department=this.catalog?.departmentByID.has(id),member=node=>node?.id===id||!!department&&node?.parent===id;
+    for(const n of this.nodes.values()){mark(n.g,member(n));mark(n.edge,member(n));mark(n.flow,member(n))}
+    for(const g of this.groups.values()){mark(g.g,g.id===id||department&&member(this.nodes.get(g.parent)));mark(g.edge,g.id===id||department&&member(this.nodes.get(g.parent)));mark(g.bus,g.id===id||department&&member(this.nodes.get(g.parent)))}
+    for(const l of this.leaves.values()){mark(l.g,l.id===id||department&&member(this.nodes.get(l.parent)));mark(l.edge,l.id===id||department&&member(this.nodes.get(l.parent)))}
+    for(const ring of this.el.querySelectorAll('[data-department-orbit]'))mark(ring,ring.dataset.departmentOrbit===id);
+    const central=(this.centralNodes||[]).find(n=>n.path===id),neighbours=new Set(central?[central.path,central.parent?.path,...central.children.map(n=>n.path)]:[]);
+    for(const n of this.centralNodes||[])mark(n.edge,id==='central-network'||n.path===id||n.parent?.path===id);
+    for(const el of this.el.querySelectorAll('.knowledge-orbit-node,.prompt-orbit-node,.tutorial-orbit-node,.oracle-core,.verified-connectors,.plugin-orbit-layer,.orbital-scaffolding'))mark(el,id==='central-network'&&el.classList.contains('central-knowledge-node')||neighbours.has(el.dataset.knowledgePath)||el.dataset.knowledgePath===id||el.dataset.tutorialPath===id||id==='core'&&el.matches('.oracle-core'));
   }
   renderSpecialistHeading(){
-    const keyboard=document.documentElement.dataset.inputMode!=='pointer'?this.keyboardFocus?.category:null;
-    const node=this.nodes.get(this.hovered?.category||keyboard),heading=this.specialistHeading;
-    const sx=node?this.camera.x+node.x*this.camera.k:-1,sy=node?this.camera.y+node.y*this.camera.k:-1;
-    const show=!!node&&sx>=0&&sx<=this.width&&sy>=0&&sy<=this.height&&!this.knowledge&&!this.drag&&!this.el.classList.contains('scene-travelling');
-    heading.hidden=!show;
-    this.setSpecialistSpotlight(show&&!this.selected&&!this.department&&node.kind!=='department'?node.id:null);
-    for(const n of this.nodes.values())n.g.classList.toggle('specialist-name-active',show&&n===node);
-    if(!show)return;
+    const keyboard=document.documentElement.dataset.inputMode!=='pointer'?this.keyboardFocus:null,state=this.inspectionMode==='keyboard'&&keyboard?keyboard:this.hovered&&(this.hovered.category||this.hovered.skill||this.hovered.group||this.hovered.element)?this.hovered:keyboard;
+    const central=!!state?.central&&!this.selected&&!this.department&&!this.knowledge&&!this.drag;
+    this.el.classList.toggle('central-inspecting',central);
+    if(central){this.specialistHeading.hidden=true;this.setSpecialistSpotlight('central-network');return;}
+    let node=this.leaves.get(state?.skill)||this.nodes.get(state?.category)||this.groups.get(state?.group),point;
+    if(!node&&state?.element){const el=state.element,rect=el.getBoundingClientRect(),host=this.el.getBoundingClientRect();point={x:rect.x+rect.width/2-host.x,y:rect.y+rect.height/2-host.y};node={id:el.dataset.knowledgePath||el.dataset.tutorialPath||'core',name:el.dataset.nodeName||'Oracle'};}
+    const sx=point?.x??(node?this.camera.x+node.x*this.camera.k:-1),sy=point?.y??(node?this.camera.y+node.y*this.camera.k:-1),heading=this.specialistHeading;
+    const show=!!node&&sx>=0&&sx<=this.width&&sy>=0&&sy<=this.height&&!this.drag&&!this.el.classList.contains('scene-travelling');
+    const labelled=!!node&&(node.kind==='department'&&!this.selected&&!this.department&&!this.knowledge||this.department&&!this.selected&&node.kind==='specialist'||(!!this.selected||['prompts','tutorials'].includes(this.knowledge?.area))&&(this.nodes.has(node.id)||node.g?.classList.contains('label-visible')));
+    heading.hidden=!show||labelled;this.setSpecialistSpotlight(show?node.id:null);
+    if(!show||labelled)return;
     if(heading.textContent!==node.name)heading.textContent=node.name;
-    const {x,y,k}=this.camera,v=this.viewport||{left:12,right:this.width-12,top:24,bottom:this.height-24};
-    heading.style.maxWidth=Math.max(120,v.right-v.left-16)+'px';
-    const width=heading.offsetWidth,height=heading.offsetHeight,radius=Math.max(25*k,this.selected||this.department?23:0);
-    const cx=Math.max(v.left+width/2,Math.min(v.right-width/2,x+node.x*k));
-    let top=y+node.y*k+radius+12;
-    if(top+height>v.bottom)top=y+node.y*k-radius-height-12;
-    heading.style.left=cx+'px';heading.style.top=Math.max(v.top,Math.min(v.bottom-height,top))+'px';
+    const v=this.viewport||{left:12,right:this.width-12,top:24,bottom:this.height-24};
+    heading.style.maxWidth=Math.min(320,Math.max(120,v.right-v.left-16))+'px';
+    const width=heading.offsetWidth,height=heading.offsetHeight,radius=Math.max((node.visualRadius||12)*this.camera.k,12);
+    heading.style.left=Math.max(v.left+width/2,Math.min(v.right-width/2,sx))+'px';
+    let top=sy+radius+12;if(top+height>v.bottom)top=sy-radius-height-12;
+    heading.style.top=Math.max(v.top,Math.min(v.bottom-height,top))+'px';
   }
   layoutTargets(){
     // Dense overview targets must not cover a neighbouring point's centre.
@@ -434,7 +778,8 @@ class OracleAtlas {
       const limit=l.route?Math.max(9,Math.min(34,Math.floor((205*k-29)/5.7))):34;
       const label=l.name.length>limit?l.name.slice(0,limit-1)+'…':l.name;
       if(l.label.textContent!==label)l.label.textContent=label;
-      const eligible=!l.retiring&&(!this.selected||this.leaves.size<=150||level>1.5||l.id===this.selectedLeaf)&&(l.id===this.selectedLeaf||detail>0&&(this.knowledge||this.department|| (this.context.group?l.group===this.context.group:l.parent===this.selected||l.parent===this.spotlight||level>1.35))&&count<(this.spotlight||this.selected||this.department||this.knowledge?Math.max(24,detail*24):detail*3));
+      const inspected=!!this.selected||this.knowledge||l.id===this.selectedLeaf||l.id===this.hovered?.skill||l.id===this.keyboardFocus?.skill||l.parent===this.spotlight;
+      const eligible=inspected&&!l.retiring&&(l.id===this.selectedLeaf||detail>0&&count<Math.max(24,detail*24));
       const sx=x+l.x*k,sy=y+l.y*k,width=Math.min(190,l.label.textContent.length*5.7),height=16,padding=l.knowledge?15:9;
       let dir=l.dir;if(sx+padding+width>this.width-8)dir=-1;if(sx-padding-width<8)dir=1;
       const box={left:dir===1?sx+padding:sx-padding-width,right:dir===1?sx+padding+width:sx-padding,top:sy-height/2,bottom:sy+height/2};
@@ -448,6 +793,7 @@ class OracleAtlas {
   tick(now=performance.now()){
     const interval=now-(this.lastTick||now-16.67),delta=Math.min(50,interval);if(this.lastTick){this.interactionFrames.push(interval);if(this.interactionFrames.length>180)this.interactionFrames.shift()}this.lastTick=now;this.frame=0;
     const t=this.reduced?1:1-Math.exp(-delta/95);let moving=false;
+    if(!this.selected&&!this.department&&!this.knowledge){const remaining=(this.departmentRotationTarget||0)-(this.departmentRotation||0);if(Math.abs(remaining)>.00001){this.rotateDepartments(Math.abs(remaining)<.0001?remaining:remaining*t);moving=true;}}
     for(const key of ['x','y','k']){const d=this.target[key]-this.camera[key];if(Math.abs(d)>(key==='k'?.00001:.02)){this.camera[key]+=d*t;moving=true}else this.camera[key]=this.target[key]}
     if(this.geometryMoving){let geometryMoving=false;for(const p of [...this.nodes.values(),...this.groups.values(),...this.leaves.values()]){if(this.drag?.node===p)continue;if(!this.reduced&&p.arriveAt>now){geometryMoving=true;continue}if(p.life!==undefined){p.life=this.reduced?p.lifeTarget:p.life+(p.lifeTarget-p.life)*(1-Math.exp(-delta/95));if(Math.abs(p.lifeTarget-p.life)>.01)geometryMoving=true;else p.life=p.lifeTarget;if(!p.life&&p.retiring){p.g.remove();p.edge.remove();this.leaves.delete(p.id);continue}}for(const axis of ['x','y']){const d=p['t'+axis]-p[axis];if(Number.isFinite(d)&&Math.abs(d)>.04){p[axis]+=d*(this.reduced?1:1-Math.exp(-delta/130));geometryMoving=true}else if(Number.isFinite(d))p[axis]=p['t'+axis]}}this.geometryMoving=geometryMoving;moving||=geometryMoving}
     if(((this.contextTravelling?this.target.k:this.camera.k)/this.baseScale>.500001)!==this.leafLevel)this.buildLeaves();
@@ -551,8 +897,16 @@ class OracleAtlas {
     if(this.selectedLeaf){const p=this.geometry.leaves.find(l=>l.id===this.selectedLeaf);if(p){const k=this.baseScale*OracleAtlas.DEFAULT_ZOOM;this.target={x:this.viewCenter().x-p.x*k,y:this.viewCenter().y-p.y*k,k};this.camera.k=k;this.autoFit=false}}
     this.lastSelectionKey=null;this.selection();this.invalidate();this.notifySelection(keyboard);
   }
+  knowledgeSource(area){
+    if(area==='prompts')return OraclePrompts;
+    if(area!=='tutorials')return OracleKnowledge;
+    const library=OracleLibrary.inventory(this.data.entries||[],'SISTEMA/Tutoriais',this.data.tutorialRoot);
+    const definition={id:'tutorials',name:'Tutoriais',path:library.root,color:'#9db9e6',exists:library.exists&&!library.ambiguous,ambiguous:library.ambiguous};
+    const entries=library.ambiguous?[]:[...library.folders.map(path=>({path,name:path.split('/').at(-1),directory:true})),...library.documents];
+    return {resolve:(_,route)=>OracleKnowledge.resolve(entries,route,[definition]),plan:(_,route)=>OracleKnowledge.plan(entries,route,[definition])};
+  }
   navigateKnowledge(area,path,page=0,immediate=false){
-    const source=area==='prompts'?OraclePrompts:OracleKnowledge;
+    const source=this.knowledgeSource(area);
     const route=source.resolve(this.data.entries||[],{area,path,page,rootChoice:this.data.promptRoot});
     if(this.knowledge&&this.knowledge.area===route.area&&this.knowledge.path===route.path&&this.knowledge.page===route.page){this.fit();return}
     if(!immediate){this.transitionScene(()=>this.navigateKnowledge(area,path,page,true),1);return}
@@ -583,38 +937,49 @@ class OracleAtlas {
   reset(){this.restoreLayout({nodes:{},leaves:{}});this.persistSoon()}
   translateNode(node,dx,dy,category){
     const x=Math.max(-1500,Math.min(1500,node.x+dx)),y=Math.max(-1500,Math.min(1500,node.y+dy));dx=x-node.x;dy=y-node.y;node.x=node.tx=x;node.y=node.ty=y;
-    if(category){for(const g of this.groups.values())if(g.parent===category){g.x+=dx;g.y+=dy;g.tx=g.x;g.ty=g.y}for(const l of this.leaves.values())if(l.parent===category&&!l.custom){l.x+=dx;l.y+=dy;l.tx=l.x;l.ty=l.y}}else node.custom=true;
+    if(category){if(this.drag?.node===node)node.localOrbit=null;for(const g of this.groups.values())if(g.parent===category){g.x+=dx;g.y+=dy;g.tx=g.x;g.ty=g.y}for(const l of this.leaves.values())if(l.parent===category&&!l.custom){l.x+=dx;l.y+=dy;l.tx=l.x;l.ty=l.y}}else node.custom=true;
   }
   persistSoon(){clearTimeout(this.saveTimer);if(this.data?.replay)return;this.saveTimer=setTimeout(()=>{this.cb.onLayout?.(this.layout)},300)}
   diagnostics(){const p=(a,q)=>{if(!a.length)return null;const b=[...a].sort((x,y)=>x-y);return Math.round(b[Math.floor((b.length-1)*q)]*100)/100};return {...this.universe?.diagnostics(),interactionSamples:this.interactionFrames.length,interactionFrameMedianMs:p(this.interactionFrames,.5),interactionFrameP95Ms:p(this.interactionFrames,.95),sceneUpdateCPU95Ms:p(this.updateCosts,.95),departmentManifestValid:this.catalog?.manifestValid,departmentManifestErrors:this.catalog?.manifestErrors||[],selection:this.getSelection(),catalogSkills:this.catalog?.skillCount,renderedSkills:this.geometry?.leaves.length}}
   setFormation(options){return this.universe?.setFormation(options)||{progress:1,playing:false,phase:'complete',visualOnly:true}}
   getFormation(){return this.universe?.getFormation()||{progress:1,playing:false,phase:'complete',visualOnly:true}}
   finishFormationForInput(){if(this.data?.replay)return;if(this.getFormation().progress<1)this.setFormation({progress:1,playing:false})}
-  setPaused(paused){this.paused=!!paused;
+  setPaused(paused){this.pauseRequested=!!paused;this.paused=!!paused||!!this.windowInactive||!!document.querySelector('dialog[open]');
     if(document.hidden||window.oracleWindowVisible===false||this.data?.hidden){cancelAnimationFrame(this.frame);this.frame=0;this.lastTick=0}
     else if(!paused)this.invalidate();this.el.classList.toggle('ambient-paused',this.paused);this.universe?.setPaused(this.paused);if(this.svg.pauseAnimations){if(this.paused)this.svg.pauseAnimations();else this.svg.unpauseAnimations()}}
   bind(){
-    const targetState=element=>({category:element?.closest?.('[data-category]')?.dataset.category,skill:element?.closest?.('[data-skill]')?.dataset.skill,group:element?.closest?.('[data-group]')?.dataset.group,orbit:element?.closest?.('[data-orbit-track]')?.dataset.orbitTrack,core:!!element?.closest?.('[data-core]')});
-    this.listen(this.el,'pointerover',e=>{if(!this.drag){this.hovered=targetState(e.target);this.renderSpecialistHeading();this.universe?.sync(this)}});
+    this.listen(this.contextNav,'click',event=>{event.stopPropagation();if(event.target.closest('[data-map-back]'))this.back();const page=event.target.closest('[data-map-page]');if(page)this.pageGroup(Number(page.dataset.mapPage));});
+    for(const type of ['pointerdown','keydown','wheel'])this.listen(document,type,()=>this.finishReveal(),{capture:true,passive:true});
+    const targetState=element=>({category:element?.closest?.('[data-category]')?.dataset.category,skill:element?.closest?.('[data-skill]')?.dataset.skill,group:element?.closest?.('[data-group]')?.dataset.group,element:element?.closest?.('[data-knowledge-path],[data-tutorial-path],[data-central-hub]'),orbit:element?.closest?.('[data-orbit-track]')?.dataset.orbitTrack,central:!!element?.closest?.('[data-central-hub],.central-knowledge-layer')});
+    this.listen(this.el,'pointerover',e=>{if(!this.drag){this.inspectionMode='pointer';this.hovered=targetState(e.target);this.renderSpecialistHeading();this.universe?.sync(this)}});
     this.listen(this.el,'pointerleave',()=>{this.hovered=null;this.renderSpecialistHeading();this.universe?.sync(this)});
-    this.listen(this.el,'focusin',e=>{this.finishFormationForInput();this.keyboardFocus=targetState(e.target);this.renderSpecialistHeading();this.universe?.sync(this)});
+    this.listen(this.el,'focusin',e=>{this.finishFormationForInput();this.inspectionMode='keyboard';this.keyboardFocus=targetState(e.target);this.renderSpecialistHeading();this.universe?.sync(this)});
     this.listen(this.el,'focusout',e=>{this.keyboardFocus=targetState(e.relatedTarget);this.renderSpecialistHeading();this.universe?.sync(this)});
     this.listen(this.el,'gesturestart',e=>{e.preventDefault();this.gestureScale=this.target.k});this.listen(this.el,'gesturechange',e=>{e.preventDefault();if(this.gestureScale)this.zoomAt((this.gestureScale*e.scale)/this.target.k,e.clientX,e.clientY)});
-    this.listen(this.el,'wheel',e=>{if(e.target.closest('.atlas-context'))return;e.preventDefault();if(e.ctrlKey||e.metaKey)this.zoomAt(Math.exp(-Math.max(-160,Math.min(160,e.deltaY))*.006),e.clientX,e.clientY);else{this.autoFit=false;this.target.x-=e.deltaX;this.target.y-=e.deltaY;this.invalidate()}},{passive:false});
-    this.listen(this.el,'pointerdown',e=>{if(e.target.closest('.atlas-context'))return;this.finishFormationForInput();if(e.button!==0||this.drag)return;const category=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;if(e.target.closest('[data-core],[data-orbit-plugin],[data-connector],[data-group],[data-knowledge-path]'))return;const node=this.data?.replay||this.knowledge||!e.altKey?null:skill?this.leaves.get(skill):category?this.nodes.get(category):null;this.camera={...this.target};this.drag={id:e.pointerId,sx:e.clientX,sy:e.clientY,start:this.pointerWorld(e.clientX,e.clientY),camera:{...this.camera},node,category,skill,moved:false,ox:node?.x,oy:node?.y};e.preventDefault();e.target.closest('[tabindex]')?.focus({preventScroll:true})});
+    this.listen(this.el,'wheel',e=>{
+      if(e.target.closest('.atlas-context'))return;e.preventDefault();
+      if(e.ctrlKey||e.metaKey){this.zoomAt(1,e.clientX,e.clientY);return;}
+      if(this.selected||this.department||this.knowledge||this.drag||this.el.classList.contains('scene-travelling'))return;
+      this.finishFormationForInput();
+      const units=e.deltaMode===1?16:e.deltaMode===2?this.height:1;
+      const delta=(Math.abs(e.deltaY)>=Math.abs(e.deltaX)?e.deltaY:e.deltaX)*units;
+      this.departmentRotationTarget=(this.departmentRotationTarget??this.departmentRotation??0)+Math.max(-240,Math.min(240,delta))*.003;
+      delete this.el.dataset.snappedDepartment;clearTimeout(this.departmentSnapTimer);this.departmentSnapTimer=setTimeout(()=>this.snapDepartments(),180);
+      this.invalidate();
+    },{passive:false});
+    this.listen(this.el,'pointerdown',e=>{if(e.target.closest('.atlas-context'))return;this.finishFormationForInput();if(e.button!==0||this.drag)return;const category=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;if(e.target.closest('[data-central-hub],[data-core],[data-orbit-plugin],[data-connector],[data-group],[data-knowledge-path],[data-tutorial-path]'))return;const node=this.data?.replay||this.knowledge||!e.altKey?null:skill?this.leaves.get(skill):category?this.nodes.get(category):null;this.camera={...this.target};this.drag={id:e.pointerId,sx:e.clientX,sy:e.clientY,start:this.pointerWorld(e.clientX,e.clientY),camera:{...this.camera},node,category,skill,moved:false,ox:node?.x,oy:node?.y};e.preventDefault();e.target.closest('[tabindex]')?.focus({preventScroll:true})});
     this.listen(this.el,'pointermove',e=>{const d=this.drag;if(!d||e.pointerId!==d.id)return;const dx=e.clientX-d.sx,dy=e.clientY-d.sy;if(!d.moved&&Math.hypot(dx,dy)<4)return;if(!d.moved){d.moved=true;this.el.setPointerCapture(e.pointerId)}this.el.classList.add('dragging');if(d.node){this.translateNode(d.node,d.ox+dx/this.camera.k-d.node.x,d.oy+dy/this.camera.k-d.node.y,d.category);this.invalidate()}else{this.autoFit=false;this.target={x:d.camera.x+dx,y:d.camera.y+dy,k:this.camera.k};this.camera={...this.target};this.invalidate()}});
     const finish=e=>{const d=this.drag;if(!d||e.pointerId!==d.id)return;this.drag=null;this.el.classList.remove('dragging');this.universe?.sync(this);if(this.el.hasPointerCapture(e.pointerId))this.el.releasePointerCapture(e.pointerId);if(d.moved){if(d.node){const group=d.skill?'leaves':'nodes';this.layout[group][d.skill||d.category]={x:d.node.x,y:d.node.y};this.persistSoon()}this.suppressClick=true;this.lastDragAt=performance.now();setTimeout(()=>this.suppressClick=false,0)}else if(d.skill)this.select(this.leaves.get(d.skill)?.parent,d.skill);else if(d.category)this.select(d.category);else if(this.selectedLeaf)this.back()};
     this.listen(this.el,'pointerup',finish);this.listen(this.el,'pointercancel',e=>{if(this.drag?.id===e.pointerId){this.drag=null;this.el.classList.remove('dragging');if(this.el.hasPointerCapture(e.pointerId))this.el.releasePointerCapture(e.pointerId);this.universe?.sync(this)}});
-    this.listen(this.el,'dblclick',e=>{if(this.suppressClick||performance.now()-(this.lastDragAt||0)<350||e.target.closest('[data-knowledge-path]'))return;const cat=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;if(cat)this.focus(cat);else if(skill){const node=this.leaves.get(skill);if(node?.knowledge&&node.directory)this.navigateKnowledge(node.area,node.id);else this.openDocument(skill)}else this.fit()});
-    this.listen(this.el.querySelector('[data-core]'),'click',()=>this.select(null));
-    this.listen(this.el,'click',e=>{const knowledge=e.target.closest('[data-knowledge-path]');if(knowledge){const path=knowledge.dataset.knowledgePath,area=knowledge.dataset.knowledgeArea,entry=this.data.entries.find(p=>p.path===path);if(!entry||entry.directory)this.navigateKnowledge(area,path);else this.openDocument(path);return}if(e.target.closest('[data-map-back]')){this.back();return}const paging=e.target.closest('[data-map-page]');if(paging){this.pageGroup(Number(paging.dataset.mapPage));return}const group=e.target.closest('[data-group]')?.dataset.group;if(group){this.focusGroup(group);return}const connector=e.target.closest('[data-connector]')?.dataset.connector;if(connector){e.stopPropagation();this.cb.onConnector?.(connector);return}const id=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(id){e.stopPropagation();this.cb.onPlugin?.(id)}});
-    this.listen(this.el,'keydown',e=>{if(e.target.closest('.atlas-context')&&e.key!=='Escape')return;const knowledge=e.target.closest('[data-knowledge-path]');if(knowledge&&['Enter',' '].includes(e.key)){e.preventDefault();knowledge.dispatchEvent(new MouseEvent('click',{bubbles:true}));return}const group=e.target.closest('[data-group]')?.dataset.group;if(group&&['Enter',' '].includes(e.key)){e.preventDefault();this.focusGroup(group);return}const connector=e.target.closest('[data-connector]')?.dataset.connector;if(connector&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onConnector?.(connector);return}const plugin=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(plugin&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onPlugin?.(plugin);return}const cat=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;const node=skill?this.leaves.get(skill):cat?this.nodes.get(cat):null;
+    this.listen(this.el,'dblclick',e=>{if(this.suppressClick||performance.now()-(this.lastDragAt||0)<350||e.target.closest('[data-central-hub],[data-knowledge-path]'))return;const cat=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;if(cat)this.focus(cat);else if(skill){const node=this.leaves.get(skill);if(node?.knowledge&&node.directory)this.navigateKnowledge(node.area,node.id);else this.openDocument(skill)}else this.fit()});
+    this.listen(this.el,'click',e=>{if(!this.selected&&!this.department&&!this.knowledge&&e.target.closest('[data-central-hub],.central-knowledge-node')){this.cb.onOpenKnowledge?.();return;}const tutorial=e.target.closest('[data-tutorial-path]');if(tutorial){if(!tutorial.dataset.tutorialPath)this.navigateKnowledge('tutorials',this.data.tutorialRoot);else this.cb.onOpenTutorial?.(tutorial.dataset.tutorialPath);return}const knowledge=e.target.closest('[data-knowledge-path]');if(knowledge){const path=knowledge.dataset.knowledgePath,area=knowledge.dataset.knowledgeArea,entry=this.data.entries.find(p=>p.path===path);if(!entry||entry.directory)this.navigateKnowledge(area,path);else if(area==='tutorials')this.cb.onOpenTutorial?.(path);else this.openDocument(path);return}if(e.target.closest('[data-map-back]')){this.back();return}const paging=e.target.closest('[data-map-page]');if(paging){this.pageGroup(Number(paging.dataset.mapPage));return}const group=e.target.closest('[data-group]')?.dataset.group;if(group){this.focusGroup(group);return}const connector=e.target.closest('[data-connector]')?.dataset.connector;if(connector){e.stopPropagation();this.cb.onConnector?.(connector);return}const id=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(id){e.stopPropagation();this.cb.onPlugin?.(id)}});
+    this.listen(this.el,'keydown',e=>{if(e.target.closest('.atlas-context')&&e.key!=='Escape')return;const knowledge=e.target.closest('[data-central-hub],[data-knowledge-path],[data-tutorial-path]');if(knowledge&&['Enter',' '].includes(e.key)){e.preventDefault();knowledge.dispatchEvent(new MouseEvent('click',{bubbles:true}));return}const group=e.target.closest('[data-group]')?.dataset.group;if(group&&['Enter',' '].includes(e.key)){e.preventDefault();this.focusGroup(group);return}const connector=e.target.closest('[data-connector]')?.dataset.connector;if(connector&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onConnector?.(connector);return}const plugin=e.target.closest('[data-orbit-plugin]')?.dataset.orbitPlugin;if(plugin&&['Enter',' '].includes(e.key)){e.preventDefault();this.cb.onPlugin?.(plugin);return}const cat=e.target.closest('[data-category]')?.dataset.category,skill=e.target.closest('[data-skill]')?.dataset.skill;const node=skill?this.leaves.get(skill):cat?this.nodes.get(cat):null;
       if(e.key==='Escape'){e.preventDefault();e.stopPropagation();this.back();return}if(e.key==='+'||e.key==='='){e.preventDefault();this.zoomAt(1.2);return}if(e.key==='-'){e.preventDefault();this.zoomAt(1/1.2);return}if(e.key==='0'){e.preventDefault();this.fit();return}
       if(node&&!this.knowledge&&e.altKey&&!this.data?.replay&&['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();const delta=e.shiftKey?25:8;this.translateNode(node,e.key==='ArrowLeft'?-delta:e.key==='ArrowRight'?delta:0,e.key==='ArrowUp'?-delta:e.key==='ArrowDown'?delta:0,cat);this.layout[skill?'leaves':'nodes'][skill||cat]={x:node.x,y:node.y};this.draw();this.persistSoon();return}
       if(!e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)&&this.selected){e.preventDefault();const ids=(this.catalog.departmentByID.get(this.department)?.specialists||this.catalog.specialists).map(c=>c.id),index=ids.indexOf(this.selected);if(ids.length)this.focus(ids[(index+(e.key==='ArrowLeft'?-1:1)+ids.length)%ids.length]);return}if(e.key==='Enter'&&e.target.closest('[data-core]')){e.preventDefault();this.select(null);return}
       if(e.key==='Enter'&&node){e.preventDefault();this.select(skill?node.parent:cat,skill,true)}if(e.key===' '){e.preventDefault();if(skill){if(node?.knowledge&&node.directory)this.navigateKnowledge(node.area,node.id);else this.openDocument(skill)}else if(cat)this.focus(cat);else this.fit()}
     });
   }
-  dispose(){if(this.disposed)return;this.disposed=true;this.sceneToken=(this.sceneToken||0)+1;for(const a of this.sceneAnimations||[])a.cancel();this.abort.abort();this.observer.disconnect();cancelAnimationFrame(this.frame);clearTimeout(this.saveTimer);clearTimeout(this.eventTimer);this.frame=0;this.universe?.dispose();this.nodes.clear();this.groups.clear();this.leaves.clear();this.orbitTracks.clear();this.starfield?.remove();this.el.replaceChildren()}
+  dispose(){if(this.disposed)return;this.disposed=true;this.sceneToken=(this.sceneToken||0)+1;for(const a of this.sceneAnimations||[])a.cancel();this.abort.abort();this.observer.disconnect();cancelAnimationFrame(this.frame);clearTimeout(this.saveTimer);clearTimeout(this.eventTimer);clearTimeout(this.departmentSnapTimer);this.frame=0;this.universe?.dispose();this.nodes.clear();this.groups.clear();this.leaves.clear();this.orbitTracks.clear();this.starfield?.remove();this.contextNav?.remove();this.el.replaceChildren()}
 }
 window.OracleAtlas=OracleAtlas;

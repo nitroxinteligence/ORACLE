@@ -39,31 +39,42 @@ const tutorialDepartments=[
 ];
 let tutorialFolderPath=tutorialRoot,tutorialSelectedPath='',tutorialQuery='',tutorialDocument=null;
 let tutorialExpanded=new Set([tutorialRoot]);
-function toast(text){
+function toast(text,tone='info'){
  if(!$('#lock-screen').hidden)return;
- if($('#modal').open){let notice=$('.modal-notice');if(!notice){notice=document.createElement('div');notice.className='modal-notice';notice.setAttribute('role','alert');$('.modal-body').prepend(notice)}notice.textContent=text;return}
- $('#toast').textContent=text;$('#toast').hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').hidden=true,6000);
+ const notice=$('#toast'),revision=(toast.revision||0)+1;toast.revision=revision;OracleTransitions.cancel(notice);const dialog=document.querySelector('.ob-dialog[open]')||$('#modal');
+ if(typeof notice.hidePopover==='function'&&notice.matches(':popover-open'))notice.hidePopover();
+ (dialog?.open?dialog:document.body).append(notice);
+ notice.dataset.tone=tone;notice.setAttribute('role',tone==='error'?'alert':'status');
+ notice.replaceChildren();const mark=document.createElement('span');mark.className='toast-icon';mark.innerHTML=icon(tone==='success'?'check':tone==='error'?'close':'note');
+ const message=document.createElement('span');message.textContent=text;notice.append(mark,message);notice.hidden=false;
+ if(typeof notice.showPopover==='function'){notice.setAttribute('popover','manual');notice.showPopover();}
+ void OracleTransitions.animate(notice,[{opacity:0,transform:'translate(-50%,-10px)'},{opacity:1,transform:'translate(-50%,0)'}],{duration:240,name:'toast-enter'});
+ clearTimeout(toast.timer);toast.timer=setTimeout(async()=>{const completed=await OracleTransitions.animate(notice,[{opacity:1,transform:'translate(-50%,0)'},{opacity:0,transform:'translate(-50%,-10px)'}],{duration:180,name:'toast-exit',hold:true});if(!completed||toast.revision!==revision)return;if(typeof notice.hidePopover==='function'&&notice.matches(':popover-open'))notice.hidePopover();notice.hidden=true;OracleTransitions.cancel(notice);document.body.append(notice)},5000);
 }
-function safe(fn){return async(...a)=>{const button=a[0]?.currentTarget instanceof HTMLButtonElement?a[0].currentTarget:null;if(button)button.disabled=true;try{return await fn(...a)}catch(e){toast(e.message)}finally{if(button)button.disabled=false}}}
+document.addEventListener('close',event=>{const notice=$('#toast');if(notice.hidden||!event.target.contains(notice))return;document.body.append(notice);if(typeof notice.showPopover==='function')notice.showPopover();},true);
+function safe(fn){return async(...a)=>{const button=a[0]?.currentTarget instanceof HTMLButtonElement?a[0].currentTarget:null;if(button)button.disabled=true;try{return await fn(...a)}catch(e){toast(e.message,'error')}finally{if(button)button.disabled=false}}}
 function modalBreadcrumb(){
+ if(!modalHistory.length||modalPage?.family==='settings')return null;
  const nav=document.createElement('nav');nav.className='modal-breadcrumb';nav.setAttribute('aria-label','Caminho desta janela');
  const back=document.createElement('button');back.id='modal-back';back.type='button';back.setAttribute('aria-label','Voltar');back.innerHTML=icon('back')+'<span>Voltar</span>';back.onclick=()=>modalBack();nav.append(back);
  const list=document.createElement('ol');
  const item=(label,index,current=false)=>{const li=document.createElement('li');const el=document.createElement(current?'span':'button');el.textContent=label;el.title=label;if(current)el.setAttribute('aria-current','page');else{el.type='button';el.onclick=()=>modalBack(index)}li.append(el);list.append(li)};
- item('Universo',-1);modalHistory.forEach((page,index)=>item(page.title,index));item(modalPage.title,0,true);nav.append(list);return nav;
+ modalHistory.forEach((page,index)=>item(page.title,index));nav.append(list);return nav;
 }
 function modalBack(index=modalHistory.length-1){
  const prior=modalHistory[index];
  const restore=()=>{
-  if(!prior){closeModal(true);return}
+  if(!prior){closeModal();return}
   modalHistory=modalHistory.slice(0,index);modalPage=prior;modalRevision=prior.revision;
   navigationEpoch++;
   readDocument=prior.document;editorSession=prior.editor;settingsTrail=prior.settings;
   modalDirty=prior.dirty;hideTooltip();
+  const previous=OracleTransitions.captureContent($('#modal-content'));
   $('#modal-content').replaceChildren(...prior.nodes);$('#modal').dataset.family=prior.family;
-  $('.modal-breadcrumb').replaceWith(modalBreadcrumb());
+  const breadcrumb=modalBreadcrumb(),oldBreadcrumb=$('#modal-content .modal-breadcrumb');if(oldBreadcrumb){breadcrumb?oldBreadcrumb.replaceWith(breadcrumb):oldBreadcrumb.remove()}else if(breadcrumb)$('.modal-header>div').prepend(breadcrumb);
   const body=$('.modal-body');if(body)body.scrollTop=prior.scroll;
   const focus=prior.focus?.isConnected?prior.focus:$('#modal-title');focus?.focus({preventScroll:true});
+  void OracleTransitions.content($('#modal-content'),previous);
  };
  // Review -> editor preserves the same draft; leaving that draft uses the existing exit guard.
  if(modalDirty&&!(prior?.family==='editor'&&prior.editor===editorSession)){requestEditorExit(false,restore);return}
@@ -72,7 +83,10 @@ function modalBack(index=modalHistory.length-1){
 function modal(html,options={}){
  if(!$('#lock-screen').hidden||document.querySelector('.ob-dialog[open]'))return false;
  if(modalDirty&&options.family!=='editor'){requestEditorExit(false,()=>modal(html,options));return false}
- const dialog=$('#modal'), content=$('#modal-content');
+ const dialog=$('#modal'), content=$('#modal-content'),opening=!dialog.open;
+ OracleTransitions.cancelDialog(dialog);
+ const previous=opening?null:OracleTransitions.captureContent(content);
+ if(options.root){modalHistory=[];modalPage=null;}
  const template=document.createElement('template');template.innerHTML=html;
  const heading=template.content.querySelector('h1')||document.createElement('h1');heading.id='modal-title';heading.tabIndex=-1;
  const key=options.key||heading.textContent;
@@ -91,18 +105,19 @@ function modal(html,options={}){
  footer.querySelectorAll('[data-close]').forEach(e=>e.remove());
  const family=options.family||(template.content.querySelector('.editor')?'editor':template.content.querySelector('.markdown-reader')?'reader':'standard');
  modalPage={key,title:heading.textContent,revision:modalRevision,family,document:readDocument,editor:editorSession,settings:settingsTrail};
- const head=document.createElement('div');head.className='modal-header';const titles=document.createElement('div');titles.append(modalBreadcrumb(),heading);head.append(titles);
+ const head=document.createElement('div');head.className='modal-header';const titles=document.createElement('div');const breadcrumb=modalBreadcrumb();titles.append(...(breadcrumb?[breadcrumb]:[]),heading);head.append(titles);
  const close=document.createElement('button');close.className='icon-button modal-close';close.dataset.close='';close.setAttribute('aria-label','Fechar janela');close.dataset.tooltip='Fechar · Esc';close.innerHTML=icon('close');head.append(close);
  footer.remove();const body=document.createElement('div');body.className='modal-body';body.append(template.content);
- if(!footer.children.length){const done=document.createElement('button');done.className='secondary';done.dataset.close='';done.textContent='Concluído';footer.append(done)}
- content.replaceChildren(head,body,footer);dialog.dataset.family=family;
+ content.replaceChildren(head,body,...(footer.children.length?[footer]:[]));dialog.dataset.family=family;
+ if(family==='reader'&&!body.querySelector('.reader-layout')){const article=body.querySelector('.markdown-reader');if(article){const layout=document.createElement('div');layout.className='reader-layout';article.before(layout);const outline=document.createElement('nav');outline.className='reader-outline';outline.hidden=true;outline.setAttribute('aria-label','Seções do documento');layout.append(outline,article);mountReaderOutline();}}
  dialog.append($('#tooltip'));if(!dialog.open)dialog.showModal();
  const focus=options.focus?content.querySelector(options.focus):body.querySelector('input:not([type=checkbox]),textarea,select');(focus||heading).focus({preventScroll:true});
+ if(opening)OracleTransitions.enterDialog(dialog);else void OracleTransitions.content(content,previous);
  return true;
 }
 function closeModal(force=false){
  if(modalDirty&&!force){requestEditorExit();return}
- navigationEpoch++;$('#modal').close();
+ navigationEpoch++;modalRevision=++modalSequence;return OracleTransitions.dismissDialog($('#modal'),{immediate:force});
 }
 function actions(extra=''){return `<div class="actions"><button class="secondary" data-close>Concluído</button>${extra}</div>`}
 let backdropDown=false;$('#modal').addEventListener('pointerdown',e=>{backdropDown=e.target===$('#modal')});
@@ -131,8 +146,8 @@ async function refresh(){
 async function refreshVault(){if(state.config.vault&&state.onboarding?.licensed)await call('memoryRefresh');return refresh();}
 function mountOnboarding(){return window.ORACLE_PREVIEW?Promise.resolve():window.OracleOnboarding?.mount({call,refresh,getState:()=>state,toast,openSettings:settings,canOpen:()=>$('#lock-screen').hidden&&!$('#modal').open&&!modalDirty})}
 function render(){
- renderTree();renderAtlas();renderResults();renderProgress();renderInspector();renderPlugins();
- renderMemoryStatus();renderMemoryFreshness();
+ renderTree();renderAtlas();renderResults();renderProgress();renderInspector();
+ renderMemoryStatus();renderMemoryFreshness();libraryGallery?.refresh();
  OracleStatusBadge.apply($('#codex-status'),state.codexPlugins?.status==='available'?'connected':state.events.some(e=>e.source==='codex-hook')?'recent_activity':'unverified',state.codexPlugins?.status==='available'?'Conectado':state.events.some(e=>e.source==='codex-hook')?'Atividade recente':'Conexão não verificada');
  renderPlayback();
 }
@@ -162,33 +177,50 @@ function renderTree(){
  const opened=new Set($$('#tree details[open]>summary').map(e=>e.dataset.folder||e.dataset.collection||e.dataset.department));
  const catalog=departmentCatalog();
  const areas=OracleKnowledge.areas(visibleEntries());
- const childrenByParent=new Map();for(const e of visibleEntries()){const parent=e.path.split('/').slice(0,-1).join('/');if(!childrenByParent.has(parent))childrenByParent.set(parent,[]);childrenByParent.get(parent).push(e)};const folder=(path,label,open=false)=>{const children=(childrenByParent.get(path)||[]).filter(e=>(path!=='SISTEMA'||e.name!=='skills')&&(path!=='AREAS'||!areas.some(a=>a.path===e.path)));return `<details ${open||opened.has(path)?'open':''}><summary data-folder="${esc(path)}">${icon('folder')}${esc(label||path.split('/').at(-1))}</summary><div>${children.slice(0,30).map(e=>e.directory?folder(e.path,e.name):`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}<span>${esc(e.name.replace('.md',''))}</span></button>`).join('')}${children.length>30?`<button data-prefix="${esc(path)}">Ver todos →</button>`:''}</div></details>`};
+ const childrenByParent=new Map();for(const e of visibleEntries()){const parent=e.path.split('/').slice(0,-1).join('/');if(!childrenByParent.has(parent))childrenByParent.set(parent,[]);childrenByParent.get(parent).push(e)};const folder=(path,label,open=false)=>{const children=(childrenByParent.get(path)||[]).filter(e=>!areas.some(a=>a.path===e.path));return `<details ${open||opened.has(path)?'open':''}><summary data-folder="${esc(path)}">${icon('folder')}${esc(label||path.split('/').at(-1))}</summary><div>${children.slice(0,30).map(e=>e.directory?folder(e.path,e.name):`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}<span>${esc(e.name.replace('.md',''))}</span></button>`).join('')}${children.length>30?`<button data-prefix="${esc(path)}">Ver todos →</button>`:''}</div></details>`};
  const roots=new Set(visibleEntries().filter(e=>e.directory&&!e.path.includes('/')).map(e=>e.path));
- let html='<div class=tree-section-label>Seu conhecimento</div>'+areas.map(a=>a.exists?folder(a.path,a.name):`<button data-knowledge-area="${a.id}" data-knowledge-path="${esc(a.path)}">${icon('folder')}${a.name}<span class=count>0</span></button>`).join('');
- if(roots.has('INBOX'))html+=folder('INBOX','Inbox',false);
- if(roots.has('PROJETOS'))html+=folder('PROJETOS','Projetos');
- const knowledge=['AREAS','WIKI','FONTES'].filter(x=>roots.has(x)&&(x!=='AREAS'||(childrenByParent.get('AREAS')||[]).some(e=>!areas.some(a=>a.path===e.path))));if(knowledge.length)html+=`<details><summary>${icon('folder')}Conhecimento</summary><div>${knowledge.map(p=>folder(p,p==='AREAS'?'Áreas':p==='WIKI'?'Wiki':'Fontes')).join('')}</div></details>`;
- html+=`<div class="tree-section-label">Departamentos</div>`+catalog.departments.map(d=>`<details ${selectedDepartment===d.id||opened.has(d.id)?'open':''}><summary data-department="${esc(d.id)}">${icon(d.icon)}<i class="collection-dot" style="background:${d.color}"></i>${esc(d.name)}<span class="count">${d.specialistCount}</span></summary><div>${d.specialists.map(c=>`<details ${selected===c.id||opened.has(c.id)?'open':''}><summary data-collection="${esc(c.id)}">${icon('folder')}${esc(c.name)}<span class="count">${c.skillCount}</span></summary><div>${c.skills.slice(0,9).map(e=>`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}${esc(title(e).replace(/-/g,' '))}</button>`).join('')}${c.skillCount>9?`<button data-prefix="${esc(c.originPath)}">Ver todas →</button>`:''}${!c.skillCount?'<small class="empty-collection">Nenhuma skill nesta fonte</small>':''}</div></details>`).join('')}${d.empty?'<small class="empty-collection">Nenhum especialista instalado</small>':''}</div></details>`).join('');
- const extraRoots=[...roots].filter(p=>!areas.some(a=>a.path===p)&&!['INBOX','PROJETOS','AREAS','WIKI','FONTES'].includes(p)&&!(p==='SISTEMA'&&!(childrenByParent.get(p)||[]).some(e=>e.name!=='skills')));if(extraRoots.length)html+='<div class="tree-section-label">Pastas</div>'+extraRoots.map(p=>folder(p)).join('');
+ let html=`<div class="tree-section-label">Departamentos</div>`+catalog.departments.filter(d=>d.id!=='department/other').map(d=>`<details ${selectedDepartment===d.id||opened.has(d.id)?'open':''}><summary data-department="${esc(d.id)}">${icon(d.icon)}<i class="collection-dot" style="background:${d.color}"></i>${esc(d.name)}<span class="count">${d.specialistCount}</span></summary><div>${d.specialists.map(c=>`<details ${selected===c.id||opened.has(c.id)?'open':''}><summary data-collection="${esc(c.id)}">${icon('folder')}${esc(c.name)}<span class="count">${c.skillCount}</span></summary><div>${c.skills.slice(0,9).map(e=>`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}${esc(title(e).replace(/-/g,' '))}</button>`).join('')}${c.skillCount>9?`<button data-prefix="${esc(c.originPath)}">Ver todas →</button>`:''}${!c.skillCount?'<small class="empty-collection">Nenhuma skill nesta fonte</small>':''}</div></details>`).join('')}${d.empty?'<small class="empty-collection">Nenhum especialista instalado</small>':''}</div></details>`).join('');
+ html+='<div class=tree-section-label>Seu conhecimento</div>'+areas.map(a=>a.exists?folder(a.path,a.name):`<button data-knowledge-area="${a.id}" data-knowledge-path="${esc(a.path)}">${icon('folder')}${a.name}<span class=count>0</span></button>`).join('');
+ const extraRoots=[...roots].filter(p=>!areas.some(a=>a.path===p)).sort((a,b)=>a.localeCompare(b,'pt-BR'));html+='<div class="tree-section-label">Pastas</div>'+extraRoots.map(p=>folder(p)).join('');
  html+=(childrenByParent.get('')||[]).filter(e=>!e.directory).map(e=>`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}${esc(title(e))}</button>`).join('');
  if(!state.config.vault)html='<p class="empty">Seu conhecimento, no seu espaço.<button class="primary" data-connect>Conectar vault</button></p>'+html;
- if($('#tree').oracleHTML===html)return;$('#tree').oracleHTML=html;$('#tree').innerHTML=html;$('#tree').querySelectorAll('[data-collection]').forEach(e=>e.onclick=()=>{selected=e.dataset.collection;selectedDepartment=catalog.specialistByID.get(selected)?.department||null;selectedSkill=null;renderAtlas();renderInspector()});$('#tree').querySelectorAll('[data-department]').forEach(e=>e.onclick=()=>atlasController?.setDepartment(e.dataset.department));bindPaths($('#tree'));$('#tree').querySelectorAll('[data-folder],[data-knowledge-path]').forEach(el=>{const path=el.dataset.folder||el.dataset.knowledgePath,area=areas.find(a=>path===a.path||path.startsWith(a.path+'/'));if(area)el.addEventListener('click',()=>atlasController?.navigateKnowledge(area.id,path))});$('#tree').querySelector('[data-connect]')?.addEventListener('click',()=>showSetup(0));$('#tree').querySelectorAll('[data-prefix]').forEach(e=>e.onclick=()=>{openSearch(e.dataset.prefix)});
+ if($('#tree').oracleHTML===html)return;$('#tree').oracleHTML=html;$('#tree').innerHTML=html;$('#tree').querySelectorAll('[data-collection]').forEach(e=>e.onclick=()=>{selected=e.dataset.collection;selectedDepartment=catalog.specialistByID.get(selected)?.department||null;selectedSkill=null;renderAtlas();renderInspector()});$('#tree').querySelectorAll('[data-department]').forEach(e=>{e.style.setProperty('--department-color',OracleAtlas.departmentColor(e.dataset.department,catalog.departmentByID.get(e.dataset.department)?.color));e.onclick=()=>atlasController?.setDepartment(e.dataset.department)});bindPaths($('#tree'));$('#tree').querySelectorAll('[data-folder],[data-knowledge-path]').forEach(el=>{const path=el.dataset.folder||el.dataset.knowledgePath,area=areas.find(a=>path===a.path||path.startsWith(a.path+'/'));if(area)el.addEventListener('click',()=>atlasController?.navigateKnowledge(area.id,path))});$('#tree').querySelector('[data-connect]')?.addEventListener('click',()=>showSetup(0));$('#tree').querySelectorAll('[data-prefix]').forEach(e=>e.onclick=()=>{openSearch(e.dataset.prefix)});
 }
 function bindPaths(container){container.querySelectorAll('[data-path]').forEach(e=>e.onclick=safe(()=>{const entry=visibleEntries().find(n=>n.path===e.dataset.path);if(entry?.directory){openSearch(entry.path)}else return openNote(e.dataset.path)}))}
 let inspectorOpenedByMap=false;
 let atlasController=null, selectedSkill=null, selectedDepartment=null, visualPaused=false,replaySession=null,replayProjection=null;
 function renderAtlas(){
  const installation=OracleInstallationVisual.projection(state);document.body.classList.toggle('setup-pending',installation.coreReady===false);
- if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf,keyboard,selection)=>{selected=id;selectedSkill=leaf;selectedDepartment=selection?.department||null;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onPlugin:id=>plugin(id),onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
- atlasController.update({promptRoot:state.config.libraryRoots?.prompt||'',departmentAssignments:state.config.departmentAssignments||{},departmentManifest:state.departmentManifest||window.OracleDepartmentManifest,selectedDepartment,collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:state.codexPlugins?.plugins||[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||!!document.querySelector('dialog[open]')});
+ if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf,keyboard,selection)=>{selected=id;selectedSkill=leaf;selectedDepartment=selection?.department||null;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpenKnowledge:safe(openKnowledgeHub),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onOpenTutorial:safe(path=>setView('tutorials',()=>libraryGallery.openDocument(path))),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
+ atlasController.update({tutorialRoot:state.config.libraryRoots?.tutorial||'',promptRoot:state.config.libraryRoots?.prompt||'',departmentAssignments:state.config.departmentAssignments||{},departmentManifest:state.departmentManifest||window.OracleDepartmentManifest,selectedDepartment,collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||!!document.querySelector('dialog[open]')});
 }
-function setView(next){view=next;$$('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));$('#atlas').hidden=view!=='map';$('#results').hidden=view==='map';$('.map-tools').hidden=view!=='map';renderResults();atlasController?.setPaused(view!=='map'||document.hidden)}
-function renderResults(){if(view==='map')return;let entries=visibleEntries().filter(e=>(view==='folders'||!e.directory)&&(!query||(e.path+' '+title(e)).toLowerCase().includes(query)));$('#results').innerHTML=`<h2>${view==='list'?'Documentos':'Pastas e documentos'} <small>${entries.length} resultados · fonte local</small></h2>`+(entries.length?entries.slice(0,300).map(e=>`<button class="result" data-path="${esc(e.path)}">${icon(e.directory?'folder':'note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div></button>`).join('')+(entries.length>300?'<p class="empty">Mostrando 300 resultados. Refine a busca.</p>':''):'<p class="empty">Nenhum resultado nesta pasta e filtro.</p>');bindPaths($('#results'))}
+function setView(next,onReady){
+ if(navigationBlocked())return false;
+ const previous=view,gallery=['prompts','tutorials'].includes(next);
+ atlasController?.finishReveal();
+ OracleTransitions.cancelPage();
+ $$('.workspace-tabs [data-workspace]').forEach(button=>{const selected=button.dataset.workspace===next;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});
+ OracleTransitions.indicator();
+ if(next===previous){onReady?.();return true;}
+ const commit=()=>{
+  if(navigationBlocked()){$$('.workspace-tabs [data-workspace]').forEach(button=>{const selected=button.dataset.workspace===view;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});OracleTransitions.indicator();return false;}
+  view=next;document.body.classList.toggle('library-view',gallery);
+  $('#graph-page').hidden=gallery;$('#library-page').hidden=!gallery;
+  $('#atlas').hidden=next!=='map';$('#results').hidden=gallery||next==='map';$('.map-tools').hidden=next!=='map';
+  $('#navigation-toggle').disabled=gallery;$('#replay-toggle').disabled=gallery;$('#replay-panel').hidden=true;$('#replay-toggle').setAttribute('aria-expanded','false');
+  if(gallery){libraryGallery.open(next);$('#library-page').setAttribute('aria-labelledby','workspace-'+next)}else{libraryGallery.hide();renderResults();atlasController?.resize();renderAtlas()}
+  atlasController?.setPaused(next!=='map'||document.hidden||visualPaused||!!document.querySelector('dialog[open]'));onReady?.();if(next==='map')atlasController?.revealGraph();return true;
+ };
+ const order=['map','tutorials','prompts'];
+ OracleTransitions.changePage($('#'+(['prompts','tutorials'].includes(previous)?'library-page':'graph-page')),$('#'+(gallery?'library-page':'graph-page')),commit,Math.sign(order.indexOf(next)-order.indexOf(previous))||1);
+ return true;
+}
+function renderResults(){if(!['list','folders'].includes(view))return;let entries=visibleEntries().filter(e=>(view==='folders'||!e.directory)&&(!query||(e.path+' '+title(e)).toLowerCase().includes(query)));$('#results').innerHTML=`<h2>${view==='list'?'Documentos':'Pastas e documentos'} <small>${entries.length} resultados · fonte local</small></h2>`+(entries.length?entries.slice(0,300).map(e=>`<button class="result" data-path="${esc(e.path)}">${icon(e.directory?'folder':'note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div></button>`).join('')+(entries.length>300?'<p class="empty">Mostrando 300 resultados. Refine a busca.</p>':''):'<p class="empty">Nenhum resultado nesta pasta e filtro.</p>');bindPaths($('#results'))}
 const collectionDescriptions={ads:'Estratégia, criação e análise de campanhas.',code:'Procedimentos para projetar, construir e revisar software.',contents:'Seu espaço para procedimentos de conteúdo.','customer-finder':'Pesquisa e descoberta de potenciais clientes.','cyber-security':'Conhecimento e procedimentos de segurança.',marketing:'Pesquisa, posicionamento e crescimento.','personal-branding':'Seu espaço para identidade e marca pessoal.'};
 function renderInspector(){
  if(selectedSkill){renderSkillInspector();return}
  const department=atlasController?.catalog?.departmentByID.get(selectedDepartment);
- if(department&&!selected){$('#inspector-title').textContent=department.name;$('#inspector').innerHTML=`<span class="pill">Departamento</span><div class="big-count">${department.specialistCount}</div><small>${department.specialistCount===1?'especialista instalado':'especialistas instalados'} · ${department.skillCount} skills</small><p class="muted">A organização é visual. Seus arquivos continuam nas pastas originais.</p>${department.specialists.map(s=>`<button class="secondary" data-inspect-specialist="${esc(s.id)}">${esc(s.name)} · ${s.skillCount}</button>`).join('')}${department.empty?'<p>Nenhum especialista instalado neste departamento.</p>':''}${department.skillCount?'<button class="secondary" id="department-search">Buscar neste departamento</button>':''}`;$$('[data-inspect-specialist]').forEach(b=>b.onclick=()=>atlasController.focus(b.dataset.inspectSpecialist));$('#department-search')?.addEventListener('click',()=>openSearch('',{department:department.id}));return}
+ if(department&&!selected){$('#inspector-title').textContent=department.name;$('#inspector').innerHTML=`<span class="pill">Departamento</span><div class="big-count">${department.specialistCount}</div><small>${department.specialistCount===1?'especialista instalado':'especialistas instalados'} · ${department.skillCount} skills</small><p class="muted">A organização é visual. Seus arquivos continuam nas pastas originais.</p>${department.specialists.map(s=>`<button class="secondary" data-inspect-specialist="${esc(s.id)}">${esc(s.name)} · ${s.skillCount}</button>`).join('')}${department.skillCount?'<button class="secondary" id="department-search">Buscar neste departamento</button>':''}`;$$('[data-inspect-specialist]').forEach(b=>b.onclick=()=>atlasController.focus(b.dataset.inspectSpecialist));$('#department-search')?.addEventListener('click',()=>openSearch('',{department:department.id}));return}
  const c=state.collections.find(c=>c.id===selected),group=atlasController?.groups.get(atlasController?.context.group);
  if(group){$('#inspector-title').textContent=group.name;$('#inspector').innerHTML=`<span class="pill">${group.kind==='folder'?'Pasta':'Por nome'} · ${esc(c?.name||'')}</span><div class="big-count">${group.skills.length}</div><small>${group.skills.length===1?'skill neste grupo':'skills neste grupo'}</small><p class="muted">${group.kind==='folder'?'Arquivos reunidos na mesma pasta.':'Uma faixa alfabética para explorar sua coleção.'}</p><button id="group-parent" class="secondary">Voltar ao especialista</button>`;$('#group-parent').onclick=()=>atlasController.focus(selected);return}
  $('#inspector-title').textContent=c?c.name:'Observatório';
@@ -221,8 +253,8 @@ async function openNote(path){
  const epoch=navigationEpoch,sequence=++noteReadSequence,document=await call('read',{path});if(epoch!==navigationEpoch||sequence!==noteReadSequence||navigationBlocked())return;
  readDocument={...document,relative:path};editorSession=null;
  const name=path.endsWith('/SKILL.md')?path.split('/').at(-2).replace(/-/g,' '):path.split('/').at(-1).replace(/\.md$/i,'');
- modal(`<h1>${esc(name)}</h1>${document.draft&&document.draft.text!==document.text?'<div class="editor-recovery"><p>Há um rascunho que ainda não foi salvo no documento.</p><button class="secondary" id="recover-draft">Retomar</button></div>':''}<article class="markdown-reader">${markdown(document.text)}</article><details class="source-details"><summary>Detalhes do arquivo</summary><div class="source">${esc(document.path)}<br>SHA-256 ${document.hash}</div></details>${actions(`<button class="secondary" id="reveal-note">Mostrar no Finder</button>${document.editable!==false?'<button class="primary" id="edit-note">Editar</button>':''}`)}`,{family:'reader',key:'document:'+path});
- bindMarkdown($('#modal-content'),path);$('#reveal-note').onclick=safe(()=>call('reveal',{path}));$('#edit-note')?.addEventListener('click',()=>editNote());
+ modal(`<h1>${esc(name)}</h1>${document.draft&&document.draft.text!==document.text?'<div class="editor-recovery"><p>Há um rascunho que ainda não foi salvo no documento.</p><button class="secondary" id="recover-draft">Retomar</button></div>':''}<div class="document-meta"><span>${path.endsWith('/SKILL.md')?'Skill':'Nota'}</span><span>${Math.max(1,Math.ceil(document.text.split(/\s+/).length/220))} min de leitura</span><span title="${esc(path)}">${esc(path.split('/').slice(0,-1).join(' / '))}</span></div><div class="reader-layout"><nav class="reader-outline" aria-label="Seções do documento" hidden></nav><article class="markdown-reader">${markdown(document.text)}</article></div><details class="source-details"><summary>Detalhes do arquivo</summary><div class="source">${esc(document.path)}<br>SHA-256 ${document.hash}</div></details>${actions(`<button class="secondary" id="reveal-note">Mostrar no Finder</button>${document.editable!==false?'<button class="primary" id="edit-note">Editar</button>':''}`)}`,{family:'reader',key:'document:'+path});
+ bindMarkdown($('#modal-content'),path);mountReaderOutline();$('#reveal-note').onclick=safe(()=>call('reveal',{path}));$('#edit-note')?.addEventListener('click',()=>editNote());
  $('#recover-draft')?.addEventListener('click',()=>{editNote(document.draft.text,document.draft.originalHash);if(document.draft.originalHash!==document.hash)showEditorConflict(document)});
  return true;
 }
@@ -230,9 +262,11 @@ function editNote(draft=readDocument.text,baseHash=readDocument.hash){
  const current=editorSession;
  editorSession=current&&current.path===readDocument.relative?current:{path:readDocument.relative,hash:baseHash,base:readDocument.text,text:draft,revision:0,saved:false};
  const session=editorSession;session.text=draft;
- modal(`<h1>Editar ${esc(session.path.endsWith('/SKILL.md')?session.path.split('/').at(-2).replace(/-/g,' '):session.path.split('/').at(-1))}</h1><div class="editor-status"><span id="draft-status">${session.saved?'Rascunho guardado neste Mac':'O arquivo será salvo na sua pasta do Obsidian'}</span><button id="reload-note">Reler arquivo</button></div><div id="editor-conflict"></div><textarea class="editor" id="editor" aria-label="Conteúdo do documento" autocorrect="off" autocapitalize="off" spellcheck="false" writingsuggestions="false">${esc(draft)}</textarea>${actions('<button class="secondary" id="discard-edit">Descartar</button><button class="secondary" id="diff">Ver alterações</button><button class="primary" id="save-note">Salvar</button>')}`,{family:'editor',focus:'#editor',key:'editor:'+session.path});
+ modal(`<h1>Editar ${esc(session.path.endsWith('/SKILL.md')?session.path.split('/').at(-2).replace(/-/g,' '):session.path.split('/').at(-1))}</h1><div class="document-meta"><span>Markdown</span><span title="${esc(session.path)}">${esc(session.path)}</span></div><div class="editor-status"><span id="draft-status">${session.saved?'Rascunho guardado neste Mac':'O arquivo será salvo na sua pasta do Obsidian'}</span><button id="reload-note">Reler arquivo</button></div><div id="editor-conflict"></div><div class="editor-toolbar"><strong>Conteúdo</strong><span id="editor-count"></span><button type="button" class="quiet-link" id="editor-preview-toggle" aria-expanded="false">Prévia</button></div><div class="editor-workspace"><textarea class="editor" id="editor" aria-label="Conteúdo do documento" autocorrect="off" autocapitalize="off" spellcheck="false" writingsuggestions="false">${esc(draft)}</textarea><article class="markdown-reader editor-preview" hidden></article></div>${actions('<button class="secondary" id="discard-edit">Descartar</button><button class="secondary" id="diff">Ver alterações</button><button class="primary" id="save-note">Salvar</button>')}`,{family:'editor',focus:'#editor',key:'editor:'+session.path});
  modalDirty=session.text!==session.base;
- $('#editor').oninput=()=>{session.text=$('#editor').value;session.revision++;session.saved=false;modalDirty=session.text!==session.base;$('#draft-status').textContent=modalDirty?'Guardando rascunho…':'Sem alterações';clearTimeout(draftTimer);if(modalDirty)draftTimer=setTimeout(()=>safe(persistEditorDraft)(),450)};
+ const updateEditor=()=>{$('#editor-count').textContent=session.text.split('\n').length+' linhas';const preview=$('.editor-preview');if(!preview.hidden){preview.innerHTML=markdown(session.text);bindMarkdown(preview,session.path)}};updateEditor();
+ $('#editor-preview-toggle').onclick=()=>{const preview=$('.editor-preview');preview.hidden=!preview.hidden;$('#editor-preview-toggle').setAttribute('aria-expanded',String(!preview.hidden));$('#editor-preview-toggle').textContent=preview.hidden?'Prévia':'Fechar prévia';$('.editor-workspace').classList.toggle('with-preview',!preview.hidden);updateEditor()};
+ $('#editor').oninput=()=>{session.text=$('#editor').value;session.revision++;session.saved=false;updateEditor();modalDirty=session.text!==session.base;$('#draft-status').textContent=modalDirty?'Guardando rascunho…':'Sem alterações';clearTimeout(draftTimer);if(modalDirty)draftTimer=setTimeout(()=>safe(persistEditorDraft)(),450)};
  $('#discard-edit').onclick=()=>requestEditorExit(true);
  $('#diff').onclick=()=>reviewEdit(session);
  $('#save-note').onclick=safe(saveEditor);
@@ -258,6 +292,7 @@ async function saveEditor(){
   session.base=sent.text;session.hash=result.document.hash;
   modalHistory=modalHistory.filter(page=>!(page.family==='reader'&&page.document?.relative===session.path));
   session.saved=session.text===sent.text;
+  modalHistory.forEach(page=>{if(page.editor===session)page.dirty=session.text!==session.base});
   if(editorSession===session){readDocument={...result.document,relative:session.path};modalDirty=session.text!==session.base;const label=$('#draft-status');if(label)label.textContent=modalDirty?'Versão enviada salva. Guardando a digitação mais recente…':'Salvo no arquivo original';}
   return result;
  });
@@ -267,16 +302,38 @@ async function saveEditor(){
  // The editor stays mounted. A later revision can never be replaced by the acknowledgement.
  if(modalDirty)await persistEditorDraft();
  if(failure)throw failure;
+ if(!session.conflict&&modalPage?.key==='diff:'+session.path)reviewEdit(session);
+ if(!session.conflict)toast(modalDirty?'Versão salva. Há novas alterações no rascunho.':'Documento salvo.','success');
  safe(refresh)();
 }
+function mountReaderOutline(){
+ const host=$('.reader-outline'),article=$('.reader-layout .markdown-reader');if(!host||!article)return;
+ const headings=[...article.querySelectorAll('h2,h3,h4')];if(headings.length<3)return;
+ host.hidden=false;const title=document.createElement('strong');title.textContent='Neste documento';host.append(title);
+ headings.forEach(heading=>{const button=document.createElement('button');button.type='button';button.textContent=heading.textContent;button.className=heading.tagName==='H2'?'':'subsection';button.onclick=()=>{heading.tabIndex=-1;heading.scrollIntoView({block:'start',behavior:document.body.classList.contains('reduced')?'instant':'smooth'});heading.focus({preventScroll:true})};host.append(button)});
+}
+function documentDiff(before,after){
+ const old=before.split('\n'),now=after.split('\n'),rows=[];let i=0,j=0;
+ const push=(kind,a,b,text)=>rows.push({kind,a,b,text});
+ // Bounded LCS aligns inserted lines without marking the rest of the file as changed.
+ if(old.length*now.length<=1000000){
+  const width=now.length+1,table=new Uint32Array((old.length+1)*width);
+  for(let a=old.length-1;a>=0;a--)for(let b=now.length-1;b>=0;b--)table[a*width+b]=old[a]===now[b]?1+table[(a+1)*width+b+1]:Math.max(table[(a+1)*width+b],table[a*width+b+1]);
+  while(i<old.length||j<now.length){if(i<old.length&&j<now.length&&old[i]===now[j]){push('same',i+1,j+1,old[i]);i++;j++}else if(j<now.length&&(i===old.length||table[i*width+j+1]>table[(i+1)*width+j])){push('add','',j+1,now[j++])}else push('remove',i+1,'',old[i++])}
+ }else{
+  while(i<old.length&&j<now.length&&old[i]===now[j]){push('same',i+1,j+1,old[i]);i++;j++}
+  let a=old.length,b=now.length;while(a>i&&b>j&&old[a-1]===now[b-1]){a--;b--}
+  while(i<a)push('remove',i+1,'',old[i++]);while(j<b)push('add','',j+1,now[j++]);while(i<old.length){push('same',i+1,j+1,old[i]);i++;j++}
+ }
+ return rows;
+}
 function reviewEdit(session){
- const old=session.base.split('\n'),now=session.text.split('\n');let lines='';
- for(let i=0;i<Math.max(old.length,now.length);i++){if(old[i]===now[i])lines+='  '+esc(old[i]??'')+'\n';else{if(old[i]!==undefined)lines+=`<span class="diff-remove">− ${esc(old[i])}</span>\n`;if(now[i]!==undefined)lines+=`<span class="diff-add">+ ${esc(now[i])}</span>\n`}}
- modal(`<h1>Suas alterações</h1><p>Salvar atualiza o arquivo original na sua pasta do Obsidian.</p><pre>${lines}</pre>${actions('<button class="secondary" id="back-editor">Voltar ao editor</button><button class="primary" id="save-note">Salvar</button>')}`,{family:'editor',key:'diff:'+session.path});
+ const rows=documentDiff(session.base,session.text),added=rows.filter(r=>r.kind==='add').length,removed=rows.filter(r=>r.kind==='remove').length;
+ modal(`<h1>Suas alterações</h1><div class="document-meta"><span>${esc(session.path)}</span></div><div class="diff-summary"><strong>${added||removed?'Confira antes de salvar':'Sem alterações'}</strong><span>+ ${added} adicionadas</span><span>− ${removed} removidas</span></div><div class="document-diff" role="region" aria-label="Comparação do documento" tabindex="0">${rows.map(r=>`<div class="diff-line diff-${r.kind}"><span class="diff-number" aria-label="Linha original">${r.a}</span><span class="diff-number" aria-label="Linha atual">${r.b}</span><span class="diff-marker">${r.kind==='add'?'+':r.kind==='remove'?'−':' '}</span><code>${esc(r.text)||' '}</code></div>`).join('')}</div>${actions('<button class="secondary" id="back-editor">Voltar ao editor</button><button class="primary" id="save-note">Salvar</button>')}`,{family:'editor',key:'diff:'+session.path});
  modalDirty=session.text!==session.base;$('#back-editor').onclick=()=>editNote(session.text);$('#save-note').onclick=safe(saveEditor);
 }
 function requestEditorExit(discardOnly=false,onExit=null){
- const leave=onExit||(()=>closeModal(true));
+ const leave=onExit||(()=>closeModal());
  if(!editorSession){leave();return}
  if(!modalDirty){leave();return}
  let notice=$('.editor-exit');if(notice){notice.querySelector('button')?.focus();return}
@@ -284,11 +341,11 @@ function requestEditorExit(discardOnly=false,onExit=null){
  notice.innerHTML=`<p>${discardOnly?'Descartar suas alterações?':'Há alterações que ainda não foram salvas no arquivo.'}</p><button class="secondary" id="keep-editing">Continuar editando</button>${discardOnly?'':'<button class="secondary" id="keep-draft-close">Guardar rascunho e '+(onExit?'voltar':'fechar')+'</button>'}<button class="secondary" id="confirm-discard">Descartar</button>`;
  $('.modal-body').prepend(notice);notice.scrollIntoView({block:'nearest'});
  $('#keep-editing').onclick=()=>{notice.remove();$('#editor')?.focus()};
- $('#keep-draft-close')?.addEventListener('click',safe(async()=>{const draft=editorSession;await persistEditorDraft();editorSession=null;modalDirty=false;leave();if($('#modal').open&&$('#modal').dataset.family==='reader'&&readDocument?.relative===draft.path){let recovery=$('#recover-draft');if(!recovery){const box=document.createElement('div');box.className='editor-recovery';box.innerHTML='<p>Seu rascunho continua guardado.</p><button class=secondary id=recover-draft>Retomar</button>';$('.modal-body').prepend(box);recovery=$('#recover-draft')}recovery.onclick=()=>editNote(draft.text,draft.hash)}}));
- $('#confirm-discard').onclick=safe(async()=>{clearTimeout(draftTimer);await call('discardDraft',{path:editorSession.path});editorSession=null;modalDirty=false;leave()});
+ $('#keep-draft-close')?.addEventListener('click',safe(async()=>{const draft=editorSession;await persistEditorDraft();editorSession=null;modalDirty=false;await leave();toast('Rascunho guardado neste Mac.','success');if($('#modal').open&&$('#modal').dataset.family==='reader'&&readDocument?.relative===draft.path){let recovery=$('#recover-draft');if(!recovery){const box=document.createElement('div');box.className='editor-recovery';box.innerHTML='<p>Seu rascunho continua guardado.</p><button class=secondary id=recover-draft>Retomar</button>';$('.modal-body').prepend(box);recovery=$('#recover-draft')}recovery.onclick=()=>editNote(draft.text,draft.hash)}}));
+ $('#confirm-discard').onclick=safe(async()=>{clearTimeout(draftTimer);await call('discardDraft',{path:editorSession.path});editorSession=null;modalDirty=false;await leave();toast('Alterações descartadas.','success')});
  $('#keep-editing').focus();
 }
-window.oraclePrepareToClose=async()=>{if(editorSession?.savePromise)await editorSession.savePromise;await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();return true};
+window.oraclePrepareToClose=async()=>{if(editorSession?.savePromise)await editorSession.savePromise;await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();await OracleTransitions.exitApp();return true};
 function showSetup(options={}){
  if(!window.OracleOnboarding||window.ORACLE_PREVIEW){toast('A configuração funciona no aplicativo para macOS.');return;}
  const enter=()=>{closeModal(true);OracleOnboarding.open(typeof options==='object'?options:{});};
@@ -296,39 +353,28 @@ function showSetup(options={}){
 }
 const pluginStates={connected:'Conectado',disconnected:'Desconectado',installed:'Instalado',needs_auth:'Conectar conta',unavailable:'Indisponível',missing:'Ausente',absent:'Ausente',pending:'Pendente',inactive:'Inativo',disabled:'Inativo',paused:'Pausado',running:'Em execução',error:'Erro'};
 const statusBadge=(status,label)=>OracleStatusBadge.render(status,label);
-function pluginIcon(p){const url=p.iconDataURL;return url&&/^data:image\/(png|jpeg|webp);base64,/.test(url)?`<span class="plugin-icon"><img src="${esc(url)}" alt=""></span>`:`<span class="plugin-icon plugin-fallback" aria-hidden="true">${icon('orbit')}</span>`}
-function renderPlugins(){
- const inventory=state.codexPlugins;
- $('#plugin-list').innerHTML=inventory?.plugins?.length?inventory.plugins.map((p,i)=>`<button class="plugin-row" data-plugin-index="${i}">${pluginIcon(p)}<div><strong>${esc(p.name)}</strong>${statusBadge(p.status,pluginStates[p.status]||'Não verificado')}</div></button>`).join(''):`<small>${inventory?.status==='available'?'Nenhum plugin disponível.':'Conecte o Codex para ver seus plugins.'}</small>`;
- $$('#plugin-list [data-plugin-index]').forEach(b=>b.onclick=()=>plugin(inventory.plugins[Number(b.dataset.pluginIndex)].id));
-}
-function plugin(id){
- const inventory=state.codexPlugins,p=inventory?.plugins?.find(p=>p.id===id),fromSettings=settingsTrail;
- modal(p?`<h1>${esc(p.name)}</h1><div class="plugin-row">${pluginIcon(p)}${statusBadge(p.status,pluginStates[p.status]||'Não verificado')}</div><p>${p.status==='connected'?'As ferramentas deste plugin estão disponíveis no Codex.':'Gerencie a conexão e as permissões deste plugin no Codex.'}</p><details class="source-details"><summary>Detalhes da conexão</summary><pre>${esc(JSON.stringify({checkedAt:inventory.checkedAt,kind:p.kind,evidence:p.evidence},null,2))}</pre></details>${actions('<button class="primary" id="manage-plugin">Abrir Codex</button>')}`:`<h1>Plugins</h1><p>${inventory?.status==='available'?'Seus plugins e conexões no Codex.':'Conecte o Codex para acessar seus plugins.'}</p><div id="modal-plugins"></div>${actions('<button class="primary" id="manage-plugin">Abrir Codex</button>')}`,{breadcrumb:[...(fromSettings?['Ajustes','Codex e plugins']:[]),'Plugins',...(p?[p.name]:[])],onBack:p?()=>plugin():fromSettings?()=>reviewBridge():()=>closeModal()});
- if(!p&&inventory?.plugins?.length){$('#modal-plugins').innerHTML=inventory.plugins.map((p,i)=>`<button class="plugin-row" data-plugin="${i}">${pluginIcon(p)}<div><strong>${esc(p.name)}</strong>${statusBadge(p.status,pluginStates[p.status]||'Não verificado')}</div>${icon('chevron')}</button>`).join('');$$('[data-plugin]').forEach(b=>b.onclick=()=>plugin(inventory.plugins[Number(b.dataset.plugin)].id))}
- $('#manage-plugin').onclick=safe(()=>call('openCodex'));
-}
 async function conversations(){
  if(navigationBlocked())return;
  const epoch=navigationEpoch,items=await call('conversations');if(epoch!==navigationEpoch||navigationBlocked())return;
  modal(`<h1>Conversas importadas</h1><p>Importe um arquivo Oracle Conversations v1. O histórico das suas contas não é acessado automaticamente.</p><div id="conversation-list">${items.map((c,i)=>`<button class="result" data-conversation="${i}">${icon('chat')}<div><strong>${esc(c.title)}</strong><small>${esc(c.source)}</small></div></button>`).join('')||'<p class="empty">Nenhuma conversa importada.</p>'}</div>${actions('<button class="primary" id="import-conversations">Importar conversas…</button>')}`);
- $('#import-conversations').onclick=safe(async()=>{const e=navigationEpoch;await call('importConversations');if(e===navigationEpoch)await conversations()});
- $$('[data-conversation]').forEach(e=>e.onclick=()=>{const c=items[Number(e.dataset.conversation)];modal(`<h1>${esc(c.title)}</h1><div class="source">${esc(c.source)} · conteúdo importado</div><pre>${esc(c.messages.map(m=>m.role.toUpperCase()+'\n'+m.text).join('\n\n'))}</pre>${actions()}`)});
+ $('#import-conversations').onclick=safe(async()=>{const e=navigationEpoch;const result=await call('importConversations');if(e===navigationEpoch){await conversations();if(Array.isArray(result))toast('Conversas importadas.','success')}});
+ $$('[data-conversation]').forEach(e=>e.onclick=()=>{const c=items[Number(e.dataset.conversation)];modal(`<h1>${esc(c.title)}</h1><div class="source">${esc(c.source)} · conteúdo importado</div><div class="conversation-reader">${c.messages.map(m=>`<section class="conversation-message"><strong>${m.role==='user'?'Você':'Assistente'}</strong><article class="markdown-reader">${markdown(m.text)}</article></section>`).join('')}</div>${actions()}`);bindMarkdown($('#modal-content'),'')});
 }
-async function instructions(){const revision=modalRevision;const items=await call('instructions');if(revision!==modalRevision)return;modal(`<h1>Instruções dos projetos</h1><p>Consulte as instruções dos projetos que você conectou.</p>${items.map((e,i)=>`<button class="result" data-instruction="${i}">${icon('book')}<div><strong>${esc(e.path)}</strong><small>${esc(e.source.split('/').at(-1))}</small></div></button>`).join('')||'<p class="empty">Conecte um projeto para ver suas instruções.</p>'}${actions('<button class="primary" id="add-project">Autorizar projeto…</button>')}`);$('#add-project').onclick=safe(async()=>{await call('chooseProject');await instructions()});$$('[data-instruction]').forEach(e=>e.onclick=safe(async()=>{const doc=await call('readInstruction',items[Number(e.dataset.instruction)]);modal(`<h1>Instrução encontrada</h1><div class="source">${esc(doc.path)}</div><pre>${esc(doc.text)}</pre>${actions()}`)}))}
+async function instructions(){const revision=modalRevision;const items=await call('instructions');if(revision!==modalRevision)return;modal(`<h1>Instruções dos projetos</h1><p>Consulte as instruções dos projetos que você conectou.</p>${items.map((e,i)=>`<button class="result" data-instruction="${i}">${icon('book')}<div><strong>${esc(e.path)}</strong><small>${esc(e.source.split('/').at(-1))}</small></div></button>`).join('')||'<p class="empty">Conecte um projeto para ver suas instruções.</p>'}${actions('<button class="primary" id="add-project">Autorizar projeto…</button>')}`);$('#add-project').onclick=safe(async()=>{const path=await call('chooseProject');await instructions();if(path)toast('Projeto autorizado.','success')});$$('[data-instruction]').forEach(e=>e.onclick=safe(async()=>{const doc=await call('readInstruction',items[Number(e.dataset.instruction)]);modal(`<h1>Instrução encontrada</h1><div class="source">${esc(doc.path)}</div><article class="markdown-reader">${markdown(doc.text)}</article>${actions()}`,{family:'reader'});bindMarkdown($('#modal-content'),'') }))}
 function activity(){modal(`<h1>Histórico técnico</h1><p>Hooks observam apenas caminhos suportados e confiados no Codex. Ferramentas hosted podem não emitir todos os eventos. Stop encerra um turno; silêncio não prova ociosidade, sucesso ou falha.</p><span class="pill">${state.events.filter(e=>e.source==='codex-hook').length} hooks recebidos</span><span class="pill">Sem observação total</span><pre>${esc(state.events.slice(-50).map(e=>`${e.received_at} · ${e.source}\n${e.event_type}: ${e.sanitized_summary}`).join('\n\n')||'Nenhum recibo recebido. A integração não foi comprovada nesta instalação.')}</pre>${actions('<button class="secondary" id="journal-replay">Reproduzir histórico</button>')}`);$('#journal-replay').onclick=safe(startJournal)}
 const libraryHooks={state:()=>state,esc,icon,modal,epoch:()=>navigationEpoch,blocked:navigationBlocked,refresh,rescan:refreshVault,toast,call,openNote:safe(openNote),bindMarkdown};
 const promptBrowser=new OracleLibrary.Library({id:'prompt',family:'prompts',root:promptRoot,title:'Biblioteca de prompts',all:'Todos os prompts',description:'Prompts Markdown no seu vault. A prévia lê o arquivo original.',trigger:'#prompts'},libraryHooks);
+const libraryGallery=new OracleLibraryGallery($('#library-page'),{...libraryHooks,rescan:refresh,readImage:async(reference,source)=>{const image=await call('readLibraryImage',{reference,source});return /^data:image\/png;base64,[a-z\d+/=]+$/i.test(image.dataURL||'')&&image.dataURL.length<6_000_000?image.dataURL:''},onGraph:()=>setView('map')});
 const tutorialBrowser=new OracleLibrary.Library({id:'tutorial',family:'tutorials',root:tutorialRoot,title:'Tutoriais',all:'Todos os tutoriais',description:'Tutoriais Markdown nas pastas reais do seu vault.',trigger:'#tutorials'},libraryHooks);
 function promptData(){return promptBrowser.data()}
 function tutorialData(){return tutorialBrowser.data()}
-function promptLibrary(){return promptBrowser.open()}
-function tutorialsLibrary(){return tutorialBrowser.open()}
+function promptLibrary(){return setView('prompts')}
+function tutorialsLibrary(){return setView('tutorials')}
 function renderPromptLibrary(){return promptBrowser.render()}
 function renderTutorialLibrary(){return tutorialBrowser.render()}
 function selectPrompt(path){return promptBrowser.select(path)}
 function selectTutorial(path){return tutorialBrowser.select(path)}
-function openPromptFromOrbit(path){return promptBrowser.open(path)}
+function openPromptFromOrbit(path){return setView('prompts',()=>libraryGallery.openDocument(path))}
 function departmentSettings(){
  const catalog=departmentCatalog();
  modal(`<h1>Organizar departamentos</h1><p>A organização usa os mesmos departamentos do mapa. Os arquivos permanecem nas pastas originais.</p><div class="department-settings">${catalog.specialists.map(c=>`<label class="department-setting"><span>${esc(c.name)}</span><select data-department-choice="${esc(c.id)}">${catalog.departments.map(d=>`<option value="${esc(d.id)}" ${c.department===d.id?'selected':''}>${esc(d.name)}</option>`).join('')}</select></label>`).join('')||'<p class="empty">Nenhum especialista encontrado nesta fonte.</p>'}</div>${actions('<button class="primary" id="save-departments">Salvar organização</button>')}`);
@@ -353,15 +399,9 @@ function settings(){
  modal(`<h1>Ajustes do Oracle</h1>
  <section class="settings-section"><h2>Seu Oracle</h2><div class="setting-group">
  ${row('restart-setup','Configurar Oracle','Identidade, instalação local e pasta do Obsidian')}
- ${row('manage-departments','Organizar departamentos','Agrupamento visual; os arquivos não serão movidos')}
  ${row('gbrain-memory','Consultar memória','Encontrar notas e suas conexões')}
- ${row('gbrain-connect','Conectar Second Brain','Usar uma instalação que você já possui')}
- ${row('gbrain-review','Revisar contexto','Conferir as informações sobre você')}
- ${row('maintenance-settings','Sincronização e manutenção','Índice local, consentimento e último resultado')}
- ${row('backup-settings','Backup privado do banco','Consentimento, integridade e restauração de teste')}
  </div></section>
- <section class="settings-section"><h2>Conexões e privacidade</h2><div class="setting-group">
- ${row('bridge-review','Codex e plugins','Ver e gerenciar suas conexões')}
+ <section class="settings-section"><h2>Privacidade</h2><div class="setting-group">
  ${row('protect-settings','Bloqueio',state.config.protected?'Touch ID ou senha do Mac ativados':'Ativar Touch ID ou senha do Mac','lock')}
  ${row('revoke','Desconectar pastas','Interromper o acesso do Oracle aos documentos')}
  </div></section>
@@ -373,16 +413,14 @@ function settings(){
  <details class="source-details"><summary>Avançado</summary><div class="setting-group">
  ${row('graphics-diagnostics','Desempenho do mapa','Medidas desta janela')}
  ${row('activity-settings','Histórico técnico','Consultar registros de atividade')}
- </div><div class="source">${window.ORACLE_PREVIEW||state.config.fixture?'Ambiente de validação · dados sintéticos':'Instalação local'}<br>Pasta: ${esc(state.config.vault||'Não selecionada')}<br>${esc(buildDescription())}</div></details>${actions()}`,{family:'settings'});
- $('#restart-setup').onclick=()=>showSetup({fromSettings:true});$('#manage-departments').onclick=departmentSettings;
+ </div><div class="source">${window.ORACLE_PREVIEW||state.config.fixture?'Ambiente de validação · dados sintéticos':'Instalação local'}<br>Pasta: ${esc(state.config.vault||'Não selecionada')}<br>${esc(buildDescription())}</div></details>${actions()}`,{family:'settings',footer:false,root:true});
+ $('#restart-setup').onclick=()=>showSetup({fromSettings:true});
  $('#catalog-settings')?.addEventListener('click',safe(catalogSettings));
- $('#gbrain-memory').onclick=safe(memory);$('#gbrain-review').onclick=safe(reviewGBrain);$('#bridge-review').onclick=safe(reviewBridge);
- $('#maintenance-settings').onclick=safe(maintenanceSettings);$('#backup-settings').onclick=safe(backupSettings);
+ $('#gbrain-memory').onclick=safe(memory);
  $('#graphics-diagnostics').onclick=graphicsDiagnostics;$('#activity-settings').onclick=activity;$('#updates-settings').onclick=safe(()=>showUpdates(false));
- $('#export-view').onclick=safe(async()=>{closeModal();const path=await call('exportSnapshot');if(path)toast('Imagem salva.')});
- $('#gbrain-connect').onclick=safe(async()=>{await call('chooseGBrain');await refresh();settings()});
+ $('#export-view').onclick=safe(async()=>{await closeModal();const path=await call('exportSnapshot');if(path)toast('Imagem salva.')});
  $('#protect-settings').onclick=safe(async()=>{await call('protect');await refresh();settings();toast('Bloqueio ativado')});
- $('#revoke').onclick=()=>{modal(`<h1>Desconectar pastas?</h1><p>O Oracle deixará de acessar seus documentos. Os arquivos continuam no Obsidian e você pode conectar a pasta novamente.</p>${actions('<button class="secondary" id="revoke-cancel">Voltar</button><button class="primary" id="confirm-revoke">Desconectar</button>')}`);$('#revoke-cancel').onclick=settings;$('#confirm-revoke').onclick=safe(async()=>{await call('revoke');live();selected=null;selectedSkill=null;query='';await refresh();settings()})};
+ $('#revoke').onclick=()=>{modal(`<h1>Desconectar pastas?</h1><p>O Oracle deixará de acessar seus documentos. Os arquivos continuam no Obsidian e você pode conectar a pasta novamente.</p>${actions('<button class="secondary" id="revoke-cancel">Voltar</button><button class="primary" id="confirm-revoke">Desconectar</button>')}`);$('#revoke-cancel').onclick=settings;$('#confirm-revoke').onclick=safe(async()=>{await call('revoke');live();selected=null;selectedSkill=null;query='';await refresh();settings();toast('Pastas desconectadas.','success')})};
 }
 async function maintenanceSettings(){
  const value=await call('maintenanceStatus'),sync=state.gbrainSync||{},last=value.lastRun?.lastSuccess;
@@ -453,16 +491,22 @@ async function startJournal(){
  const data=await call('replayData');if(!data.events?.length)throw Error('Nenhum histórico de instalação disponível.');
  clearInterval(timer);timer=null;replaySession={...data,kind:'journal'};cursor=0;replay=true;closeModal();projectReplay();
 }
-$('#search').onclick=()=>openSearch();$('#refresh').onclick=safe(refreshVault);$('#settings').onclick=settings;$('#prompts').onclick=safe(promptLibrary);$('#tutorials').onclick=safe(tutorialsLibrary);
-$('#tools').onclick=()=>plugin();$('#conversations').onclick=safe(conversations);$('#instructions').onclick=safe(instructions);
+$('#search').onclick=()=>openSearch();$('#refresh').onclick=safe(async()=>{await refreshVault();toast('Pasta relida.','success')});$('#settings').onclick=settings;
 $('#density').oninput=renderAtlas;$('#motion').checked=matchMedia('(prefers-reduced-motion: reduce)').matches;
 $('#motion').onchange=safe(()=>saveVisualPreference('reduceMotion',$('#motion').checked));
 $('#timeline').oninput=safe(scrub);$('#play').onclick=safe(play);$('#live').onclick=live;
 $('#speed').onclick=()=>{speed=speed===4?1:speed*2;$('#speed').textContent=speed+'×';atlasController?.setFormation({rate:speed});if(timer){clearInterval(timer);timer=null;play()}renderPlayback()};
-$('.wordmark').onclick=e=>{e.preventDefault();setView('map');renderAtlas();atlasController?.select(null);atlasController?.fit()};
+$('.wordmark').onclick=e=>{e.preventDefault();setView('map',()=>{renderAtlas();atlasController?.select(null);atlasController?.fit()})};
 $('#updates').onclick=safe(()=>showUpdates(false));
 function setZoom(factor){atlasController?.zoomAt(factor)}$('#zoom-in').onclick=()=>setZoom(1.2);$('#zoom-out').onclick=()=>setZoom(1/1.2);$('#zoom-reset').onclick=()=>atlasController?.fit();$('#context-back').onclick=()=>atlasController?.back();$('#reset-layout').onclick=()=>{atlasController?.reset();toast('Posições restauradas. Nenhum arquivo foi movido.')};$('#economy').onchange=safe(()=>saveVisualPreference('economy',$('#economy').checked));
 window.oracleLock=()=>{
+ startupUpdateReady=false;latestUpdateStatus=null;
+ clearTimeout(toast.timer);toast.revision=(toast.revision||0)+1;const notice=$('#toast');if(typeof notice.hidePopover==='function'&&notice.matches(':popover-open'))notice.hidePopover();notice.hidden=true;notice.replaceChildren();document.body.append(notice);hideTooltip();
+ OracleTransitions.reset();
+ $('#app').dataset.startup='pending';
+ libraryGallery.reset();view='map';document.body.classList.remove('library-view');$('#library-page').hidden=true;$('#graph-page').hidden=false;$('#navigation-toggle').disabled=false;$('#replay-toggle').disabled=false;$$('.workspace-tabs [data-workspace]').forEach(b=>{b.setAttribute('aria-selected',String(b.dataset.workspace==='map'));b.tabIndex=b.dataset.workspace==='map'?0:-1});
+ $('#atlas').hidden=false;$('#results').hidden=true;$('.map-tools').hidden=false;
+ OracleTransitions.indicator();
  window.OracleOnboarding?.suspend();OracleInstallationVisual.reset();refreshSequence++;navigationEpoch++;noteReadSequence++;refreshTask=null;
  memoryEpoch++;memoryPollTask=null;lastMemorySignature='';visualPending={};
  clearTimeout(initialScanTimer);initialScanRetries=0;clearTimeout(updatePolling);
@@ -472,10 +516,10 @@ window.oracleLock=()=>{
  $('#tree').oracleHTML=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null;
 };
 $('#lock').onclick=safe(async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();if(!window.ORACLE_PREVIEW)await call('lock');else window.oracleLock();});
-$('#unlock').onclick=safe(async()=>{const allowed=await call('unlock');if(!allowed)return;$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();await mountOnboarding();});
+$('#unlock').onclick=safe(async()=>{const allowed=await call('unlock');if(!allowed)return;$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();void OracleTransitions.enterApp();if(view==='map')atlasController?.revealGraph();await mountOnboarding();finishUpdateStartup();});
 // Deterministic ambient dust; it never represents an agent or event.
 for(let i=0;i<46;i++){const e=document.createElement('i');e.className='star';e.style.cssText=`left:${(Math.sin(i*12.9898)*43758.5453%1+1)%1*100}%;top:${(Math.sin(i*78.233)*12731.7%1+1)%1*100}%;width:${i%7===0?2:1}px;height:${i%7===0?2:1}px;opacity:${i%5/18+.04}`;$('#galaxy').append(e)}
-call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked)window.oracleLock();else{await refresh();$('#app').inert=false;await mountOnboarding()}}).catch(e=>{if($('#lock-screen').hidden)$('#app').inert=false;toast(e.message)});
+call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked){window.oracleLock();void OracleTransitions.content($('.lock-card'));}else{await refresh();$('#app').inert=false;void OracleTransitions.enterApp();if(view==='map')atlasController?.revealGraph();await mountOnboarding();finishUpdateStartup()}}).catch(e=>{if($('#lock-screen').hidden){$('#app').inert=false;void OracleTransitions.enterApp();}toast(e.message)});
 setInterval(()=>{if(!$('#lock-screen').hidden||document.hidden)return;call('events').then(events=>{if(events.at(-1)?.event_id!==state.events.at(-1)?.event_id){state.events=events;renderProgress();renderAtlas();if(events.at(-1)?.phase&&!$('#modal').open)safe(refresh)()}}).catch(()=>{})},2500);
 setInterval(()=>{if($('#lock-screen').hidden&&!document.hidden&&!$('#modal').open)safe(refresh)()},30000);
 setInterval(()=>{void pollMemoryStatus();},1800);
@@ -484,7 +528,7 @@ async function memory(){
  if(navigationBlocked())return;
  modal('<h1>Memória</h1><p>Conectando à sua biblioteca…</p>'+actions());
  const revision=modalRevision,epoch=navigationEpoch;let status;
- try{status=await call('gbrainRead',{operation:'status'});}catch(error){if(epoch!==navigationEpoch)return;modal(`<h1>Memória indisponível</h1><p role="alert">${esc(error.message)}</p>${actions('<button class="secondary" id="memory-retry">Tentar novamente</button>')}`);$('#memory-retry').onclick=safe(memory);return;}
+ try{status=await call('gbrainRead',{operation:'status'});}catch(error){if(epoch!==navigationEpoch)return;modal(`<h1>Memória indisponível</h1><p role="alert">${esc(error.message)}</p>${actions('<button class="secondary" id="memory-retry">Tentar novamente</button>')}`,{key:'Memória'});$('#memory-retry').onclick=safe(memory);return;}
  if(epoch!==navigationEpoch||revision!==modalRevision||!$('#modal').open)return;
  modal(`<span class="step-label">${window.ORACLE_PREVIEW?'MEMÓRIA / DADOS SINTÉTICOS':'MEMÓRIA / GBRAIN OFICIAL '+esc(status.version)}</span><h1>Memória</h1><p>Encontre suas notas e acompanhe suas conexões.</p><label class="field">Biblioteca<select id="memory-source">${status.sources.map(s=>`<option value="${esc(s.id)}">${esc(({default:'Geral','oracle-memory':'Memória do Oracle','oracle-vault':'Obsidian'})[s.id]||s.name||s.id)}</option>`).join('')}</select></label><label class="search"><input id="memory-query" placeholder="Buscar na memória" aria-label="Buscar na memória"></label><div id="memory-results"></div>${actions('<button class="primary" id="memory-search">Buscar</button>')}`);
  if(status.sources.some(s=>s.id==='oracle-vault'))$('#memory-source').value='oracle-vault';
@@ -531,7 +575,7 @@ function renderSkillInspector(){const path=selectedSkill,name=path.split('/').sl
 
 function graphicsDiagnostics(){modal(`<h1>Diagnóstico do atlas</h1><p>Medidas desta janela, sem estimar tempo de GPU. O movimento ambiental é separado de execução real do Codex.</p><pre>${esc(JSON.stringify(atlasController?.diagnostics()||{renderer:'SVG fallback',reason:atlasController?.renderError},null,2))}</pre>${actions()}`)}
 
-window.oracleVisibility=visible=>{window.oracleWindowVisible=visible;atlasController?.setPaused(!visible||view!=='map'||visualPaused||$('#modal').open);document.body.classList.toggle('window-hidden',!visible)};
+window.oracleVisibility=visible=>{window.oracleWindowVisible=visible;atlasController?.setPaused(!visible||view!=='map'||visualPaused||$('#modal').open);document.body.classList.toggle('window-hidden',!visible);if(visible)maybeShowStartupUpdateNotice()};
 
 $('#ambient-toggle').onclick=()=>{visualPaused=!visualPaused;$('#ambient-toggle').textContent=visualPaused?'Retomar atmosfera':'Pausar atmosfera';atlasController?.setPaused(visualPaused||document.hidden||view!=='map')};
 
@@ -566,8 +610,8 @@ function setupContinuation(){modal(`<h1>Continuar sua configuração</h1><p>O pl
 
 async function reviewBridge(){
  const connected=state.codexPlugins?.status==='available';
- modal(`<h1>Codex e plugins</h1>${statusBadge(connected?'connected':'unverified',connected?'Conectado':'Conexão não verificada')}<p>A conexão é opcional para tarefas remotas. A instalação, consulta e edição locais permanecem disponíveis offline.</p>${actions('<button class="secondary" id="bridge-plugins">Ver plugins</button><button class="secondary" id="bridge-codex">Abrir Codex</button><button class="primary" id="bridge-connect">Conexão e modelo</button>')}`);
- $('#bridge-plugins').onclick=()=>plugin();$('#bridge-codex').onclick=safe(()=>call('openCodex'));$('#bridge-connect').onclick=()=>showSetup({fromSettings:true,connection:true});
+ modal(`<h1>Conexão Codex</h1>${statusBadge(connected?'connected':'unverified',connected?'Conectado':'Conexão não verificada')}<p>A conexão é opcional para tarefas remotas. A instalação, consulta e edição locais permanecem disponíveis offline.</p>${actions('<button class="secondary" id="bridge-codex">Abrir Codex</button><button class="primary" id="bridge-connect">Conexão e modelo</button>')}`);
+ $('#bridge-codex').onclick=safe(()=>call('openCodex'));$('#bridge-connect').onclick=()=>showSetup({fromSettings:true,connection:true});
 }
 
 // One search surface serves the launcher, collection navigation and wiki links.
@@ -602,10 +646,10 @@ function openSearch(initial='',scope={}){
 }
 
 let tooltipTarget=null,tooltipTimer=null;
-function hideTooltip(){clearTimeout(tooltipTimer);if(tooltipTarget){tooltipTarget.removeAttribute('aria-describedby');tooltipTarget=null}$('#tooltip').hidden=true}
+function hideTooltip(){clearTimeout(tooltipTimer);if(tooltipTarget){tooltipTarget.removeAttribute('aria-describedby');tooltipTarget=null}const tooltip=$('#tooltip');if(typeof tooltip.hidePopover==='function'&&tooltip.matches(':popover-open'))tooltip.hidePopover();tooltip.hidden=true}
 function showTooltip(target,immediate=false){
- if(!target?.dataset.tooltip||target.disabled)return;hideTooltip();tooltipTarget=target;
- const reveal=()=>{if(!target.isConnected)return;const tooltip=$('#tooltip');tooltip.textContent=target.dataset.tooltip;tooltip.hidden=false;target.setAttribute('aria-describedby','tooltip');const r=target.getBoundingClientRect(),t=tooltip.getBoundingClientRect();tooltip.style.left=Math.max(12,Math.min(innerWidth-t.width-12,r.left+r.width/2-t.width/2))+'px';tooltip.style.top=(r.bottom+t.height+14>innerHeight?r.top-t.height-10:r.bottom+10)+'px'};
+ if(!target?.dataset.tooltip||target.disabled||target.closest('#atlas'))return;hideTooltip();tooltipTarget=target;
+ const reveal=()=>{if(!target.isConnected)return;const tooltip=$('#tooltip');tooltip.textContent=target.dataset.tooltip;tooltip.hidden=false;if(typeof tooltip.showPopover==='function'){tooltip.setAttribute('popover','manual');tooltip.showPopover()}target.setAttribute('aria-describedby','tooltip');const r=target.getBoundingClientRect(),t=tooltip.getBoundingClientRect();tooltip.style.left=Math.max(12,Math.min(innerWidth-t.width-12,r.left+r.width/2-t.width/2))+'px';tooltip.style.top=(r.bottom+t.height+14>innerHeight?r.top-t.height-10:r.bottom+10)+'px'};
  if(immediate)reveal();else tooltipTimer=setTimeout(reveal,500);
 }
 // Tooltips live in the top layer when a modal is open, so dialog controls work too.
@@ -631,16 +675,34 @@ document.addEventListener('keydown',e=>{
 let updatePolling=null,updateBusy=false;
 const updateNames={gbrain:'GBrain oficial',cognee:'Integração não adotada',skills:'Skills'};
 const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',external:'Instalação existente',compatibility_required:'Aguardando validação',not_adopted:'Não adotado',not_configured:'Fonte não configurada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
+let startupUpdateReady=false,startupUpdateNoticeShown=false,latestUpdateStatus=null;
+function maybeShowStartupUpdateNotice(){
+ if(!startupUpdateReady||startupUpdateNoticeShown||!latestUpdateStatus?.available||latestUpdateStatus.busy||updateBusy||document.hidden||window.oracleWindowVisible===false||$('#app').inert||navigationBlocked()||$('#modal').open)return;
+ const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
+ if(!onboarding.hasVault||(!onboarding.licensed&&!onboarding.legacyAccess)||(!onboarding.legacyAccess&&onboarding.status!=='completed')||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
+ if(!modal(`<h1>Atualização disponível</h1><p>Há uma atualização pronta para o seu Oracle.</p><p>Abra Atualizações para revisar as novidades e instalar quando preferir.</p>${actions('<button class="secondary" id="update-notice-later">Agora não</button><button class="primary" id="update-notice-open">Ver atualização</button>')}`,{family:'update-notice',root:true}))return;
+ startupUpdateNoticeShown=true;
+ $('#update-notice-later').onclick=()=>closeModal();
+ $('#update-notice-open').onclick=safe(()=>showUpdates());
+}
+function finishUpdateStartup(){
+ startupUpdateReady=true;
+ // Start the read-only check before the notice opens its dialog.
+ if(latestUpdateStatus)maybeAutomaticUpdateCheck(latestUpdateStatus);
+ maybeShowStartupUpdateNotice();
+}
 function reflectUpdateStatus(status){
- updateBusy=!!status.busy;$('#updates').classList.toggle('busy',updateBusy);
+ latestUpdateStatus=status;updateBusy=!!status.busy;$('#updates').classList.toggle('busy',updateBusy);
+ $('#updates').classList.toggle('update-ready',!!status.available);
  const pending=!!status.knownUpdate||!!status.available;
  const age=Date.now()-Date.parse(status.checkedAt||status.at||'');
  const recent=Number.isFinite(age)&&age>=-300000&&age<86400000;
  $('#updates').classList.toggle('available',pending);
  $('#updates').classList.toggle('stale',pending&&!recent);
  const label=updateBusy?(pending?'Atualizações — verificando; atualização conhecida':'Atualizações — verificando'):
-  pending?(recent?'Atualizações — atualização disponível':'Atualizações — atualização conhecida; verificar novamente'):'Atualizações';
+  pending?(status.available?(recent?'Atualizações — atualização disponível':'Atualizações — atualização conhecida; verificar novamente'):'Atualizações — nova versão aguardando compatibilidade'):'Atualizações';
  $('#updates').setAttribute('aria-label',label);$('#updates').dataset.tooltip=label;
+ maybeShowStartupUpdateNotice();
 }
 let automaticUpdateAttempt=0,automaticUpdateFailures=0;
 function maybeAutomaticUpdateCheck(status){
@@ -649,7 +711,7 @@ function maybeAutomaticUpdateCheck(status){
  if(!onboarding||!onboarding.hasVault||(!onboarding.legacyAccess&&onboarding.status!=='completed')||(!onboarding.licensed&&!onboarding.legacyAccess)||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
  const now=Date.now(),checked=Date.parse(status.checkedAt||(status.phase==='complete'?status.at:'')||'');
  const hasError=status.phase==='failed'||status.results?.some(r=>r.status==='error');
- if(!hasError&&Number.isFinite(checked)&&now-checked>=0&&now-checked<6*3600000)return;
+ if(automaticUpdateAttempt&&!hasError&&Number.isFinite(checked)&&now-checked>=0&&now-checked<6*3600000)return;
  const delay=Math.min(3600000,300000*2**Math.min(automaticUpdateFailures,4));
  if(automaticUpdateAttempt&&now-automaticUpdateAttempt<delay)return;
  automaticUpdateAttempt=now;updateBusy=true;
@@ -671,9 +733,10 @@ function updateResultRows(status){
  return (displayed.size?[...displayed.values()]:[{id:'gbrain',status:'not_checked',version:status.gbrain_version},{id:'skills',status:'not_checked'}]).filter(row=>row.status!=='not_adopted');
 }
 async function showUpdates(operation=null){
+ startupUpdateNoticeShown=true;
  if(operation===true)operation='check-apply';if(operation===false)operation=null;
  if(operation){await call('updateStart',{operation});updateBusy=true}
- modal(`<h1>Atualizações</h1><p>Verifica as fontes e instala atualizações compatíveis, preservando suas personalizações.</p><div class="update-status" role="status" aria-live="polite"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso das atualizações"></progress></div><div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="primary" id="check-updates">Verificar</button><button class="secondary" id="apply-updates" hidden>Instalar atualização</button>')}`,{family:'updates'});
+ modal(`<h1>Atualizações</h1><p>Verifica as fontes e instala atualizações compatíveis, preservando suas personalizações.</p><div class="update-status" role="status" aria-live="polite"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso das atualizações"></progress></div><div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="primary" id="check-updates">Verificar</button><button class="secondary" id="apply-updates" hidden>Instalar atualização</button>')}`,{family:'updates',root:true});
  const revision=modalRevision;
  $('#check-updates').onclick=safe(()=>showUpdates('check-apply'));$('#apply-updates').onclick=safe(()=>showUpdates('check-apply'));
  const poll=async()=>{
@@ -698,21 +761,21 @@ async function showUpdates(operation=null){
 // Panels expand from their own controls. The stage's ResizeObserver preserves camera scale.
 let autoHiddenNavigation=false;
 function toggleObservatory(open=!document.body.classList.contains('observatory-open')){
- if(open&&!document.body.classList.contains('observatory-open'))$('#observatory-plugins').open=false;
+ if(open&&!document.body.classList.contains('observatory-open'))$('#observatory-plugins')?.removeAttribute('open');
  if(open&&innerWidth<=1050&&!document.body.classList.contains('navigation-closed')){autoHiddenNavigation=true;toggleNavigation(false)}
- document.body.classList.toggle('observatory-open',open);$('#observatory-panel').hidden=!open;$('#observatory-toggle').setAttribute('aria-expanded',String(open));
- if(!open){if(autoHiddenNavigation){autoHiddenNavigation=false;toggleNavigation(true)}$('#observatory-toggle').focus({preventScroll:true})}
+ document.body.classList.toggle('observatory-open',open);$('#observatory-panel').hidden=!open;
+ if(!open){if(autoHiddenNavigation){autoHiddenNavigation=false;toggleNavigation(true)}($('#atlas [aria-pressed="true"]')||$('#navigation-toggle')).focus({preventScroll:true})}
 }
 function toggleNavigation(open=document.body.classList.contains('navigation-closed')){
  document.body.classList.toggle('navigation-closed',!open);$('#navigation-toggle').setAttribute('aria-expanded',String(open));
  if(open&&innerWidth<=1050&&document.body.classList.contains('observatory-open'))toggleObservatory(false);
 }
 function toggleReplayPanel(open=$('#replay-panel').hidden){$('#replay-panel').hidden=!open;$('#replay-toggle').setAttribute('aria-expanded',String(open));if(!open)$('#replay-toggle').focus({preventScroll:true})}
-$('#observatory-toggle').onclick=()=>toggleObservatory();$('#observatory-close').onclick=()=>toggleObservatory(false);
+$('#observatory-close').onclick=()=>toggleObservatory(false);
 $('#navigation-toggle').onclick=()=>toggleNavigation();$('#replay-toggle').onclick=()=>toggleReplayPanel();
 $('#replay-restart').onclick=safe(async()=>{live();await ensureReplay();atlasController.setFormation({progress:0,playing:true,duration:12000,rate:speed});renderPlayback()});
 $('#atlas').addEventListener('oracle:formation',()=>{if(replay&&replaySession?.kind==='formation')renderPlayback()});
-$('#plugins-refresh').onclick=safe(async()=>{await call('codexPluginsRefresh');await refresh()});
+
 const systemVisual={reduceMotion:matchMedia('(prefers-reduced-motion: reduce)').matches,reduceTransparency:matchMedia('(prefers-reduced-transparency: reduce)').matches};
 let visualPending={},visualWrites=Promise.resolve(),visualRevision=0;
 function applyVisualPreferences(redraw=true){
@@ -723,6 +786,7 @@ function applyVisualPreferences(redraw=true){
   control.title=forced?'Definido pelas opções de acessibilidade do macOS':'';
  }
  document.body.classList.toggle('reduced',$('#motion').checked);document.body.classList.toggle('reduce-transparency',$('#transparency').checked);
+ if($('#motion').checked)OracleTransitions.finish();
  if(redraw&&atlasController)renderAtlas();
 }
 async function saveVisualPreference(key,value){
@@ -732,7 +796,7 @@ async function saveVisualPreference(key,value){
   if(window.ORACLE_PREVIEW)return {...state.config.visualPreferences,[key]:!!value};
   return call('saveVisualPreferences',{[key]:!!value});
  });visualWrites=task;
- try{const saved=await task;if(epoch===memoryEpoch){state.config.visualPreferences={...state.config.visualPreferences,...saved};}}
+ try{const saved=await task;if(epoch===memoryEpoch){state.config.visualPreferences={...state.config.visualPreferences,...saved};toast('Preferência salva.','success')}}
  finally{if(epoch===memoryEpoch&&visualPending[key]?.revision===revision){delete visualPending[key];applyVisualPreferences();}}
 }
 function applyAccessibility(value={}){
@@ -762,7 +826,10 @@ function syncFloatingSurfaces(){
  const installationCard=document.querySelector('.ob-progress-card');
  document.body.classList.toggle('has-installation-progress',!!installationCard&&!installationCard.hidden);
  atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused||anyModal);
+ if(!anyModal)maybeShowStartupUpdateNotice();
 }
+document.addEventListener('visibilitychange',maybeShowStartupUpdateNotice);
+document.addEventListener('close',()=>queueMicrotask(maybeShowStartupUpdateNotice),true);
 const floatingSurfaceObserver=new MutationObserver(records=>{if(records.some(r=>r.target instanceof Element&&(r.target.matches('dialog,.ob-progress-card')||r.type==='childList'&&[...r.addedNodes].some(n=>n instanceof Element&&n.matches('.oracle-onboarding')))))syncFloatingSurfaces()});
 floatingSurfaceObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['open','hidden'],childList:true});
 
@@ -779,3 +846,13 @@ async function backupSettings(){
   $('#backup-restore-confirm').onclick=safe(async()=>{await call('backupRestore',{id,confirmed:true});await backupSettings();toast('Restauração de teste verificada em estado novo. O banco ativo foi preservado.')});
  };
 }
+
+function openKnowledgeHub(){
+ if(navigationBlocked())return;
+ return window.OracleKnowledgeHub.open({modal,entries:state.entries,call,openNote:safe(openNote),memoryPage:safe(memoryPage),conversations:safe(conversations),esc,icon});
+}
+
+$$('.workspace-tabs [data-workspace]').forEach((button,index)=>{
+ button.onclick=()=>setView(button.dataset.workspace);
+ button.onkeydown=event=>{const buttons=$$('.workspace-tabs [data-workspace]');let next;if(event.key==='ArrowRight')next=(index+1)%buttons.length;if(event.key==='ArrowLeft')next=(index+buttons.length-1)%buttons.length;if(event.key==='Home')next=0;if(event.key==='End')next=buttons.length-1;if(next!==undefined){event.preventDefault();if(setView(buttons[next].dataset.workspace))buttons[next].focus()}};
+});

@@ -9,18 +9,21 @@
   <link rel="stylesheet" href="atlas-motion.css">
 <link rel="stylesheet" href="onboarding.css">
 <link rel="stylesheet" href="audit.css">
+<link rel="stylesheet" href="orbital-v3.css">
 </head>
 <body>
-<div id="app" inert>
+<svg width="0" height="0" aria-hidden="true" style="position:absolute;pointer-events:none"><defs><filter id="metallic-background-alpha" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  16 16 16 0 -0.15"/></filter></defs></svg>
+<div id="app" data-startup="pending" inert>
   <div id="installation-progress" class="installation-progress" role="progressbar" aria-label="Instalação do Second Brain" hidden><div id="progress-fill"></div></div>
   <header class="app-header">
-    <a class="wordmark" href="#" aria-label="Oracle, enquadrar meu universo"><img class="brand-lockup" src="brand/lockup-white.svg" alt="Oracle"></a>
+    <a class="wordmark" href="#" aria-label="Oracle, enquadrar meu universo"><span class="brand-lockup metallic-lockup" role="img" aria-label="Oracle"><img class="metallic-symbol" src="brand/oracle-planet-chrome-v1.png" alt=""><img class="metallic-wordmark" src="brand/lockup-white.svg" alt=""></span></a>
     <div class="header-actions">
+      <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Oracle"><button id="workspace-graph" role="tab" aria-selected="true" aria-controls="graph-page" data-workspace="map" tabindex="0">Graph</button><button id="workspace-tutorials" role="tab" aria-selected="false" aria-controls="library-page" data-workspace="tutorials" tabindex="-1">Tutoriais</button><button id="workspace-prompts" role="tab" aria-selected="false" aria-controls="library-page" data-workspace="prompts" tabindex="-1">Prompts</button></nav>
       <button id="navigation-toggle" class="icon-button" aria-label="Meu universo" aria-controls="navigation-panel" aria-expanded="true" data-tooltip="Meu universo"><span data-icon="sidebar"></span></button>
       <button id="replay-toggle" class="icon-button" aria-label="Timelapse" aria-controls="replay-panel" aria-expanded="false" data-tooltip="Timelapse"><span data-icon="history"></span></button>
-      <button id="observatory-toggle" class="icon-button" aria-label="Observatório" aria-controls="observatory-panel" aria-expanded="false" data-tooltip="Observatório"><span data-icon="observatory"></span></button>
-      <button id="prompts" class="icon-button" aria-label="Biblioteca de prompts" aria-controls="modal" aria-haspopup="dialog" aria-expanded="false" data-tooltip="Biblioteca de prompts"><span data-icon="prompts"></span></button>
-      <button id="tutorials" class="tutorials-button" aria-label="Tutoriais" aria-controls="modal" aria-haspopup="dialog" aria-expanded="false" data-tooltip="Tutoriais"><span data-icon="book"></span></button>
+
+
+
       <div id="replay-panel" class="replay-controls floating-surface" role="group" aria-label="Timelapse" hidden>
         <button id="play" class="icon-button" aria-label="Iniciar timelapse" data-tooltip="Iniciar timelapse · formação do universo"><span data-icon="play"></span></button>
         <span id="replay-label" class="live-label">Ao vivo</span>
@@ -37,41 +40,28 @@
   <main>
     <div id="galaxy" aria-hidden="true"></div>
     <aside id="navigation-panel" class="panel left" aria-label="Navegação do universo">
-      <div class="navigation-toolbar">
-        <button id="search" class="search-trigger" aria-haspopup="dialog" aria-label="Buscar no universo" data-tooltip="Buscar notas e skills · ⌘K"><span data-icon="search"></span><span>Buscar no universo</span><kbd>⌘ K</kbd></button>
-        <button id="refresh" class="icon-button" aria-label="Reler pasta" data-tooltip="Reler os arquivos da pasta"><span data-icon="refresh"></span></button>
-      </div>
+      <div class="navigation-heading"><button id="search" class="search-trigger" aria-haspopup="dialog" aria-label="Buscar no universo" data-tooltip="Buscar notas e skills · ⌘K"><span data-icon="search"></span><span>Buscar no universo</span></button><button id="refresh" class="icon-button" aria-label="Reler pasta" data-tooltip="Reler os arquivos da pasta"><span data-icon="refresh"></span></button></div>
       <div id="tree" class="tree"></div>
-      <div class="side-bottom">
-        <button id="conversations"><span data-icon="chat"></span>Conversas importadas</button>
-        <button id="instructions"><span data-icon="book"></span>Instruções dos projetos</button>
-        <button id="tools"><span data-icon="tool"></span>Ferramentas</button>
-      </div>
     </aside>
-    <section class="stage" aria-label="Atlas do conhecimento">
+    <section id="graph-page" class="stage" role="tabpanel" aria-labelledby="workspace-graph" aria-label="Atlas do conhecimento">
       <div id="atlas"></div>
       <div id="results" hidden></div>
       <div class="map-tools" role="group" aria-label="Navegação do atlas">
-        <button id="zoom-out" aria-label="Zoom fixo em 118%" disabled hidden>−</button>
-        <span id="zoom-label" aria-label="Zoom fixo em 118%">118%</span>
-        <button id="zoom-in" aria-label="Zoom fixo em 118%" disabled hidden>+</button>
+        <button id="zoom-out" aria-label="Zoom fixo em 120%" disabled hidden>−</button>
+        <span id="zoom-label" aria-label="Zoom fixo em 120%">120%</span>
+        <button id="zoom-in" aria-label="Zoom fixo em 120%" disabled hidden>+</button>
         <span class="tool-separator" aria-hidden="true"></span>
         <button id="zoom-reset" aria-label="Enquadrar contexto" data-tooltip="Enquadrar contexto · 0"><span data-icon="fit"></span></button>
+
         <button id="context-back" aria-label="Voltar ao contexto" data-tooltip="Voltar ao contexto · Esc"><span data-icon="back"></span></button>
       </div>
     </section>
     <aside id="observatory-panel" class="panel right" aria-label="Observatório" hidden>
       <div class="panel-heading"><h2 id="inspector-title">Observatório</h2><button id="observatory-close" class="icon-button" aria-label="Recolher Observatório" data-tooltip="Recolher"><span data-icon="minimize"></span></button></div>
       <div id="inspector"></div>
-      <div class="divider"></div>
+      <details class="inspector-controls"><summary>Conexões e visualização</summary>
       <div class="connection"><span data-icon="code"></span><div><strong>Codex</strong><small id="codex-status">Conexão não verificada</small></div></div>
       <div class="connection"><span data-icon="brain"></span><div><strong>Second Brain</strong><small id="gbrain-status">Conexão não verificada</small></div></div>
-      <div class="divider"></div>
-      <details id="observatory-plugins" class="plugins-disclosure">
-        <summary aria-controls="plugin-list"><span>Plugins</span><span data-icon="chevron"></span></summary>
-        <div class="plugins-list-toolbar"><button id="plugins-refresh" class="icon-button" aria-label="Atualizar plugins" data-tooltip="Atualizar plugins"><span data-icon="refresh"></span></button></div>
-        <div id="plugin-list" class="plugin-list"><small>Conecte o Codex para ver seus plugins.</small></div>
-      </details>
       <div class="divider"></div>
       <label class="control">Detalhes do mapa<input id="density" type="range" min="0" max="6" value="3"></label>
       <label class="check"><input id="motion" type="checkbox"> Reduzir movimento</label>
@@ -81,7 +71,9 @@
         <button id="ambient-toggle" class="quiet-link" data-tooltip="Pausar apenas a animação ambiente">Pausar atmosfera</button>
         <button id="reset-layout" class="quiet-link" data-tooltip="Restaurar posições dos nós; os arquivos permanecem no lugar">Restaurar posições</button>
       </div>
+      </details>
     </aside>
+    <section id="library-page" class="library-page" role="tabpanel" aria-labelledby="workspace-prompts" hidden></section>
   </main>
   <span id="footer-status" class="source-status" role="status"></span>
 </div>
@@ -89,5 +81,5 @@
 <div id="tooltip" role="tooltip" hidden></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <div id="lock-screen" hidden><div class="lock-card"><div class="wordmark"><img class="brand-lockup" src="brand/lockup-white.svg" alt="Oracle"></div><h1>Seu universo, reservado.</h1><p>Use Touch ID ou a senha do macOS para continuar.</p><button id="unlock" class="primary">Desbloquear Oracle</button><small>A proteção bloqueia esta interface. Seu vault continua acessível pelo Obsidian.</small></div></div>
-<script src="status-badges.js"></script><script src="vendor/marked.js"></script><script src="reader.js"></script><script src="library.js"></script><script src="preview.js"></script><script src="universe.js"></script><script src="flat-universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="installation-visual.js"></script><script src="onboarding.js"></script><script src="app.js"></script>
+<script src="status-badges.js"></script><script src="vendor/marked.js"></script><script src="reader.js"></script><script src="library.js"></script><script src="preview.js"></script><script src="universe.js"></script><script src="flat-universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="installation-visual.js"></script><script src="transitions.js"></script><script src="onboarding.js"></script><script src="library-gallery.js"></script><script src="knowledge-hub.js"></script><script src="ui-controls.js"></script><script src="app.js"></script>
 </body></html>

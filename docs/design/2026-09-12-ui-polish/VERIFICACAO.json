@@ -1,0 +1,51 @@
+{
+  "scope": "UI web, dados sintéticos; sem operações pessoais ou build nativo",
+  "date": "2026-09-12",
+  "viewports_last_pass": [
+    [
+      1280,
+      800
+    ],
+    [
+      481,
+      745
+    ]
+  ],
+  "tree_folders_opened": 62,
+  "horizontal_overflow_observed_after_fixes": false,
+  "settings_final": {
+    "width": 820,
+    "height": 478,
+    "breadcrumb": false,
+    "empty_footer": false
+  },
+  "editor_preview_returns_to_text": true,
+  "model_dropdown_flips_up": true,
+  "reader_editor_back": {
+    "open_dialogs": 1,
+    "remaining_transition_snapshots": 0,
+    "focus": "edit-note"
+  },
+  "toast_motion": {
+    "enter_ms": 240,
+    "hold_ms": 5000,
+    "exit_ms": 180,
+    "enter_y": [
+      10,
+      20
+    ],
+    "exit_y": [
+      20,
+      10
+    ]
+  },
+  "checks": {
+    "document_diff_and_markdown_tests": "9 passed, prior pass in same turn",
+    "git_diff_check": "passed"
+  },
+  "not_exercised": [
+    "native authentication/file panels/menus",
+    "real installation/update/restore/disconnect",
+    "live integrations"
+  ]
+}

@@ -302,6 +302,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 case "snapshot":var snapshot=try core.snapshot();snapshot["build"]=OracleBuildIdentity.metadata();result=snapshot
                 case "gbrainRead": result = try core.gbrainRead(p)
                 case "gbrainReadback": result = (try? readJSON(core.home.appendingPathComponent("setup/gbrain-readback.json"))) ?? [:]
+                case "readLibraryImage": result = try core.readLibraryImage(p)
                 case "read": result = try core.readEditableNote(p["path"] as? String ?? "")
                 case "saveNote": result = try core.saveNote(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")
                 case "saveDraft": result = try core.saveDraft(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")

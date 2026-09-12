@@ -18,7 +18,7 @@
   };
   const mutable=()=>current.licensed&&!active.has(current.status)&&!current.request&&current.status!=='waiting_user';
   const button=(id,text,primary=true)=>`<button type="button" id="${id}" class="ob-button${primary?' ob-primary':''}">${text}</button>`;
-  function message(error){const box=$('[data-ob-message]');if(box){box.hidden=false;box.textContent=String(error?.message||error);}else api.toast?.(String(error?.message||error));}
+  function message(error){const text=String(error?.message||error);if(api.toast){api.toast(text,'error');return}const box=$('[data-ob-message]');if(box){box.hidden=false;box.textContent=text;}}
   const action=fn=>async e=>{const b=e?.currentTarget,generation=epoch;if(b)b.disabled=true;try{await fn(e);}catch(error){if(!suspended&&generation===epoch)message(error);}finally{if(b?.isConnected&&generation===epoch)b.disabled=false;}};
   function capture(){
     if(!open)return;
@@ -56,24 +56,27 @@
     return saved==='identity'?'identity':'vault';
   }
   async function navigate(next){await flushInputs();stage=next;render();if(current.licensed)await invoke('onboardingDraftUI',{step:next});}
-  function dismiss(){open=false;dialog?.close();renderCard();if(origin?.isConnected)origin.focus({preventScroll:true});}
-  async function close(){await flushInputs();dismiss();}
+  async function dismiss(){open=false;const closed=await OracleTransitions.dismissDialog(dialog);if(!closed)return;renderCard();if(origin?.isConnected)origin.focus({preventScroll:true});}
+  async function close(){await flushInputs();await dismiss();}
   function reveal(){
     if(suspended)return;
     if(api.canOpen&&!api.canOpen())return;
     const competing=document.querySelector('#modal[open]');if(competing)return;
-    origin=document.activeElement;open=true;if(!dialog.open)dialog.showModal();render();renderCard();
+    origin=document.activeElement;open=true;OracleTransitions.cancelDialog(dialog);if(!dialog.open)dialog.showModal();render();renderCard();OracleTransitions.enterDialog(dialog);
   }
   function frame(title,body,buttons=''){
     const names={license:'Acesso',vault:'Obsidian',identity:['Identidade','Objetivos','Preferências'][group],review:'Revisão',progress:'Instalação local',readback:'Confirmação',request:'Solicitação',connection:'Codex opcional'};
-    dialog.innerHTML=`<div class="ob-heading"><img class="ob-brand" src="brand/lockup-white.svg" alt="Oracle" width="143"><button type="button" class="ob-close" aria-label="Fechar configuração">×</button></div><div class="ob-navigation"><nav class="modal-breadcrumb" aria-label="Caminho da configuração"><button type="button" id="ob-breadcrumb-back">← Voltar</button><ol><li><button type="button" id="ob-universe">Universo</button></li><li><span>Configuração</span></li><li><span aria-current="page">${names[stage]||'Configuração'}</span></li></ol></nav></div><div class="ob-body"><h1 id="ob-title" tabindex="-1">${esc(title)}</h1>${body}<p data-ob-message role="alert" hidden></p></div><footer>${buttons}</footer>`;
-    $('.ob-close').onclick=action(close);$('#ob-universe').onclick=action(close);
-    $('#ob-breadcrumb-back').onclick=action(async()=>{
+    const frameKey=stage+':'+group+':'+title,previous=dialog.dataset.frameKey!==frameKey?OracleTransitions.captureContent(dialog.querySelector('.ob-content')):null;dialog.dataset.frameKey=frameKey;
+    const template=document.createElement('template');template.innerHTML=`<div class="ob-content"><div class="ob-heading"><img class="ob-brand" src="brand/lockup-white.svg" alt="Oracle" width="143"><button type="button" class="ob-close" aria-label="Fechar configuração"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div><div class="ob-navigation"><div class="ob-step-navigation">${stage==='identity'||stage==='review'||fromSettings?'<button type="button" id="ob-breadcrumb-back">← Voltar</button>':''}<span>${names[stage]||'Configuração'}</span></div></div><div class="ob-body"><h1 id="ob-title" tabindex="-1">${esc(title)}</h1>${body}<p data-ob-message role="alert" hidden></p></div><footer>${buttons}</footer></div>`;
+    const existing=dialog.querySelector('.ob-content');existing?existing.replaceWith(template.content.firstElementChild):dialog.append(template.content.firstElementChild);
+    if(previous)void OracleTransitions.content(dialog.querySelector('.ob-content'),previous);
+    $('.ob-close').onclick=action(close);
+    $('#ob-breadcrumb-back')?.addEventListener('click',action(async()=>{
       if(stage==='identity'&&group>0){await flushInputs();group--;dirty=true;render();}
       else if(stage==='identity')await navigate('vault');
       else if(stage==='review')await navigate(draft.attach?'vault':'identity');
       else{await close();if(fromSettings)api.openSettings?.();}
-    });
+    }));
     const target=dialog.querySelector('input:not([type=checkbox]):not([type=radio]),textarea:not([readonly]),h1');target?.focus({preventScroll:true});
   }
   async function plan(){await flushInputs();review=await invoke('onboardingPlan',{...draft,catalogCollections:[]});await refreshStatus();stage=review?'review':resolveStage();render();}
@@ -103,7 +106,7 @@
     }else if(stage==='identity'){
       group=Math.max(0,Math.min(2,group));
       frame(['Vamos nos conhecer.','Seu contexto de trabalho.','Suas preferências.'][group],`<p>Registre somente informações que deseja usar no seu segundo cérebro. Você revisará o conteúdo antes da criação.</p><div class="ob-fields">${groups[group].map(k=>`<label for="ob-${k}">${labels[k]}</label>${limits[k]<=128?`<input id="ob-${k}" data-answer="${k}" maxlength="${limits[k]}" value="${esc(draft.answers[k]||'')}">`:`<textarea id="ob-${k}" data-answer="${k}" maxlength="${limits[k]}" rows="3">${esc(draft.answers[k]||'')}</textarea>`}`).join('')}</div>`,button('ob-identity-next',group===2?'Revisar plano':'Continuar'));
-      if(group===2){const consent=document.createElement('div');consent.innerHTML=`<label class="ob-check"><input type="checkbox" id="ob-maintenance" ${draft.maintenance?.enabled?'checked':''}>Autorizar manutenção local diária</label><p class="ob-muted">Às 3h ou na próxima abertura elegível, verifica o índice local. Captura, síntese remota e backup exigem consentimentos separados nos Ajustes. Você pode pausar a rotina.</p>`;dialog.querySelector('.ob-fields').append(consent);}
+      if(group===2){const consent=document.createElement('div');consent.innerHTML=`<label class="ob-check"><input type="checkbox" id="ob-maintenance" ${draft.maintenance?.enabled?'checked':''}>Autorizar manutenção local diária</label><p class="ob-muted">Às 3h ou na próxima abertura elegível, verifica o índice local. Essa autorização não inclui captura, síntese remota nem backup. Você pode desmarcar esta opção na configuração.</p>`;dialog.querySelector('.ob-fields').append(consent);}
       $('#ob-identity-next').onclick=action(async()=>{capture();for(const k of groups[group])if(!draft.answers[k]?.trim())throw Error('Preencha os campos apresentados.');dirty=true;await flushInputs();if(group<2){group++;dirty=true;render();}else await plan();});
     }else if(stage==='review'){
       review=current.review||null;
@@ -204,7 +207,7 @@
     clearInterval(timer);timer=setInterval(()=>{const generation=epoch;tick().catch(error=>{if(!suspended&&generation===epoch)message(error);});},1800);
     if(!current.licensed||current.status==='not_started'){stage=resolveStage();reveal();}
   }
-  function suspend(){capture();clearTimeout(saveTimer);epoch++;suspended=true;open=false;clearInterval(timer);timer=null;pollPromise=null;draftWrites=draftWrites.catch(()=>{});dialog?.close();dialog?.replaceChildren();if(card)card.hidden=true;draft=fresh();current={};review=null;activationRequest='';licenseCode='';invitation='';connectionRequested=false;checkingConnection=false;dirty=false;lastSignature='';lastView='';}
+  function suspend(){capture();clearTimeout(saveTimer);epoch++;suspended=true;open=false;clearInterval(timer);timer=null;pollPromise=null;draftWrites=draftWrites.catch(()=>{});OracleTransitions.cancelDialog(dialog);dialog?.close();dialog?.replaceChildren();if(card)card.hidden=true;draft=fresh();current={};review=null;activationRequest='';licenseCode='';invitation='';connectionRequested=false;checkingConnection=false;dirty=false;lastSignature='';lastView='';}
   window.OracleOnboarding={mount,poll,suspend,formatReadback:readbackText,getState:()=>({...current}),
     pendingDraft(){capture();return dirty&&mutable()&&['identity','vault'].includes(stage)?structuredClone({...draft,step:stage,ui:{group}}):null;},
     open(options={}){fromSettings=!!options.fromSettings;stage=options.connection&&current.licensed?'connection':resolveStage();reveal();},

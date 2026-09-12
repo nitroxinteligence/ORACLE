@@ -1,0 +1,202 @@
+[
+  {
+    "id": 1,
+    "role": "secondary_reference",
+    "title": "Solar system",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/01-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.48 (1).jpeg",
+    "sha256": "207c00b971297eb66d9c05821d76130e2852edde9e77bc7350a825716a0396db"
+  },
+  {
+    "id": 2,
+    "role": "secondary_reference",
+    "title": "Achievement route",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/02-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.48 (2).jpeg",
+    "sha256": "e0ae7591225917824361eb3c6a2eca48894767e0b0d26ba78bed02520c0eed80"
+  },
+  {
+    "id": 3,
+    "role": "secondary_reference",
+    "title": "Rede circular plana",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/03-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.48.jpeg",
+    "sha256": "97b4f5f9a26dd2658ddb654d55b66bf2dc237a7ea9e1b6a50b7f0ff89fc7d39a"
+  },
+  {
+    "id": 4,
+    "role": "secondary_reference",
+    "title": "Data asset overview",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/04-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.49 (1).jpeg",
+    "sha256": "7bc7f8e7567837d44b1953841b733fec0c7fd207d0f0a1b84970dc75d7269485"
+  },
+  {
+    "id": 5,
+    "role": "secondary_reference",
+    "title": "AI search citations",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/05-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.49 (2).jpeg",
+    "sha256": "cbfabe262ce9eaacb42f1a73022d899b2e1da7ab464890e7dd46e203b98b4c42"
+  },
+  {
+    "id": 6,
+    "role": "secondary_reference",
+    "title": "Brain / signals",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/06-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.49 (3).jpeg",
+    "sha256": "f23e84e920788aacca908fd0294b4d7daead01df03a99ce6ceeebd172285ad9b"
+  },
+  {
+    "id": 7,
+    "role": "secondary_reference",
+    "title": "Cortex XSIAM",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/07-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.49.jpeg",
+    "sha256": "257112a48f5bc142584938ef1bc8a7138f87545d3c0124f312c6d88683fe1394"
+  },
+  {
+    "id": 8,
+    "role": "secondary_reference",
+    "title": "Hub com ícones",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/08-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.50 (1).jpeg",
+    "sha256": "018fe518298168108c1f2262751ddbdcb0e3b271eb15da7400a7582f95ebd135"
+  },
+  {
+    "id": 9,
+    "role": "secondary_reference",
+    "title": "Ramificação de quatro cards",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/09-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.50 (2).jpeg",
+    "sha256": "0292f5043de846e500fa420757f0fabaf1b0d3b595c3ca229c0f7bafc61fc3a5"
+  },
+  {
+    "id": 10,
+    "role": "secondary_reference",
+    "title": "Webflow University",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/10-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.50 (3).jpeg",
+    "sha256": "c425bb03de5fcd749b2aece66e7798c59fec3daf69608ff58af3887306a427d5"
+  },
+  {
+    "id": 11,
+    "role": "secondary_reference",
+    "title": "AI powered workflow",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/11-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.50 (4).jpeg",
+    "sha256": "5ff25458b2c0913c785e9f5d8e76ffb1b308cf4d6091c7f8f69b5963572b63a3"
+  },
+  {
+    "id": 12,
+    "role": "secondary_reference",
+    "title": "Loopverses",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/12-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.50 (5).jpeg",
+    "sha256": "71a44a335697bf9a7f4e5949a5616ab85e366010387c1ae1ebf1d7485a643c80"
+  },
+  {
+    "id": 13,
+    "role": "secondary_reference",
+    "title": "Orbit shift",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/13-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.50.jpeg",
+    "sha256": "00a5bd6ee353ded8bcab2097c2c38c40062efe22fba91b71e313e83264dae0d3"
+  },
+  {
+    "id": 14,
+    "role": "secondary_reference",
+    "title": "Five tools. One system.",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/14-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.51 (1).jpeg",
+    "sha256": "70ebef453f91e6598947f8d1f64a56ecf2c15ece6581b76de73ef88d8a6ca6a3"
+  },
+  {
+    "id": 15,
+    "role": "secondary_reference",
+    "title": "Review card com recortes",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/15-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.51 (2).jpeg",
+    "sha256": "8a1d15ad5955e2e5ed01314139d25b3a2a467662b7f282c7f3799df0b4b11c7f"
+  },
+  {
+    "id": 16,
+    "role": "secondary_reference",
+    "title": "Choose offer type",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/16-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.51 (3).jpeg",
+    "sha256": "5f6148eedf41a8a58c0fd2d0972037d3e5699456e656599ae34acc049a232698"
+  },
+  {
+    "id": 17,
+    "role": "secondary_reference",
+    "title": "Experience rating",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/17-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.51 (4).jpeg",
+    "sha256": "1467b65ed2b7468a5cd2f4126f43032573de2fa7e6d8ee8a1d5a5b009f37e640"
+  },
+  {
+    "id": 18,
+    "role": "secondary_reference",
+    "title": "Second brain",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/18-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.51.jpeg",
+    "sha256": "8732c289639119e3301ea36ec2e5f0d7210a24b2da1c6ba4ec68b3f2c1873117"
+  },
+  {
+    "id": 19,
+    "role": "secondary_reference",
+    "title": "Data updated / gráfico de conversão",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/19-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.52 (1).jpeg",
+    "sha256": "b1f9ec09ab5f0fb0792b6e2a60089e6986cb8ebdb3c846c16e7cddfab76c33af"
+  },
+  {
+    "id": 20,
+    "role": "secondary_reference",
+    "title": "Settings list",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/20-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.52 (2).jpeg",
+    "sha256": "3dd853dac01f91522862d3fce9c6e15a984d2183d16ff5c31a9b2f40191578ae"
+  },
+  {
+    "id": 21,
+    "role": "secondary_reference",
+    "title": "Voice interface practice",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/21-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.52 (3).jpeg",
+    "sha256": "d6baaf1292a776e26647a6656f9014a6dbc21c21e929b43fb804bf154ba4b75c"
+  },
+  {
+    "id": 22,
+    "role": "secondary_reference",
+    "title": "Mobile AI voice",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/22-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.52 (4).jpeg",
+    "sha256": "b0996fdc85ea9512f3aa864a10222ff83fbefb200f6f832e86ed6071ad517921"
+  },
+  {
+    "id": 23,
+    "role": "secondary_reference",
+    "title": "Sandra AI landing",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/23-referencia.jpeg",
+    "original_path": "/Users/mateusmpz/Downloads/WhatsApp Image 2026-09-11 at 21.56.52.jpeg",
+    "sha256": "dc03d1320e3ad8a648dd50e263105ce6b9fc558f541dd6ca5781cd2a5b055aec"
+  },
+  {
+    "id": 24,
+    "role": "component_reference",
+    "title": "Screenshot original: vidro neutro e marca original",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/24-aplicativo-original.png",
+    "original_path": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-orbital-universe-v3/referencia-original.png",
+    "sha256": "0c466b02b0ae466c065fb8aeb1b1a6c29568d10453b4b316a815b9a02bb7ab7d"
+  },
+  {
+    "id": 25,
+    "role": "PRIMARY_APPROVED",
+    "title": "Composição V3 aprovada pelo usuário",
+    "file": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-implementation-handoff/images/25-composicao-aprovada-principal.png",
+    "original_path": "/Users/mateusmpz/code/Projetos - Mateus M/ORACLE/docs/design/2026-09-12-orbital-universe-v3/oracle-universo-v3.png",
+    "sha256": "916f5e12ab83a5a02eb294ec722ec0f23eb3deeb6740dd9ac320adc7066ca431"
+  }
+]

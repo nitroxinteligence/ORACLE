@@ -1,0 +1,102 @@
+[
+  {
+    "dialogs": 0,
+    "library": "prompts",
+    "names": [
+      "design",
+      "engenharia",
+      "marketing",
+      "Prompts"
+    ],
+    "scenario": "prompts-graph",
+    "width": 1440
+  },
+  {
+    "dialogs": 0,
+    "library": "prompts",
+    "names": [
+      "Guia 1",
+      "Guia 2",
+      "Guia 3",
+      "Guia 4",
+      "design"
+    ],
+    "scenario": "prompts-folder",
+    "width": 1440
+  },
+  {
+    "dialogs": 0,
+    "library": "tutorials",
+    "names": [
+      "design",
+      "engenharia",
+      "marketing",
+      "Tutoriais"
+    ],
+    "scenario": "tutorials-graph",
+    "width": 1440
+  },
+  {
+    "dialogs": 0,
+    "library": "tutorials",
+    "names": [
+      "Guia 1",
+      "Guia 2",
+      "Guia 3",
+      "Guia 4",
+      "design"
+    ],
+    "scenario": "tutorials-folder",
+    "width": 1440
+  },
+  {
+    "dialogs": 0,
+    "library": "prompts",
+    "names": [
+      "design",
+      "engenharia",
+      "marketing",
+      "Prompts"
+    ],
+    "scenario": "prompts-graph",
+    "width": 840
+  },
+  {
+    "dialogs": 0,
+    "library": "prompts",
+    "names": [
+      "Guia 1",
+      "Guia 2",
+      "Guia 3",
+      "Guia 4",
+      "design"
+    ],
+    "scenario": "prompts-folder",
+    "width": 840
+  },
+  {
+    "dialogs": 0,
+    "library": "tutorials",
+    "names": [
+      "design",
+      "engenharia",
+      "marketing",
+      "Tutoriais"
+    ],
+    "scenario": "tutorials-graph",
+    "width": 840
+  },
+  {
+    "dialogs": 0,
+    "library": "tutorials",
+    "names": [
+      "Guia 1",
+      "Guia 2",
+      "Guia 3",
+      "Guia 4",
+      "design"
+    ],
+    "scenario": "tutorials-folder",
+    "width": 840
+  }
+]

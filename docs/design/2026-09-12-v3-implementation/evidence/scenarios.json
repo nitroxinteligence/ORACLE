@@ -1,0 +1,1180 @@
+[
+  {
+    "context": "department",
+    "height": 900,
+    "overflow": false,
+    "scenario": "department",
+    "width": 1440
+  },
+  {
+    "context": "specialist",
+    "height": 900,
+    "overflow": false,
+    "scenario": "specialist",
+    "width": 1440
+  },
+  {
+    "context": "specialist",
+    "height": 900,
+    "overflow": false,
+    "scenario": "dense",
+    "width": 1440
+  },
+  {
+    "context": "group",
+    "height": 900,
+    "overflow": false,
+    "scenario": "group",
+    "width": 1440
+  },
+  {
+    "context": "skill",
+    "height": 900,
+    "overflow": false,
+    "scenario": "skill",
+    "width": 1440
+  },
+  {
+    "context": "knowledge",
+    "height": 900,
+    "overflow": false,
+    "scenario": "knowledge",
+    "width": 1440
+  },
+  {
+    "context": "knowledge",
+    "height": 900,
+    "overflow": false,
+    "scenario": "knowledge-empty",
+    "width": 1440
+  },
+  {
+    "context": "global",
+    "dialog": "Voltar\nUniverso\nBiblioteca de prompts\nBiblioteca de prompts\n\nPrompts Markdown no seu vault. A prévia",
+    "height": 900,
+    "overflow": false,
+    "scenario": "prompts",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nBiblioteca de prompts\nBiblioteca de prompts\n\nPrompts Markdown no seu vault. A prévia",
+    "height": 900,
+    "overflow": false,
+    "scenario": "prompts-empty",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nBiblioteca de prompts\nBiblioteca de prompts\n\nPrompts Markdown no seu vault. A prévia",
+    "height": 900,
+    "overflow": false,
+    "scenario": "prompts-partial",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nBiblioteca de prompts\nBiblioteca de prompts\n\nPrompts Markdown no seu vault. A prévia",
+    "height": 900,
+    "overflow": false,
+    "scenario": "prompts-ambiguous",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nBiblioteca de prompts\nBiblioteca de prompts\n\nPrompts Markdown no seu vault. A prévia",
+    "height": 900,
+    "overflow": false,
+    "scenario": "prompts-error",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nTutoriais\nTutoriais\n\nTutoriais Markdown nas pastas reais do seu vault.\n\nFonte local\n",
+    "height": 900,
+    "overflow": false,
+    "scenario": "tutorials",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nTutoriais\nTutoriais\n\nTutoriais Markdown nas pastas reais do seu vault.\n\nFonte local\n",
+    "height": 900,
+    "overflow": false,
+    "scenario": "tutorials-empty",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nGuia de exemplo\nGuia de exemplo\nDocumento sintético\n1. Revisão do documento\n\nEsta no",
+    "height": 900,
+    "overflow": false,
+    "scenario": "reader",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nGuia de exemplo\nGuia de exemplo\nDocumento sintético\n1. Revisão do documento\n\nEsta no",
+    "height": 900,
+    "overflow": false,
+    "scenario": "reader-long",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nGuia de exemplo\nGuia de exemplo\n\nHá um rascunho que ainda não foi salvo no documento",
+    "height": 900,
+    "overflow": false,
+    "scenario": "draft",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nGuia de exemplo\nEditar Guia de exemplo.md\nEditar Guia de exemplo.md\nO arquivo será s",
+    "height": 900,
+    "overflow": false,
+    "scenario": "editor",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nGuia de exemplo\nEditar Guia de exemplo.md\nSuas alterações\nSuas alterações\n\nSalvar at",
+    "height": 900,
+    "overflow": false,
+    "scenario": "diff",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nGuia de exemplo\nEditar Guia de exemplo.md\nEditar Guia de exemplo.md\nO arquivo será s",
+    "height": 900,
+    "overflow": false,
+    "scenario": "conflict",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nGuia de exemplo\nEditar Guia de exemplo.md\nEditar Guia de exemplo.md\n\nHá alterações q",
+    "height": 900,
+    "overflow": false,
+    "scenario": "exit",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nGuia de exemplo\nEditar Guia de exemplo.md\nEditar Guia de exemplo.md\nFalha sintética ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "save-error",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nBuscar notas e skills\nBuscar notas e skills\n62 resultados · página 1 de 1\nAGENTS\nPROJETOS / Pr",
+    "height": 900,
+    "overflow": false,
+    "scenario": "search",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nMemória\nMemória\nÍndice local atualizado.\n\nEncontre suas notas e acompanhe suas conexões.\n\nBibl",
+    "height": 900,
+    "overflow": false,
+    "scenario": "memory",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nMemória\nMemória\nÍndice local atualizado.\n\nEncontre suas notas e acompanhe suas conexões.\n\nBibl",
+    "height": 900,
+    "overflow": false,
+    "scenario": "memory-empty",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nMemória\nMemória indisponível\nMemória indisponível\n\nFonte sintética indisponível.\n\nTentar novam",
+    "height": 900,
+    "overflow": false,
+    "scenario": "memory-error",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nMemória\nMemória\nA leitura ou indexação está parcial. Exclusões não serão reconciliadas.\n\nEncon",
+    "height": 900,
+    "overflow": false,
+    "scenario": "memory-partial",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nMemória\nGuia de demonstração\nGuia de demonstração\nDocumento sintético\n1. Revisão do documento\n",
+    "height": 900,
+    "overflow": false,
+    "scenario": "memory-page",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nConversas importadas\nConversas importadas\n\nImporte um arquivo Oracle Conversations v1. O histó",
+    "height": 900,
+    "overflow": false,
+    "scenario": "conversations",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nConversas importadas\nConversas importadas\n\nImporte um arquivo Oracle Conversations v1. O histó",
+    "height": 900,
+    "overflow": false,
+    "scenario": "conversations-empty",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nConversas importadas\nConversa de demonstração\nConversa de demonstração\nOracle Conversations v1",
+    "height": 900,
+    "overflow": false,
+    "scenario": "conversation",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nInstruções dos projetos\nInstruções dos projetos\n\nConsulte as instruções dos projetos que você ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "projects",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nInstruções dos projetos\nInstruções dos projetos\n\nConsulte as instruções dos projetos que você ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "projects-empty",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nInstruções dos projetos\nInstrução encontrada\nInstrução encontrada\n/synthetic-project/AGENTS.md",
+    "height": 900,
+    "overflow": false,
+    "scenario": "instruction",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nPlugins\nPlugins\n\nSeus plugins e conexões no Codex.\n\nFerramenta sintética 1\nConectado\nFerrament",
+    "height": 900,
+    "overflow": false,
+    "scenario": "plugins",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nFerramenta sintética 3\nFerramenta sintética 3\nNão verificado\n\nGerencie a conexão e as permissõ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "plugin",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nAjustes do Oracle\nAjustes do Oracle\nSeu Oracle\nConfigurar Oracle\nIdentidade, instalação local ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "settings",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nAjustes do Oracle\nAjustes do Oracle\nSeu Oracle\nConfigurar Oracle\nIdentidade, instalação local ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "owner",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nOrganizar departamentos\nOrganizar departamentos\n\nA organização usa os mesmos departamentos do ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "departments",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nRevisar contexto\nRevisar contexto\n\nConfira suas respostas registradas. Confirmações e alteraçõ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "context",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nSincronização e manutenção\nSincronização e manutenção\n\nO índice acompanha o vault enquanto o O",
+    "height": 900,
+    "overflow": false,
+    "scenario": "maintenance",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nBackup privado do banco\nBackup privado do banco\n\nCópia local do banco GBrain, sem envio remoto",
+    "height": 900,
+    "overflow": false,
+    "scenario": "backup",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nBackup privado do banco\nTestar restauração?\nTestar restauração?\n\nO backup synthetic-backup ser",
+    "height": 900,
+    "overflow": false,
+    "scenario": "backup-confirm",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nCodex e plugins\nCodex e plugins\nConectado\n\nA conexão é opcional para tarefas remotas. A instal",
+    "height": 900,
+    "overflow": false,
+    "scenario": "bridge",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nAtualizações\nAtualizações\n\nVerifica as fontes e instala atualizações compatíveis, preservando ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "updates",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nAtualizações\nAtualizações\n\nVerifica as fontes e instala atualizações compatíveis, preservando ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "updates-partial",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nDiagnóstico do atlas\nDiagnóstico do atlas\n\nMedidas desta janela, sem estimar tempo de GPU. O m",
+    "height": 900,
+    "overflow": false,
+    "scenario": "diagnostics",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nHistórico técnico\nHistórico técnico\n\nHooks observam apenas caminhos suportados e confiados no ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "activity",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nAjustes do Oracle\nDesconectar pastas?\nDesconectar pastas?\n\nO Oracle deixará de acessar seus do",
+    "height": 900,
+    "overflow": false,
+    "scenario": "revoke",
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "lock",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nAcesso\nSeu Oracle, neste Mac.\n\nInsira o código individual de acesso recebido ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "license",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nAcesso\nSeu Oracle, neste Mac.\n\nInsira o código individual de acesso recebido ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "invitation",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nObsidian\nEscolha seu Obsidian.\n\nAs notas originais permanecem na pasta escolhida. O GBrain oficia",
+    "height": 900,
+    "overflow": false,
+    "scenario": "vault",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nObsidian\nEscolha seu Obsidian.\n\nAs notas originais permanecem na pasta escolhida. O GBrain oficia",
+    "height": 900,
+    "overflow": false,
+    "scenario": "workspace",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nIdentidade\nVamos nos conhecer.\n\nRegistre somente informações que deseja usar no seu segundo céreb",
+    "height": 900,
+    "overflow": false,
+    "scenario": "identity",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nObjetivos\nSeu contexto de trabalho.\n\nRegistre somente informações que deseja usar no seu segundo ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "objectives",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nPreferências\nSuas preferências.\n\nRegistre somente informações que deseja usar no seu segundo cére",
+    "height": 900,
+    "overflow": false,
+    "scenario": "preferences",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nRevisão\nConfira antes de instalar.\nObsidian\nVault sintético\nGBrain\nCriar perfil local exclusivo, ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "review",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nConfirmação\nConfirme sua identidade.\n\nLeitura de confirmação gerada pelo GBrain oficial. Confirme",
+    "height": 900,
+    "overflow": false,
+    "scenario": "readback",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nInstalação local\nConfiguração do Oracle.\n\nVerificando os arquivos locais · cenário sintético\n\n✓ E",
+    "height": 900,
+    "overflow": false,
+    "scenario": "progress",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nInstalação local\nConfiguração do Oracle.\n\nInstalação pausada. Retome quando desejar.\n\n✓ Estrutura",
+    "height": 900,
+    "overflow": false,
+    "scenario": "paused",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nInstalação local\nConfiguração do Oracle.\n\nA etapa não foi concluída. O plano e os recibos foram p",
+    "height": 900,
+    "overflow": false,
+    "scenario": "failed",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nSolicitação\nPermitir esta etapa?\n\nA etapa sintética precisa acessar apenas a pasta indicada.\n\n1 s",
+    "height": 900,
+    "overflow": false,
+    "scenario": "permission",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nSolicitação\nO Codex precisa saber…\n\nEscolha como apresentar o conteúdo de demonstração.\n\n1 solici",
+    "height": 900,
+    "overflow": false,
+    "scenario": "questions",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nCodex opcional\nCodex é uma conexão opcional.\n\nA consulta, a edição e a instalação local não exige",
+    "height": 900,
+    "overflow": false,
+    "scenario": "connection",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nCodex opcional\nCodex é uma conexão opcional.\n\nA consulta, a edição e a instalação local não exige",
+    "height": 900,
+    "overflow": false,
+    "scenario": "model",
+    "width": 1440
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "overview",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "department",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "specialist",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "dense",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "group",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "skill",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "knowledge",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "knowledge-empty",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 602,
+      "height": 584,
+      "left": 16,
+      "right": 824,
+      "top": 18,
+      "width": 808,
+      "x": 16,
+      "y": 18
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "prompts",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 602,
+      "height": 584,
+      "left": 16,
+      "right": 824,
+      "top": 18,
+      "width": 808,
+      "x": 16,
+      "y": 18
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "prompts-empty",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 602,
+      "height": 584,
+      "left": 16,
+      "right": 824,
+      "top": 18,
+      "width": 808,
+      "x": 16,
+      "y": 18
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "prompts-partial",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 602,
+      "height": 584,
+      "left": 16,
+      "right": 824,
+      "top": 18,
+      "width": 808,
+      "x": 16,
+      "y": 18
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "prompts-ambiguous",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 602,
+      "height": 584,
+      "left": 16,
+      "right": 824,
+      "top": 18,
+      "width": 808,
+      "x": 16,
+      "y": 18
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "prompts-error",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 602,
+      "height": 584,
+      "left": 16,
+      "right": 824,
+      "top": 18,
+      "width": 808,
+      "x": 16,
+      "y": 18
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "tutorials",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 602,
+      "height": 584,
+      "left": 16,
+      "right": 824,
+      "top": 18,
+      "width": 808,
+      "x": 16,
+      "y": 18
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "tutorials-empty",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 600,
+      "height": 580,
+      "left": 32,
+      "right": 808,
+      "top": 20,
+      "width": 776,
+      "x": 32,
+      "y": 20
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "reader",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 600,
+      "height": 580,
+      "left": 32,
+      "right": 808,
+      "top": 20,
+      "width": 776,
+      "x": 32,
+      "y": 20
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "reader-long",
+    "width": 840
+  },
+  {
+    "dialog": {
+      "bottom": 600,
+      "height": 580,
+      "left": 32,
+      "right": 808,
+      "top": 20,
+      "width": 776,
+      "x": 32,
+      "y": 20
+    },
+    "height": 620,
+    "overflow": false,
+    "scenario": "draft",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "editor",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "diff",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "conflict",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "exit",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "save-error",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "search",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "memory",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "memory-empty",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "memory-error",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "memory-partial",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "memory-page",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "conversations",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "conversations-empty",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "conversation",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "projects",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "projects-empty",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "instruction",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "plugins",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "plugin",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "settings",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "owner",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "departments",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "context",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "maintenance",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "backup",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "backup-confirm",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "bridge",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "updates",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "updates-partial",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "diagnostics",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "activity",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "revoke",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "lock",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "license",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "invitation",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "vault",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "workspace",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "identity",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "objectives",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "preferences",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "review",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "readback",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "progress",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "paused",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "failed",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "permission",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "questions",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "connection",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "model",
+    "width": 840
+  },
+  {
+    "dialog": "Voltar\nUniverso\nAjustes do Oracle\nAjustes do Oracle\nSeu Oracle\nConfigurar Oracle\nIdentidade, instalação local ",
+    "height": 620,
+    "overflow": false,
+    "scenario": "owner",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "schedule",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "progress-card",
+    "width": 840
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nCodex opcional\nCodex é uma conexão opcional.\n\nA consulta, a edição e a instal",
+    "height": 620,
+    "overflow": false,
+    "scenario": "model",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "overview",
+    "width": 840
+  },
+  {
+    "dialog": "Voltar\nUniverso\nAjustes do Oracle\nAjustes do Oracle\nSeu Oracle\nConfigurar Oracle\nIdentidade, instalação local ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "owner",
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "schedule",
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "progress-card",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nCodex opcional\nCodex é uma conexão opcional.\n\nA consulta, a edição e a instal",
+    "height": 900,
+    "overflow": false,
+    "scenario": "model",
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "overview",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nFonte oficial de skills\nFonte oficial de skills\n\nConfiguração administrativa. Os alu",
+    "height": 620,
+    "overflow": false,
+    "scenario": "owner",
+    "width": 840
+  },
+  {
+    "dialog": "Voltar\nUniverso\nSincronização e manutenção\nSincronização e manutenção\n\nO índice acompanha o vault en",
+    "height": 620,
+    "overflow": false,
+    "scenario": "schedule",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "progress-card",
+    "width": 840
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nCodex opcional\nCodex é uma conexão opcional.\n\nA consulta, a edição ",
+    "height": 620,
+    "overflow": false,
+    "scenario": "model",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "overview",
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "department",
+    "width": 840
+  },
+  {
+    "dialog": "Voltar\nUniverso\nFonte oficial de skills\nFonte oficial de skills\n\nConfiguração administrativa. Os alu",
+    "height": 900,
+    "overflow": false,
+    "scenario": "owner",
+    "width": 1440
+  },
+  {
+    "dialog": "Voltar\nUniverso\nSincronização e manutenção\nSincronização e manutenção\n\nO índice acompanha o vault en",
+    "height": 900,
+    "overflow": false,
+    "scenario": "schedule",
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "progress-card",
+    "width": 1440
+  },
+  {
+    "dialog": "×\n← Voltar\nUniverso\nConfiguração\nCodex opcional\nCodex é uma conexão opcional.\n\nA consulta, a edição ",
+    "height": 900,
+    "overflow": false,
+    "scenario": "model",
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "overview",
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "department",
+    "width": 1440
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "department",
+    "visibleNames": 5,
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "specialist",
+    "visibleNames": 4,
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "dense",
+    "visibleNames": 22,
+    "width": 840
+  },
+  {
+    "height": 620,
+    "overflow": false,
+    "scenario": "overview",
+    "visibleNames": 0,
+    "width": 840
+  },
+  {
+    "dialog": "Pedido de agendamento",
+    "height": 620,
+    "overflow": false,
+    "scenario": "schedule",
+    "visibleNames": 0,
+    "width": 840
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "department",
+    "visibleNames": 5,
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "specialist",
+    "visibleNames": 4,
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "dense",
+    "visibleNames": 35,
+    "width": 1440
+  },
+  {
+    "height": 900,
+    "overflow": false,
+    "scenario": "overview",
+    "visibleNames": 0,
+    "width": 1440
+  },
+  {
+    "dialog": "Pedido de agendamento",
+    "height": 900,
+    "overflow": false,
+    "scenario": "schedule",
+    "visibleNames": 0,
+    "width": 1440
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "scenarios": 69,
+  "dimensions": [
+    [
+      840,
+      620
+    ],
+    [
+      1440,
+      900
+    ]
+  ],
+  "renderChecks": 138,
+  "errors": [],
+  "pageOverflows": [],
+  "pagination": {
+    "pages": [
+      50,
+      50,
+      17
+    ],
+    "unique": 117
+  },
+  "scope": "Synthetic UI renderers only. Native operations were not executed."
+}

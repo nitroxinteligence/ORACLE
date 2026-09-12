@@ -1,0 +1,42 @@
+{
+  "scope": "synthetic browser UI, no native integration",
+  "reference": "https://obsidian.md/help/plugins/graph",
+  "denseNodes": 200,
+  "ancestryEdges": 200,
+  "invalidAncestryEdges": 0,
+  "movingNodes": 200,
+  "focus": {
+    "area": "prompts",
+    "highlightedNodes": 10,
+    "highlightedEdges": 10,
+    "keyboardOpenedFolder": true
+  },
+  "pausedChangedNodes": 0,
+  "wheel": {
+    "before": {
+      "camera": "translate(418.73315266967876 335.5353117463654) scale(0.4989814054891155)",
+      "code": "translate(-269.84304355249964 -210.11599616955343)"
+    },
+    "after": {
+      "camera": "translate(418.73315266967876 335.5353117463654) scale(0.4989814054891155)",
+      "code": "translate(-104.07065850246298 -325.7810584408855)"
+    },
+    "cameraUnchanged": true,
+    "departmentRotated": true
+  },
+  "departmentScene": {
+    "onlyCode": true,
+    "centralHidden": true
+  },
+  "viewports": [
+    [
+      1440,
+      900
+    ],
+    [
+      840,
+      620
+    ]
+  ],
+  "links": "folder ancestry; snapshot does not provide note backlinks"
+}

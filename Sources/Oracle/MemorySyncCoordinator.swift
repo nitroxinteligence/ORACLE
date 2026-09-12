@@ -111,13 +111,16 @@ final class MemorySyncCoordinator {
             let canonical=root.resolvingSymlinksInPath()
             if watchedRoot != canonical.path { installWatcher(root:canonical) }
             let snapshot=try core.scanSnapshot(root:canonical)
+            let onboarding=core.onboardingRecord()
+            let installationPending=onboarding["profileMode"] as? String == "memory-only" && onboarding["status"] as? String != "completed"
             var shouldIndex=false,targetGeneration=0
             locked {
                 let changed=cached?.signature != snapshot.signature || cached?.complete != snapshot.complete || selectedRoot != canonical.path
                 if changed { generation+=1;attempts=0;blocked=false;currentState="stale" }
                 selectedRoot=canonical.path;cached=snapshot
                 if !snapshot.complete { currentState="partial";reason="Leitura parcial; exclusões suspensas" }
-                if core.config["gbrainWorkspace"] != nil { currentState="external";reason="Perfil externo: Oracle não reindexa um banco que não possui" }
+                if installationPending { currentState="stale";reason="Conclua ou retome a instalação para atualizar a memória" }
+                else if core.config["gbrainWorkspace"] != nil { currentState="external";reason="Perfil externo: Oracle não reindexa um banco que não possui" }
                 else if core.config["gbrainAccess"] as? Bool != true || core.config["gbrainVaultSource"] as? String != "oracle-vault" {
                     currentState="unavailable";reason="Índice local ainda não configurado"
                 } else {
@@ -141,6 +144,8 @@ final class MemorySyncCoordinator {
             do {
                 guard self.locked({self.active && self.generation == target}) else { self.locked { self.indexing=false };self.requestScan();return }
                 let core=try Core(home:self.home)
+                let onboarding=core.onboardingRecord()
+                guard onboarding["profileMode"] as? String != "memory-only" || onboarding["status"] as? String == "completed" else { throw failure("A instalação controla a indexação até ser concluída.") }
                 let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
                 let updates=try core.acquireOperationLock("updates");defer{core.releaseOperationLock(updates)}
                 let operation=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(operation)}

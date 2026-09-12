@@ -115,6 +115,16 @@ func runDataReliabilityTests() throws {
     try expect(fm.fileExists(atPath:core.home.appendingPathComponent("memory-sync/cancel").path),"cached UI reads preserve the explicit stop marker")
     core.memorySync.start()
     try waitFor("explicit lifecycle start resumes the coordinator") { core.memorySync.status()["active"] as? Bool == true && core.memorySync.status()["scanPending"] as? Bool == false }
+    core.config["gbrainAccess"]=true;core.config["gbrainVaultSource"]="oracle-vault";try core.persist()
+    try writeJSON(["profileMode":"memory-only","status":"failed","runID":UUID().uuidString],core.home.appendingPathComponent("onboarding/state.json"))
+    core.memorySync.invalidate(reason:"interrupted-installation-fixture")
+    try waitFor("failed installation remains browsable without automatic indexing") {
+        core.memorySync.status()["scanComplete"] as? Bool == true && core.memorySync.status()["reason"] as? String == "Conclua ou retome a instalação para atualizar a memória"
+    }
+    try expect(core.memorySync.status()["indexing"] as? Bool == false && core.memorySync.status()["resumeAttempts"] as? Int == 0,"background index leaves failed onboarding under explicit resume control")
+    let setup=try core.acquireOperationLock("setup"),brain=try core.acquireOperationLock("gbrain")
+    core.releaseOperationLock(brain);core.releaseOperationLock(setup)
+    print("PASS interrupted installation can acquire the resume locks")
 }
 
 /// Opt-in real engine lifecycle; every path is a newly created .work fixture.

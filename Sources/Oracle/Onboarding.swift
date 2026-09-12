@@ -38,6 +38,11 @@ extension Core {
         value["deviceSupport"]=["supported":SecureEnclave.isAvailable,"kind":"secure-enclave-p256","reason":SecureEnclave.isAvailable ? "Ativação offline vinculada à chave deste Mac." : "Secure Enclave indisponível; este Mac não suporta a ativação vinculada ao aparelho."]
         value["vaultName"]=(config["vault"] as? String).map{URL(fileURLWithPath:$0).lastPathComponent} ?? ""
         value["hasVault"]=(try? vault()) != nil
+        // Existing vaults can open without rerunning setup. This is a UI resume
+        // decision, never a license, identity confirmation or installation receipt.
+        value["resumeExisting"]=license != nil && value["hasVault"] as? Bool == true &&
+            value["localStarted"] as? Bool != true && value["codexStarted"] as? Bool != true &&
+            ["not_started", "review", "configuring"].contains(value["status"] as? String ?? "")
         if value["hasVault"] as? Bool==false && value["status"] as? String=="completed" {value["status"]="configuring";value["runID"]=NSNull();value["message"]="Escolha seu Obsidian para continuar."}
         value["hasExistingBrain"]=config["gbrainWorkspace"] as? String != nil
         value["codexConnected"]=(try? readJSON(home.appendingPathComponent("onboarding/connection.json")))?["connected"] as? Bool ?? false

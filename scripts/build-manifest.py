@@ -341,7 +341,7 @@ def create_manifest(app: Path, record: dict, channel: str, provenance: dict | No
                 "signing": "developer-id-hardened-runtime" if channel == "release" else "ad-hoc-development",
                 "notarization": "not asserted by build metadata; validate stapled ticket and release report",
                 "resourceManifest": INVENTORY, "resourceManifestSHA256": digest(resources / INVENTORY), "resourceCount": len(entries),
-                "provenance": provenance or {}, "licensePolicy": "ORACLE2-permanent-secure-enclave-no-legacy-bypass"}
+                "provenance": provenance or {}, "licensePolicy": "ORACLE3-signed-short-key-grants-with-ORACLE2-compatibility"}
     if channel == "release":
         manifest["nativeEntitlementsSHA256"] = hashlib.sha256(canonical(reviewed_app_entitlements())).hexdigest()
     write_json(resources / MANIFEST, manifest)

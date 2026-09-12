@@ -109,5 +109,42 @@ func runLicenseDeviceTests() throws {
     try fm.removeItem(at: linked)
     try rejects("oversized access record refused before reading") { _ = try core.licenseFile("onboarding/license", limit: 1) }
     try check(try Data(contentsOf: licensePath) == original, "all negative device tests retain installed license")
+    // Short-key grants use the same pinned issuer trust, without Keychain setup.
+    let shortDevice = SyntheticLicenseDevice(device)
+    let shortCore = try Core(home: base.appendingPathComponent("short-key"), licenseDevice: shortDevice, licenseTrust: keys)
+    let shortKey = "ABCD-EFGH-JKLM-NPQR", normalized = shortKey.replacingOccurrences(of: "-", with: "")
+    let accessHash = digest(Data(normalized.utf8))
+    func grant(role: String = "owner", expires: Int64? = nil, hash: String = accessHash,
+               signingKey: Curve25519.Signing.PrivateKey? = nil) throws -> String {
+        var value = OracleLicense(version: 3, product: "oracle-macos", keyID: "synthetic", licenseID: UUID().uuidString,
+            subject: "Synthetic short key", issuedAt: now - 30, expiresAt: expires, deviceID: nil)
+        value.role = role; value.accessKeyHash = hash
+        let bytes = try JSONEncoder().encode(value)
+        return "ORACLE3." + base64URL(bytes) + "." + base64URL(try (signingKey ?? signer).signature(for: Data("ORACLE3.".utf8) + bytes))
+    }
+    let grantPath = shortCore.home.appendingPathComponent("onboarding/access-grants/" + accessHash + ".license")
+    try fm.createDirectory(at: grantPath.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try rejects("short key alone cannot invent a grant") { _ = try shortCore.activateLicense(shortKey) }
+    try atomicWriteData(Data(try grant().utf8), to: grantPath, permissions: 0o600)
+    try check(try shortCore.activateLicense(shortKey.lowercased())["valid"] as? Bool == true, "short key activates a signed owner grant")
+    try check(shortCore.activeLicense()?.role == "owner" && shortDevice.calls.isEmpty, "short activation and reopening do not touch hardware or Keychain")
+    try shortCore.requireCapability(.manageDistribution)
+    let shortOriginal = try Data(contentsOf: shortCore.home.appendingPathComponent("onboarding/license"))
+    try rejects("unrecognized short key rejected") { _ = try shortCore.activateLicense("ZZZZ-ZZZZ-ZZZZ-ZZZZ") }
+    try atomicWriteData(Data(try grant(signingKey: Curve25519.Signing.PrivateKey()).utf8), to: grantPath)
+    try rejects("untrusted short-key grant cannot activate") { _ = try shortCore.activateLicense(shortKey) }
+    try atomicWriteData(Data(try grant(hash: String(repeating: "0", count: 64)).utf8), to: grantPath)
+    try rejects("grant cannot be remapped to another short key") { _ = try shortCore.activateLicense(shortKey) }
+    try rejects("v3 unknown role rejected") { _ = try validateLicense(grant(role: "admin"), keys: keys, device: "") }
+    try rejects("v3 expiring grant rejected") { _ = try validateLicense(grant(expires: now + 3600), keys: keys, device: "") }
+    try check(licenseCapabilities(try validateLicense(grant(role: "student"), keys: keys, device: ""))["manageDistribution"] == false, "short student grant cannot grant owner capabilities")
+    try check(try Data(contentsOf: shortCore.home.appendingPathComponent("onboarding/license")) == shortOriginal, "rejected short keys preserve the installed grant")
+    shortCore.config["vault"] = base.path; try shortCore.persist()
+    try writeJSON(["status": "review", "localStarted": false, "codexStarted": false], shortCore.onboardingURL)
+    let resumed = try shortCore.onboardingSnapshot()
+    try check(resumed["resumeExisting"] as? Bool == true && resumed["status"] as? String == "review", "existing vault resumes without fabricating completed setup")
+    try check((resumed["confirmed"] as? [[String: Any]])?.isEmpty == true, "existing vault does not invent identity or index receipts")
+    try writeJSON(["status": "running", "localStarted": true], shortCore.onboardingURL)
+    try check(try shortCore.onboardingSnapshot()["resumeExisting"] as? Bool == false, "real setup in progress is not silently dismissed")
     print("License v2: \(count) checks passed; synthetic devices and signing keys only")
 }

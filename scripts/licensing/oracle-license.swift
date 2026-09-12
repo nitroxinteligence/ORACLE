@@ -86,6 +86,28 @@ final class OfflineIssuerLedger {
             ledger["invitations"] = invitations; return invitation
         }
     }
+    func issueAccess(subject: String, role: String = "student") throws -> (code: String, hash: String, grant: String) {
+        guard !subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, subject.count <= 160,
+              ["student", "owner"].contains(role) else { throw fail("Nome ou papel inválido.") }
+        let alphabet = Array("23456789ABCDEFGHJKLMNPQRSTUVWXYZ")
+        let random = SymmetricKey(size: .bits256).withUnsafeBytes { Array($0.prefix(16)) }
+        // Rejection-free selection over the 32-character alphabet, 80 random bits.
+        let raw = String(random.map { alphabet[Int($0) % alphabet.count] })
+        let code = stride(from: 0, to: 16, by: 4).map { String(Array(raw)[$0..<$0+4]) }.joined(separator: "-")
+        let accessHash = hash(Data(raw.utf8))
+        let payload: [String: Any] = ["version": 3, "product": "oracle-macos", "keyID": keyID,
+            "licenseID": UUID().uuidString, "subject": subject, "role": role,
+            "issuedAt": Int64(Date().timeIntervalSince1970), "accessKeyHash": accessHash]
+        let bytes = try json(payload)
+        let grant = "ORACLE3." + b64(bytes) + "." + b64(try key.signature(for: Data("ORACLE3.".utf8) + bytes))
+        return try transaction { ledger in
+            var access = ledger["accessKeys"] as? [String: Any] ?? [:]
+            guard access[accessHash] == nil else { throw fail("Colisão de chave; tente novamente.") }
+            access[accessHash] = ["subject": subject, "role": role, "grant": grant, "issuedAt": payload["issuedAt"]!]
+            ledger["accessKeys"] = access
+            return (code, accessHash, grant)
+        }
+    }
     func issue(_ code: String) throws -> String {
         let request = try decodeRequest(code), invitationID = hash(Data(request.invitation.utf8))
         return try transaction { ledger in
@@ -152,6 +174,16 @@ func selfTest(_ root: URL) throws {
     let data = try privateFile(dir.appendingPathComponent("ledger.json"))
     try check(!String(decoding: data, as: UTF8.self).contains(invite), "ledger stores invitation digest, not bearer token")
     try check(!fm.fileExists(atPath: dir.appendingPathComponent("ed25519-private.key").path), "fixture signer is never persisted")
+    let short = try issuer.issueAccess(subject: "Synthetic short owner", role: "owner")
+    try check(short.code.count == 19 && short.code.filter { $0 == "-" }.count == 3, "short key contains four groups of four characters")
+    let shortParts = short.grant.split(separator: ".")
+    let shortBytes = unb64(String(shortParts[1]))!
+    try check(shortParts[0] == "ORACLE3" && signer.publicKey.isValidSignature(unb64(String(shortParts[2]))!, for: Data("ORACLE3.".utf8) + shortBytes), "short-key grant has valid issuer signature")
+    let shortPayload = try JSONSerialization.jsonObject(with: shortBytes) as! [String: Any]
+    try check(shortPayload["accessKeyHash"] as? String == hash(Data(short.code.replacingOccurrences(of: "-", with: "").utf8)) && shortPayload["role"] as? String == "owner", "short key digest and explicit owner role are signed")
+    let updated = try JSONSerialization.jsonObject(with: privateFile(dir.appendingPathComponent("ledger.json"))) as! [String: Any]
+    try check((updated["accessKeys"] as? [String: Any])?[short.hash] != nil && (updated["invitations"] as? [String: Any])?.count == (try JSONSerialization.jsonObject(with: data) as! [String: Any])["invitations"].map { ($0 as! [String: Any]).count }, "short grants are durable and preserve invitation history")
+    try rejects("short key cannot invent an administrative role") { _ = try issuer.issueAccess(subject: "Synthetic", role: "admin") }
     print("Offline issuer: \(checks) checks passed; no real key, invitation or license issued.")
 }
 
@@ -162,12 +194,12 @@ do {
     if command == "--self-test" {
         guard let path = option("--work-root") else { throw fail("Use --self-test --work-root /caminho/.work/native-access-tests") }
         try selfTest(URL(fileURLWithPath: path).standardizedFileURL)
-    } else if ["init", "invite", "issue", "export-public"].contains(command) {
+    } else if ["init", "invite", "issue", "issue-access", "export-public"].contains(command) {
         guard let directory = option("--issuer-dir"), directory.hasPrefix("/") else { throw fail("Informe --issuer-dir /pasta/privada explicitamente; nenhum emissor padrão será acessado.") }
         let issuer = URL(fileURLWithPath: directory).standardizedFileURL
         let repository = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().resolvingSymlinksInPath()
         guard issuer.path == issuer.resolvingSymlinksInPath().path, issuer.path != repository.path, !issuer.path.hasPrefix(repository.path + "/") else { throw fail("Emissor real deve ficar fora do repositório, sem symlinks.") }
-        let allowed = command == "invite" ? ["--issuer-dir", "--to", "--role"] : command == "issue" ? ["--issuer-dir", "--request-file"] : ["--issuer-dir"]
+        let allowed = command == "issue-access" ? ["--issuer-dir", "--to", "--role", "--grant-dir", "--key-file"] : command == "invite" ? ["--issuer-dir", "--to", "--role"] : command == "issue" ? ["--issuer-dir", "--request-file"] : ["--issuer-dir"]
         var i = 1, seen = Set<String>()
         while i < args.count { guard allowed.contains(args[i]), i+1 < args.count, seen.insert(args[i]).inserted else { throw fail("Opção inválida ou duplicada: " + args[i]) }; i += 2 }
         let keyFile = issuer.appendingPathComponent("ed25519-private.key")
@@ -186,6 +218,20 @@ do {
             switch command {
             case "export-public": print(String(decoding: try json(["version": 1, "keys": [ledger.keyID: key.publicKey.rawRepresentation.base64EncodedString()]]), as: UTF8.self))
             case "invite": guard let subject = option("--to") else { throw fail("Use invite --to 'Pessoa' [--role student|owner].") }; print(try ledger.invite(subject: subject, role: option("--role") ?? "student"))
+            case "issue-access":
+                guard let subject = option("--to"), let grantPath = option("--grant-dir"), let keyPath = option("--key-file"),
+                      grantPath.hasPrefix("/"), keyPath.hasPrefix("/") else { throw fail("Use issue-access --to Pessoa --grant-dir /perfil/onboarding/access-grants --key-file /pasta/privada/chave.txt.") }
+                let grantDir = URL(fileURLWithPath: grantPath).standardizedFileURL
+                let output = URL(fileURLWithPath: keyPath).standardizedFileURL
+                for path in [grantDir, output] {
+                    guard path.path == path.resolvingSymlinksInPath().path, !path.path.hasPrefix(repository.path + "/") else { throw fail("Chaves e concessões reais devem ficar fora do repositório, sem symlinks.") }
+                }
+                guard !fm.fileExists(atPath: output.path), fm.fileExists(atPath: output.deletingLastPathComponent().path) else { throw fail("Escolha um novo arquivo de chave numa pasta privada existente.") }
+                try fm.createDirectory(at: grantDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+                let access = try ledger.issueAccess(subject: subject, role: option("--role") ?? "student")
+                try durableWrite(Data((access.code + "\n").utf8), to: output)
+                try durableWrite(Data(access.grant.utf8), to: grantDir.appendingPathComponent(access.hash + ".license"))
+                print(access.code)
             default:
                 guard let path = option("--request-file") else { throw fail("Use issue --request-file solicitacao.txt. Convite e chave do Mac são obrigatórios.") }
                 let url = URL(fileURLWithPath: path)
@@ -194,6 +240,6 @@ do {
             }
         }
     } else {
-        print("oracle-license init|export-public|invite --to 'Pessoa' [--role student|owner]|issue --request-file solicitacao.txt\nTodos exigem --issuer-dir /pasta/privada fora do repositório. Licença permanente, um Mac por convite. Nenhuma revogação remota offline.\nTestes: --self-test --work-root /projeto/.work/native-access-tests")
+        print("oracle-license issue-access --to Pessoa --grant-dir /perfil/onboarding/access-grants --key-file /privado/chave.txt [--role student|owner]\ninit|export-public|invite --to 'Pessoa' [--role student|owner]|issue --request-file solicitacao.txt\nTodos exigem --issuer-dir /pasta/privada fora do repositório. Licença permanente, um Mac por convite. Nenhuma revogação remota offline.\nTestes: --self-test --work-root /projeto/.work/native-access-tests")
     }
 } catch { fputs(error.localizedDescription + "\n", stderr); exit(1) }

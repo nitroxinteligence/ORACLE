@@ -14,6 +14,7 @@ struct OracleLicense: Codable {
     var invitationID: String? = nil
     var requestID: String? = nil
     var role: String? = nil
+    var accessKeyHash: String? = nil
     var usesKeyProof: Bool { devicePublicKey != nil || invitationID != nil || requestID != nil || role != nil }
 }
 struct LicenseKeys: Codable { let version: Int; let keys: [String: String] }
@@ -60,15 +61,15 @@ func validateActivationRequest(_ code: String) throws -> OracleActivationRequest
 }
 
 /// Verify the signed envelope before interpreting either shipped ORACLE2 binding.
-/// Existing ORACLE1 records are read-only compatibility; new activation requires v2.
+/// ORACLE1 is read-only compatibility; v3 uses an issuer-provisioned short key.
 func validateLicense(_ code: String, keys: LicenseKeys, device: String, now: Int64 = Int64(Date().timeIntervalSince1970)) throws -> OracleLicense {
     guard code.utf8.count <= 8192 else { throw failure("Código inválido ou muito longo.") }
     let p = code.trimmingCharacters(in: .whitespacesAndNewlines).split(separator: ".", omittingEmptySubsequences: false)
-    guard keys.version == 1, p.count == 3, ["ORACLE1", "ORACLE2"].contains(String(p[0])),
+    guard keys.version == 1, p.count == 3, ["ORACLE1", "ORACLE2", "ORACLE3"].contains(String(p[0])),
         let bytes = decodeBase64URL(String(p[1])), bytes.count < 4096,
         let signature = decodeBase64URL(String(p[2])), signature.count == 64,
         let value = try? JSONDecoder().decode(OracleLicense.self, from: bytes),
-        String(p[0]) == "ORACLE\(value.version)", [1, 2].contains(value.version), value.product == "oracle-macos",
+        String(p[0]) == "ORACLE\(value.version)", [1, 2, 3].contains(value.version), value.product == "oracle-macos",
         UUID(uuidString: value.licenseID) != nil,
         !value.subject.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, value.subject.count <= 160,
         let publicText = keys.keys[value.keyID], let publicData = Data(base64Encoded: publicText),
@@ -77,7 +78,14 @@ func validateLicense(_ code: String, keys: LicenseKeys, device: String, now: Int
         throw failure("Licença inválida ou alterada. Confira o código individual recebido.")
     }
     guard value.issuedAt >= 0, value.issuedAt <= now + 300 else { throw failure("Confira a data do Mac antes de ativar a licença.") }
-    if value.version == 2 {
+    if value.version == 3 {
+        guard value.expiresAt == nil, value.deviceID == nil, value.devicePublicKey == nil,
+              value.invitationID == nil, value.requestID == nil,
+              let role = value.role, ["owner", "student"].contains(role),
+              let hash = value.accessKeyHash, hash.count == 64, hash.allSatisfy({ "0123456789abcdef".contains($0) }) else {
+            throw failure("Chave de acesso incompleta ou incompatível.")
+        }
+    } else if value.version == 2 {
         guard value.expiresAt == nil, let required = value.deviceID, required == device else {
             throw failure("Este código permanente não corresponde ao vínculo verificado deste Mac.")
         }
@@ -128,6 +136,7 @@ extension Core {
         guard parts.count==3,let bytes=decodeBase64URL(String(parts[1])),
               let value=try? JSONDecoder().decode(OracleLicense.self,from:bytes) else {throw failure("Código de acesso inválido.")}
         let keys=try licenseKeys()
+        if value.version == 3 {return try validateLicense(code,keys:keys,device:"")}
         if value.usesKeyProof {return try validateDeviceLicense(code,keys:keys,identity:SecureEnclaveDeviceIdentity.load())}
         let device:String
         if code.hasPrefix("ORACLE2.") {device=try licenseDevice.identifier(create:false)}
@@ -159,8 +168,21 @@ extension Core {
         return ["request":request,"deviceID":identity.fingerprint,"status":"awaiting_response"]
     }
     func activateLicense(_ code:String) throws -> [String:Any] {
-        let clean=code.trimmingCharacters(in:.whitespacesAndNewlines)
-        guard clean.hasPrefix("ORACLE2."),clean.utf8.count<=8192 else {throw failure("Novas ativações exigem um código individual ORACLE2. Seus documentos foram preservados.")}
+        var clean=code.trimmingCharacters(in:.whitespacesAndNewlines)
+        guard clean.utf8.count<=8192 else {throw failure("Chave de acesso inválida.")}
+        // A short key selects an issuer-provisioned, signed grant. The key itself
+        // cannot grant access or change a role; no issuer secrets ship in the app.
+        if !clean.hasPrefix("ORACLE2.") {
+            let normalized=clean.uppercased().replacingOccurrences(of:"-",with:"").replacingOccurrences(of:" ",with:"")
+            guard normalized.count==16, normalized.allSatisfy({"23456789ABCDEFGHJKLMNPQRSTUVWXYZ".contains($0)}) else {throw failure("Confira sua chave de acesso.")}
+            let hash=digest(Data(normalized.utf8))
+            guard let bytes=try? licenseFile("onboarding/access-grants/\(hash).license"),
+                  let grant=String(data:bytes,encoding:.utf8),
+                  let license=try? checkedLicense(grant),license.version==3,license.accessKeyHash==hash else {
+                throw failure("Chave de acesso não reconhecida nesta instalação.")
+            }
+            clean=grant
+        }
         let lock=try acquireOperationLock("license");defer{releaseOperationLock(lock)}
         let setup=try acquireOperationLock("setup");defer{releaseOperationLock(setup)}
         let value=try checkedLicense(clean)
@@ -168,7 +190,7 @@ extension Core {
         try fm.createDirectory(at:path.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         try atomicWriteData(Data(clean.utf8),to:path,permissions:0o600)
         var state=onboardingRecord();state["legacyAccess"]=false;try writeJSON(state,onboardingURL)
-        return ["valid":true,"subject":value.subject,"deviceBound":true,"offline":true,"expires":false,
+        return ["valid":true,"subject":value.subject,"deviceBound":value.deviceID != nil,"offline":true,"expires":false,
                 "role":value.role ?? "student","capabilities":licenseCapabilities(value)]
     }
 }

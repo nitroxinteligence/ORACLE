@@ -9,7 +9,7 @@
   const groups=[['AGENT_NAME','PRINCIPAL_NAME','PRINCIPAL_TIMEZONE'],['AGENT_PURPOSE','AGENT_TOP_JOBS'],['PRINCIPAL_CONTEXT','VOICE_REGISTER']];
   const fresh=()=>({answers:{AGENT_NAME:'Oracle',PRINCIPAL_TIMEZONE:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'},catalogCollections:[],newVault:false,attach:false});
   let api,root,dialog,card,timer,epoch=0,pollPromise=null,open=false,suspended=true,stage='',group=0,current={},draft=fresh(),review=null,origin=null,fromSettings=false;
-  let saveTimer,lastSignature='',lastView='',dirty=false,draftWrites=Promise.resolve(),activationRequest='',licenseCode='',invitation='',connectionRequested=false,checkingConnection=false;
+  let saveTimer,lastSignature='',lastView='',dirty=false,draftWrites=Promise.resolve(),licenseCode='',connectionRequested=false,checkingConnection=false;
   const $=selector=>root?.querySelector(selector);
   const invoke=async(method,params={})=>{
     const generation=epoch,value=await api.call(method,params);
@@ -22,7 +22,7 @@
   const action=fn=>async e=>{const b=e?.currentTarget,generation=epoch;if(b)b.disabled=true;try{await fn(e);}catch(error){if(!suspended&&generation===epoch)message(error);}finally{if(b?.isConnected&&generation===epoch)b.disabled=false;}};
   function capture(){
     if(!open)return;
-    if(stage==='license'){licenseCode=$('#ob-code')?.value??licenseCode;invitation=$('#ob-invitation')?.value??invitation;return;}
+    if(stage==='license'){licenseCode=$('#ob-code')?.value??licenseCode;return;}
     if(!mutable()||!['identity','vault'].includes(stage))return;
     const prior=JSON.stringify(draft);
     if(stage==='identity'){
@@ -86,17 +86,9 @@
     if(stage==='progress'&&current.status==='completed'){dismiss();return;}
     lastView=viewSignature();
     if(stage==='license'){
-      capture();const unsupported=current.deviceSupport?.supported===false;
-      const simpleDevice=String(current.deviceID||'').startsWith('ORACLE-MAC2-')?current.deviceID:'';
-      frame('Seu Oracle, neste Mac.',`<p>Insira o código individual de acesso recebido de Mateus. A validação e a instalação são locais.</p><label for="ob-code">Código de acesso</label><textarea id="ob-code" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Cole seu código ORACLE2 aqui">${esc(licenseCode)}</textarea><details id="ob-simple-request"><summary>Pedido de acesso para este Mac</summary><p>Gere o identificador e envie a Mateus. Esta ação guarda um vínculo local no Chaves do macOS; não envia informações pela rede.</p>${button('ob-device-request',simpleDevice?'Verificar pedido deste Mac':'Gerar pedido deste Mac',false)}${simpleDevice?`<p><code>${esc(simpleDevice)}</code></p>${button('ob-copy-device','Copiar identificador',false)}`:''}${current.deviceBindingMessage?`<p role="alert">${esc(current.deviceBindingMessage)}</p>`:''}</details><details id="ob-invitation-details" ${activationRequest?'open':''}><summary>Tenho um convite individual ORACLEINV2</summary><p>Gere a solicitação e envie ao proprietário para receber a resposta de ativação deste Mac.</p>${unsupported?'<p role="alert">'+esc(current.deviceSupport.reason)+'</p>':''}<label for="ob-invitation">Convite individual</label><input id="ob-invitation" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ORACLEINV2…" value="${esc(invitation)}">${button('ob-request','Gerar solicitação',false)}<section id="ob-request-result" ${activationRequest?'':'hidden'}><label for="ob-request-code">Envie esta solicitação ao proprietário</label><textarea id="ob-request-code" rows="3" readonly spellcheck="false">${esc(activationRequest)}</textarea>${button('ob-copy-request','Copiar solicitação',false)}</section></details><p class="ob-muted">A licença individual é permanente e validada offline. Trocar de Mac exige nova emissão. Uma licença offline não recebe revogação remota.</p>`,button('ob-activate','Ativar acesso'));
-      // Secure Enclave support applies only to the invitation request. Native activation
-      // validates either shipped ORACLE2 format and never creates a device implicitly.
-      $('#ob-request').disabled=unsupported;
-      $('#ob-device-request').onclick=action(async()=>{capture();const request=await invoke('onboardingDeviceRequest');capture();current.deviceID=request.deviceID;current.deviceBindingMessage=null;render();$('#ob-simple-request').open=true;});
-      $('#ob-copy-device')?.addEventListener('click',action(()=>invoke('copy',{text:simpleDevice})));
-      $('#ob-request').onclick=action(async()=>{capture();const r=await invoke('onboardingActivationRequest',{invitation});activationRequest=r.request;$('#ob-request-code').value=r.request;$('#ob-request-result').hidden=false;$('#ob-request-code').focus();});
-      $('#ob-copy-request').onclick=action(()=>invoke('copy',{text:activationRequest}));
-      $('#ob-activate').onclick=action(async()=>{capture();await invoke('onboardingActivate',{code:licenseCode});$('#ob-code').value='';$('#ob-invitation').value='';licenseCode='';invitation='';activationRequest='';await refreshStatus();stage=resolveStage();render();});
+      capture();
+      frame('Ative seu Oracle.',`<label for="ob-code">Chave de acesso</label><input id="ob-code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX" value="${esc(licenseCode)}">`,button('ob-activate','Ativar'));
+      $('#ob-activate').onclick=action(async()=>{capture();await invoke('onboardingActivate',{code:licenseCode});$('#ob-code').value='';licenseCode='';await refreshStatus();if(current.resumeExisting){await dismiss();await api.refresh?.();}else{stage=resolveStage();render();}});
     }else if(stage==='vault'){
       frame('Escolha seu Obsidian.',`<p>As notas originais permanecem na pasta escolhida. O GBrain oficial mantém um índice local derivado, que pode ser reconstruído.</p><div class="ob-selection"><span>${esc(current.vaultName||'Nenhuma pasta selecionada')}</span>${button('ob-vault','Escolher pasta…',false)}</div><label class="ob-check"><input id="ob-new" type="checkbox" ${draft.newVault?'checked':''}>Criar a estrutura Oracle nesta pasta</label><label class="ob-check"><input id="ob-attach" type="checkbox" ${draft.attach?'checked':''}>Conectar um GBrain local existente</label><div id="ob-existing" ${draft.attach?'':'hidden'}>${button('ob-brain','Escolher workspace e perfil…',false)}<p class="ob-muted">O perfil é escolhido explicitamente. Não será usado outro banco por padrão.</p></div><p class="ob-muted">Pessoal e Profissional aproveitam as pastas existentes. Pacotes opcionais não serão instalados nesta configuração.</p><p class="ob-muted">Conectar o Codex é opcional. A instalação abaixo usa somente operações locais verificáveis.</p>`,button('ob-vault-next','Continuar'));
       $('#ob-attach').onchange=()=>{$('#ob-existing').hidden=!$('#ob-attach').checked;dirty=true;};
@@ -156,7 +148,7 @@
   function readbackText(text){const names={...labels,SOUL_RELATIONSHIP:'Papel na colaboração',SOUL_MODE_DEFAULT:'Como agir diante de dúvidas',SOUL_WINCE:'O que evitar',SOUL_WORLDVIEW:'Visão de mundo',SOUL_GOOD_OUTPUT:'O que define uma boa entrega'};return String(text).replace(/^read-back hash:.*$/gm,'').replace(/^(?:\* )?\s*([A-Z_]+):/gm,(_,k)=>(names[k]||k)+':').replace(/\(default:/g,'(padrão:').trim();}
   function renderCard(){
     if(!card)return;
-    card.hidden=suspended||open||current.status==='completed';if(card.hidden)return;
+    card.hidden=suspended||open||current.status==='completed'||current.resumeExisting;if(card.hidden)return;
     const cancelable=active.has(current.status)||current.status==='waiting_user';
     card.innerHTML=`<div class="ob-card-copy"><strong>${esc(!current.licensed?'Ative seu Oracle':current.message||'Continue a configuração local')}</strong><span>${esc(current.phase||'')}</span></div><div class="ob-card-actions">${button('ob-continue',current.request?'Responder':current.readback?'Revisar respostas':'Continuar',false)}${cancelable?button('ob-card-cancel','Pausar',false):''}</div>${active.has(current.status)?'<div class="ob-working" aria-label="Instalação local em andamento"></div>':''}`;
     $('#ob-continue').onclick=()=>{stage=resolveStage();reveal();};$('#ob-card-cancel')?.addEventListener('click',action(cancel));
@@ -180,7 +172,7 @@
           // Preserve the same question while typing. A new run/generation is a new question.
           if(automatic&&viewSignature()!==lastView&&!(stage==='request'&&requestKey(prior)===requestKey(current)))render();
           if(stage==='connection'&&viewSignature()!==lastView)render();
-          if(stage==='license'&&current.licensed){stage=resolveStage();render();}
+          if(stage==='license'&&current.licensed){if(current.resumeExisting){await dismiss();await api.refresh?.();}else{stage=resolveStage();render();}}
         }
       }
       renderCard();
@@ -205,9 +197,9 @@
     }
     await poll();if(current.draft){draft={...fresh(),...current.draft,answers:{...fresh().answers,...current.draft.answers}};group=Math.max(0,Math.min(2,current.draft.ui?.group||0));}
     clearInterval(timer);timer=setInterval(()=>{const generation=epoch;tick().catch(error=>{if(!suspended&&generation===epoch)message(error);});},1800);
-    if(!current.licensed||current.status==='not_started'){stage=resolveStage();reveal();}
+    if(!current.licensed||(current.status==='not_started'&&!current.resumeExisting)){stage=resolveStage();reveal();}
   }
-  function suspend(){capture();clearTimeout(saveTimer);epoch++;suspended=true;open=false;clearInterval(timer);timer=null;pollPromise=null;draftWrites=draftWrites.catch(()=>{});OracleTransitions.cancelDialog(dialog);dialog?.close();dialog?.replaceChildren();if(card)card.hidden=true;draft=fresh();current={};review=null;activationRequest='';licenseCode='';invitation='';connectionRequested=false;checkingConnection=false;dirty=false;lastSignature='';lastView='';}
+  function suspend(){capture();clearTimeout(saveTimer);epoch++;suspended=true;open=false;clearInterval(timer);timer=null;pollPromise=null;draftWrites=draftWrites.catch(()=>{});OracleTransitions.cancelDialog(dialog);dialog?.close();dialog?.replaceChildren();if(card)card.hidden=true;draft=fresh();current={};review=null;licenseCode='';connectionRequested=false;checkingConnection=false;dirty=false;lastSignature='';lastView='';}
   window.OracleOnboarding={mount,poll,suspend,formatReadback:readbackText,getState:()=>({...current}),
     pendingDraft(){capture();return dirty&&mutable()&&['identity','vault'].includes(stage)?structuredClone({...draft,step:stage,ui:{group}}):null;},
     open(options={}){fromSettings=!!options.fromSettings;stage=options.connection&&current.licensed?'connection':resolveStage();reveal();},

@@ -76,3 +76,13 @@ Release pública e latest conferidas. Os 21 assets têm tamanho e SHA-256 idênt
 ## Integração final 0.3.2
 
 A versão 0.3.2 incorpora a implementação ao código mais recente da 0.3.1, preservando a interface e as chaves curtas. Os números e os caminhos 0.3.0 acima são recibos históricos, substituídos pela entrega 0.3.2. Regressões atuais: 44 testes de modelos/leitor, 65 de licença/consentimento, 67 de ciclo de onboarding e 50 de dispositivos/chaves curtas, sem falhas. A descoberta nativa no Codex está em `.work/codex-discovery/receipt.json`: 1.017 esperadas e 1.017 habilitadas.
+
+### Recibo da entrega instalada
+
+Instalado `/Applications/Oracle.app` 0.3.2 build 73, commit `c3b65014403dacac4a4e2a7e7196ee2f15fd3f4d`. Manifesto conferido com o bundle gerado e assinatura ad hoc verificada com `codesign --verify --deep --strict`. Recuperação: `.work/onboarding-v2/recovery/Oracle-0.3.1-build70.app` na worktree original. Os contratos nativos finais passaram, incluindo a prioridade da retomada sobre indexação automática e a visibilidade de placeholders iCloud sem incluí-los no índice.
+
+A jornada WKWebView + controlador real concluiu após liberar cópias temporárias redundantes e retomar o mesmo plano afetado por ENOSPC. Seis verificações finais passaram: retomada, mapa com itens reais, plano preservado, progresso encerrado, ausência de entrevista e busca no acervo real; a leitura canônica também respondeu. A retomada completa levou 458,049 s e o fechamento do modal 11.687 ms. Recibo: `.work/full-public-ui/native-ui-result.json` na worktree de integração. Essa execução usou recursos nativos do commit `ace3b42`; a alteração posterior de placeholders foi verificada pelos contratos e no app instalado.
+
+Oito casos da fixture WebKit passaram com os recursos web finais inalterados; latência sintética: 1.434 ms. A latência visual inicial da instalação real não foi registrada e não deve ser inferida desse número. Descoberta no Codex foi real e isolada; execução por modelo, homologação em outro Mac, ativação física e Apple continuam fora dessas evidências.
+
+O app instalado foi reaberto e a navegação existente foi conferida: Código 870 skills, Marketing 85 e Vendas 1, com galerias preservadas. Arquivos ainda presentes apenas no iCloud são exibidos; a busca continua parcial enquanto esses conteúdos não estiverem locais.

@@ -54,7 +54,7 @@ Contrato: [IMPLEMENTAR.md](IMPLEMENTAR.md). Execução: 12/09/2026. `[x]` indica
 - [x] Executar 23 testes do publisher, 35 do espelhador, 44 testes dos modelos web/leitor e oito casos WKWebView.
 - [x] Produzir e verificar app e DMG developer pelo pipeline existente; preservar alterações preexistentes.
 - [x] Registrar alterações, evidências, limites e pendências.
-- [ ] Homologar a jornada da interface nativa com a release pública completa.
+- [x] Exercitar a interface nativa com a release pública completa: instalação, retomada do mesmo plano após ENOSPC, mapa, busca e leitura; seis verificações finais sem falha.
 - [x] Conferir descoberta das 1.017 skills no app-server real do ChatGPT Desktop, em host isolado; nenhuma ausente. Execução por modelo e dependências externas de cada skill permanecem verificações distintas.
 - [x] Provisionar Bun 1.3.10 em `.work`, conferir o digest oficial e selecionar o compilador explicitamente no pipeline; preflight suportado sem avisos.
 - [ ] Qualificar Developer ID, notarização, Gatekeeper, licença física e primeiro uso em Mac limpo.
@@ -63,10 +63,16 @@ Continuação: evidências e dependências concretas em [REVISAO-ACERVO.md](REVI
 
 ## Estado preservado
 
-O acervo foi enviado a ORACLE-SKILLS no commit `e8e20120f044cceb93ba01c5e80dc346dc128b42` e publicado na release `acervo-2026.09.12`. Não houve commit/staging no repositório principal nem substituição de `/Applications/Oracle.app`. Os hashes preexistentes de `Resources/Oracle.icns` e `scripts/package-identity.py` foram preservados. `AGENTS.md`, `PRODUCT.md`, `docs/design/`, `identity/oracle-v3/metallic/` e os documentos originais da especificação não foram tratados como alterações desta implementação. O OS original não foi reescrito.
+O acervo foi enviado a ORACLE-SKILLS no commit `e8e20120f044cceb93ba01c5e80dc346dc128b42` e publicado na release `acervo-2026.09.12`. Esse era o estado anterior à integração final. O código foi posteriormente integrado à `main` e `/Applications/Oracle.app` foi substituído pela versão 0.3.2, build 73, com cópia recuperável da 0.3.1. Os hashes preexistentes de `Resources/Oracle.icns` e `scripts/package-identity.py` foram preservados. `AGENTS.md`, `PRODUCT.md`, `docs/design/`, `identity/oracle-v3/metallic/` e os documentos originais da especificação não foram tratados como alterações desta implementação. O OS original não foi reescrito.
 
 ## Integração da versão 0.3.2
 
 Integrada sobre `5e6527957fbb6144708e5442a1355d0898ac59dc`, preservando as galerias, o mapa, as transições e as chaves curtas da 0.3.1. A integração usa uma worktree isolada para preservar as alterações de outras tarefas. Regressões nesta versão: 44 testes de modelos/leitor; 65 verificações de licença/consentimento; 67 de ciclo de onboarding; 50 de dispositivos/chaves curtas.
 
 O app-server do ChatGPT Desktop `0.154.0-alpha.6.2` descobriu as 1.017 skills preparadas em host descartável. Não houve modificação da configuração global, conexão de contas ou execução por modelo. Recibo local: `.work/codex-discovery/receipt.json`.
+
+## Entrega instalada
+
+App 0.3.2 build 73, commit `c3b65014403dacac4a4e2a7e7196ee2f15fd3f4d`, instalado em `/Applications/Oracle.app`; manifesto idêntico ao bundle gerado e `codesign --verify --deep --strict` aprovado. Backup da 0.3.1 em `.work/onboarding-v2/recovery/Oracle-0.3.1-build70.app` na worktree original. Corrigida a disputa entre sincronização automática e retomada de instalação incompleta; placeholders iCloud continuam no mapa e não entram no índice até estarem locais.
+
+Os contratos nativos finais passaram. A fixture WebKit passou nos oito casos, com entrega visual sintética em 1.434 ms. A jornada real foi retomada após ENOSPC, terminou com o mesmo plano e passou em seis verificações; a retomada levou 11.687 ms para fechar o modal. A latência visual inicial do acervo real não foi registrada, portanto o limite de 2 s não é declarado como homologado nesse escopo.

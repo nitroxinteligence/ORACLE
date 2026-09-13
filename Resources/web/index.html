@@ -3,13 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'nonce-oracle-onboarding-effects'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
   <title>Oracle</title>
   <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="atlas-motion.css">
 <link rel="stylesheet" href="onboarding.css">
 <link rel="stylesheet" href="audit.css">
 <link rel="stylesheet" href="orbital-v3.css">
+<link rel="stylesheet" href="onboarding-v2.css">
 </head>
 <body>
 <svg width="0" height="0" aria-hidden="true" style="position:absolute;pointer-events:none"><defs><filter id="metallic-background-alpha" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  16 16 16 0 -0.15"/></filter></defs></svg>
@@ -20,7 +21,6 @@
     <div class="header-actions">
       <nav class="workspace-tabs" role="tablist" aria-label="Áreas do Oracle"><button id="workspace-graph" role="tab" aria-selected="true" aria-controls="graph-page" data-workspace="map" tabindex="0">Graph</button><button id="workspace-tutorials" role="tab" aria-selected="false" aria-controls="library-page" data-workspace="tutorials" tabindex="-1">Tutoriais</button><button id="workspace-prompts" role="tab" aria-selected="false" aria-controls="library-page" data-workspace="prompts" tabindex="-1">Prompts</button></nav>
       <button id="navigation-toggle" class="icon-button" aria-label="Meu universo" aria-controls="navigation-panel" aria-expanded="true" data-tooltip="Meu universo"><span data-icon="sidebar"></span></button>
-      <button id="replay-toggle" class="icon-button" aria-label="Timelapse" aria-controls="replay-panel" aria-expanded="false" data-tooltip="Timelapse"><span data-icon="history"></span></button>
 
 
 
@@ -81,5 +81,5 @@
 <div id="tooltip" role="tooltip" hidden></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <div id="lock-screen" hidden><div class="lock-card"><div class="wordmark"><img class="brand-lockup" src="brand/lockup-white.svg" alt="Oracle"></div><h1>Seu universo, reservado.</h1><p>Use Touch ID ou a senha do macOS para continuar.</p><button id="unlock" class="primary">Desbloquear Oracle</button><small>A proteção bloqueia esta interface. Seu vault continua acessível pelo Obsidian.</small></div></div>
-<script src="status-badges.js"></script><script src="vendor/marked.js"></script><script src="reader.js"></script><script src="library.js"></script><script src="preview.js"></script><script src="universe.js"></script><script src="flat-universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="installation-visual.js"></script><script src="transitions.js"></script><script src="onboarding.js"></script><script src="library-gallery.js"></script><script src="knowledge-hub.js"></script><script src="ui-controls.js"></script><script src="app.js"></script>
+<script src="status-badges.js"></script><script src="vendor/marked.js"></script><script src="reader.js"></script><script src="library.js"></script><script src="preview.js"></script><script src="universe.js"></script><script src="flat-universe.js"></script><script src="replay.js"></script><script src="atlas.js"></script><script src="installation-visual.js"></script><script src="transitions.js"></script><script src="onboarding.js"></script><script src="effects/onboarding.js"></script><script src="onboarding-v2.js"></script><script src="library-gallery.js"></script><script src="knowledge-hub.js"></script><script src="ui-controls.js"></script><script src="app.js"></script>
 </body></html>

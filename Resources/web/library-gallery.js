@@ -42,10 +42,18 @@ class OracleLibraryGallery {
  }
  filtered(data){const model=this.model(),terms=this.key(model.query).split(/\s+/).filter(Boolean);return data.documents.filter(e=>this.inside(e.path,model.folder||data.root)&&terms.every(t=>this.key(e.path+' '+(e.name||'')+' '+(this.cache.get(e.path)?.title||'')).includes(t))).sort((a,b)=>(model.order==='za'?-1:1)*this.label(a.path).localeCompare(this.label(b.path),'pt-BR'))}
  fillCard(button,entry){
-  const value=this.cache.get(entry.path),title=value?.title||this.label(entry.path),cover=value?.cover;
-  button.classList.toggle('has-cover',!!cover);button.setAttribute('aria-label',title);
-  button.innerHTML=(cover?`<span class="gallery-cover"><img src="${this.h.esc(cover)}" alt="" loading="lazy" decoding="async"></span>`:'')+`<span class="gallery-card-title">${this.h.esc(title)}</span>`;
-  button.querySelector('img')?.addEventListener('error',()=>{button.classList.remove('has-cover');button.querySelector('.gallery-cover')?.remove();if(value)value.cover='';},{once:true});
+  const value=this.cache.get(entry.path),title=value?.title||this.label(entry.path);
+  const parts=entry.path.slice(this.data().root.length+1).split('/');
+  const name=parts.length>1?this.label(parts[0]):this.options[this.mode].title;
+  const folder=name.charAt(0).toLocaleUpperCase('pt-BR')+name.slice(1);
+  const variant=Array.from(entry.path).reduce((hash,char)=>(Math.imul(hash,31)+char.charCodeAt(0))>>>0,0)%6+1;
+  const cover=`gallery/metallic-${String(variant).padStart(2,'0')}.webp`;
+  button.setAttribute('aria-label',`${title} · ${folder}`);
+  // Metadata arrives asynchronously; keep the already painted cover in place.
+  const heading=button.querySelector('.gallery-card-title');
+  if(heading){heading.textContent=title;return;}
+  button.innerHTML=`<span class="gallery-cover"><img src="${cover}" alt="" loading="lazy" decoding="async" width="960" height="480"><span class="gallery-card-folder">${this.h.esc(folder)}</span></span><span class="gallery-card-title">${this.h.esc(title)}</span>`;
+  button.querySelector('img').addEventListener('error',e=>e.target.remove(),{once:true});
  }
  render(){
   if(!this.active)return;
@@ -79,7 +87,7 @@ class OracleLibraryGallery {
   const {esc}=this.h,data=this.data(),model=this.model(),items=this.filtered(data),pages=Math.max(1,Math.ceil(items.length/this.pageSize));model.page=Math.min(model.page,pages-1);
   const rows=items.slice(model.page*this.pageSize,(model.page+1)*this.pageSize);this.visible=rows;
   const host=this.el.querySelector('.gallery-results');if(!host)return;
-  host.innerHTML=`<div class="gallery-result-heading"><span role="status">${items.length} ${this.mode==='prompts'?(items.length===1?'prompt':'prompts'):(items.length===1?'tutorial':'tutoriais')}${model.query?(items.length===1?' encontrado':' encontrados'):''}</span>${model.query||model.folder?'<button type="button" class="quiet-link" data-gallery-clear>Limpar filtros</button>':''}</div>`+(rows.length?`<div class="gallery-grid" aria-label="${this.options[this.mode].title} encontrados">${rows.map(entry=>`<button type="button" class="gallery-card" data-card-path="${esc(entry.path)}"></button>`).join('')}</div>`:`<div class="gallery-empty"><h2>${data.ambiguous?'Escolha a biblioteca de origem':model.query||model.folder?'Nenhum resultado encontrado':'Sua biblioteca ainda está vazia'}</h2><p>${data.ambiguous?'Há mais de uma pasta correspondente. Selecione qual delas deseja explorar.':model.query||model.folder?'Tente outro nome ou remova um filtro.':'Os documentos aparecerão aqui quando estiverem disponíveis no Obsidian.'}</p></div>`)+(pages>1?`<nav class="gallery-pagination" aria-label="Páginas da galeria"><button type="button" data-gallery-page="-1" ${model.page===0?'disabled':''}>Anterior</button><span>${model.page+1} de ${pages}</span><button type="button" data-gallery-page="1" ${model.page===pages-1?'disabled':''}>Próxima</button></nav>`:'');
+  host.innerHTML=`<div class="gallery-result-heading"><span role="status">${items.length} ${this.mode==='prompts'?(items.length===1?'prompt':'prompts'):(items.length===1?'tutorial':'tutoriais')}${model.query?(items.length===1?' encontrado':' encontrados'):''}</span>${model.query||model.folder?'<button type="button" class="quiet-link" data-gallery-clear>Limpar filtros</button>':''}</div>`+(rows.length?`<div class="gallery-grid" aria-label="${this.options[this.mode].title} encontrados">${rows.map(entry=>`<button type="button" class="gallery-card" data-card-path="${esc(entry.path)}"></button>`).join('')}</div>`:`<div class="gallery-empty"><h2>${data.ambiguous?'Escolha a biblioteca de origem':model.query||model.folder?'Nenhum resultado encontrado':'Sua biblioteca ainda está vazia'}</h2><p>${data.ambiguous?'Há mais de uma pasta correspondente. Selecione qual delas deseja explorar.':model.query||model.folder?'Tente outro nome ou remova um filtro.':'Os documentos aparecerão aqui quando estiverem disponíveis.'}</p></div>`)+(pages>1?`<nav class="gallery-pagination" aria-label="Páginas da galeria"><button type="button" data-gallery-page="-1" ${model.page===0?'disabled':''}>Anterior</button><span>${model.page+1} de ${pages}</span><button type="button" data-gallery-page="1" ${model.page===pages-1?'disabled':''}>Próxima</button></nav>`:'');
   host.querySelectorAll('[data-card-path]').forEach((button,i)=>{this.fillCard(button,rows[i]);button.onclick=()=>this.openDocument(button.dataset.cardPath)});
   host.querySelector('[data-gallery-clear]')?.addEventListener('click',()=>{model.query='';model.folder='';model.page=0;this.sequence++;this.render();this.el.querySelector('input')?.focus()});
   host.querySelectorAll('[data-gallery-page]').forEach(button=>button.onclick=()=>{model.page+=Number(button.dataset.galleryPage);this.sequence++;this.renderResults();this.el.querySelector('.gallery-results').scrollIntoView({block:'start'});this.el.querySelector('[data-card-path]')?.focus({preventScroll:true})});

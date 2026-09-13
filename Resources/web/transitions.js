@@ -2,7 +2,7 @@
 window.OracleTransitions=(()=>{
  const ease='cubic-bezier(.22,1,.36,1)',running=new Map(),closing=new Map(),snapshots=new Map();
  const preference=matchMedia('(prefers-reduced-motion: reduce)');
- let pageRevision=0;
+ let pageRevision=0,pageCleanup=null;
  const enabled=()=>!preference.matches&&!document.body.classList.contains('reduced')&&!document.hidden&&window.oracleWindowVisible!==false;
  function cancel(element){
   const current=running.get(element);if(!current)return;
@@ -25,7 +25,8 @@ window.OracleTransitions=(()=>{
    return true;
   },()=>false);
  }
- function cancelDialog(dialog){
+ function cancelDialog(dialog,{preserveEntrance=false}={}){
+  if(preserveEntrance&&!closing.has(dialog)&&dialog?.dataset.motion==='modal-enter')return;
   const current=closing.get(dialog);
   if(current){closing.delete(dialog);dialog.inert=current.inert;}
   cancel(dialog);dialog?.removeAttribute('data-modal-motion');
@@ -57,22 +58,44 @@ window.OracleTransitions=(()=>{
   return clone;
  }
  function content(element,previous=null){
-  if(previous&&enabled()&&element?.isConnected){
+  if(previous){
+   cancel(element);
+   if(!enabled()||!element?.isConnected||element.closest('dialog')?.dataset.motion==='modal-enter')return Promise.resolve(true);
    element.parentElement.append(previous);snapshots.set(element,previous);
-   void animate(previous,[{opacity:1},{opacity:0}],{duration:130,name:'content-exit',hold:true}).then(()=>{previous.remove();cancel(previous);if(snapshots.get(element)===previous)snapshots.delete(element)});
+   // Keep the new content opaque beneath the outgoing content. No delayed
+   // second fade, so navigation never exposes an empty dialog.
+   return animate(previous,[{opacity:1},{opacity:0}],{duration:180,name:'content-exit',hold:true}).then(completed=>{previous.remove();cancel(previous);if(snapshots.get(element)===previous)snapshots.delete(element);return completed;});
   }
-  return animate(element,[{opacity:0},{opacity:1}],{duration:190,delay:previous?100:0,name:'content-enter'});
+  return animate(element,[{opacity:0},{opacity:1}],{duration:190,name:'content-enter'});
  }
- function cancelPage(){pageRevision++;cancel(document.querySelector('#graph-page'));cancel(document.querySelector('#library-page'));}
- function changePage(from,to,commit,direction=1){
+ function cancelPage(){
+  pageRevision++;pageCleanup?.();pageCleanup=null;
+  cancel(document.querySelector('#graph-page'));cancel(document.querySelector('#library-page'));
+ }
+ function changePage(from,to,commit){
   cancelPage();const revision=pageRevision;
-  const enter=()=>{
-   if(revision!==pageRevision||commit()===false)return;
-   const graph=to.id==='graph-page';
-   void animate(to,[{opacity:0,transform:graph?'scale(.992)':`translateX(${direction*10}px)`},{opacity:1,transform:graph?'scale(1)':'translateX(0)'}],{duration:220,name:'page-enter'});
-  };
-  if(!enabled()){enter();return;}
-  void animate(from,[{opacity:1,transform:'translateX(0)'},{opacity:0,transform:`translateX(${-direction*6}px)`}],{duration:110,name:'page-exit'}).then(completed=>{if(completed)enter();});
+  // The two libraries share a host. Preserve its last painted content while
+  // the next library renders; never clone the SVG graph or its gradient IDs.
+  let previous=null;const previousScroll=from.scrollTop;
+  if(enabled()&&from.id==='library-page'){
+   previous=from.cloneNode(true);previous.removeAttribute('id');previous.removeAttribute('data-motion');
+   previous.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+   previous.classList.add('page-transition-snapshot');previous.setAttribute('aria-hidden','true');previous.inert=true;
+  }
+  if(commit()===false)return;
+  if(!enabled())return;
+  const finishPage=()=>{if(revision===pageRevision){pageCleanup?.();pageCleanup=null;}};
+  if(previous){
+   to.parentElement.append(previous);previous.scrollTop=previousScroll;
+   pageCleanup=()=>{cancel(previous);previous.remove();};
+   // New content is already opaque beneath the old page, avoiding a black gap.
+   void animate(previous,[{opacity:1},{opacity:0}],{duration:220,name:'page-exit',hold:true}).then(finishPage);
+  }else if(from!==to){
+   // Keep the actual graph underneath the incoming library until it is opaque.
+   from.hidden=false;from.inert=true;
+   pageCleanup=()=>{from.hidden=true;from.inert=false;};
+   void animate(to,[{opacity:0},{opacity:1}],{duration:220,name:'page-enter'}).then(finishPage);
+  }
  }
  function finish(){for(const {animation}of running.values())try{animation.finish();}catch{}}
  function reset(){for(const snapshot of snapshots.values()){cancel(snapshot);snapshot.remove()}snapshots.clear();cancelPage();for(const dialog of [...closing.keys()])cancelDialog(dialog);for(const element of [...running.keys()])cancel(element);}

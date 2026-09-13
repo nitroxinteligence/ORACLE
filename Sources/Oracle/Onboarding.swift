@@ -38,6 +38,7 @@ extension Core {
         value["deviceSupport"]=["supported":SecureEnclave.isAvailable,"kind":"secure-enclave-p256","reason":SecureEnclave.isAvailable ? "Ativação offline vinculada à chave deste Mac." : "Secure Enclave indisponível; este Mac não suporta a ativação vinculada ao aparelho."]
         value["vaultName"]=(config["vault"] as? String).map{URL(fileURLWithPath:$0).lastPathComponent} ?? ""
         value["hasVault"]=(try? vault()) != nil
+        if license != nil {value["vaultPath"]=config["vault"] as? String ?? ""}
         // Existing vaults can open without rerunning setup. This is a UI resume
         // decision, never a license, identity confirmation or installation receipt.
         value["resumeExisting"]=license != nil && value["hasVault"] as? Bool == true &&
@@ -273,6 +274,18 @@ final class OnboardingController {
         if let bookmark{core.config["vaultBookmark"]=bookmark}
         try core.persist();try update(["status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull()])
         core.notifyVaultChanged(reason:"vault-selected")
+    }
+    /// Clears only the selection before installation; never deletes files in the vault.
+    func clearSelectedVault() throws {
+        stateLock.lock();defer{stateLock.unlock()}
+        try requireAccess();try ensureNotRunning()
+        guard core.onboardingRecord()["runID"] as? String == nil else {throw failure("A instalação já possui um vault. Preserve a instalação antes de trocar a seleção.")}
+        let installation=try core.acquireOperationLock("installation");defer{core.releaseOperationLock(installation)}
+        let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
+        let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)}
+        core.refreshConfig();core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark")
+        try core.persist();try update(["status":"configuring","ui":["step":"vault"]])
+        core.notifyVaultChanged(reason:"vault-selection-cleared")
     }
     func selectBrain(workspace:URL,profile:URL) throws {
         stateLock.lock();defer{stateLock.unlock()}

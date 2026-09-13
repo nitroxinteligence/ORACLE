@@ -206,6 +206,10 @@ func runOnboardingLifecycleTests() throws {
     let controller=try OnboardingController(home:home,bridge:fake,automaticallyReconnect:false,localDriver:driver,accessCheck:access)
     defer{controller.shutdown()}
     try controller.selectVault(vault)
+    try controller.clearSelectedVault()
+    try t.check(controller.core.config["vault"]==nil && controller.core.config["vaultBookmark"]==nil,"clearing a pre-install vault clears only its selection and bookmark")
+    try t.check(try String(contentsOf:original)=="Keep original","clearing a vault selection preserves original notes")
+    try controller.selectVault(vault)
     try t.check(fake.starts==0 && fake.calls.isEmpty,"licensed fixture initialization does not reconnect globally")
     let denied=root.appendingPathComponent("permission-denied");try fm.createDirectory(at:denied,withIntermediateDirectories:true);try fm.setAttributes([.posixPermissions:0o000],ofItemAtPath:denied.path)
     try t.rejects("permission-denied vault preserves selected path") {try controller.selectVault(denied)};try fm.setAttributes([.posixPermissions:0o700],ofItemAtPath:denied.path)
@@ -219,6 +223,7 @@ func runOnboardingLifecycleTests() throws {
     try t.check(review?["plan_hash"] as? String==hash && review?["vault"]==nil,"review/hash survive reopened UI without exposing canonical vault path")
     try t.rejects("wrong review hash cannot install") {_ = try controller.install("stale")}
     _=try controller.install(hash);controller.queue.sync{}
+    try t.rejects("vault removal cannot detach an existing installation") {try controller.clearSelectedVault()}
     try t.check(driver.phases==["apply","prepare"],"local sequence stops after prepare for explicit readback")
     try t.check(controller.core.onboardingRecord()["status"] as? String=="waiting_user" && fake.calls.isEmpty && fake.starts==0,"local install never calls Codex/account/model")
     let readback=(try controller.snapshot())["readback"] as! [String:Any],readbackHash=readback["hash"] as! String

@@ -81,7 +81,8 @@
         if (params.code !== 'ORACLE2.SYNTHETIC.SIGNATURE') throw Error('Código sintético inválido.');
         f.ob.licensed=true; return {activated:true};
       case 'onboardingChooseVault':
-        f.ob.hasVault=true;f.ob.vaultName='Synthetic Vault';f.ob.status='configuring';f.config.vault='/__synthetic_oracle__/vault';return true;
+        f.ob.hasVault=true;f.ob.vaultName='Synthetic Vault';f.ob.vaultPath='/__synthetic_oracle__/vault';f.ob.status='configuring';f.config.vault='/__synthetic_oracle__/vault';return true;
+      case 'onboardingClearVault': f.ob.hasVault=false;delete f.ob.vaultName;delete f.ob.vaultPath;delete f.config.vault;return true;
       case 'onboardingDraft': {
         f.draftActive++;f.draftMax=Math.max(f.draftMax,f.draftActive);
         try {
@@ -139,31 +140,37 @@
   window.__oracleFixtureRun = async () => {
     if(f.started)return;f.started=true;
     try {
-      await check('Invalid activation stays on access screen',async()=>{
-        await wait(()=>q('#ob-code')&&window.OracleOnboarding,'access screen');
-        input('#ob-code','invalid');click('#ob-activate');
-        await wait(()=>visible(q('#toast'))&&q('#toast').textContent.includes('Código sintético inválido'),'invalid code');
-        assert(q('#ob-code')&&!f.ob.licensed,'invalid activation advanced');
+      await check('Invalid activation keeps a masked key field and clears error when typing',async()=>{
+        await wait(()=>q('#ob2-key')&&window.OracleOnboarding,'access screen');
+        assert(q('#ob2-key').type==='password','access key is visible');
+        input('#ob2-key','invalid');click('.ob2-action button');
+        await wait(()=>q('#ob2-key')?.getAttribute('aria-invalid')==='true','invalid code');
+        assert(!f.ob.licensed,'invalid activation advanced');
+        input('#ob2-key','ORACLE2.SYNTHETIC.SIGNATURE');
+        assert(!q('#ob2-key').hasAttribute('aria-invalid'),'typing did not clear error');
       });
-      await check('Verified activation explicitly requires Prosseguir',async()=>{
-        input('#ob-code','ORACLE2.SYNTHETIC.SIGNATURE');click('#ob-activate');
-        await wait(()=>q('#ob-access-next'),'explicit continuation');
-        assert(!q('#ob-vault')&&countCalls('onboardingConnect')===0,'implicit navigation or account');
-        await sleep(1900);assert(!!q('#ob-access-next'),'poll auto-advanced activation');
-        click('#ob-access-next');await wait(()=>q('#ob-vault-next'),'vault stage');
+      await check('Activation advances to vault without optional Codex interview',async()=>{
+        click('.ob2-action button');await wait(()=>q('.ob2-vault'),'vault stage');
+        await wait(()=>!q('.ob2-activation').open,'activation overlay closed');
+        assert(countCalls('onboardingConnect')===0,'implicit account connection');
+        assert(q('.ob2-description').children.length===2,'vault explanation not split in two lines');
       });
-      await check('Vault selection gates installation without identity fields',async()=>{
-        assert(q('#ob-vault-next').disabled,'vault is required');
-        click('#ob-vault');await wait(()=>!q('#ob-vault-next').disabled,'selected vault');
-        click('#ob-vault-next');await wait(()=>q('#ob-install-complete'),'install stage');
+      await check('Vault can be selected, removed without deleting data, and selected again',async()=>{
+        assert(q('.ob2-action button').disabled,'vault is required');
+        click('.ob2-vault');await wait(()=>q('.ob2-selected-vault'),'selected vault');
+        assert(q('.ob2-selected-vault span').textContent==='/__synthetic_oracle__/vault','actual vault path missing');
+        click('.ob2-remove-vault');await wait(()=>q('.ob2-vault'),'cleared selection');
+        assert(q('.ob2-action button').disabled,'removed vault can advance');
+        click('.ob2-vault');await wait(()=>q('.ob2-selected-vault'),'reselected vault');
+        click('.ob2-action button');await wait(()=>q('.ob2-content h1')?.textContent==='Instale seu segundo cérebro.','install stage');
         assert(!qa('[data-answer]').length&&!q('#ob-connect'),'identity or account required');
       });
-      await check('Install closes wizard immediately and preserves full shell',async()=>{
-        const started=performance.now();click('#ob-install-complete');
-        await wait(()=>!q('.ob-dialog').open&&f.ob.status==='running','shell during install');
-        assert(performance.now()-started<600,'shell waited for backend');
+      await check('Install reveals the shell with a compact header progress and no extra buttons',async()=>{
+        await sleep(100);click('.ob2-action button');
+        await wait(()=>!q('.ob2-screen').open&&f.ob.status==='running','shell during install');
         assert(countCalls('onboardingPlan')===0&&countCalls('onboardingInstall')===0,'legacy path called');
         assert(q('aside')&&q('#atlas'),'sidebar or map absent');
+        assert(!q('.ob2-installation').hidden&&!qa('.ob2-installation button').some(visible),'missing progress or extra actions');
       });
       await check('Verified skill receipt appears within 2 seconds and is unique',async()=>{
         const path='SISTEMA/skills/marketing/alpha-0000/SKILL.md';
@@ -190,13 +197,13 @@
       });
       await check('Interrupted installation offers explicit same-plan continuation',async()=>{
         f.ob.status='interrupted';f.ob.message='Synthetic interruption';await OracleOnboarding.poll();OracleOnboarding.open();
-        await wait(()=>q('#ob-resume'),'resume action');click('#ob-resume');
-        await wait(()=>!q('.ob-dialog').open&&f.ob.status==='running','resume shell');
+        await wait(()=>visible(q('.ob2-retry')),'resume action');click('.ob2-retry');
+        await wait(()=>!q('.ob2-screen').open&&f.ob.status==='running','resume shell');
         assert(f.ob.runID==='memory-only-fixture','resume changed install ID');
       });
       await check('Completion removes progress without additional interview',async()=>{
         f.ob.status='completed';f.ob.message='Pronto';await OracleOnboarding.poll();
-        assert(q('.ob-progress-card').hidden&&!q('.ob-dialog').open,'completion requires another screen');
+        await wait(()=>q('.ob2-installation').hidden&&!q('.ob2-screen').open,'completion without another screen');
         assert(countCalls('onboardingConnect')===0&&countCalls('onboardingConfirmIdentity')===0,'implicit consent or login');
       });
     } catch(error){f.error=error.message;}

@@ -63,7 +63,9 @@
     if(suspended)return;
     if(api.canOpen&&!api.canOpen())return;
     const competing=document.querySelector('#modal[open]');if(competing)return;
-    origin=document.activeElement;open=true;OracleTransitions.cancelDialog(dialog);if(!dialog.open)dialog.showModal();render();renderCard();OracleTransitions.enterDialog(dialog);
+    const opening=!dialog.open;if(opening)origin=document.activeElement;
+    open=true;OracleTransitions.cancelDialog(dialog,{preserveEntrance:true});render();renderCard();
+    if(opening){dialog.showModal();dialog.querySelector('input:not([type=checkbox]):not([type=radio]),textarea:not([readonly]),h1')?.focus({preventScroll:true});OracleTransitions.enterDialog(dialog);}
   }
   function frame(title,body,buttons=''){
     const names={license:'Acesso',activation:'Acesso',install:'Instalação',vault:'Obsidian',identity:['Identidade','Objetivos','Preferências'][group],review:'Revisão',progress:'Instalação local',readback:'Confirmação',request:'Solicitação',connection:'Codex opcional'};

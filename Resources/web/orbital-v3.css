@@ -367,10 +367,10 @@ body.reduce-transparency dialog,body.reduce-transparency .oracle-onboarding .ob-
 
 /* The knowledge network is a collective entry point; the mark is decorative. */
 #atlas .oracle-core { pointer-events:none; }
-#atlas .central-hub-hit { cursor:pointer;outline:none;pointer-events:fill; }
+#atlas .central-hub-hit { cursor:pointer;outline:none;stroke:none;pointer-events:fill; }
 #atlas .central-knowledge-layer { transform-origin:0 0;transition:transform .24s ease; }
 #atlas.central-inspecting .central-knowledge-layer { transform:scale(1.28); }
-#atlas .central-hub-hit:focus-visible { stroke:#c6cbd2;stroke-width:1;stroke-opacity:.3; }
+html[data-input-mode=keyboard] #atlas:has(.central-hub-hit:focus-visible) .oracle-core image { filter:drop-shadow(0 0 3px #fff); }
 #atlas.motion-reduced .central-knowledge-layer,body.reduced #atlas .central-knowledge-layer { transition:none; }
 @media(prefers-reduced-motion:reduce) { #atlas .central-knowledge-layer { transition:none; } }
 #modal[data-family=knowledge-hub] { width:min(880px,calc(100vw - 40px)); }
@@ -508,15 +508,15 @@ body.library-view #app .header-actions>button:disabled { opacity:.35;cursor:defa
 .gallery-result-heading { display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid #ffffff0e;padding-top:22px;margin:28px 0 18px;font-size:12px;color:#bfbfbf; }
 .gallery-result-heading .quiet-link { font-size:11px; }
 .gallery-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:stretch; }
-.gallery-card { display:flex;flex-direction:column;justify-content:center;width:100%;min-height:208px;overflow:hidden;text-align:left;padding:0;background:#222222;border:1px solid #ffffff0e;border-radius:14px;color:#e4e4e4;transition:background .18s ease,border-color .18s ease,transform .18s ease; }
+.gallery-card { display:grid;grid-template-rows:1fr 1fr;width:100%;min-height:320px;overflow:hidden;text-align:left;padding:0;background:#222222;border:1px solid #ffffff0e;border-radius:14px;color:#e4e4e4;transition:background .18s ease,border-color .18s ease,transform .18s ease; }
 .gallery-card:hover { background:#2c2c2c;border-color:#ffffff34;transform:translateY(-2px); }
 .gallery-card:active { transform:translateY(0); }
 .gallery-card:focus-visible { outline:2px solid #e5e5e5;outline-offset:4px; }
-.gallery-card-title { display:block;padding:26px;font-size:18px;font-weight:450;line-height:1.45;letter-spacing:-.015em;overflow-wrap:anywhere;text-wrap:balance; }
-.gallery-card.has-cover { justify-content:flex-start; }
-.gallery-card.has-cover .gallery-card-title { padding:18px 22px;font-size:15px; }
-.gallery-cover { display:block;width:100%;aspect-ratio:16/10;overflow:hidden;background:#171717; }
-.gallery-cover img { width:100%;height:100%;object-fit:cover;display:block; }
+.gallery-card-title { display:flex;align-items:center;min-width:0;padding:24px;font-size:18px;font-weight:450;line-height:1.45;letter-spacing:-.015em;overflow-wrap:anywhere;text-wrap:balance; }
+.gallery-cover { position:relative;display:grid;place-items:center;min-height:150px;width:100%;overflow:hidden;background:#171717; }
+.gallery-cover img { position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block; }
+.gallery-cover::after { content:'';position:absolute;inset:0;background:#0004;pointer-events:none; }
+.gallery-card-folder { position:relative;z-index:1;padding:24px;color:#fff;font-size:22px;font-weight:500;line-height:1.25;letter-spacing:-.025em;text-align:center;text-wrap:balance;overflow-wrap:anywhere;text-shadow:0 1px 4px #0009,0 2px 18px #0008; }
 .gallery-empty { padding:68px 24px;text-align:center; }
 .gallery-empty h2,.gallery-empty h1 { font-size:20px;font-weight:500;letter-spacing:-.02em;color:#e5e5e5; }
 .gallery-empty p { max-width:52ch;margin:14px auto;color:#b8b8b8;font-size:13px;line-height:1.8; }
@@ -562,9 +562,10 @@ body.library-view #app .header-actions>button:disabled { opacity:.35;cursor:defa
  .gallery-sort>span { display:inline; }
  .gallery-categories { margin-top:18px;gap:7px; }
  .gallery-grid { grid-template-columns:repeat(2,minmax(0,1fr));gap:12px; }
- .gallery-card { min-height:160px;border-radius:12px; }
+ .gallery-card { min-height:260px;border-radius:12px; }
+ .gallery-cover { min-height:130px; }
+ .gallery-card-folder { padding:18px;font-size:19px; }
  .gallery-card-title { padding:18px;font-size:15px; }
- .gallery-card.has-cover .gallery-card-title { padding:14px;font-size:13px; }
  .gallery-result-heading { margin-top:22px; }
  .library-document-inner { padding:24px 24px 64px; }
  .gallery-document-heading h1 { font-size:25px; }
@@ -573,6 +574,8 @@ body.library-view #app .header-actions>button:disabled { opacity:.35;cursor:defa
 @media(prefers-reduced-motion:reduce) { .gallery-card,.workspace-tabs button,.gallery-categories button { transition:none;transform:none; } }
 
 /* State transitions: short entrances, quicker exits, no hidden resting state. */
+/* The shared dialog entrance is owned by OracleTransitions, without a second CSS entrance. */
+#modal[open],.oracle-onboarding .ob-dialog[open] { animation:none; }
 #app[data-startup=pending] :is(.app-header,#navigation-panel,.map-tools,#observatory-panel,#footer-status) { opacity:0; }
 [data-motion=app-controls-enter] { will-change:opacity; }
 #app[data-motion],#graph-page[data-motion],#library-page[data-motion],dialog[data-motion],#modal-content[data-motion] { will-change:opacity,transform; }
@@ -783,3 +786,16 @@ body { background:var(--bg); }
 body.reduced #app .header-actions>#updates.update-ready { animation:none; }
 body.window-hidden #app .header-actions>#updates.update-ready { animation-play-state:paused; }
 @media(prefers-reduced-motion:reduce) { #app .header-actions>#updates.update-ready { animation:none; } }
+
+/* A focused department stays anchored; only its orbit can rotate. */
+#atlas:has(.department-node.selected) { cursor:default; }
+
+/* Crossfade an outgoing library over a fully visible destination. */
+.page-transition-snapshot { z-index:4;pointer-events:none;will-change:opacity; }
+.page-transition-snapshot * { pointer-events:none!important; }
+
+#update-message.update-ready-badge { display:inline-flex;justify-self:start;max-width:100%;padding:6px 12px;border:1px solid #6cda9740;border-radius:999px;background:#50c87820;color:#b9f0cd;line-height:1.5; }
+
+/* Status changes occupy the same space while an update is running. */
+#modal[data-family=updates] .update-status { grid-template-rows:minmax(32px,auto) 3px;align-items:center;gap:8px; }
+#modal[data-family=updates] #update-progress[hidden] { display:block!important;visibility:hidden; }

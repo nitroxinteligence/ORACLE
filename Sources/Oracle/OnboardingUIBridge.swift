@@ -50,6 +50,7 @@ extension App {
                 case "onboardingCancelLogin":try controller.cancelLogin()
                 case "onboardingDraft":try controller.saveDraft(params)
                 case "onboardingDraftUI":try controller.saveUIState(params)
+                case "onboardingClearVault":try controller.clearSelectedVault()
                 case "onboardingPlan":result=try controller.plan(params)
                 case "onboardingInstall":result=try controller.install(params["hash"] as? String ?? "")
                 case "onboardingInstallMemoryOnly":result=try controller.installMemoryOnly(replaceLegacy:params["replaceLegacy"] as? Bool==true)

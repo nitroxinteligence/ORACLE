@@ -10,9 +10,11 @@ struct VaultScanSnapshot {
     let inspected:Int
     let at:Date
     let signature:String
+    var issueCount:Int = 0
+    var unavailableCount:Int {entries.filter{$0["available"] as? Bool==false}.count}
     var files:[String] { entries.filter { $0["directory"] as? Bool != true && $0["available"] as? Bool != false }.compactMap { $0["path"] as? String } }
     var metadata:[String:Any] {
-        ["complete":complete,"issues":issues,"inspected":inspected,"at":at.timeIntervalSince1970,
+        ["complete":complete,"issues":issues,"issueCount":issueCount,"unavailableCount":unavailableCount,"inspected":inspected,"at":at.timeIntervalSince1970,
          "signature":signature,"coverage":"Markdown até 2 MB; pastas ocultas, links e dependências excluídos"]
     }
 }
@@ -28,11 +30,11 @@ extension Core {
         guard (try root.resourceValues(forKeys:[.isDirectoryKey])).isDirectory == true else {
             throw failure("A pasta selecionada está indisponível.")
         }
-        var entries=[[String:Any]](), issues=[[String:String]](), inspected=0, complete=true
+        var entries=[[String:Any]](), issues=[[String:String]](), inspected=0, complete=true, issueCount=0
         let started = ProcessInfo.processInfo.systemUptime
         let prefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
         func issue(_ url:URL, _ reason:String) {
-            complete=false
+            complete=false;issueCount+=1
             if issues.count < 100 {
                 let path = url.path.hasPrefix(prefix) ? String(url.path.dropFirst(prefix.count)) : "."
                 issues.append(["path":path,"error":String(reason.prefix(240))])
@@ -77,6 +79,6 @@ extension Core {
         let sorted=entries.sorted { ($0["path"] as? String ?? "") < ($1["path"] as? String ?? "") }
         let rows=sorted.map { ["path":$0["path"] ?? "", "size":$0["size"] ?? 0,
                               "modified":$0["modified"] ?? 0, "directory":$0["directory"] ?? false,"available":$0["available"] ?? true] }
-        return VaultScanSnapshot(root:root,entries:sorted,issues:issues,complete:complete,inspected:inspected,at:Date(),signature:digest(try jsonData(rows)))
+        return VaultScanSnapshot(root:root,entries:sorted,issues:issues,complete:complete,inspected:inspected,at:Date(),signature:digest(try jsonData(rows)),issueCount:issueCount)
     }
 }

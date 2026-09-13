@@ -159,28 +159,41 @@
       });
       await check('Vault can be selected, removed without deleting data, and selected again',async()=>{
         assert(q('.ob2-action button').disabled,'vault is required');
-        click('.ob2-vault');await wait(()=>q('.ob2-selected-vault'),'selected vault');
+        click('.ob2-vault-action button');await wait(()=>q('.ob2-selected-vault'),'selected vault');
         assert(q('.ob2-selected-vault span').textContent==='/__synthetic_oracle__/vault','actual vault path missing');
-        click('.ob2-remove-vault');await wait(()=>q('.ob2-vault'),'cleared selection');
+        click('.ob2-vault-action button');await wait(()=>q('.ob2-vault'),'cleared selection');
         assert(q('.ob2-action button').disabled,'removed vault can advance');
-        click('.ob2-vault');await wait(()=>q('.ob2-selected-vault'),'reselected vault');
+        click('.ob2-vault-action button');await wait(()=>q('.ob2-selected-vault'),'reselected vault');
         click('.ob2-action button');await wait(()=>q('.ob2-content h1')?.textContent==='Instale seu segundo cérebro.','install stage');
         assert(!qa('[data-answer]').length&&!q('#ob-connect'),'identity or account required');
       });
       await check('Daily schedule defaults to 15h and capture has separate consent',async()=>{
         assert(q('#ob-daily').checked&&q('#ob-daily-hour').value==='15','daily schedule default');
+        await wait(()=>q('#ob-daily-hour').closest('.oracle-select'),'enhanced schedule select');
+        click('#ob-daily-hour + .select-trigger');
+        q('#ob-daily-hour').closest('.oracle-select').querySelectorAll('[role=option]')[20].click();
+        assert(q('#ob-daily-hour').value==='20'&&q('#ob-daily').checked,'select did not retain hour or toggled maintenance');
+        assert(qa('.ob2-content button').filter(b=>!b.classList.contains('select-trigger')).every(b=>b.classList.contains('ob2-metal-button')),'nonmetal onboarding action');
         assert(!q('#ob-capture').checked&&!q('#ob-synthesis').checked&&q('#ob-synthesis').disabled,'remote capture enabled without consent');
         q('#ob-capture').checked=true;q('#ob-capture').dispatchEvent(new Event('change',{bubbles:true}));
         assert(!q('#ob-synthesis').disabled,'synthesis consent unavailable');
         q('#ob-synthesis').checked=true;q('#ob-synthesis').dispatchEvent(new Event('change',{bubbles:true}));
+        report({type:'snapshot',name:'options'});await wait(()=>window.__fixtureSnapshotSaved!==undefined,'options screenshot');assert(window.__fixtureSnapshotSaved,'options screenshot failed');delete window.__fixtureSnapshotSaved;
       });
       await check('Install reveals the shell with a compact header progress and no extra buttons',async()=>{
         await sleep(100);click('.ob2-action button');
         await wait(()=>!q('.ob2-screen').open&&f.ob.status==='running','shell during install');
-        assert(f.installMaintenance?.hour===15&&f.installMaintenance?.consolidateWiki===true&&f.installMaintenance?.captureSource==='codex_workspace_hooks_v1','consent missing from install request');
+        assert(f.installMaintenance?.hour===20&&f.installMaintenance?.consolidateWiki===true&&f.installMaintenance?.captureSource==='codex_workspace_hooks_v1','consent missing from install request');
         assert(countCalls('onboardingPlan')===0&&countCalls('onboardingInstall')===0,'legacy path called');
         assert(q('aside')&&q('#atlas'),'sidebar or map absent');
         assert(!q('.ob2-installation').hidden&&!qa('.ob2-installation button').some(visible),'missing progress or extra actions');
+      });
+      await check('Phase changes never restart verified progress',async()=>{
+        f.ob.phase='downloading';f.ob.installationProgress={phase:'downloading',completed:10,total:10,unit:'arquivos'};await OracleOnboarding.poll();
+        const before=q('.ob2-installation progress').value;
+        f.ob.phase='installing';f.ob.installationProgress={phase:'installing',completed:0,total:100,unit:'arquivos'};await OracleOnboarding.poll();
+        assert(q('.ob2-installation progress').value>=before,'progress restarted between stages');
+        assert(q('.ob2-installation strong').textContent.includes('Instalando acervo'),'current phase missing');
       });
       await check('Verified skill receipt appears within 2 seconds and is unique',async()=>{
         const path='SISTEMA/skills/marketing/alpha-0000/SKILL.md';
@@ -192,7 +205,7 @@
         await wait(()=>visible(q('[data-category=\"department/marketing\"]')),'rendered verified department',4000);
         assert(qa('.department-node').length===1,'unverified empty departments rendered');
         f.latency=performance.now()-started;assert(f.latency<=2000,'receipt exceeded 2 second UI delivery');
-        assert(projection.connectors.every(row=>row.id!=='codex'),'prepared integration shown connected');
+        assert(projection.connectors.length===0&&!qa('.verified-connector').length,'unexpected integration icons in graph');
         report({type:'snapshot'});await wait(()=>window.__fixtureSnapshotSaved!==undefined,'native screenshot');assert(window.__fixtureSnapshotSaved,'native screenshot failed');
       });
       await check('Prompts and tutorials require independent verified receipts',async()=>{
@@ -207,9 +220,16 @@
       });
       await check('Interrupted installation offers explicit same-plan continuation',async()=>{
         f.ob.status='interrupted';f.ob.message='Synthetic interruption';await OracleOnboarding.poll();OracleOnboarding.open();
-        await wait(()=>visible(q('.ob2-retry')),'resume action');click('.ob2-retry');
+        await wait(()=>visible(q('.ob2-retry')),'resume action');click('.ob2-retry button');
         await wait(()=>!q('.ob2-screen').open&&f.ob.status==='running','resume shell');
         assert(f.ob.runID==='memory-only-fixture','resume changed install ID');
+      });
+      await check('Codex integration remains pending until hooks and scheduler are verified',async()=>{
+        f.ob.status='completed';f.ob.integrationPending=true;await OracleOnboarding.poll();
+        assert(!q('.ob2-installation').hidden&&visible(q('[data-open-codex] button')),'integration silently skipped');
+        click('[data-copy-codex] button');await wait(()=>f.copied?.includes('Synthetic request'),'copied registration procedure');
+        assert(!qa('.verified-connector').length,'unexpected graph connectors');
+        f.ob.integrationPending=false;
       });
       await check('Completion removes progress without additional interview',async()=>{
         f.ob.status='completed';f.ob.message='Pronto';await OracleOnboarding.poll();

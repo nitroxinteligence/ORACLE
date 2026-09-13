@@ -62,6 +62,13 @@ extension Core {
             if let projection=try? readJSON(home.appendingPathComponent("onboarding/installations/"+id+"/progress.json")) {
                 value["installationProgress"]=projection.filter{["sequence","plan_hash","phase","completed","total","bytes_downloaded","bytes_total"].contains($0.key)}
             }
+            if value["phase"] as? String=="hydrating" {value["installationProgress"]=value["preparationProgress"] ?? [:]}
+            let maintenance=value["maintenance"] as? [String:Any] ?? [:]
+            let integration=(try? readJSON(home.appendingPathComponent("setup/codex-integration.json"))) ?? [:]
+            let bridge=(try? readJSON(home.appendingPathComponent("setup/bridge.json"))) ?? [:]
+            let trusted=integration["hooksTrusted"] as? Bool==true && integration["hooks_sha256"] as? String==bridge["hooks_sha256"] as? String
+            value["integrationPending"]=value["status"] as? String=="completed" && maintenance["enabled"] as? Bool==true && (maintenance["registered"] as? Bool != true || !trusted)
+            value["hooksTrusted"]=trusted
             value["capabilitySummary"]="Arquivos, memória estruturada, busca textual, links e edição local."
             value["codexSkills"]=(try? readJSON(home.appendingPathComponent("setup/codex-distribution.json")))?.filter{["files_installed","host_discovered","execution_verified","status"].contains($0.key)} ?? [:]
         }
@@ -132,8 +139,8 @@ extension Core {
 /// The UI polls a small persisted projection, never agent prose or the whole transcript.
 final class OnboardingController {
     let core:Core
-    let queue=DispatchQueue(label:"oracle.onboarding")
-    let notifications=DispatchQueue(label:"oracle.onboarding.events")
+    let queue=DispatchQueue(label:"oracle.onboarding",autoreleaseFrequency:.workItem)
+    let notifications=DispatchQueue(label:"oracle.onboarding.events",autoreleaseFrequency:.workItem)
     let bridge:CodexConnection
     private let stateLock=NSRecursiveLock()
     private var loadedThreadID:String?
@@ -419,6 +426,11 @@ final class OnboardingController {
         defer{stateLock.lock();localInFlight=false;stateLock.unlock()}
         do {
             core.refreshConfig()
+            try localPhase("hydrating","Baixando notas do iCloud antes de instalar.",generation)
+            try core.prepareVaultDownloads { done,total in
+                try self.core.checkOnboardingCancellation()
+                try self.update(["preparationProgress":["phase":"hydrating","completed":done,"total":total]])
+            }
             try localPhase("preparing","Conferindo o vault e a distribuição disponível.",generation)
             let plan:[String:Any],manifest:DistributionManifest
             if resuming,let saved=try? readJSON(core.home.appendingPathComponent("setup/plan.json")),saved["id"] as? String==id {
@@ -431,13 +443,14 @@ final class OnboardingController {
             try core.distributionEvent(plan:plan,phase:"preparing",kind:"connector",itemID:"obsidian",status:"verified",paths:[],completed:0,total:manifest.files.count,extra:["name":try core.vault().lastPathComponent])
             try localPhase("downloading","Baixando e verificando os componentes.",generation)
             try core.stageDistribution(manifest,plan:plan)
-            try localPhase("preparing","Inicializando a memória local.",generation)
+            try localPhase("memory","Inicializando a memória local.",generation)
             _=try core.initializeMemoryOnly(plan:plan)
             try localPhase("installing","Criando as pastas e instalando o acervo.",generation)
             _=try core.applyPlan();_=try core.applyDistribution(manifest,plan:plan)
+            try core.prepareVaultDownloads { _,_ in try self.core.checkOnboardingCancellation() }
             try localPhase("indexing","Preparando busca textual e links das notas.",generation)
             _=try core.indexMemoryOnly(plan:plan)
-            try localPhase("installing","Preparando as skills locais e a integração com o Codex.",generation)
+            try localPhase("codex","Preparando as skills locais e a integração com o Codex.",generation)
             _=try core.installDistributionSkills(manifest,plan:plan);_=try core.prepareBridge()
             if let settings=plan["maintenance"] as? [String:Any] {_=try core.configureMaintenance(settings)}
             try localPhase("verifying","Conferindo arquivos, bibliotecas, memória e recuperação.",generation)
@@ -601,6 +614,19 @@ final class OnboardingController {
         guard required.isSubset(of:discovered) else{throw failure("O Codex ainda não reconheceu todos os procedimentos instalados. Abra o espaço Oracle no Codex e verifique suas permissões.")}
         let method=try core.verifyGBrainBridge()
         try writeJSON(["workspace":workspace,"skills":required.sorted(),"verifiedAt":ISO8601DateFormatter().string(from:Date()),"skillDiscoveryVerified":true,"identityFilesVerified":method["identity"] ?? false,"modelExecutionVerified":false,"hooksTrusted":false],core.home.appendingPathComponent("setup/codex-discovery.json"))
+    }
+    func verifyCodexIntegration() throws -> [String:Any] {
+        try requireAccess();_=try core.verifyGBrainBridge();try ensureBridge()
+        let receipt=try readJSON(core.home.appendingPathComponent("setup/bridge.json"))
+        guard let workspace=receipt["workspace"] as? String,let path=receipt["hooks"] as? String else{throw failure("A integração local ainda não foi instalada.")}
+        let response=try bridge.request("hooks/list",["cwds":[workspace]],timeout:15)
+        let groups=response["data"] as? [[String:Any]] ?? []
+        let hooks=groups.flatMap{$0["hooks"] as? [[String:Any]] ?? []}.filter{($0["key"] as? String ?? "").hasPrefix(path+":")}
+        let events=Set(hooks.compactMap{$0["eventName"] as? String})
+        let trusted=Set(["sessionStart","userPromptSubmit","stop"]).isSubset(of:events) && hooks.allSatisfy{$0["trustStatus"] as? String=="trusted" && $0["enabled"] as? Bool==true}
+        let status:[String:Any]=["hooksTrusted":trusted,"hooks_sha256":receipt["hooks_sha256"] ?? "","checkedAt":ISO8601DateFormatter().string(from:Date())]
+        try writeJSON(status,core.home.appendingPathComponent("setup/codex-integration.json"))
+        return try snapshot()
     }
     func openCodexWorkspace() throws {
         try requireAccess()

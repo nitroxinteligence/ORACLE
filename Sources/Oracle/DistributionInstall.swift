@@ -194,6 +194,7 @@ extension Core {
         try fm.createDirectory(at:stage,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         var downloaded=0;let total=manifest.packages.reduce(0){$0+($1["bytes"] as! Int)}
         for package in manifest.packages {
+            try autoreleasepool {
             try checkOnboardingCancellation()
             let hash=package["sha256"] as! String,cache=try scoped("cache/packages/"+hash+".json",root:home)
             let bytes:Data
@@ -219,6 +220,7 @@ extension Core {
             }
             downloaded+=bytes.count
             try distributionEvent(plan:plan,phase:"downloading",kind:"package",itemID:package["id"] as! String,status:"verified",paths:[],completed:downloaded,total:total,bytes:downloaded,byteTotal:total)
+            }
         }
         for file in manifest.files {guard try fileDigest(stage.appendingPathComponent(digest(Data(file.path.utf8))))==file.hash else{throw failure("Staging incompleto; instalação não iniciada.")}}
         try writeJSON(["plan_hash":plan["plan_hash"]!,"manifest_sha256":manifest.hash,"files":manifest.files.count,"status":"verified"],home.appendingPathComponent("staging/"+id+"/receipt.json"))
@@ -284,6 +286,7 @@ extension Core {
             var remaining=Dictionary(uniqueKeysWithValues:manifest.items.map{($0.id,Set($0.required))})
             let items=Dictionary(uniqueKeysWithValues:manifest.items.map{($0.id,$0)})
             for file in manifest.files {
+                try autoreleasepool {
                 try checkOnboardingCancellation()
                 let target=try distributionDestination(file,plan:plan),key=digest(Data(file.path.utf8)),input=stage.appendingPathComponent("files/"+key)
                 guard try fileDigest(input)==file.hash else{throw failure("Arquivo em staging alterado; retomada interrompida.")}
@@ -321,6 +324,7 @@ extension Core {
                         try distributionEvent(plan:plan,phase:"installing",kind:item.kind,itemID:item.id,status:"installed",paths:paths,completed:verified.count,total:manifest.files.count,extra:["entry":item.entry,"name":item.name,"department_id":item.department,"specialist_id":item.specialist as Any? ?? NSNull()])
                     }
                 }
+            }
             }
             var tombstones=[[String:Any]]()
             for (path,entry) in old.sorted(by:{$0.key<$1.key}) where !newPaths.contains(path) {

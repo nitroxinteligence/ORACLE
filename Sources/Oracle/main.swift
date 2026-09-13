@@ -113,10 +113,10 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var lockGeneration=0
     var terminationPending=false
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
-    let queue = DispatchQueue(label:"oracle.core")
-    let updateQueue = DispatchQueue(label:"oracle.updates")
-    let updateStatusQueue = DispatchQueue(label:"oracle.updates.status",qos:.userInitiated)
-    let memoryQueue = DispatchQueue(label:"oracle.memory.reads",qos:.userInitiated)
+    let queue = DispatchQueue(label:"oracle.core",autoreleaseFrequency:.workItem)
+    let updateQueue = DispatchQueue(label:"oracle.updates",autoreleaseFrequency:.workItem)
+    let updateStatusQueue = DispatchQueue(label:"oracle.updates.status",qos:.userInitiated,autoreleaseFrequency:.workItem)
+    let memoryQueue = DispatchQueue(label:"oracle.memory.reads",qos:.userInitiated,autoreleaseFrequency:.workItem)
     var updating = false
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)

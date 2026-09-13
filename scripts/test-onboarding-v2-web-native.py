@@ -61,7 +61,7 @@ def main() -> int:
         [self.web takeSnapshotWithConfiguration:nil completionHandler:^(NSImage *image, NSError *error) {
             NSBitmapImageRep *bitmap = image ? [NSBitmapImageRep imageRepWithData:image.TIFFRepresentation] : nil;
             NSData *png = [bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-            NSString *path = [[self.reportPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"installation.png"];
+            NSString *path = [[self.reportPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[body[@"name"] isEqual:@"options"] ? @"options.png" : @"installation.png"];
             BOOL saved = png && [png writeToFile:path options:0 error:nil];
             [self.web evaluateJavaScript:saved ? @"window.__fixtureSnapshotSaved=true" : @"window.__fixtureSnapshotSaved=false" completionHandler:nil];
         }];

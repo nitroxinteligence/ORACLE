@@ -12,7 +12,7 @@ enum OracleVaultDownloads {
             pending=try pending.filter{try !available($0)}
             try progress(files.count-pending.count,files.count)
             if pending.isEmpty{return}
-            guard now()<deadline else{throw failure("O macOS ainda está baixando arquivos do vault. Aguarde o download e clique em Instalar atualização novamente. Nenhuma nota foi substituída nesta preparação.")}
+            guard now()<deadline else{throw failure("O macOS ainda está baixando arquivos do vault. Aguarde o download e tente instalar novamente. Nenhuma nota foi substituída nesta preparação.")}
             for file in pending where !requested.contains(file) {
                 guard now()<deadline else{throw failure("O macOS ainda está preparando os downloads. Aguarde e tente instalar novamente.")}
                 try request(file);requested.insert(file)

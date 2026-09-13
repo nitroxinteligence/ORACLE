@@ -155,7 +155,7 @@ function render(){
  renderPlayback();
 }
 function renderMemoryStatus(){
- $('#footer-status').textContent=state.scanError?'Leitura parcial · confira as permissões':state.scan?.pending?'Lendo o vault local…':state.memorySync?.state==='stale'||state.memorySync?.indexing?'Memória aguardando atualização local':'';
+ $('#footer-status').textContent=state.onboarding?.runID&&state.onboarding?.status!=='completed'?'':state.scanError?(state.scan?.unavailableCount?'Notas do iCloud aguardam download':'Algumas notas não puderam ser lidas'):'';
  const memoryState=state.memorySync?.state;
  OracleStatusBadge.apply($('#gbrain-status'),memoryState==='current'?'connected':memoryState==='partial'?'error':memoryState==='external'?'selected':'pending',({current:'Índice atualizado',partial:'Leitura parcial',stale:'Atualização pendente',external:'Perfil externo selecionado',unavailable:'Índice não configurado'})[memoryState]||'Conexão não verificada');
 }
@@ -233,7 +233,7 @@ function renderProgress(){
  // Only actual receipts control installation progress; replay never enters here as a source.
  const last=state.events.filter(e=>e.phase&&Number.isFinite(e.total)).at(-1), bar=$('#installation-progress');
  const complete=last&&(last.event_type.endsWith('failed')||last.event_type.endsWith('completed')||last.completed>=last.total);
- const active=(state.operations?.setup||state.operations?.gbrain)&&last&&!complete&&last.total>0;
+ const active=state.onboarding?.profileMode!=='memory-only'&&(state.operations?.setup||state.operations?.gbrain)&&last&&!complete&&last.total>0;
  bar.hidden=!active;
  if(active){const completed=Math.max(0,Math.min(last.completed||0,last.total));bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax',String(last.total));bar.setAttribute('aria-valuenow',String(completed));bar.setAttribute('aria-valuetext',`${completed} de ${last.total} arquivos verificados`);$('#progress-fill').style.width=(completed/last.total*100)+'%'}
  renderPlayback();

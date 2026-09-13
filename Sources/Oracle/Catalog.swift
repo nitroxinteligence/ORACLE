@@ -130,6 +130,17 @@ extension Core {
         var mcpHash=previous["mcp_sha256"] as? String ?? ""
         let root=try scoped("codex-workspace",root:home)
         try fm.createDirectory(at:root,withIntermediateDirectories:true)
+        // Codex discovers project configuration from a repository root. Keep an
+        // empty local repository: no commit, remote, upload or trust is granted.
+        let git=try scoped(".git",root:root)
+        if !fm.fileExists(atPath:git.path) {
+            for path in ["objects", "refs/heads", "refs/tags", "info"] {
+                try fm.createDirectory(at:git.appendingPathComponent(path),withIntermediateDirectories:true)
+            }
+            try atomicWriteData(Data("ref: refs/heads/main\n".utf8),to:git.appendingPathComponent("HEAD"))
+            try atomicWriteData(Data("[core]\nrepositoryformatversion = 0\nbare = false\n".utf8),to:git.appendingPathComponent("config"))
+            try atomicWriteData(Data("*\n".utf8),to:git.appendingPathComponent("info/exclude"))
+        }
         let method=try installOfficialGBrainMethod(workspace:root,plan:plan)
         let executable=Bundle.main.executableURL!.path
         func quote(_ value:String)->String { "'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'" }

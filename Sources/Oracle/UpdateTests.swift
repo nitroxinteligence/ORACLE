@@ -1,9 +1,20 @@
 import Foundation
+import CryptoKit
+
+private struct UpdateFixtureDevice: OracleLicenseDeviceProviding {
+    func identifier(create: Bool) throws -> String { "ORACLE-MAC2-" + String(repeating: "a", count: 64) }
+}
 
 func runUpdateTests(releasePath: String?) throws {
     let base = try oracleTestDirectory("oracle-update-test")
     defer { try? fm.removeItem(at: base) }
-    let c = try Core(home: base.appendingPathComponent("state")), root = base.appendingPathComponent("vault")
+    let signer=Curve25519.Signing.PrivateKey(),device=UpdateFixtureDevice()
+    let trust=LicenseKeys(version:1,keys:["fixture":signer.publicKey.rawRepresentation.base64EncodedString()])
+    let c = try Core(home: base.appendingPathComponent("state"),licenseDevice:device,licenseTrust:trust), root = base.appendingPathComponent("vault")
+    _=try c.licenseDeviceRequest()
+    let license=OracleLicense(version:2,product:"oracle-macos",keyID:"fixture",licenseID:UUID().uuidString,subject:"Synthetic update fixture",issuedAt:1,expiresAt:nil,deviceID:try device.identifier(create:false))
+    let payload=try JSONEncoder().encode(license)
+    _=try c.activateLicense("ORACLE2."+base64URL(payload)+"."+base64URL(try signer.signature(for:Data("ORACLE2.".utf8)+payload)))
     try fm.createDirectory(at: root, withIntermediateDirectories: true)
     c.config["vault"] = root.path; try c.persist()
     var checks = [String]()

@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   let api, root, screen, activation, progress, current={}, stage='', timer, generation=0, pending=false, busy=false;
+  let progressRun='',progressValue=0,openedRun='';
   let integration={enabled:true,autoCapture:false,remoteProcessing:false,hour:15,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone};
   const needsRecovery=value=>value.licensed&&!['starting','running','cancelling','completed'].includes(value.status)&&(value.libraryRootChoices?.length||value.distributionConflicts?.length);
   const motionHandles=new Set();
@@ -16,10 +17,9 @@
   function ensure(){
     if(root)return;
     root=document.createElement('section');root.className='oracle-onboarding-v2';
-    root.innerHTML='<dialog class="ob2-screen" aria-label="Configuração do Oracle"><div class="ob2-space" aria-hidden="true"><div class="ob2-stars"></div><div class="ob2-orbits"></div></div><main class="ob2-content"></main></dialog><dialog class="ob2-activation" tabindex="-1" aria-labelledby="ob2-activating-title"><div class="ob2-beam" data-ob2-effect></div><div class="ob2-status-body"><h2 id="ob2-activating-title">Ativando…</h2><progress aria-label="Ativando acesso"></progress></div></dialog><aside class="ob2-installation" aria-label="Progresso da instalação" hidden><div class="ob2-beam" data-ob2-effect></div><div class="ob2-status-body"><strong>Instalando seu segundo cérebro…</strong><progress aria-label="Instalação do Second Brain"></progress><p class="ob2-install-error" hidden></p><button class="ob2-retry" type="button" hidden>Tentar novamente</button></div></aside>';
+    root.innerHTML='<dialog class="ob2-screen" aria-label="Configuração do Oracle"><div class="ob2-space" aria-hidden="true"><div class="ob2-stars"></div><div class="ob2-orbits"></div></div><main class="ob2-content"></main></dialog><dialog class="ob2-activation" tabindex="-1" aria-labelledby="ob2-activating-title"><div class="ob2-beam" data-ob2-effect></div><div class="ob2-status-body"><h2 id="ob2-activating-title">Ativando…</h2><progress aria-label="Ativando acesso"></progress></div></dialog><aside class="ob2-installation" aria-label="Progresso da instalação" hidden><div class="ob2-beam" data-ob2-effect></div><div class="ob2-status-body"><strong>Instalando seu segundo cérebro…</strong><progress aria-label="Instalação do Second Brain"></progress><p class="ob2-install-error" hidden></p><div class="ob2-retry" data-ob2-effect hidden></div><div class="ob2-codex-actions" hidden><div data-ob2-effect data-open-codex></div><div data-ob2-effect data-copy-codex></div><div data-ob2-effect data-verify-codex></div></div></div></aside>';
     document.body.append(root);screen=root.querySelector('.ob2-screen');activation=root.querySelector('.ob2-activation');progress=root.querySelector('.ob2-installation');
     screen.addEventListener('cancel',e=>e.preventDefault());activation.addEventListener('cancel',e=>e.preventDefault());
-    root.querySelector('.ob2-retry').onclick=()=>run(async()=>{await invoke('onboardingResume');await poll();});
     // Fixed, deterministic star positions; no random rerender or animation loop.
     const stars=root.querySelector('.ob2-stars');
     for(let i=0;i<135;i++){const dot=document.createElement('i');dot.style.left=((i*37.17+11)%100)+'%';dot.style.top=((i*61.73+7)%100)+'%';dot.style.opacity=String(.12+(i%5)*.055);stars.append(dot);}
@@ -52,11 +52,11 @@
       content.innerHTML=logo()+'<h1>Escolha seu Obsidian.</h1><p class="ob2-description"><span>Selecione o vault que você já criou no Obsidian.</span><span>Todo o Second Brain será instalado neste vault.</span></p><div class="ob2-vault-selection"></div><div class="ob2-action" data-ob2-effect></div>';
       updateVaultSelection();
     }else if(next==='install'){
-      content.innerHTML=logo()+`<h1>Instale seu segundo cérebro.</h1><div class="ob2-integration"><label><input id="ob-daily" type="checkbox" ${integration.enabled?'checked':''}>Manutenção diária no Codex <select id="ob-daily-hour" aria-label="Horário da manutenção">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===integration.hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select></label><label><input id="ob-capture" type="checkbox" ${integration.autoCapture?'checked':''}>Guardar mensagens das conversas no espaço Oracle do Codex</label><label><input id="ob-synthesis" type="checkbox" ${integration.remoteProcessing?'checked':''}>Enviar essas mensagens ao Codex para consolidar a wiki</label><p>GPT-5.6 Sol · esforço médio. Ao concluir, o Codex será aberto para autorizar os hooks e registrar a manutenção. O Mac precisa estar acordado e o Codex aberto no horário.</p></div><div class="ob2-action" data-ob2-effect></div>`;
+      content.innerHTML=logo()+`<h1>Instale seu segundo cérebro.</h1><p class="ob2-destination">Destino: <strong>${esc(current.vaultName)}</strong><span>${esc(current.vaultPath||'')}</span></p><div class="ob2-integration"><div class="ob2-setting"><label for="ob-daily"><input id="ob-daily" type="checkbox" ${integration.enabled?'checked':''}><span>Manutenção diária no Codex</span></label><div class="ob2-time"><label for="ob-daily-hour">Horário</label><select id="ob-daily-hour" aria-label="Horário da manutenção">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===integration.hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select></div></div><div class="ob2-setting"><label for="ob-capture"><input id="ob-capture" type="checkbox" ${integration.autoCapture?'checked':''}><span>Guardar mensagens no espaço Oracle do Codex</span></label></div><div class="ob2-setting"><label for="ob-synthesis"><input id="ob-synthesis" type="checkbox" ${integration.remoteProcessing?'checked':''}><span>Enviar essas mensagens ao Codex para consolidar a wiki</span></label></div><p>GPT-5.6 Sol · esforço médio. Após a instalação local, conclua a autorização dos hooks e o registro da manutenção no Codex. O Mac precisa estar acordado no horário.</p></div><div class="ob2-action" data-ob2-effect></div>`;
       const readIntegration=()=>{const find=id=>content.querySelector('#'+id);integration={...integration,enabled:find('ob-daily').checked,hour:Number(find('ob-daily-hour').value),autoCapture:find('ob-daily').checked&&find('ob-capture').checked,remoteProcessing:find('ob-daily').checked&&find('ob-capture').checked&&find('ob-synthesis').checked};find('ob-capture').disabled=!integration.enabled;find('ob-daily-hour').disabled=!integration.enabled;find('ob-synthesis').disabled=!integration.autoCapture;if(!integration.autoCapture)find('ob-synthesis').checked=false;};
       for(const id of ['ob-daily','ob-daily-hour','ob-capture','ob-synthesis'])content.querySelector('#'+id).onchange=readIntegration;readIntegration();
       metal(content.querySelector('.ob2-action'),'Instalar',async()=>{
-        const button=content.querySelector('button');button.disabled=true;
+        readIntegration();const button=content.querySelector('.ob2-action button');button.disabled=true;
         try{await invoke('onboardingInstallMemoryOnly',{maintenance:{...integration,consolidateWiki:integration.remoteProcessing,captureSource:integration.autoCapture?'codex_workspace_hooks_v1':null,synthesisScope:integration.remoteProcessing?'captured_messages_codex_v1':null}});current=await invoke('onboardingStatus');await api.refresh?.();document.body.classList.remove('ob2-configuring');const exit=await animate(screen,[{opacity:1},{opacity:0}],460,true);closeScreen();release(exit);stage='progress';updateProgress();}
         finally{if(button.isConnected)button.disabled=false;}
       });
@@ -95,12 +95,13 @@
   async function navigate(next){await invoke('onboardingDraftUI',{step:next});await transitionTo(next);}
   function updateVaultSelection(){
     const host=screen.querySelector('.ob2-vault-selection'),action=screen.querySelector('.ob2-action');if(!host)return;
+    clean(host);
     if(current.hasVault){
-      host.innerHTML='<div class="ob2-selected-vault">'+folder+'<div><strong>'+esc(current.vaultName)+'</strong><span>'+esc(current.vaultPath||current.vaultName)+'</span></div><button class="ob2-remove-vault" type="button" aria-label="Remover pasta selecionada" title="Remover pasta selecionada"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 10v7M14 10v7"/></svg></button></div>';
-      host.querySelector('button').onclick=()=>run(async()=>{await invoke('onboardingClearVault');current=await invoke('onboardingStatus');updateVaultSelection();host.querySelector('button')?.focus({preventScroll:true});});
+      host.innerHTML='<div class="ob2-selected-vault">'+folder+'<div><strong>'+esc(current.vaultName)+'</strong><span>'+esc(current.vaultPath||current.vaultName)+'</span></div></div><div class="ob2-vault-action" data-ob2-effect></div>';
+      metal(host.querySelector('[data-ob2-effect]'),'Trocar pasta',async()=>{await invoke('onboardingClearVault');current=await invoke('onboardingStatus');updateVaultSelection();});
     }else{
-      host.innerHTML='<button class="ob2-vault" type="button" aria-label="Escolher vault do Obsidian">'+folder+'<span class="ob2-vault-name">Escolher vault do Obsidian</span><span class="ob2-vault-hint">Clique para selecionar uma pasta</span></button>';
-      const picker=host.querySelector('button');picker.onclick=()=>run(async()=>{picker.disabled=true;try{const selected=await invoke('onboardingChooseVault');if(selected){current=await invoke('onboardingStatus');updateVaultSelection();}}finally{if(picker.isConnected)picker.disabled=false;}});
+      host.innerHTML='<div class="ob2-vault">'+folder+'<span class="ob2-vault-name">Escolha o vault que receberá os arquivos</span><div class="ob2-vault-action" data-ob2-effect></div></div>';
+      metal(host.querySelector('[data-ob2-effect]'),'Escolher pasta',async()=>{const selected=await invoke('onboardingChooseVault');if(selected){current=await invoke('onboardingStatus');updateVaultSelection();}});
     }
     metal(action,'Prosseguir',()=>navigate('install'),!current.hasVault);
   }
@@ -113,28 +114,44 @@
   }
   function updateProgress(){
     if(!progress)return;
-    const installing=!!current.runID&&current.status!=='completed'&&!current.resumeExisting;
+    const integrating=current.status==='completed'&&current.integrationPending===true;
+    const installing=!!current.runID&&(current.status!=='completed'||integrating)&&!current.resumeExisting;
     const visible=installing&&!screen.open;
     if(!visible){progress.hidden=true;clean(progress);return;}
     const wasHidden=progress.hidden;progress.hidden=false;
     positionProgress();if(wasHidden){effects().beam(progress.querySelector('.ob2-beam'));void animate(progress,[{opacity:0},{opacity:1}],300);}
-    const bar=progress.querySelector('progress');
-    const data=current.installationProgress||current;
-    const total=Number(data.total),completed=Number(data.completed);
-    const byteTotal=Number(data.bytes_total),bytes=Number(data.bytes_downloaded);
-    if(total>0&&Number.isFinite(completed)){bar.max=total;bar.value=Math.max(0,Math.min(total,completed));bar.setAttribute('aria-valuetext',Math.round(bar.value/total*100)+'%');}
-    else if(byteTotal>0&&Number.isFinite(bytes)){bar.max=byteTotal;bar.value=Math.max(0,Math.min(byteTotal,bytes));bar.setAttribute('aria-valuetext',Math.round(bar.value/byteTotal*100)+'%');}
-    else{bar.removeAttribute('value');bar.removeAttribute('aria-valuetext');}
+    const bar=progress.querySelector('progress'),data=current.installationProgress||{};
+    if(progressRun!==current.runID){progressRun=current.runID;progressValue=0;}
+    const phases={hydrating:[0,5,'Baixando notas do iCloud'],preparing:[5,10,'Conferindo o vault e o acervo'],downloading:[10,25,'Baixando componentes'],memory:[25,30,'Criando a memória local'],installing:[30,70,'Instalando acervo e recursos'],indexing:[70,90,'Indexando notas e links'],codex:[90,95,'Instalando a integração com o Codex'],verifying:[95,99,'Verificando a instalação'],ready:[99,100,'Instalação local verificada']};
+    const phase=phases[current.phase]||phases.preparing;
+    let done=Number(data.completed),total=Number(data.total),unit='arquivos';
+    if(current.phase==='downloading'){done=Number(data.bytes_downloaded);total=Number(data.bytes_total);unit='bytes';}
+    const counted=data.phase===current.phase&&total>0&&Number.isFinite(done);
+    const fraction=counted?Math.max(0,Math.min(1,done/total)):0;
+    progressValue=Math.max(progressValue,phase[0]+(phase[1]-phase[0])*fraction);
+    bar.max=100;bar.value=progressValue;
+    bar.setAttribute('aria-valuetext',phase[2]+(counted?`: ${done} de ${total} ${unit}`:''));
+    progress.querySelector('strong').textContent=integrating?'Conclua a integração no Codex':phase[2]+(counted&&unit==='arquivos'?` · ${done}/${total}`:'…');
     const failed=['failed','interrupted','paused','cancelled'].includes(current.status);
-    const error=progress.querySelector('.ob2-install-error');error.hidden=!failed;error.textContent=failed?(current.message||'Não foi possível concluir a instalação.') :'';
-    progress.querySelector('.ob2-retry').hidden=!failed;
+    const error=progress.querySelector('.ob2-install-error');error.hidden=!failed&&!integrating;
+    error.textContent=integrating?'Arquivos locais verificados. No espaço Oracle do Codex, revise os hooks e envie as instruções copiadas para registrar a manutenção. Depois clique em Verificar.':failed?(current.message||'Não foi possível concluir a instalação.'):'';
+    error.classList.toggle('ob2-pending',integrating);
+    const retry=progress.querySelector('.ob2-retry');retry.hidden=!failed;
+    if(failed&&!retry.querySelector('button'))metal(retry,'Tentar novamente',async()=>{await invoke('onboardingResume');await poll();});
+    const actions=progress.querySelector('.ob2-codex-actions');actions.hidden=!integrating;
+    if(integrating&&!actions.querySelector('button')){
+      metal(actions.querySelector('[data-open-codex]'),'Abrir Codex',async()=>{await invoke('onboardingOpenCodex');});
+      metal(actions.querySelector('[data-copy-codex]'),'Copiar instruções',async()=>{const value=await invoke('maintenanceScheduleRequest');await invoke('copy',{text:value.request});api.toast?.('Instruções copiadas. Envie-as em uma conversa no espaço Oracle.');});
+      metal(actions.querySelector('[data-verify-codex]'),'Verificar',async()=>{await invoke('onboardingVerifyIntegration');await poll();});
+    }
+    if(integrating&&openedRun!==current.runID){openedRun=current.runID;invoke('onboardingOpenCodex').catch(errorToast);}
   }
+
   async function poll(){
     if(pending||!api)return;pending=true;const epoch=generation;
     try{
       const value=await invoke('onboardingStatus');if(epoch!==generation)return;
       const previousStatus=current.status,before=JSON.stringify([current.status,current.installationProgress,current.confirmed]);current=value;
-      if(current.status==='completed'&&['starting','running','cancelling'].includes(previousStatus)&&current.maintenance?.enabled&&!current.maintenance?.registered){invoke('onboardingOpenCodex').catch(errorToast);api.toast?.('Memória local instalada. Abra uma conversa no espaço Oracle para autorizar os hooks e registrar a manutenção.');}
       if(needsRecovery(current)&&api.openRecovery){await api.openRecovery();return;}
       updateProgress();
       if(before!==JSON.stringify([current.status,current.installationProgress,current.confirmed])){

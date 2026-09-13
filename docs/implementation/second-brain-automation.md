@@ -1,6 +1,6 @@
 # Second Brain: onboarding, hooks e manutenção
 
-Escopo: Oracle 0.3.5. Sem plugin do Obsidian, captura global de outras tarefas,
+Escopo: Oracle 0.3.7. Sem plugin do Obsidian, captura global de outras tarefas,
 importação de contas ChatGPT, publicação de vaults ou substituição do GBrain.
 
 ## Instalação
@@ -11,11 +11,15 @@ Captura e processamento remoto começam desmarcados. A seleção entra no plano
 imutável antes de seu hash; retomadas reutilizam o consentimento daquele plano.
 A instalação local não depende de login ou inferência. Se a manutenção foi
 selecionada, a interface abre o espaço Oracle no Codex ao concluir a parte local.
-O usuário inicia uma conversa nesse espaço; o hook confiado entrega o pedido ao
-agente. Abrir o aplicativo sozinho não executa um turno nem comprova registro.
+O cartão permanece visível até a confirmação dos hooks e da tarefa. Ele permite
+abrir o Codex, copiar o pedido e verificar o registro. O usuário envia esse pedido
+em uma conversa no espaço Oracle; hooks já confiados também o entregam ao agente. Abrir o aplicativo sozinho não executa um turno nem comprova registro.
 
-Os hooks são preparados no workspace do perfil; confiança continua sob controle
-do Codex. SessionStart/UserPromptSubmit entregam o procedimento de registro ao
+Os hooks são preparados no workspace do perfil, com um repositório Git local
+vazio para o Codex reconhecer a raiz de configuração. Não há commit, remoto ou
+publicação. Confiança do projeto e dos hooks continua sob controle do Codex.
+A verificação consulta hooks/list e exige os eventos habilitados e confiados;
+preparar os arquivos ou abrir o aplicativo não concede essa confiança. SessionStart/UserPromptSubmit entregam o procedimento de registro ao
 agente quando há consentimento e falta uma tarefa compatível. O agente usa a
 ferramenta oficial do host. Sem essa ferramenta ou sem confiança, a integração
 permanece pendente. Copiar o pedido e abrir o Codex é a alternativa visível.
@@ -76,3 +80,16 @@ A publicação pessoal de skills/prompts/tutoriais às 20h fica fora do produto.
 Logs locais em .work/second-brain-{maintenance,onboarding,ui,mcp,live}.log.
 Esses escopos não comprovam confiança dos hooks nem registro da automação no Mac
 de outro usuário. O aplicativo mantém esses estados pendentes até o recibo real.
+
+## Correções do onboarding — 13/09/2026
+
+O destino é sempre o vault confirmado no seletor, exibido antes da instalação.
+Notas iCloud são solicitadas ao macOS e verificadas antes do inventário. Falhas
+interrompem a operação com motivo; não convertem leituras parciais em completas.
+O progresso usa fases e recibos, sem avanço por tempo ou barra duplicada. Ícones
+de conectores não são projetados no mapa. Ações do fluxo v2 usam o efeito metálico.
+
+O catálogo mantém um único índice por caminho; cópias e pacotes liberam objetos
+temporários a cada unidade. A sincronização não varre o vault concorrentemente
+com a instalação; retoma ao final. Contratos de arquivos, hashes e visual do mapa
+continuam iguais. Testes usam vaults isolados e dados sintéticos.

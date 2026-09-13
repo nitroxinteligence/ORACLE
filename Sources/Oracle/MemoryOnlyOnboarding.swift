@@ -74,7 +74,11 @@ extension Core {
             if current.complete,current.signature != snapshot.signature,changedGenerations<3 {
                 snapshot=current;generation+=1;changedGenerations+=1;lastVerified = -1;stalled=0;continue
             }
-            throw failure("A indexação está incompleta e parou de avançar. Confira as notas indisponíveis e tente novamente; o checkpoint foi preservado.")
+            let reason=(result["failures"] as? [[String:Any]])?.first?["error"] as? String ?? ""
+            if reason.contains("ENOSPC") || reason.contains("no space left") {
+                throw failure("Sem espaço livre no Mac para concluir o índice. Libere espaço e tente novamente; as notas e o checkpoint foram preservados.")
+            }
+            throw failure("A indexação não pôde ser concluída. " + (reason.isEmpty ? "Confira as notas indisponíveis." : String(reason.prefix(300))) + " Tente novamente; o checkpoint foi preservado.")
         }
     }
     func verifyMemoryOnly(plan:[String:Any]) throws -> [String:Any] {

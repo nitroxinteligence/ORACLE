@@ -56,7 +56,7 @@ struct DistributionManifest {
     let bytes:Data,hash:String,releaseID:String,sequence:Int
     let document:[String:Any],files:[DistributionFile],items:[DistributionItem],packages:[[String:Any]]
     var vaultFiles:[DistributionFile] {files.filter(\.isVault)}
-    var byPath:[String:DistributionFile] {Dictionary(uniqueKeysWithValues:files.map{($0.path,$0)})}
+    let byPath:[String:DistributionFile]
 
     static func safePath(_ path:String,source:Bool=false) -> Bool {
         let parts=path.split(separator:"/",omittingEmptySubsequences:false)
@@ -175,7 +175,7 @@ struct DistributionManifest {
         guard let components=manifest["components"] as? [String:[String:Any]],components["runtime"]?["source"] as? String=="signed-app-bundle",
               components["runtime"]?["version"] as? String==oracleGBrainPinnedVersion,components["gbrain-method"]?["source"] as? String=="signed-app-bundle",
               components["gbrain-method"]?["commit"] as? String==oracleGBrainPinnedCommit else{throw failure("Motor e método precisam pertencer ao conjunto selado no Oracle.")}
-        self.bytes=bytes;self.hash=envelopeHash;self.releaseID=release;self.sequence=sequence;self.document=manifest;self.files=files;self.items=items;self.packages=packages
+        self.byPath=byPath;self.bytes=bytes;self.hash=envelopeHash;self.releaseID=release;self.sequence=sequence;self.document=manifest;self.files=files;self.items=items;self.packages=packages
     }
 
     func decodePackage(_ data:Data,metadata:[String:Any]) throws -> [UpdateFile] {

@@ -6,8 +6,8 @@ import CoreServices
 final class MemorySyncCoordinator {
     let home:URL
     private let mutex=NSLock()
-    private let scanQueue=DispatchQueue(label:"oracle.memory.scan",qos:.utility)
-    private let indexQueue=DispatchQueue(label:"oracle.memory.index",qos:.utility)
+    private let scanQueue=DispatchQueue(label:"oracle.memory.scan",qos:.utility,autoreleaseFrequency:.workItem)
+    private let indexQueue=DispatchQueue(label:"oracle.memory.index",qos:.utility,autoreleaseFrequency:.workItem)
     private var timer:DispatchSourceTimer?
     private var observer:NSObjectProtocol?
     private var watcher:FSEventStreamRef?
@@ -87,7 +87,9 @@ final class MemorySyncCoordinator {
                 return ["entries":[],"scan":["complete":false,"pending":true,"issues":[]]]
             }
             var result:[String:Any]=["entries":cached.entries,"scan":cached.metadata]
-            if !cached.complete { result["scanError"]="Leitura parcial: \(cached.issues.count) problemas. Os itens encontrados continuam disponíveis; nenhuma exclusão será reconciliada." }
+            if !cached.complete {
+                result["scanError"]=cached.unavailableCount>0 ? "\(cached.unavailableCount) notas ainda estão no iCloud. Baixe o vault no Finder para concluir a leitura. Os arquivos locais foram preservados." : "Algumas notas não puderam ser lidas. "+(cached.issues.first?["error"] ?? "Confira o acesso à pasta.")
+            }
             return result
         }
     }
@@ -108,6 +110,7 @@ final class MemorySyncCoordinator {
                 locked { cached=nil;selectedRoot=nil;currentState="unavailable";reason="Selecione uma pasta do Obsidian" }
                 stopWatcher();return
             }
+            if core.operationIsRunning("installation") {return}
             let canonical=root.resolvingSymlinksInPath()
             if watchedRoot != canonical.path { installWatcher(root:canonical) }
             let snapshot=try core.scanSnapshot(root:canonical)

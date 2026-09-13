@@ -12,6 +12,24 @@ func gbrainFailureMessage(_ result:ProcessResult) -> String {
     }
     return "GBrain (\(result.code)): \(result.output.prefix(1800))"
 }
+/// Retry only a transient initialization failure during local setup status reads.
+/// Never repairs the database, retries writes, or ignores the final error.
+func readGBrainResponse(retryInitialization:Bool,run:()throws->ProcessResult,wait:(Double)->Void={Thread.sleep(forTimeInterval:$0)}) throws -> [String:Any] {
+    for attempt in 0..<(retryInitialization ? 3:1) {
+        let result=try run()
+        guard let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")}),
+              let response=try JSONSerialization.jsonObject(with:Data(line.utf8)) as? [String:Any] else {
+            throw failure("GBrain indisponível: saída incompatível, engine ocupada ou perfil ausente")
+        }
+        if result.code==0,response["ok"] as? Bool==true {return response}
+        let message=response["error"] as? String ?? "Falha de conexão GBrain"
+        if retryInitialization,attempt<2,message.contains("PGLite failed to initialize its WASM runtime.") {
+            wait(0.25*Double(attempt+1));continue
+        }
+        throw failure(message)
+    }
+    throw failure("Não foi possível verificar a memória local.")
+}
 func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:String], input:Data? = nil, timeout:Double = 90) throws -> ProcessResult {
     let payload = input ?? Data()
     guard payload.count <= 16_000_000,timeout.isFinite,timeout > 0 else { throw failure("Solicitação de subprocesso fora dos limites") }
@@ -176,11 +194,14 @@ extension Core {
         if existing==nil {try prepareOwnedGBrainRuntime();request["owned"]=true}
         var environment=engineEnvironment(existing:existing != nil)
         if !allowSetup {environment.removeValue(forKey:"ORACLE_CANCEL_FILE")}
-        let result=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:cwd,environment:environment,input:jsonData(request),timeout:35)
-        guard let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")}),let data=String(line).data(using:.utf8),let response=try JSONSerialization.jsonObject(with:data) as? [String:Any] else { throw failure("GBrain indisponível: saída incompatível, engine ocupada ou perfil ausente") }
-        guard result.code == 0,response["ok"] as? Bool == true else {
-            if operation == "get" || operation == "graph" { memorySync.invalidate(reason:"read-refused-stale-or-busy") }
-            throw failure(response["error"] as? String ?? "Falha de conexão GBrain")
+        let response:[String:Any]
+        do {
+            response=try readGBrainResponse(retryInitialization:allowSetup && existing==nil && operation=="status") {
+                try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:cwd,environment:environment,input:jsonData(request),timeout:35)
+            }
+        } catch {
+            if operation == "get" || operation == "graph" {memorySync.invalidate(reason:"read-refused-stale-or-busy")}
+            throw error
         }
         try event(type:"gbrain.read",summary:"Consulta \(operation) realizada pela biblioteca oficial; sem inferência")
         if operation == "status",var value=response["value"] as? [String:Any] { value["memorySync"]=memorySync.status();return value }

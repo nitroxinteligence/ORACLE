@@ -93,3 +93,8 @@ O catálogo mantém um único índice por caminho; cópias e pacotes liberam obj
 temporários a cada unidade. A sincronização não varre o vault concorrentemente
 com a instalação; retoma ao final. Contratos de arquivos, hashes e visual do mapa
 continuam iguais. Testes usam vaults isolados e dados sintéticos.
+
+Uma falha transitória de inicialização PGLite pode receber até três tentativas
+somente na leitura de status durante o setup. Escritas, consultas normais e erros
+persistentes mantêm seus limites. O Oracle não repara nem apaga o banco por esse
+sintoma. Falta de espaço durante indexação é informada explicitamente.

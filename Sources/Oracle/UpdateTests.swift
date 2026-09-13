@@ -22,6 +22,16 @@ func runUpdateTests(releasePath: String?) throws {
     func rejects(_ name: String, _ operation: () throws -> Void) throws { do { try operation() } catch { checks.append(name); print("PASS \(name)"); return }; throw failure("Did not reject: " + name) }
     func file(_ path: String, _ text: String) -> UpdateFile { let bytes = Data(text.utf8); return UpdateFile(path: path, hash: digest(bytes), data: bytes) }
     func read(_ path: String) throws -> String { try String(contentsOf: c.scoped(path, root: root), encoding: .utf8) }
+    var attempts=0
+    let transient=ProcessResult(code:1,output:String(decoding:try jsonData(["ok":false,"error":"PGLite failed to initialize its WASM runtime."]),as:UTF8.self))
+    let recovered=try readGBrainResponse(retryInitialization:true,run:{attempts+=1;return attempts<3 ? transient:ProcessResult(code:0,output:"{\"ok\":true,\"value\":{}}")},wait:{_ in})
+    try expect(attempts==3 && recovered["ok"] as? Bool==true,"setup status recovers from transient PGLite initialization")
+    attempts=0
+    try rejects("persistent initialization failure stays visible after three attempts") {_=try readGBrainResponse(retryInitialization:true,run:{attempts+=1;return transient},wait:{_ in})}
+    try expect(attempts==3,"initialization retry is bounded")
+    attempts=0
+    try rejects("normal reads never retry initialization implicitly") {_=try readGBrainResponse(retryInitialization:false,run:{attempts+=1;return transient},wait:{_ in})}
+    try expect(attempts==1,"normal read attempts remain unchanged")
     let cloud=[root.appendingPathComponent("cloud-a.md"),root.appendingPathComponent("cloud-b.md")]
     var local=Set<URL>(),requested=[URL](),clock:TimeInterval=0,progress=[Int]()
     try OracleVaultDownloads.prepare(cloud,request:{requested.append($0)},available:{local.contains($0)},progress:{done,_ in progress.append(done)},timeout:3,now:{clock},sleep:{clock+=1;local.insert(cloud[Int(clock)-1])})

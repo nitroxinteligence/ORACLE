@@ -10,6 +10,12 @@ extension App {
             queue.async {do{let value=try self.onboardingController?.snapshot() ?? core.onboardingSnapshot();DispatchQueue.main.async{self.reply(id,value)}}catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}};return true
         }
         guard let controller=onboardingController else {reply(id,nil,"A configuração do Oracle não pôde ser aberta.");return true}
+        if method=="onboardingOpenCodex" {
+            controller.queue.async {
+                do {let link=try controller.codexWorkspaceLink();DispatchQueue.main.async{self.openCodexApplication(id,link:link)}}
+                catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}
+            };return true
+        }
         if method=="onboardingChooseVault" || method=="onboardingChooseBrain" {
             let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.canCreateDirectories=false
             panel.message=method=="onboardingChooseVault" ? "Escolha a pasta original do seu vault Obsidian." : "Escolha a pasta da sua instalação existente do Second Brain (GBrain)."
@@ -47,7 +53,6 @@ extension App {
                 case "onboardingCheckConnection":result=try controller.checkConnection()
                 case "onboardingSelectModel":try controller.selectModel(params["model"] as? String ?? "")
                 case "onboardingVerifyIntegration":result=try controller.verifyCodexIntegration()
-                case "onboardingOpenCodex":try controller.openCodexWorkspace()
                 case "onboardingCancelLogin":try controller.cancelLogin()
                 case "onboardingDraft":try controller.saveDraft(params)
                 case "onboardingDraftUI":try controller.saveUIState(params)
@@ -69,5 +74,22 @@ extension App {
                 DispatchQueue.main.async{self.reply(id,result)}
             } catch {DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}
         };return true
+    }
+
+    /// Launch Services opens the installed Desktop bundle, including renamed apps.
+    /// Its completion reports a launch failure; no CLI, installer download or timed child process is needed.
+    func openCodexApplication(_ id:String,link:URL?=nil) {
+        let workspace=NSWorkspace.shared
+        guard let app=workspace.urlForApplication(withBundleIdentifier:"com.openai.codex") ?? workspace.urlForApplication(withBundleIdentifier:"com.openai.Codex") else {
+            reply(id,nil,"Codex não encontrado. Instale ou abra o aplicativo e tente novamente.");return
+        }
+        let completion:(NSRunningApplication?,Error?)->Void={running,error in
+            DispatchQueue.main.async {
+                if error != nil || running == nil {self.reply(id,nil,"Não foi possível abrir o Codex. Abra o aplicativo pelo Finder e tente novamente.")}
+                else {self.reply(id,true)}
+            }
+        }
+        if let link {workspace.open([link],withApplicationAt:app,configuration:.init(),completionHandler:completion)}
+        else {workspace.openApplication(at:app,configuration:.init(),completionHandler:completion)}
     }
 }

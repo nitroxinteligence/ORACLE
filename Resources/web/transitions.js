@@ -101,10 +101,19 @@ window.OracleTransitions=(()=>{
  function reset(){for(const snapshot of snapshots.values()){cancel(snapshot);snapshot.remove()}snapshots.clear();cancelPage();for(const dialog of [...closing.keys()])cancelDialog(dialog);for(const element of [...running.keys()])cancel(element);}
  function enterApp(){
   const app=document.querySelector('#app');cancel(app);
-  // Keep controls hidden until populated, then fade each surface without
-  // transforming their shared ancestor (which also contains backdrop filters).
-  const controls=document.querySelectorAll('.app-header,#navigation-panel,.map-tools,#observatory-panel,#footer-status');
-  const entrances=[...controls].filter(element=>!element.hidden).map(element=>animate(element,[{opacity:0},{opacity:1}],{duration:440,name:'app-controls-enter'}));
+  const surfaces=[
+   ['.app-header>.wordmark',0,0,-7],['#navigation-panel',100,-10,0],
+   ['.workspace-tabs',150,0,-7],['#navigation-toggle',210,0,-6],
+   ['#settings',250,0,-6],['#updates',290,0,-6],['#lock',330,0,-6],
+   ['.map-tools',280,0,9],['#observatory-panel',210,10,0],['#footer-status',350,0,5]
+  ];
+  const entrances=surfaces.map(([selector,delay,x,y])=>{
+   const element=document.querySelector(selector);if(!element||element.hidden)return Promise.resolve(true);
+   // Compose with the existing positioning transform, instead of shifting the layout.
+   cancel(element);
+   const base=getComputedStyle(element).transform,transform=base==='none'?'':base;
+   return animate(element,[{opacity:0,transform:`translate(${x}px,${y}px) ${transform}`.trim()},{opacity:1,transform:base}],{duration:620,delay,name:'app-controls-enter'});
+  });
   app?.removeAttribute('data-startup');return Promise.all(entrances);
  }
  async function exitApp(){

@@ -53,33 +53,45 @@ class OracleAtlas {
   listen(target,type,handler,options={}){target.addEventListener(type,handler,{...options,signal:this.abort.signal})}
   finishReveal(){
     for(const element of this.revealElements||[])window.OracleTransitions?.cancel(element);
-    this.revealElements=null;this.el.removeAttribute('data-revealing');
+    for(const restore of this.revealCleanup||[])restore();
+    this.revealCleanup=null;this.revealElements=null;this.el.removeAttribute('data-revealing');
   }
   revealGraph(){
     this.finishReveal();
-    if(!window.OracleTransitions||this.reduced||this.data?.hidden||document.hidden||this.selected||this.department||this.knowledge||document.querySelector('dialog[open]'))return;
-    const elements=new Set(),pending=[];this.revealElements=elements;this.el.dataset.revealing='true';
-    const fade=(element,delay,duration=480,expand=false)=>{
+    if(this.data?.hidden||document.hidden||document.querySelector('dialog[open]')||document.body.classList.contains('ob2-configuring'))return false;
+    if(!window.OracleTransitions||this.reduced)return true;
+    const elements=new Set(),pending=[],cleanup=[];this.revealElements=elements;this.revealCleanup=cleanup;this.el.dataset.revealing='true';
+    const show=(element,delay,duration=440,line=false)=>{
       if(!element||!element.isConnected)return;
       const opacity=getComputedStyle(element).opacity;
+      let frames=[{opacity:0},{opacity}],restore=()=>{};
+      if(line&&element.tagName.toLowerCase()==='path'){
+        const previous=element.getAttribute('pathLength');let restored=false;
+        element.setAttribute('pathLength','1');
+        restore=()=>{if(restored)return;restored=true;if(previous===null)element.removeAttribute('pathLength');else element.setAttribute('pathLength',previous)};
+        cleanup.push(restore);
+        frames=[{opacity:0,strokeDasharray:'1 1',strokeDashoffset:1},{opacity,strokeDasharray:'1 1',strokeDashoffset:0}];
+      }
       elements.add(element);
-      const frames=expand?[{opacity:0,transform:'scale(.55)',transformOrigin:'0px 0px'},{opacity,transform:'scale(1)',transformOrigin:'0px 0px'}]:[{opacity:0},{opacity}];
-      pending.push(OracleTransitions.animate(element,frames,{delay,duration,name:'graph-reveal'}));
+      pending.push(OracleTransitions.animate(element,frames,{delay,duration,name:'graph-reveal'}).then(restore));
     };
-    fade(this.el.querySelector('.oracle-core'),0,360);
-    this.el.querySelectorAll('.orbital-scaffolding circle').forEach((ring,i)=>fade(ring,140+i*24,700,true));
-    fade(this.starfield,260,700);fade(document.querySelector('#galaxy'),260,700);
-    (this.centralNodes||[]).forEach((node,i)=>{const delay=440+Math.min(i,30)*14;fade(node.edge,delay,420);fade(node.g,delay+60,420)});
-    this.el.querySelectorAll('[data-department-orbit]').forEach((orbit,i)=>fade(orbit,780+i*45,520));
-    fade(this.junctionLayer,970,500);
+    show(this.el.querySelector('.oracle-core'),0,380);
+    this.el.querySelectorAll('.orbital-scaffolding circle').forEach((ring,i)=>show(ring,100+i*18,600));
+    show(this.starfield,160,600);show(document.querySelector('#galaxy'),160,600);
+    // Points appear first. Their connections grow outward before the departments arrive.
+    (this.centralNodes||[]).forEach((node,i)=>{const delay=200+Math.min(i,36)*9;show(node.g,delay,360);show(node.edge,delay+230,440,true)});
+    let junction=0;for(const node of this.departmentJunctions?.values()||[]){const delay=660+junction++*35;show(node.dot,delay,300);show(node.edge,delay+70,460,true)}
+    this.el.querySelectorAll('[data-department-orbit]').forEach((orbit,i)=>show(orbit,760+i*35,440));
     let departments=0,specialists=0;
     for(const node of this.nodes.values()){
-      const delay=node.kind==='department'?930+departments++*65:1200+Math.min(specialists++,12)*32;
-      fade(node.g,delay,440);fade(node.edge,delay+50,480);fade(node.flow,delay+160,480);
+      const delay=node.kind==='department'?830+departments++*40:1100+Math.min(specialists++,18)*20;
+      show(node.g,delay);show(node.edge,delay-90,460,true);show(node.flow,delay+230);
     }
-    let leaves=0;for(const node of this.leaves.values()){const delay=1430+Math.min(leaves++,15)*18;fade(node.g,delay,400);fade(node.edge,delay,400)}
-    fade(this.el.querySelector('.plugin-orbit-layer'),1400,440);fade(this.el.querySelector('.verified-connectors'),1400,440);
-    void Promise.all(pending).then(()=>{if(this.revealElements===elements){this.revealElements=null;this.el.removeAttribute('data-revealing')}});
+    let groups=0;for(const node of this.groups.values()){const delay=1160+Math.min(groups++,16)*18;show(node.g,delay);show(node.edge,delay+50,400,true);show(node.bus,delay+110,400,true)}
+    let leaves=0;for(const node of this.leaves.values()){const delay=1330+Math.min(leaves++,20)*12;show(node.g,delay,340);show(node.edge,delay+60,340,true)}
+    show(this.el.querySelector('.plugin-orbit-layer'),1350);show(this.el.querySelector('.verified-connectors'),1350);
+    void Promise.all(pending).then(()=>{if(this.revealElements===elements){this.revealElements=null;this.revealCleanup=null;this.el.removeAttribute('data-revealing')}});
+    return true;
   }
   make(tag,attrs={},parent){const el=document.createElementNS(this.ns,tag);if(['path','circle','ellipse','rect','svg'].includes(tag))el.setAttribute('aria-hidden','true');for(const [key,value]of Object.entries(attrs))el.setAttribute(key,String(value));parent?.append(el);return el}
   measureViewport(){
@@ -1021,6 +1033,6 @@ class OracleAtlas {
       if(e.key==='Enter'&&node){e.preventDefault();this.select(skill?node.parent:cat,skill,true)}if(e.key===' '){e.preventDefault();if(skill){if(node?.knowledge&&node.directory)this.navigateKnowledge(node.area,node.id);else this.openDocument(skill)}else if(cat)this.focus(cat);else this.fit()}
     });
   }
-  dispose(){if(this.disposed)return;this.disposed=true;this.sceneToken=(this.sceneToken||0)+1;for(const a of this.sceneAnimations||[])a.cancel();this.abort.abort();this.observer.disconnect();cancelAnimationFrame(this.frame);clearTimeout(this.saveTimer);clearTimeout(this.eventTimer);clearTimeout(this.departmentSnapTimer);this.frame=0;this.universe?.dispose();this.nodes.clear();this.groups.clear();this.leaves.clear();this.orbitTracks.clear();this.starfield?.remove();this.contextNav?.remove();this.el.replaceChildren()}
+  dispose(){if(this.disposed)return;this.finishReveal();this.disposed=true;this.sceneToken=(this.sceneToken||0)+1;for(const a of this.sceneAnimations||[])a.cancel();this.abort.abort();this.observer.disconnect();cancelAnimationFrame(this.frame);clearTimeout(this.saveTimer);clearTimeout(this.eventTimer);clearTimeout(this.departmentSnapTimer);this.frame=0;this.universe?.dispose();this.nodes.clear();this.groups.clear();this.leaves.clear();this.orbitTracks.clear();this.starfield?.remove();this.contextNav?.remove();this.el.replaceChildren()}
 }
 window.OracleAtlas=OracleAtlas;

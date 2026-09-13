@@ -638,13 +638,15 @@ final class OnboardingController {
         return value
     }
 
-    func openCodexWorkspace() throws {
+    func codexWorkspaceLink() throws -> URL {
         try requireAccess()
         let receipt=try? readJSON(core.home.appendingPathComponent("setup/bridge.json"))
         let workspace=(receipt?["workspace"] as? String).map{URL(fileURLWithPath:$0)} ?? core.home.appendingPathComponent("onboarding/workspace")
         guard workspace.standardizedFileURL.path.hasPrefix(core.home.path+"/"),fm.fileExists(atPath:workspace.path) else{throw failure("Configure seu Oracle antes de abrir esse espaço.")}
-        let result=try runProcess(CodexBridge.executable(),["app",workspace.path],cwd:core.home,environment:["HOME":fm.homeDirectoryForCurrentUser.path,"PATH":"/usr/bin:/bin:/opt/homebrew/bin"],timeout:15,operation:"A abertura do Codex")
-        guard result.code==0 else{throw failure("Não foi possível abrir o Codex. Abra o aplicativo pelo Finder.")}
+        var link=URLComponents();link.scheme="codex";link.host="threads";link.path="/new"
+        link.queryItems=[URLQueryItem(name:"path",value:workspace.path)]
+        guard let url=link.url else{throw failure("Não foi possível localizar o espaço Oracle no Codex.")}
+        return url
     }
     private func notification(_ method:String,_ p:[String:Any],generation:UUID) {
         stateLock.lock();defer{stateLock.unlock()}

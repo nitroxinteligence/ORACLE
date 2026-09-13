@@ -205,6 +205,14 @@ func runOnboardingLifecycleTests() throws {
     let fake=FixtureCodex(),driver=FixtureLocalInstallation(),access=try fixtureAccess()
     let controller=try OnboardingController(home:home,bridge:fake,automaticallyReconnect:false,localDriver:driver,accessCheck:access)
     defer{controller.shutdown()}
+    let launchWorkspace=home.appendingPathComponent("oracle workspace & teste #1")
+    try fm.createDirectory(at:launchWorkspace,withIntermediateDirectories:true)
+    try writeJSON(["workspace":launchWorkspace.path],home.appendingPathComponent("setup/bridge.json"))
+    let launchLink=try controller.codexWorkspaceLink(),linkParts=URLComponents(url:launchLink,resolvingAgainstBaseURL:false)
+    try t.check(launchLink.scheme=="codex" && launchLink.host=="threads" && launchLink.path=="/new" && linkParts?.queryItems?.first?.value==launchWorkspace.path,"Desktop workspace link preserves spaces and URL punctuation without spawning CLI")
+    try writeJSON(["workspace":vault.path],home.appendingPathComponent("setup/bridge.json"))
+    try t.rejects("Desktop launch rejects workspace outside the Oracle profile") {_ = try controller.codexWorkspaceLink()}
+    try fm.removeItem(at:home.appendingPathComponent("setup/bridge.json"))
     try controller.selectVault(vault)
     try controller.clearSelectedVault()
     try t.check(controller.core.config["vault"]==nil && controller.core.config["vaultBookmark"]==nil,"clearing a pre-install vault clears only its selection and bookmark")

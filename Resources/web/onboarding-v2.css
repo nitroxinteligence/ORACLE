@@ -58,7 +58,7 @@ body.reduced .oracle-onboarding-v2 *{animation:none!important;transition:none!im
 .ob2-selected-vault span {font-size:11px;color:#909090;display:block;overflow-wrap:anywhere;margin-top:7px}
 .ob2-remove-vault {color:#ff7373;background:#ff535308;border:1px solid #ff535320;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:8px;flex:none;cursor:pointer}
 .ob2-remove-vault:hover {background:#ff535318;border-color:#ff535350}.ob2-remove-vault svg {width:19px;height:19px}
-.ob2-installation {max-height:calc(100vh - 100px);overflow-y:auto;overflow-wrap:anywhere}
+.ob2-installation {max-height:calc(100vh - 100px);overflow:hidden;overflow-wrap:anywhere}
 .ob2-installation.ob2-in-header {transform:translateX(-50%);max-height:calc(100vh - 24px)}
 .ob2-installation.ob2-in-header .ob2-status-body {padding:11px 20px;gap:8px}
 .ob2-installation.ob2-in-header .ob2-status-body strong {font-size:12px}
@@ -81,3 +81,9 @@ body.reduced .oracle-onboarding-v2 *{animation:none!important;transition:none!im
 
 .ob2-change-vault{flex:none;width:32px;height:32px;padding:6px;border:1px solid #ffffff24;border-radius:8px;background:#ffffff05;color:#bfc8d1;cursor:pointer}.ob2-change-vault svg{width:18px;height:18px}.ob2-change-vault:hover{background:#ffffff12}
 .ob2-codex-actions .ob2-small-button{font:inherit;font-size:12px;height:30px;padding:0 12px;border:1px solid #ffffff30;border-radius:8px;background:#ffffff09;color:#ddd;white-space:nowrap;cursor:pointer}.ob2-codex-actions .ob2-small-button:hover{background:#ffffff15}.ob2-integrating{max-height:calc(100vh - 24px)}
+
+/* Keep the beam inside the card; scrolling belongs only to long status text. */
+.ob2-installation .ob2-status-body{min-width:0;box-sizing:border-box;max-height:inherit;overflow:hidden}
+.ob2-installation .ob2-status-body>*{flex-shrink:0;min-width:0}
+.ob2-installation .ob2-install-error{flex-shrink:1;min-height:0;overflow:auto;scrollbar-width:none}
+.ob2-installation::-webkit-scrollbar,.ob2-installation .ob2-install-error::-webkit-scrollbar{display:none;width:0;height:0}

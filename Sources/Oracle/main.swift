@@ -287,7 +287,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             };return
         }
         if method == "protect" { authenticate { ok,error in if ok { self.queue.async { core.config["protected"] = true; try? core.persist(); DispatchQueue.main.async { self.reply(id,true) } } } else { self.reply(id,nil,error) } }; return }
-        if method == "openCodex" { let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier:"com.openai.codex") ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier:"com.openai.Codex"); if let url { NSWorkspace.shared.openApplication(at:url,configuration:.init()); reply(id,true) } else { reply(id,nil,"Codex não encontrado. Abra o app instalado manualmente e cole o pedido.") }; return }
+        if method == "openCodex" {openCodexApplication(id);return}
         if method == "openExternal" { guard let text=p["url"] as? String,let parts=URLComponents(string:text),["https","http"].contains(parts.scheme ?? ""),parts.host != nil,parts.user == nil,parts.password == nil,let url=parts.url else { reply(id,nil,"Link externo inválido"); return }; NSWorkspace.shared.open(url); reply(id,true); return }
         if method == "copy" { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(p["text"] as? String ?? "",forType:.string); reply(id,true); return }
         if method == "reveal" { do { let url = try core.scoped(p["path"] as? String ?? "",root:core.vault()); NSWorkspace.shared.activateFileViewerSelecting([url]); reply(id,true) } catch { reply(id,nil,error.localizedDescription) }; return }

@@ -192,12 +192,16 @@ function renderTree(){
 }
 function bindPaths(container){container.querySelectorAll('[data-path]').forEach(e=>e.onclick=safe(()=>{const entry=visibleEntries().find(n=>n.path===e.dataset.path);if(entry?.directory){openSearch(entry.path)}else return openNote(e.dataset.path)}))}
 let inspectorOpenedByMap=false;
+let graphEntrancePending=true;
 let atlasController=null, selectedSkill=null, selectedDepartment=null, visualPaused=false,replaySession=null,replayProjection=null;
 function renderAtlas(){
  const installation=OracleInstallationVisual.projection(state);document.body.classList.toggle('setup-pending',installation.coreReady===false);
  if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf,keyboard,selection)=>{selected=id;selectedSkill=leaf;selectedDepartment=selection?.department||null;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpenKnowledge:safe(openKnowledgeHub),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onOpenTutorial:safe(path=>setView('tutorials',()=>libraryGallery.openDocument(path))),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
  atlasController.update({forming:installation.forming&&state.onboarding?.profileMode==='memory-only',skillRoot:state.config.libraryRoots?.skills||'SISTEMA/skills',tutorialRoot:state.config.libraryRoots?.tutorial||'',promptRoot:state.config.libraryRoots?.prompt||'',departmentAssignments:{...state.distributionDepartmentAssignments,...state.config.departmentAssignments},departmentManifest:state.departmentManifest||window.OracleDepartmentManifest,selectedDepartment,collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||!!document.querySelector('dialog[open]')});
+ if(graphEntrancePending&&view==='map'&&atlasController.revealGraph())graphEntrancePending=false;
 }
+function requestGraphEntrance(){graphEntrancePending=true;renderAtlas()}
+window.addEventListener('oracle:app-enter',()=>{void OracleTransitions.enterApp();requestGraphEntrance()});
 function setView(next,onReady){
  if(navigationBlocked())return false;
  const previous=view,gallery=['prompts','tutorials'].includes(next);
@@ -208,7 +212,7 @@ function setView(next,onReady){
  if(next===previous){onReady?.();return true;}
  const commit=()=>{
   if(navigationBlocked()){$$('.workspace-tabs [data-workspace]').forEach(button=>{const selected=button.dataset.workspace===view;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});OracleTransitions.indicator();return false;}
-  view=next;document.body.classList.toggle('library-view',gallery);
+  view=next;if(next==='map')graphEntrancePending=true;document.body.classList.toggle('library-view',gallery);
   $('#graph-page').hidden=gallery;$('#library-page').hidden=!gallery;
   if(!gallery){$('#atlas').hidden=next!=='map';$('#results').hidden=next==='map';$('.map-tools').hidden=next!=='map';}
   $('#navigation-toggle').disabled=gallery;$('#replay-panel').hidden=true;
@@ -519,10 +523,10 @@ window.oracleLock=()=>{
  $('#tree').oracleHTML=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null;
 };
 $('#lock').onclick=safe(async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();if(!window.ORACLE_PREVIEW)await call('lock');else window.oracleLock();});
-$('#unlock').onclick=safe(async()=>{const allowed=await call('unlock');if(!allowed)return;$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();void OracleTransitions.enterApp();if(view==='map')atlasController?.revealGraph();await mountOnboarding();finishUpdateStartup();});
+$('#unlock').onclick=safe(async()=>{const allowed=await call('unlock');if(!allowed)return;$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();void OracleTransitions.enterApp();if(view==='map'&&graphEntrancePending)requestGraphEntrance();await mountOnboarding();finishUpdateStartup();});
 // Deterministic ambient dust; it never represents an agent or event.
 for(let i=0;i<46;i++){const e=document.createElement('i');e.className='star';e.style.cssText=`left:${(Math.sin(i*12.9898)*43758.5453%1+1)%1*100}%;top:${(Math.sin(i*78.233)*12731.7%1+1)%1*100}%;width:${i%7===0?2:1}px;height:${i%7===0?2:1}px;opacity:${i%5/18+.04}`;$('#galaxy').append(e)}
-call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked){window.oracleLock();void OracleTransitions.content($('.lock-card'));}else{await refresh();$('#app').inert=false;void OracleTransitions.enterApp();if(view==='map')atlasController?.revealGraph();await mountOnboarding();finishUpdateStartup()}}).catch(e=>{if($('#lock-screen').hidden){$('#app').inert=false;void OracleTransitions.enterApp();}toast(e.message)});
+call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked){window.oracleLock();void OracleTransitions.content($('.lock-card'));}else{await refresh();$('#app').inert=false;void OracleTransitions.enterApp();if(view==='map'&&graphEntrancePending)requestGraphEntrance();await mountOnboarding();finishUpdateStartup()}}).catch(e=>{if($('#lock-screen').hidden){$('#app').inert=false;void OracleTransitions.enterApp();}toast(e.message)});
 setInterval(()=>{if(!$('#lock-screen').hidden||document.hidden)return;call('events').then(events=>{if(events.at(-1)?.event_id!==state.events.at(-1)?.event_id){state.events=events;renderProgress();renderAtlas();if(events.at(-1)?.phase&&!$('#modal').open)safe(refresh)()}}).catch(()=>{})},2500);
 setInterval(()=>{if($('#lock-screen').hidden&&!document.hidden&&!$('#modal').open)safe(refresh)()},30000);
 setInterval(()=>{void pollMemoryStatus();},1800);

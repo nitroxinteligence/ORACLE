@@ -244,6 +244,8 @@
       await check('Codex integration remains pending until hooks and scheduler are verified',async()=>{
         f.ob.status='completed';f.ob.integrationPending=true;await OracleOnboarding.poll();
         await wait(()=>!q('.ob2-installation').hidden&&visible(q('[data-open-codex] button')),'integration card');assert(q('.ob2-installation').getBoundingClientRect().top>=12,'Codex handoff clipped above window');const buttons=qa('.ob2-codex-actions button');assert(buttons.every(b=>!b.classList.contains('ob2-metal-button')&&b.getBoundingClientRect().height<=32),'handoff actions are not compact plain buttons');assert(new Set(buttons.map(b=>Math.round(b.getBoundingClientRect().top))).size===1,'handoff actions wrap');assert(q('.ob2-installation').getBoundingClientRect().width>=500,'handoff card too narrow');const card=q('.ob2-installation').getBoundingClientRect(),tabs=q('.workspace-tabs').getBoundingClientRect();assert(card.right<=tabs.left||card.top>=tabs.bottom,'handoff card obscures navigation');
+        assert(getComputedStyle(q('.ob2-installation')).overflowX==='hidden'&&getComputedStyle(q('.ob2-installation')).overflowY==='hidden','integration card exposes scrollbars');
+        assert(q('.ob2-installation').scrollWidth<=q('.ob2-installation').clientWidth+1,'integration card overflows horizontally');
         click('[data-copy-codex] button');await wait(()=>f.copied?.includes('Synthetic request'),'copied registration procedure');
         assert(!qa('.verified-connector').length,'unexpected graph connectors');
         await sleep(50);click('[data-verify-codex] button');
@@ -258,6 +260,32 @@
         await wait(()=>q('.ob2-installation').hidden&&!q('.ob2-screen').open,'completion without another screen');
         assert(countCalls('onboardingConnect')===0&&countCalls('onboardingConfirmIdentity')===0,'implicit consent or login');
         assert(countCalls('onboardingOpenCodex')===1,'missing or duplicate automatic Codex handoff');
+      });
+      await check('Graph reconstructs on every tab return with points before lines',async()=>{
+        applyAccessibility({reduceMotion:false});
+        for(const tab of ['tutorials','prompts']){
+          const previousLengths=new Map(qa('#atlas path').map(el=>[el,el.getAttribute('pathLength')]));
+          click('#workspace-'+tab);await sleep(280);click('#workspace-graph');
+          await wait(()=>q('#atlas').dataset.revealing==='true','graph construction on '+tab+' return');
+          const timing=selector=>q(selector)?.getAnimations().find(a=>a.effect.getTiming().fill==='both')?.effect.getTiming().delay;
+          assert(timing('.oracle-core')===0,'Oracle core does not lead construction');
+          assert(timing('.central-knowledge-node')<timing('.central-knowledge-edge'),'lines appeared before points');
+          assert(q('.central-knowledge-edge').getAttribute('pathLength')==='1','connection draw animation missing');
+          await wait(()=>!q('#atlas').hasAttribute('data-revealing'),'construction completion');
+          assert(!q('[data-motion="graph-reveal"]'),'construction did not release effects');
+          assert([...previousLengths].every(([el,value])=>!el.isConnected||el.getAttribute('pathLength')===value),'construction changed existing path lengths');
+        }
+      });
+      await check('Shell entrance is staggered and graph motion is interruptible',async()=>{
+        void OracleTransitions.enterApp();
+        const delay=selector=>q(selector).getAnimations().find(a=>a.effect.getTiming().fill==='both')?.effect.getTiming().delay;
+        assert(delay('.app-header>.wordmark')===0&&delay('#navigation-panel')>0&&delay('#lock')>delay('.workspace-tabs'),'shell surfaces enter without stagger');
+        await sleep(1050);click('#workspace-tutorials');await sleep(280);click('#workspace-graph');
+        await wait(()=>q('#atlas').dataset.revealing==='true','interruptible construction');
+        document.dispatchEvent(new Event('pointerdown'));
+        assert(!q('#atlas').hasAttribute('data-revealing')&&!q('[data-motion="graph-reveal"]'),'input leaves graph hidden or path styles behind');
+        applyAccessibility({reduceMotion:true});click('#workspace-prompts');await sleep(50);click('#workspace-graph');
+        assert(!q('#atlas').hasAttribute('data-revealing'),'reduced motion still reconstructs graph');
       });
     } catch(error){f.error=error.message;}
     if(f.failures.length||f.jsErrors.length)f.cases.push({name:'No bridge or JavaScript failures',ok:false,error:JSON.stringify([...f.failures,...f.jsErrors])});

@@ -27,7 +27,7 @@
   async function run(fn){if(busy)return;busy=true;try{await fn();}catch(error){errorToast(error);try{const value=await invoke('onboardingStatus');if(needsRecovery(value))await api.openRecovery?.();}catch{}}finally{busy=false;}}
   function metal(host,label,onClick,disabled=false){effects().button(host,{label,onClick:()=>run(onClick),disabled});}
   function plain(host,label,onClick){const button=document.createElement('button');button.type='button';button.className='ob2-small-button';button.textContent=label;button.onclick=()=>run(onClick);host.replaceChildren(button);}
-  function closeScreen(){clean(screen);screen.close();document.body.classList.remove('ob2-configuring');}
+  function closeScreen(){const wasOpen=screen.open;clean(screen);screen.close();document.body.classList.remove('ob2-configuring');if(wasOpen)window.dispatchEvent(new Event('oracle:app-enter'));}
   function show(next){
     ensure();stage=next;
     if(next==='progress'||next==='completed'){closeScreen();updateProgress();return;}
@@ -110,9 +110,11 @@
     if(!progress||progress.hidden)return;
     const logo=document.querySelector('#app .wordmark')?.getBoundingClientRect(),tabs=document.querySelector('.workspace-tabs')?.getBoundingClientRect();
     const left=logo?logo.right+24:24,right=tabs?tabs.left-24:innerWidth-24,room=right-left;
-    if(progress.classList.contains('ob2-integrating')){progress.classList.remove('ob2-in-header');progress.style.left=room>=500?(left+right)/2+'px':'50%';progress.style.width=room>=500?Math.min(560,room)+'px':'min(560px,calc(100vw - 40px))';progress.style.top=room>=500?'12px':Math.max(88,(tabs?.bottom||logo?.bottom||64)+12)+'px';return;}
+    const fitHeight=()=>{progress.style.maxHeight=Math.max(120,innerHeight-parseFloat(progress.style.top||'88')-12)+'px';};
+    if(progress.classList.contains('ob2-integrating')){progress.classList.remove('ob2-in-header');progress.style.left=room>=500?(left+right)/2+'px':'50%';progress.style.width=room>=500?Math.min(560,room)+'px':'min(560px,calc(100vw - 40px))';progress.style.top=room>=500?'12px':Math.max(88,(tabs?.bottom||logo?.bottom||64)+12)+'px';fitHeight();return;}
     if(room>=270){progress.style.left=(left+right)/2+'px';progress.style.width=Math.min(380,room)+'px';progress.classList.add('ob2-in-header');progress.style.top=Math.max(12,(logo?(logo.top+logo.bottom)/2:48)-progress.offsetHeight/2)+'px';}
     else{progress.style.left='50%';progress.style.top='88px';progress.style.width='min(380px,calc(100vw - 40px))';progress.classList.remove('ob2-in-header');}
+    fitHeight();
   }
   function updateProgress(){
     if(!progress)return;

@@ -1,6 +1,9 @@
 import Foundation
 
-extension Notification.Name { static let oracleVaultChanged = Notification.Name("OracleVaultChanged") }
+extension Notification.Name {
+    static let oracleVaultChanged = Notification.Name("OracleVaultChanged")
+    static let oracleVaultSnapshotChanged = Notification.Name("OracleVaultSnapshotChanged")
+}
 
 struct VaultScanSnapshot {
     let root:URL

@@ -12,7 +12,7 @@ final class MemorySyncCoordinator {
     private var observer:NSObjectProtocol?
     private var watcher:FSEventStreamRef?
     private var watchedRoot:String?
-    private var active=false,scanPending=false,indexing=false,blocked=false
+    private var active=false,scanPending=false,scanAgain=false,indexing=false,blocked=false
     private var generation=0,indexedGeneration:Int?,attempts=0
     private var selectedRoot:String?,cached:VaultScanSnapshot?
     private var currentState="stale",reason="Aguardando verificação local",lastError:String?
@@ -74,6 +74,10 @@ final class MemorySyncCoordinator {
     }
 
     func cachedSnapshot(root:URL)->[String:Any] {
+        var info=stat()
+        if lstat(root.path,&info) != 0 && [ENOENT,ENOTDIR].contains(errno) {
+            return ["entries":[],"scan":["complete":false,"pending":false,"unavailable":true,"issues":[]]]
+        }
         let canonical=root.resolvingSymlinksInPath().path
         let changed=locked { ()->Bool in
             guard selectedRoot != canonical else { return false }
@@ -96,18 +100,25 @@ final class MemorySyncCoordinator {
 
     private func requestScan() {
         let schedule=locked { ()->Bool in
-            guard active,!scanPending else { return false };scanPending=true;return true
+            guard active else { return false }
+            if scanPending {scanAgain=true;return false}
+            scanPending=true;return true
         }
         if schedule { scanQueue.asyncAfter(deadline:.now()+0.6) { [weak self] in self?.scan() } }
     }
 
     private func scan() {
-        defer { locked { scanPending=false } }
+        var snapshotChanged=false
+        defer {
+            let again=locked { ()->Bool in scanPending=false;let again=scanAgain;scanAgain=false;return again }
+            if snapshotChanged {NotificationCenter.default.post(name:.oracleVaultSnapshotChanged,object:nil,userInfo:["home":home.path])}
+            if again {requestScan()}
+        }
         guard locked({active}) else { return }
         do {
             let core=try Core(home:home)
             guard let root=try? core.vault() else {
-                locked { cached=nil;selectedRoot=nil;currentState="unavailable";reason="Selecione uma pasta do Obsidian" }
+                locked {snapshotChanged=cached != nil || currentState != "unavailable";cached=nil;selectedRoot=nil;currentState="unavailable";reason="Selecione uma pasta do Obsidian"}
                 stopWatcher();return
             }
             if core.operationIsRunning("installation") {return}
@@ -119,6 +130,7 @@ final class MemorySyncCoordinator {
             var shouldIndex=false,targetGeneration=0
             locked {
                 let changed=cached?.signature != snapshot.signature || cached?.complete != snapshot.complete || selectedRoot != canonical.path
+                snapshotChanged=changed
                 if changed { generation+=1;attempts=0;blocked=false;currentState="stale" }
                 selectedRoot=canonical.path;cached=snapshot
                 if !snapshot.complete { currentState="partial";reason="Leitura parcial; exclusões suspensas" }

@@ -57,13 +57,19 @@ final class Core {
             value["entries"] = cached["entries"] ?? [];value["scan"] = cached["scan"]
             value["scanError"] = cached["scanError"]
         }
-        else { value["entries"] = [] }
+        else {
+            value["entries"] = []
+            if config["vault"] is String {
+                value["scan"] = ["complete":false,"pending":false,"unavailable":true]
+                value["scanError"] = "O vault selecionado não está disponível. Se ele foi removido, selecione outra pasta."
+            }
+        }
         value["memorySync"] = memorySync.status()
         value["collections"] = discoveredCollections(value["entries"] as? [[String:Any]] ?? [])
         value["operations"] = ["setup":operationIsRunning("setup"),"gbrain":operationIsRunning("gbrain")]
         value["home"] = home.path
         value["onboarding"] = try onboardingSnapshot()
-        if onboardingRecord()["profileMode"] as? String=="memory-only",onboardingRecord()["status"] as? String != "completed" {
+        if (value["scan"] as? [String:Any])?["unavailable"] as? Bool != true,onboardingRecord()["profileMode"] as? String=="memory-only",onboardingRecord()["status"] as? String != "completed" {
             value["entries"]=try installationEntries(value["entries"] as? [[String:Any]] ?? [])
             value["collections"]=discoveredCollections(value["entries"] as? [[String:Any]] ?? [])
         }

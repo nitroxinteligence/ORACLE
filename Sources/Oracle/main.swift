@@ -149,8 +149,16 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         web.loadFileURL(resourceRoot.appendingPathComponent("index.html"),allowingReadAccessTo:resourceRoot)
         NSApp.activate(ignoringOtherApps:true)
         NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(accessibilityChanged),name:NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,object:nil)
+        NotificationCenter.default.addObserver(self,selector:#selector(vaultSnapshotChanged(_:)),name:.oracleVaultSnapshotChanged,object:nil)
         NSWorkspace.shared.notificationCenter.addObserver(self,selector:#selector(lockApp),name:NSWorkspace.willSleepNotification,object:nil)
         DistributedNotificationCenter.default().addObserver(self,selector:#selector(lockApp),name:NSNotification.Name("com.apple.screenIsLocked"),object:nil)
+    }
+    @objc func vaultSnapshotChanged(_ notification:Notification) {
+        guard notification.userInfo?["home"] as? String==core.home.path else{return}
+        DispatchQueue.main.async { [weak self] in
+            guard let self,!self.locked else{return}
+            self.web.evaluateJavaScript("window.oracleVaultSnapshotChanged?.()",completionHandler:nil)
+        }
     }
     func windowDidMiniaturize(_ notification:Notification) { web.evaluateJavaScript("window.oracleVisibility?.(false)",completionHandler:nil) }
     func windowDidDeminiaturize(_ notification:Notification) { web.evaluateJavaScript("window.oracleVisibility?.(true)",completionHandler:nil) }

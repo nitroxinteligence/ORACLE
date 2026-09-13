@@ -92,6 +92,17 @@ func runDistributionTests() throws {
     try rejects("corrupt package is rejected"){_=try manifest.decodePackage(packageData+Data([0]),metadata:firstPackage)}
     try cache(manifest)
     let plan=try core.makeMemoryOnlyPlan(manifest:manifest,id:UUID().uuidString)
+    try check(try core.memoryOnlyInstallationMode()=="install","absent GBrain selects fresh installation")
+    let reuse=try Core(home:base.appendingPathComponent("reuse-state"));reuse.config["vault"]=vault.path;try reuse.persist()
+    let reuseProfile=reuse.home.appendingPathComponent("gbrain/profile"),reuseDatabase=reuse.home.appendingPathComponent("gbrain/profile/.gbrain/db")
+    try fm.createDirectory(at:reuseDatabase,withIntermediateDirectories:true)
+    try writeJSON(["engine":"pglite","embedding_disabled":true,"database_path":reuseDatabase.path],reuseProfile.appendingPathComponent(".gbrain/config.json"))
+    try writeJSON(["owner":"OracleCompanion","schema_version":2,"vault_root":vault.path],reuseProfile.appendingPathComponent("oracle-owned.json"))
+    try Data("existing database sentinel".utf8).write(to:reuseDatabase.appendingPathComponent("sentinel"))
+    for _ in 0..<2 {try check(try reuse.memoryOnlyInstallationMode()=="update","existing owned GBrain selects update without a second installation")}
+    try check(try String(contentsOf:reuseDatabase.appendingPathComponent("sentinel"))=="existing database sentinel","reinstall detection preserves existing database bytes")
+    try fm.removeItem(at:reuseDatabase)
+    try rejects("incomplete existing database never silently becomes a fresh duplicate"){_=try reuse.memoryOnlyInstallationMode()}
     try check(plan["answers"]==nil && plan["answers_hash"]==nil && plan["profile_mode"] as? String=="memory-only","memory-only plan never fabricates identity answers")
     try check((try core.validatedPlan())["plan_hash"] as? String==plan["plan_hash"] as? String,"native install confirms immutable plan")
     try check(!(plan["folders"] as! [String]).contains(where:{$0.contains("oracle-history")}),"new structure does not enable conversation capture")
@@ -113,7 +124,13 @@ func runDistributionTests() throws {
     try core.stageDistribution(manifest,plan:plan,fetch:{url,_ in guard let data=payloads[url] else{throw failure("Unexpected fixture download")};return data})
     try check(try fileDigest(cachedFile)==cachedPackage["sha256"] as? String,"retry replaces corrupted owned cache only after a verified download")
     try check(!fm.fileExists(atPath:vault.appendingPathComponent(skill).path),"staging all packages never applies a partial distribution")
-    if realEngine != nil {_=try core.initializeMemoryOnly(plan:plan)}
+    if realEngine != nil {
+        _=try core.initializeMemoryOnly(plan:plan)
+        let config=try readJSON(state.appendingPathComponent("gbrain/profile/.gbrain/config.json")),database=URL(fileURLWithPath:config["database_path"] as! String)
+        let identity=try fm.attributesOfItem(atPath:database.path)[.systemFileNumber] as? NSNumber
+        let repeated=try core.initializeMemoryOnly(plan:plan)
+        try check(repeated["installation_mode"] as? String=="update" && identity == (try fm.attributesOfItem(atPath:database.path)[.systemFileNumber] as? NSNumber),"real repeated initialization reuses the same database directory")
+    }
     _=try core.applyPlan();_=try core.applyDistribution(manifest,plan:plan)
     try check((try core.verifyDistribution(manifest,plan:plan))["complete"] as? Bool==true,"full applied distribution verifies every byte")
     let codex=try core.installDistributionSkills(manifest,plan:plan)

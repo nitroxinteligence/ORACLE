@@ -443,7 +443,8 @@ final class OnboardingController {
             try core.distributionEvent(plan:plan,phase:"preparing",kind:"connector",itemID:"obsidian",status:"verified",paths:[],completed:0,total:manifest.files.count,extra:["name":try core.vault().lastPathComponent])
             try localPhase("downloading","Baixando e verificando os componentes.",generation)
             try core.stageDistribution(manifest,plan:plan)
-            try localPhase("memory","Inicializando a memória local.",generation)
+            let memoryMode=try core.memoryOnlyInstallationMode()
+            try localPhase("memory",memoryMode=="update" ? "GBrain existente encontrado. Atualizando a instalação local.":"Inicializando a memória local.",generation)
             _=try core.initializeMemoryOnly(plan:plan)
             try localPhase("installing","Criando as pastas e instalando o acervo.",generation)
             _=try core.applyPlan();_=try core.applyDistribution(manifest,plan:plan)
@@ -633,7 +634,7 @@ final class OnboardingController {
         let receipt=try? readJSON(core.home.appendingPathComponent("setup/bridge.json"))
         let workspace=(receipt?["workspace"] as? String).map{URL(fileURLWithPath:$0)} ?? core.home.appendingPathComponent("onboarding/workspace")
         guard workspace.standardizedFileURL.path.hasPrefix(core.home.path+"/"),fm.fileExists(atPath:workspace.path) else{throw failure("Configure seu Oracle antes de abrir esse espaço.")}
-        let result=try runProcess(CodexBridge.executable(),["app",workspace.path],cwd:core.home,environment:["HOME":fm.homeDirectoryForCurrentUser.path,"PATH":"/usr/bin:/bin:/opt/homebrew/bin"],timeout:15)
+        let result=try runProcess(CodexBridge.executable(),["app",workspace.path],cwd:core.home,environment:["HOME":fm.homeDirectoryForCurrentUser.path,"PATH":"/usr/bin:/bin:/opt/homebrew/bin"],timeout:15,operation:"A abertura do Codex")
         guard result.code==0 else{throw failure("Não foi possível abrir o Codex. Abra o aplicativo pelo Finder.")}
     }
     private func notification(_ method:String,_ p:[String:Any],generation:UUID) {

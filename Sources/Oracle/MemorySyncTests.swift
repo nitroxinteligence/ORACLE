@@ -92,6 +92,12 @@ func runDataReliabilityTests() throws {
     }
     let normal=try runProcess(URL(fileURLWithPath:"/bin/sh"),["-c","printf 'ok'; /bin/sleep 60 & exit 0"],cwd:base,environment:environment,timeout:2)
     try expect(normal.code == 0 && normal.output == "ok","exited parent cannot leave inherited pipe hanging")
+    do {
+        _=try runProcess(URL(fileURLWithPath:"/bin/sleep"),["2"],cwd:base,environment:environment,timeout:0.1,operation:"A abertura do Codex")
+        throw failure("Expected a bounded timeout")
+    } catch {
+        try expect(error.localizedDescription.hasPrefix("A abertura do Codex excedeu") && !error.localizedDescription.contains("indexação"),"timeout names the actual operation")
+    }
     core.memorySync.start();defer { core.memorySync.stop() }
     func waitFor(_ description:String,_ predicate:()->Bool)throws {
         let deadline=Date().addingTimeInterval(8)
@@ -124,6 +130,13 @@ func runDataReliabilityTests() throws {
         core.memorySync.status()["scanComplete"] as? Bool == true && core.memorySync.status()["reason"] as? String == "Conclua ou retome a instalação para atualizar a memória"
     }
     try expect(core.memorySync.status()["indexing"] as? Bool == false && core.memorySync.status()["resumeAttempts"] as? Int == 0,"background index leaves failed onboarding under explicit resume control")
+    try fm.removeItem(at:root)
+    core.memorySync.invalidate(reason:"synthetic-root-deleted")
+    try waitFor("removing the vault clears cached inventory without indexing") {
+        core.memorySync.status()["state"] as? String=="unavailable" && paths().isEmpty
+    }
+    let unavailable=try core.snapshot()
+    try expect((unavailable["entries"] as? [Any])?.isEmpty==true && (unavailable["scan"] as? [String:Any])?["unavailable"] as? Bool==true,"missing vault cannot resurrect installation entries or authorize deletion reconciliation")
     let setup=try core.acquireOperationLock("setup"),brain=try core.acquireOperationLock("gbrain")
     core.releaseOperationLock(brain);core.releaseOperationLock(setup)
     print("PASS interrupted installation can acquire the resume locks")

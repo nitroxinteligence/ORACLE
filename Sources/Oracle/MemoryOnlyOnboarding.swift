@@ -2,6 +2,23 @@ import Foundation
 
 extension Core {
     func isMemoryOnly(_ plan:[String:Any])->Bool {plan["schema_version"] as? Int==3 && plan["profile_mode"] as? String=="memory-only"}
+    /// Reinstall targets the same owned profile; never creates a numbered copy
+    /// or silently takes over another installation's database.
+    func memoryOnlyInstallationMode() throws -> String {
+        let file=try scoped("gbrain/profile/.gbrain/config.json",root:home)
+        guard fm.fileExists(atPath:file.path) else{return "install"}
+        let owner=try readJSON(try scoped("gbrain/profile/oracle-owned.json",root:home))
+        guard owner["owner"] as? String=="OracleCompanion",[1,2].contains(owner["schema_version"] as? Int ?? 0),
+              owner["vault_root"] as? String == (try vault()).resolvingSymlinksInPath().path else {
+            throw failure("O GBrain existente pertence a outra instalação ou vault. Selecione o vault correspondente; nenhuma cópia foi criada.")
+        }
+        try prepareOwnedGBrainRuntime()
+        let config=try readJSON(file)
+        guard let database=config["database_path"] as? String,fm.fileExists(atPath:database) else {
+            throw failure("O GBrain existente está incompleto: o banco local não foi encontrado. Nenhuma instalação duplicada foi criada.")
+        }
+        return "update"
+    }
     func verifyMemoryOnlyRuntime(_ plan:[String:Any]) throws {
         guard isMemoryOnly(plan) else{throw failure("Esta operação exige um plano de memória sem identidade.")}
         guard let roots=plan["library_roots"] as? [String:String],roots==config["libraryRoots"] as? [String:String] else{throw failure("As bibliotecas mudaram desde este plano. Restaure as raízes escolhidas ou selecione outro vault.")}
@@ -19,13 +36,14 @@ extension Core {
         let lock=try acquireOperationLock("gbrain");defer{releaseOperationLock(lock)}
         return try withVaultWrite {
             try verifyMemoryOnlyRuntime(plan)
+            let mode=try memoryOnlyInstallationMode()
             try bindOwnedGBrainTarget(plan:plan)
             let workspace=try scoped("gbrain/workspace",root:home),configFile=try scoped("gbrain/profile/.gbrain/config.json",root:home)
             try fm.createDirectory(at:workspace,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-            if !fm.fileExists(atPath:configFile.path){_=try official(["init","--pglite","--no-embedding"],workspace:workspace)}
+            if mode=="install"{_=try official(["init","--pglite","--no-embedding"],workspace:workspace)}
             try prepareOwnedGBrainRuntime()
             let status=try gbrainRead(["operation":"status"],allowSetup:true)
-            let receipt:[String:Any]=["schema_version":3,"profile_mode":"memory-only","plan_hash":plan["plan_hash"]!,"status":"engine_verified","identity_status":"not_applicable","engine":status,"inference":false]
+            let receipt:[String:Any]=["schema_version":3,"profile_mode":"memory-only","installation_mode":mode,"profile_path":configFile.deletingLastPathComponent().deletingLastPathComponent().path,"plan_hash":plan["plan_hash"]!,"status":"engine_verified","identity_status":"not_applicable","engine":status,"inference":false]
             try writeJSON(receipt,home.appendingPathComponent("setup/memory-only.json"))
             try distributionEvent(plan:plan,phase:"preparing",kind:"connector",itemID:"gbrain",status:"verified",paths:[],completed:0,total:nil,extra:["name":"Second Brain"])
             return receipt

@@ -134,11 +134,13 @@ export async function indexVault(engine:BrainEngine,input:any){
       check();for(const [path,slug] of await engine.resolveSlugsByPaths(paths.slice(start,start+200),{sourceId:'oracle-vault'}))mappings.set(path,slug);
     }
     // Also protect existing rows not represented by our ownership receipts.
-    const forceOwnedRename=new Set<string>();
+    const forceOwnedRename=new Set<string>(),checkedOwnership=new Set<string>();
     for(const row of candidates){
       check();const page=await engine.getPage(row.slug,{sourceId:'oracle-vault'});
-      const prior=[...latestOwnership.values()].find(old=>old.slug===row.slug&&mappings.get(old.path)===row.slug);
+      const owned=latestOwnership.get(row.slug);
+      const prior=owned&&mappings.get(owned.path)===row.slug?owned:undefined;
       if(page&&(!prior||(prior.indexed_content_hash&&prior.indexed_content_hash!==page.content_hash)))throw Error(`Derived page changed without an ownership receipt: ${row.path}`);
+      checkedOwnership.add(row.slug);
       if(page&&mappings.get(row.path)!==row.slug&&!historical.some(old=>old.slug===row.slug&&mappings.get(old.path)===row.slug&&
           isProvenCanonicalRename(root,old.path,row.path,input.scan_complete===true)))throw Error(`Existing canonical identity collision: ${row.path}`);
       if(row.external_id){
@@ -154,6 +156,7 @@ export async function indexVault(engine:BrainEngine,input:any){
       }
     }
     for(const old of latestOwnership.values()){
+      if(checkedOwnership.has(old.slug))continue;
       check();const page=await engine.getPage(old.slug,{sourceId:'oracle-vault'});
       if(page&&old.indexed_content_hash&&page.content_hash!==old.indexed_content_hash)throw Error(`Edited derived page preserved: ${old.path}`);
     }
@@ -186,8 +189,13 @@ export async function indexVault(engine:BrainEngine,input:any){
     const actual=canonicalFiles(root,deadline);
     if(JSON.stringify(actual)!==JSON.stringify([...files].sort()))throw Error('Canonical scope changed (create/delete/rename) during indexing');
     for(const row of records){check();if(readCandidate(root,row.path).sha256!==row.sha256)throw Error(`Canonical note changed before reconciliation: ${row.path}`)}
-    const unchangedSnapshot=canonical((previous?.records||[]).map((row:RecordRow)=>[row.path,row.slug,row.sha256]))===canonical(records.map(row=>[row.path,row.slug,row.sha256]));
-    noOp=upserts===0&&!checkpoint&&!pending&&unchangedSnapshot&&previous?.complete===true;
+    const fingerprint=(rows:RecordRow[])=>canonical(rows.map(row=>[row.path,row.slug,row.sha256,row.indexed_content_hash??row.page_hash]).sort((a,b)=>a[0]!.localeCompare(b[0]!)));
+    const unchangedSnapshot=fingerprint(previous?.records||[])===fingerprint(records);
+    const desiredPaths=new Set(records.map(row=>row.path)),desiredSlugs=new Set(records.map(row=>row.slug));
+    // An interrupted verification alone does not invalidate verified relations.
+    // Imported changes and obsolete managed slugs still require reconciliation.
+    noOp=upserts===0&&!pending&&unchangedSnapshot&&previous?.complete===true&&
+      ![...managed.values()].some(row=>!desiredSlugs.has(row.slug));
     // Build every relation first. A parse/cancellation failure cannot remove any
     // previously good relation or page. Reconciliation below is one official tx.
     const resolver=makeResolver(engine,{mode:'batch',sourceId:'oracle-vault'});
@@ -205,7 +213,6 @@ export async function indexVault(engine:BrainEngine,input:any){
       }
     }
     phase='reconcile';save();check();
-    const desiredPaths=new Set(records.map(row=>row.path)),desiredSlugs=new Set(records.map(row=>row.slug));
     if(!noOp)await engine.transaction(async tx=>{
       const obsolete=[...managed.values()].filter(old=>!desiredSlugs.has(old.slug));
       for(let start=0;start<obsolete.length;start+=200){

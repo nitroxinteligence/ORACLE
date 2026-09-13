@@ -30,7 +30,7 @@ func readGBrainResponse(retryInitialization:Bool,run:()throws->ProcessResult,wai
     }
     throw failure("Não foi possível verificar a memória local.")
 }
-func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:String], input:Data? = nil, timeout:Double = 90) throws -> ProcessResult {
+func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:String], input:Data? = nil, timeout:Double = 90, operation:String = "A operação local") throws -> ProcessResult {
     let payload = input ?? Data()
     guard payload.count <= 16_000_000,timeout.isFinite,timeout > 0 else { throw failure("Solicitação de subprocesso fora dos limites") }
     let deadline = ProcessInfo.processInfo.systemUptime + min(timeout,600)
@@ -106,7 +106,7 @@ func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:
     }
     while true {
         if let cancel=environment["ORACLE_CANCEL_FILE"],fm.fileExists(atPath:cancel) { throw failure("Operação cancelada. Os avanços confirmados foram preservados.") }
-        guard ProcessInfo.processInfo.systemUptime < deadline else { throw failure("Motor excedeu o prazo. O subprocesso foi encerrado; a indexação pode ser retomada.") }
+        guard ProcessInfo.processInfo.systemUptime < deadline else { throw failure("\(operation) excedeu o prazo de \(Int(timeout)) segundos. A execução foi interrompida; tente novamente.") }
         if !inputClosed {
             if offset < payload.count {
                 let n=payload.withUnsafeBytes { raw in Darwin.write(stdin[1],raw.baseAddress!.advanced(by:offset),min(16_384,payload.count-offset)) }
@@ -197,7 +197,7 @@ extension Core {
         let response:[String:Any]
         do {
             response=try readGBrainResponse(retryInitialization:allowSetup && existing==nil && operation=="status") {
-                try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:cwd,environment:environment,input:jsonData(request),timeout:35)
+                try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:cwd,environment:environment,input:jsonData(request),timeout:75,operation:"A consulta à memória local")
             }
         } catch {
             if operation == "get" || operation == "graph" {memorySync.invalidate(reason:"read-refused-stale-or-busy")}
@@ -211,7 +211,7 @@ extension Core {
     func official(_ args:[String],workspace:URL) throws -> String {
         try prepareEngineScratch()
         try prepareOwnedGBrainRuntime()
-        let r=try runProcess(engineResources().appendingPathComponent("gbrain"),args,cwd:workspace,environment:engineEnvironment(),timeout:180)
+        let r=try runProcess(engineResources().appendingPathComponent("gbrain"),args,cwd:workspace,environment:engineEnvironment(),timeout:180,operation:"A configuração do Second Brain")
         guard r.code==0 else { throw failure(gbrainFailureMessage(r)) }
         return r.output
     }
@@ -357,8 +357,10 @@ extension Core {
                 "snapshot_signature":snapshot.signature,"budget_ms":Int(budget*1000),"max_upserts":maxUpserts,"plan_ref":planRef ?? ""]
             let receipt=try scoped("setup/gbrain-sync.json",root:home)
             do {
+                // Work budget starts after the runtime lease (up to 40s) and
+                // PGLite startup; reserve bounded time for these and cleanup.
                 let result=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],
-                    cwd:try scoped("gbrain/workspace",root:home),environment:env,input:jsonData(payload),timeout:budget+15)
+                    cwd:try scoped("gbrain/workspace",root:home),environment:env,input:jsonData(payload),timeout:budget+60,operation:"A atualização do índice local")
                 let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")})
                 let response=line.flatMap{(try? JSONSerialization.jsonObject(with:Data($0.utf8))) as? [String:Any]}
                 guard result.code==0,response?["ok"] as? Bool==true,var value=response?["value"] as? [String:Any] else{

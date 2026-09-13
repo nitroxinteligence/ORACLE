@@ -169,9 +169,10 @@ async function pollMemoryStatus(){
    const status=await call('memoryStatus');if(!current()||!status||typeof status.state!=='string')return;
    const signature=JSON.stringify([status.state,status.generation,status.indexedGeneration,status.indexing,status.lastScanAt,status.error]);
    state.memorySync=status;
-   if(signature!==lastMemorySignature){lastMemorySignature=signature;renderMemoryStatus();renderMemoryFreshness();}
+   const statusChanged=signature!==lastMemorySignature;
+   if(statusChanged){lastMemorySignature=signature;renderMemoryStatus();renderMemoryFreshness();}
    // This asks for the already cached snapshot, not a scan/index on the UI lane.
-   if(status.lastScanAt&&status.lastScanAt!==state.scan?.at)await refresh();
+   if((status.lastScanAt&&status.lastScanAt!==state.scan?.at)||(statusChanged&&status.state==='unavailable'))await refresh();
   }catch(error){if(current()){state.memorySync={...state.memorySync,state:'unavailable',error:'Não foi possível verificar a memória agora.'};lastMemorySignature='';renderMemoryStatus();renderMemoryFreshness();}}
  })();
  memoryPollTask=task;try{return await task}finally{if(memoryPollTask===task)memoryPollTask=null}
@@ -525,6 +526,12 @@ call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked){win
 setInterval(()=>{if(!$('#lock-screen').hidden||document.hidden)return;call('events').then(events=>{if(events.at(-1)?.event_id!==state.events.at(-1)?.event_id){state.events=events;renderProgress();renderAtlas();if(events.at(-1)?.phase&&!$('#modal').open)safe(refresh)()}}).catch(()=>{})},2500);
 setInterval(()=>{if($('#lock-screen').hidden&&!document.hidden&&!$('#modal').open)safe(refresh)()},30000);
 setInterval(()=>{void pollMemoryStatus();},1800);
+// Native filesystem scans publish immediately; polling remains a fallback for
+// missed events and hidden windows. Never wait for the derived engine index.
+window.oracleVaultSnapshotChanged=async()=>{
+ if(!$('#lock-screen').hidden||document.hidden)return;
+ try{if(refreshTask)await refreshTask;await refresh();}catch(error){toast(error.message);}
+};
 
 async function memory(){
  if(navigationBlocked())return;

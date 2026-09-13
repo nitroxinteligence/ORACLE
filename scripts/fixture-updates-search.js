@@ -64,6 +64,19 @@
     const input=q('#universe-query');input.value='Rotina';input.dispatchEvent(new Event('input'));
     assert(qa('#search-results [data-hit]').length===1&&q('#search-results').textContent.includes('Rotina'),'query did not find other notes');
    });
+   await check('Filesystem snapshot events update sidebar immediately without engine indexing',async()=>{
+    await closeModal(true);
+    const path='Realtime sentinel.md';
+    f.entries.push({path,name:path,directory:false,size:20});
+    await window.oracleVaultSnapshotChanged();
+    assert(q('#tree [data-path="Realtime sentinel.md"]'),'created file not shown after scan event');
+    f.entries.splice(f.entries.findIndex(row=>row.path===path),1);
+    await window.oracleVaultSnapshotChanged();
+    assert(!q('#tree [data-path="Realtime sentinel.md"]'),'deleted file remained in sidebar');
+    f.ob.hasVault=false;
+    await window.oracleVaultSnapshotChanged();
+    assert(!q('#tree [data-path]')&&!q('#tree [data-folder]'),'removed vault retained old sidebar contents');
+   });
   }catch{}
   if(f.jsErrors.length||f.failures.length)cases.push({name:'No JavaScript or bridge failures',ok:false,error:JSON.stringify([...f.jsErrors,...f.failures])});
   window.webkit.messageHandlers.fixture.postMessage({type:'done',passed:cases.filter(c=>c.ok).length,failed:cases.filter(c=>!c.ok).length,cases,synthetic:true,realCore:false,jsErrors:f.jsErrors,bridgeFailures:f.failures});

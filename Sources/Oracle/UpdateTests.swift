@@ -23,7 +23,7 @@ func runUpdateTests(releasePath: String?) throws {
     func file(_ path: String, _ text: String) -> UpdateFile { let bytes = Data(text.utf8); return UpdateFile(path: path, hash: digest(bytes), data: bytes) }
     func read(_ path: String) throws -> String { try String(contentsOf: c.scoped(path, root: root), encoding: .utf8) }
     var attempts=0
-    let transient=ProcessResult(code:1,output:String(decoding:try jsonData(["ok":false,"error":"PGLite failed to initialize its WASM runtime."]),as:UTF8.self))
+    let transient=ProcessResult(code:1,output:String(decoding:try JSONSerialization.data(withJSONObject:["ok":false,"error":"PGLite failed to initialize its WASM runtime."]),as:UTF8.self))
     let recovered=try readGBrainResponse(retryInitialization:true,run:{attempts+=1;return attempts<3 ? transient:ProcessResult(code:0,output:"{\"ok\":true,\"value\":{}}")},wait:{_ in})
     try expect(attempts==3 && recovered["ok"] as? Bool==true,"setup status recovers from transient PGLite initialization")
     attempts=0

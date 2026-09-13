@@ -52,24 +52,7 @@ extension Core {
         if changed {value["createdAt"]=ISO8601DateFormatter().string(from:Date())}
         try writeJSON(value,path)
         if settings["enabled"] as? Bool==true {
-            let args=[Bundle.main.executableURL!.path,"--state",home.path,"--maintenance","run"]
-            let command=String(decoding:try jsonData(args),as:UTF8.self)
-            let request="""
-            # Manutenção do Oracle — solicitação de agendamento local
-
-            Você está no Codex Desktop, executando a configuração do Second Brain autorizada no Oracle. Quando a ferramenta oficial de automações estiver disponível, crie ou atualize a tarefa abaixo nesta conversa. Não peça novamente o consentimento já registrado no perfil. A confiança de hooks continua exclusiva do Codex.
-            Marcador obrigatório no prompt da tarefa: \(maintenanceMarker(value)).
-            Crie uma tarefa independente (cron), local, diária, com model gpt-5.6-sol e reasoningEffort medium. Use o horário e o fuso abaixo. O prompt deve incluir este marcador e os argumentos exatos do comando; não inclua toda esta solicitação de instalação no prompt recorrente. A tarefa deve executar a manutenção, conferir o recibo e ficar em silêncio quando não houver erro ou mudança que exija ação. Localize antes uma tarefa com o identificador estável deste perfil e atualize-a, sem duplicar. Preserve automações de outros perfis.
-            Depois da criação, execute o mesmo binário com --state e --maintenance status. Só confirme registro se hostSchedule.registered for true. A interface oficial também deve mostrar a tarefa. Não escreva arquivos privados do Codex diretamente.
-            Identificador estável: \(value["id"]!). Fuso: \(settings["timezone"]!). Horário preferencial: \(settings["hour"]!)h diariamente.
-            Use o mecanismo oficial de tarefas do aplicativo desktop. Procure uma tarefa com este identificador antes de criar; reutilize-a sem sobrescrever personalizações. Não escreva bancos privados, automation.toml ou confiança de hooks para simular registro.
-            A tarefa trabalha neste perfil Oracle e somente no vault autorizado. Execute o comando como uma lista de argumentos, nunca por concatenação no shell: \(command).
-            Leia o resultado estruturado: blocked, skipped e failed NÃO significam sucesso. Não rode em paralelo com instalação, atualização ou outra manutenção. Retome pendências na próxima execução elegível, sem reproduzir vários dias em duplicata.
-            Não publique nada no GitHub, não copie o workspace do mentor, não altere credenciais, não atualize o binário do GBrain e não configure APIs pagas. O computador precisa estar ligado, acordado e com o executor aberto. O código local não mantém a máquina acordada.
-            Captura automática consentida: \(settings["autoCapture"]!). Processamento remoto consentido: \(settings["remoteProcessing"]!). Consentimento não prova que o recurso está configurado: consulte as capacidades reais. Fases que exigem inferência não configurada devem ficar pendentes, não executadas. Não use tokens do ChatGPT como chave de API.
-            A captura cobre somente UserPromptSubmit.prompt e Stop.last_assistant_message recebidos pelos hooks confiados no codex-workspace deste perfil. Não leia transcript_path, históricos privados, outras contas nem raciocínio/ferramentas. A síntese usa somente capturas autorizadas, persiste notas separadas e não altera SOUL/USER ou fatos como se fossem confirmados.
-            Confirme a existência e o identificador reais da tarefa na interface oficial. Na ausência de uma ferramenta suportada, informe que o agendamento está pendente; não invente confirmação.
-            """
+            let request=try maintenanceScheduleInstructions(value)
             try fm.createDirectory(at:maintenanceRoot,withIntermediateDirectories:true)
             try atomicWriteData(Data(request.utf8),to:maintenanceRoot.appendingPathComponent("schedule-request.md"))
         }
@@ -105,7 +88,27 @@ extension Core {
     func maintenanceScheduleRequest() throws -> String {
         let config=try readJSON(maintenanceRoot.appendingPathComponent("config.json"))
         guard config["enabled"] as? Bool==true,(try maintenanceSnapshot())["enabled"] as? Bool==true else{throw failure("Autorize a manutenção para o vault atual antes de preparar o agendamento.")}
-        return try String(contentsOf:maintenanceRoot.appendingPathComponent("schedule-request.md"),encoding:.utf8)
+        return try maintenanceScheduleInstructions(config)
+    }
+
+    private func maintenanceScheduleInstructions(_ settings:[String:Any]) throws -> String {
+        let args=[Bundle.main.executableURL!.path,"--state",home.path,"--maintenance","run"]
+        let command=String(decoding:try jsonData(args),as:UTF8.self)
+        return """
+        Configure a manutenção diária do Oracle neste Codex Desktop. O consentimento já foi registrado no onboarding; não o solicite novamente. A revisão e a confiança dos hooks continuam a cargo do usuário no Codex.
+
+        Perfil: \(settings["id"]!). Workspace: \(try oracleWorkspace().path).
+        Vault autorizado: \(settings["vault"]!). Horário: \(settings["hour"]!)h, todos os dias, fuso \(settings["timezone"]!).
+
+        1. Use a ferramenta oficial de automações. Localize pelo identificador do perfil uma tarefa existente e atualize-a, sem duplicar nem alterar outras tarefas. Registre uma tarefa independente (cron), local, no projeto deste workspace, com model gpt-5.6-sol e reasoningEffort medium. Confira o horário no fuso indicado.
+        2. No prompt recorrente, inclua o marcador \(maintenanceMarker(settings)) e a execução deste comando como lista de argumentos:
+        \(command)
+        A tarefa deve conferir o recibo, respeitar os consentimentos atuais e retomar pendências na próxima execução. Não execute durante instalação, atualização ou outra manutenção. blocked, skipped e failed não significam sucesso. Fique em silêncio quando não houver erro ou mudança que exija ação.
+        3. Após registrar, execute o mesmo comando substituindo run por status. Só confirme o agendamento se hostSchedule.registered for true e a tarefa existir na interface oficial. Informe separadamente qualquer pendência de confiança dos hooks. Sem ferramenta oficial, informe a pendência; não escreva automation.toml, bancos privados ou registros de confiança.
+
+        Captura autorizada: \(settings["autoCapture"]!). Processamento remoto autorizado: \(settings["remoteProcessing"]!). A captura limita-se a UserPromptSubmit.prompt e Stop.last_assistant_message recebidos pelos hooks confiados deste workspace. Não leia transcript_path, históricos privados, raciocínio ou ferramentas. A síntese usa apenas capturas autorizadas e não altera SOUL/USER nem transforma mensagens em fatos confirmados. Sem capacidade de inferência disponível, deixe essa fase pendente.
+        Não publique no GitHub, altere credenciais, configure APIs pagas nem atualize o GBrain. O Mac precisa estar acordado e o Codex aberto no horário.
+        """
     }
 
     func performMaintenance(force:Bool=false,backup:(() throws -> [String:Any])?=nil,

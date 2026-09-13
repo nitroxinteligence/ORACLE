@@ -28,7 +28,7 @@ extension Core {
     /// Paths the native Codex client must find through skills/list. Byte hashes
     /// below prove installation, not trust, hook execution or model behavior.
     func requiredGBrainCodexSkillPaths() -> [String] {
-        [".agents/skills/oracle-setup/SKILL.md",".agents/skills/oracle-gbrain-method/SKILL.md"].map {home.appendingPathComponent("codex-workspace/"+$0).path}
+        [".agents/skills/oracle-setup/SKILL.md",".agents/skills/oracle-gbrain-method/SKILL.md"].map {((try? oracleWorkspace()) ?? home.appendingPathComponent("oracle-workspace")).appendingPathComponent($0).path}
     }
     @discardableResult
     func installOfficialGBrainMethod(workspace:URL,plan:[String:Any]) throws -> [String:Any] {
@@ -170,7 +170,7 @@ extension Core {
         try writeJSON(receipt,receiptURL);return receipt
     }
     func verifyGBrainBridge() throws -> [String:Any] {
-        let workspace=try scoped("codex-workspace",root:home)
+        let workspace=try oracleWorkspace()
         let bridge=try readJSON(home.appendingPathComponent("setup/bridge.json"))
         let installed=try readJSON(home.appendingPathComponent("setup/gbrain-method-install.json"))
         guard bridge["workspace"] as? String==workspace.path,installed["workspace"] as? String==workspace.path,

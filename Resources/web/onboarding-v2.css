@@ -78,3 +78,6 @@ body.reduced .oracle-onboarding-v2 *{animation:none!important;transition:none!im
 .ob2-integration .oracle-select{margin:0}.ob2-integration p{font-size:11px;line-height:1.6;margin:14px 0 0}
 .ob2-codex-actions{display:flex;flex-wrap:wrap;gap:8px}.ob2-codex-actions[hidden],.ob2-retry[hidden]{display:none}.ob2-retry{padding:0;border:0;background:none}.ob2-install-error.ob2-pending{color:#bbb;line-height:1.6}
 @media(max-width:480px){.ob2-setting{flex-wrap:wrap}.ob2-time{margin-left:27px}}
+
+.ob2-change-vault{flex:none;width:32px;height:32px;padding:6px;border:1px solid #ffffff24;border-radius:8px;background:#ffffff05;color:#bfc8d1;cursor:pointer}.ob2-change-vault svg{width:18px;height:18px}.ob2-change-vault:hover{background:#ffffff12}
+.ob2-codex-actions .ob2-small-button{font:inherit;font-size:12px;height:30px;padding:0 12px;border:1px solid #ffffff30;border-radius:8px;background:#ffffff09;color:#ddd;white-space:nowrap;cursor:pointer}.ob2-codex-actions .ob2-small-button:hover{background:#ffffff15}.ob2-integrating{max-height:calc(100vh - 24px)}

@@ -53,7 +53,7 @@ extension Core {
     func maintenanceHookContext(_ input:[String:Any]) throws -> [String:Any] {
         guard let event=input["hook_event_name"] as? String,["UserPromptSubmit","SessionStart"].contains(event),
               let cwd=input["cwd"] as? String,
-              cwd==home.appendingPathComponent("codex-workspace").path,
+              cwd==(try? oracleWorkspace().path),
               let settings=try? readJSON(home.appendingPathComponent("maintenance/config.json")),
               settings["enabled"] as? Bool==true,maintenanceConsentCurrent(settings) else{return [:]}
         var context=""

@@ -119,7 +119,7 @@ extension Core {
         }
         _=try gbrainRead(["operation":"status"])
         let bridge=try readJSON(home.appendingPathComponent("setup/bridge.json"))
-        let root=home.appendingPathComponent("codex-workspace")
+        let root=try oracleWorkspace()
         guard bridge["workspace"] as? String==root.path,let skill=bridge["skill"] as? String,skill.hasPrefix(root.path+"/"),let expected=bridge["skill_sha256"] as? String else{throw failure("A ponte local ainda não foi verificada.")}
         let file=try scoped(String(skill.dropFirst(root.path.count+1)),root:root)
         guard expected==digest(try Data(contentsOf:file)) else{throw failure("A skill local mudou; revise a ponte antes de concluir.")}

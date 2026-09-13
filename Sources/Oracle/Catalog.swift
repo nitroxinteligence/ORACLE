@@ -121,6 +121,12 @@ extension Core {
         return journal
     }
 
+    func oracleWorkspace() throws -> URL {
+        let legacy=try scoped("codex-workspace",root:home)
+        let receipt=try? readJSON(home.appendingPathComponent("setup/bridge.json"))
+        if receipt?["workspace"] as? String==legacy.path { return legacy }
+        return try scoped("oracle-workspace",root:home)
+    }
     func prepareBridge() throws -> [String:Any] {
         let setup=try acquireOperationLock("setup");defer{releaseOperationLock(setup)}
         let brain=try acquireOperationLock("gbrain");defer{releaseOperationLock(brain)}
@@ -128,7 +134,7 @@ extension Core {
         let plan=try validatedPlan()
         let previous=(try? readJSON(home.appendingPathComponent("setup/bridge.json"))) ?? [:]
         var mcpHash=previous["mcp_sha256"] as? String ?? ""
-        let root=try scoped("codex-workspace",root:home)
+        let root=try oracleWorkspace()
         try fm.createDirectory(at:root,withIntermediateDirectories:true)
         // Codex discovers project configuration from a repository root. Keep an
         // empty local repository: no commit, remote, upload or trust is granted.

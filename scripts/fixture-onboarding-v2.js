@@ -157,13 +157,29 @@
         assert(countCalls('onboardingConnect')===0,'implicit account connection');
         assert(q('.ob2-description').children.length===2,'vault explanation not split in two lines');
       });
-      await check('Vault can be selected, removed without deleting data, and selected again',async()=>{
+      await check('Vault change uses an inline icon and retains the selected destination',async()=>{
         assert(q('.ob2-action button').disabled,'vault is required');
         click('.ob2-vault-action button');await wait(()=>q('.ob2-selected-vault'),'selected vault');
         assert(q('.ob2-selected-vault span').textContent==='/__synthetic_oracle__/vault','actual vault path missing');
-        click('.ob2-vault-action button');await wait(()=>q('.ob2-vault'),'cleared selection');
-        assert(q('.ob2-action button').disabled,'removed vault can advance');
-        click('.ob2-vault-action button');await wait(()=>q('.ob2-selected-vault'),'reselected vault');
+        assert(q('.ob2-selected-vault .ob2-change-vault')&&!q('.ob2-vault-action'),'change icon not inline');
+        click('.ob2-change-vault');await wait(()=>countCalls('onboardingChooseVault')===2,'change picker');
+        assert(!q('.ob2-action button').disabled&&countCalls('onboardingClearVault')===0,'change cleared selection prematurely');
+      });
+      await check('Prosseguir keeps the original metal moving after activation and folder selection',async()=>{
+        applyAccessibility({reduceMotion:false});
+        await wait(()=>q('.ob2-action .metal-fx-root')?.style.visibility==='visible','metal first frame');
+        OracleOnboarding.open({previewStage:'vault'});
+        await wait(()=>q('.ob2-action .metal-fx-root')?.style.visibility==='visible','metal after remount');
+        const canvas=q('.ob2-action canvas'),first=canvas.toDataURL();await sleep(250);
+        assert(canvas.toDataURL()!==first,'metal canvas stopped after step transition');
+        applyAccessibility({reduceMotion:true});
+      });
+      await check('Updates cannot interrupt onboarding even with legacy access',async()=>{
+        const legacy=f.ob.legacyAccess;f.ob.legacyAccess=true;await OracleOnboarding.poll();
+        startupUpdateReady=true;startupUpdateNoticeShown=false;
+        reflectUpdateStatus({busy:false,available:true,knownUpdate:true});
+        assert(!q('#modal').open&&!q('#updates').classList.contains('update-ready'),'update shown during onboarding');
+        f.ob.legacyAccess=legacy;await OracleOnboarding.poll();reflectUpdateStatus({busy:false,available:false});
         click('.ob2-action button');await wait(()=>q('.ob2-content h1')?.textContent==='Instale seu segundo cérebro.','install stage');
         assert(!qa('[data-answer]').length&&!q('#ob-connect'),'identity or account required');
       });
@@ -226,7 +242,7 @@
       });
       await check('Codex integration remains pending until hooks and scheduler are verified',async()=>{
         f.ob.status='completed';f.ob.integrationPending=true;await OracleOnboarding.poll();
-        assert(!q('.ob2-installation').hidden&&visible(q('[data-open-codex] button')),'integration silently skipped');assert(q('.ob2-installation').getBoundingClientRect().top>=12,'Codex handoff clipped above window');
+        assert(!q('.ob2-installation').hidden&&visible(q('[data-open-codex] button')),'integration silently skipped');assert(q('.ob2-installation').getBoundingClientRect().top>=12,'Codex handoff clipped above window');const buttons=qa('.ob2-codex-actions button');assert(buttons.every(b=>!b.classList.contains('ob2-metal-button')&&b.getBoundingClientRect().height<=32),'handoff actions are not compact plain buttons');assert(new Set(buttons.map(b=>Math.round(b.getBoundingClientRect().top))).size===1,'handoff actions wrap');assert(q('.ob2-installation').getBoundingClientRect().width>=500,'handoff card too narrow');
         click('[data-copy-codex] button');await wait(()=>f.copied?.includes('Synthetic request'),'copied registration procedure');
         assert(!qa('.verified-connector').length,'unexpected graph connectors');
         f.ob.integrationPending=false;

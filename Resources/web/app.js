@@ -683,7 +683,12 @@ let updatePolling=null,updateBusy=false;
 const updateNames={gbrain:'Second Brain',cognee:'Integração não adotada',skills:'Skills'};
 const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',external:'Instalação existente',compatibility_required:'Aguardando validação',not_adopted:'Não adotado',not_configured:'Fonte não configurada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
 let startupUpdateReady=false,startupUpdateNoticeShown=false,latestUpdateStatus=null;
+function onboardingBlocksUpdates(){
+ const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
+ return document.body.classList.contains('ob2-configuring')||!!document.querySelector('.ob2-screen[open],.ob2-activation[open]')||!!onboarding.integrationPending||!!(onboarding.runID&&onboarding.status!=='completed');
+}
 function maybeShowStartupUpdateNotice(){
+ if(onboardingBlocksUpdates())return;
  if(!startupUpdateReady||startupUpdateNoticeShown||!latestUpdateStatus?.available||latestUpdateStatus.busy||updateBusy||document.hidden||window.oracleWindowVisible===false||$('#app').inert||navigationBlocked()||$('#modal').open)return;
  const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
  if(!onboarding.hasVault||(!onboarding.licensed&&!onboarding.legacyAccess)||(!onboarding.legacyAccess&&onboarding.status!=='completed')||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
@@ -699,8 +704,9 @@ function finishUpdateStartup(){
 }
 function reflectUpdateStatus(status){
  latestUpdateStatus=status;updateBusy=!!status.busy;$('#updates').classList.toggle('busy',updateBusy);
- $('#updates').classList.toggle('update-ready',!!status.available);
- const pending=!!status.knownUpdate||!!status.available;
+ const onboardingBusy=onboardingBlocksUpdates();
+ $('#updates').classList.toggle('update-ready',!onboardingBusy&&!!status.available);
+ const pending=!onboardingBusy&&(!!status.knownUpdate||!!status.available);
  const age=Date.now()-Date.parse(status.checkedAt||status.at||'');
  const recent=Number.isFinite(age)&&age>=-300000&&age<86400000;
  $('#updates').classList.toggle('available',pending);
@@ -712,6 +718,7 @@ function reflectUpdateStatus(status){
 }
 let automaticUpdateAttempt=0,automaticUpdateFailures=0;
 function maybeAutomaticUpdateCheck(status){
+ if(onboardingBlocksUpdates())return;
  if(window.ORACLE_PREVIEW||state.config?.fixture||document.hidden||window.oracleWindowVisible===false||!$('#lock-screen').hidden||$('#modal').open||updateBusy||status.busy)return;
  const onboarding=window.OracleOnboarding?.getState?.();
  if(!onboarding||!onboarding.hasVault||(!onboarding.legacyAccess&&onboarding.status!=='completed')||(!onboarding.licensed&&!onboarding.legacyAccess)||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;

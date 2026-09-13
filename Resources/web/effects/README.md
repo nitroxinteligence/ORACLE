@@ -22,3 +22,8 @@ Bundle the JSX as an IIFE for the browser with `process.env.NODE_ENV="production
 Use an isolated dependency folder, not the worktree's shared `node_modules` symlink.
 The app loads the CSS, effect bundle and V2 controller. Existing incomplete
 legacy plans retain their original recovery controller and consent requirements. Nothing here grants or bypasses a native license.
+
+After generating the pinned bundle, run `node scripts/artwork/patch-metal-context.mjs`.
+This guards WebGL context callbacks by the originating context: a delayed loss event
+from a disposed button must not stop the new button mounted by the next step.
+The patch fails if the reviewed handler shape changes.

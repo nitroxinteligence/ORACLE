@@ -76,7 +76,7 @@ extension Core {
         guard maintenanceContentConsent(settings),let epoch=settings["captureEpoch"] as? String else {
             return ["status":"not_consented","executed":false]
         }
-        let expected=try scoped("codex-workspace",root:home)
+        let expected=try oracleWorkspace()
         let binding=try readJSON(scoped("setup/bridge.json",root:home))
         let owner=try readJSON(scoped("gbrain/profile/oracle-owned.json",root:home))
         guard binding["workspace"] as? String==expected.path,owner["owner"] as? String=="OracleCompanion",

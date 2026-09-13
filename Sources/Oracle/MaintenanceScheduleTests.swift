@@ -8,6 +8,11 @@ func runMaintenanceScheduleTests() throws {
     core.config=["vault":vault.path,"fixture":true,"gbrainAccess":true];try core.persist()
     var count=0
     func check(_ value:Bool,_ label:String)throws{guard value else{throw failure(label)};count+=1;print("PASS "+label)}
+    try check(try core.oracleWorkspace().lastPathComponent=="oracle-workspace","new installation uses oracle-workspace")
+    let legacy=core.home.appendingPathComponent("codex-workspace")
+    try writeJSON(["workspace":legacy.path],core.home.appendingPathComponent("setup/bridge.json"))
+    try check(try core.oracleWorkspace()==legacy,"existing workspace receipts keep their exact trusted path")
+    try fm.removeItem(at:core.home.appendingPathComponent("setup/bridge.json"))
     let status=try core.configureMaintenance(["enabled":true])
     try check(status["hour"] as? Int==15 && status["registered"] as? Bool==false,"new maintenance defaults to 15h and cannot self-register")
     let config=try readJSON(core.home.appendingPathComponent("maintenance/config.json"))
@@ -29,6 +34,7 @@ func runMaintenanceScheduleTests() throws {
     try check(!OracleScheduleRecord.matches(fields,marker:marker+"changed",hour:15),"changed consent invalidates stale task receipt")
     let request=try core.maintenanceScheduleRequest()
     try check(request.contains(marker)&&request.contains("gpt-5.6-sol")&&request.contains("reasoningEffort medium"),"host handoff carries consent marker and exact execution settings")
+    try check(request.contains("oracle-workspace") && request.contains("hostSchedule.registered") && request.contains("Vault autorizado:"),"concise handoff binds project vault and registration readback")
     let rows:[[String:Any]]=[["model":"gpt-5.6-sol","defaultReasoningEffort":"low","supportedReasoningEfforts":[["reasoningEffort":"low"],["reasoningEffort":"medium"]]]]
     try check(try OracleCodexModel.choose(rows,preferred:"gpt-5.6-sol",preferredEffort:"medium").effort=="medium","maintenance overrides host default effort only when medium is supported")
     do{_=try OracleCodexModel.choose(rows,preferred:"missing",preferredEffort:"medium");throw failure("unexpected model fallback")}catch{try check(!error.localizedDescription.contains("unexpected"),"unavailable selected model fails without fallback")}

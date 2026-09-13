@@ -5,7 +5,7 @@ func runMaintenanceCaptureTests() throws {
     let base=try oracleTestDirectory("maintenance-capture")
     defer{try? fm.removeItem(at:base)}
     let c=try Core(home:base.appendingPathComponent("state")),vault=base.appendingPathComponent("vault")
-    let workspace=c.home.appendingPathComponent("codex-workspace")
+    let workspace=try c.oracleWorkspace()
     for folder in [vault,workspace] {try fm.createDirectory(at:folder,withIntermediateDirectories:true)}
     c.config=["vault":vault.path,"fixture":true,"gbrainAccess":true,"gbrainVaultSource":"oracle-vault"];try c.persist()
     try writeJSON(["workspace":workspace.path],c.home.appendingPathComponent("setup/bridge.json"))

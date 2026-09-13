@@ -10,7 +10,7 @@ struct VaultScanSnapshot {
     let inspected:Int
     let at:Date
     let signature:String
-    var files:[String] { entries.filter { $0["directory"] as? Bool != true }.compactMap { $0["path"] as? String } }
+    var files:[String] { entries.filter { $0["directory"] as? Bool != true && $0["available"] as? Bool != false }.compactMap { $0["path"] as? String } }
     var metadata:[String:Any] {
         ["complete":complete,"issues":issues,"inspected":inspected,"at":at.timeIntervalSince1970,
          "signature":signature,"coverage":"Markdown até 2 MB; pastas ocultas, links e dependências excluídos"]
@@ -58,23 +58,25 @@ extension Core {
                     issue(file,"A pasta mudou durante a leitura.");walker.skipDescendants();continue
                 }
                 let relative = String(file.path.dropFirst(prefix.count))
+                var available=true
                 if values.isDirectory != true {
                     if instructionsOnly && !["AGENTS.md","AGENTS.override.md"].contains(file.lastPathComponent) { continue }
                     if file.pathExtension.lowercased() != "md" { continue }
                     guard values.isRegularFile == true else { issue(file,"Markdown não é arquivo regular.");continue }
                     var local=stat()
-                    guard lstat(file.path,&local)==0,local.st_flags & 0x40000000==0 else{issue(file,"Markdown ainda não está disponível localmente; conclua o download no macOS.");continue}
+                    guard lstat(file.path,&local)==0 else{issue(file,"Não foi possível conferir o arquivo local.");continue}
+                    if local.st_flags & 0x40000000 != 0 {available=false;issue(file,"Markdown ainda não está disponível localmente; conclua o download no macOS.")}
                     // Explicit omission: a note that grew cannot be mistaken for a deletion.
                     guard (values.fileSize ?? Int.max) <= 2_000_000 else { issue(file,"Markdown excede 2 MB e não foi indexado.");continue }
                 }
                 entries.append(["path":relative,"name":file.lastPathComponent,"directory":values.isDirectory == true,
                                 "size":values.fileSize ?? 0,"modified":values.contentModificationDate?.timeIntervalSince1970 ?? 0,
-                                "source":inputRoot.path])
+                                "source":inputRoot.path,"available":available])
             } catch { issue(file,error.localizedDescription);walker.skipDescendants() }
         }
         let sorted=entries.sorted { ($0["path"] as? String ?? "") < ($1["path"] as? String ?? "") }
         let rows=sorted.map { ["path":$0["path"] ?? "", "size":$0["size"] ?? 0,
-                              "modified":$0["modified"] ?? 0, "directory":$0["directory"] ?? false] }
+                              "modified":$0["modified"] ?? 0, "directory":$0["directory"] ?? false,"available":$0["available"] ?? true] }
         return VaultScanSnapshot(root:root,entries:sorted,issues:issues,complete:complete,inspected:inspected,at:Date(),signature:digest(try jsonData(rows)))
     }
 }

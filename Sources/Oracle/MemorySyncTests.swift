@@ -33,6 +33,8 @@ func runDataReliabilityTests() throws {
     let limited=try core.scanSnapshot(root:root,maxEntries:1)
     try expect(!limited.complete && limited.entries.count == 1 && !limited.issues.isEmpty,"scan cap returns safe partial entries with explicit issue")
     try Data(repeating:65,count:2_000_001).write(to:root.appendingPathComponent("too-large.md"))
+    let cloudSnapshot=VaultScanSnapshot(root:root,entries:[["path":"cloud.md","directory":false,"available":false],["path":"local.md","directory":false,"available":true]],issues:[["path":"cloud.md","error":"not downloaded"]],complete:false,inspected:2,at:Date(),signature:"fixture")
+    try expect(cloudSnapshot.entries.count==2 && cloudSnapshot.files==["local.md"] && !cloudSnapshot.complete,"cloud placeholders stay visible without entering the authoritative index")
     let partial=try core.scanSnapshot(root:root)
     try expect(!partial.complete && partial.files.contains("a.md") && partial.files.contains("b.md"),"oversized note does not hide readable siblings")
     try rejects("authoritative scan refuses partial snapshot") { _=try core.scan(root:root) }

@@ -53,31 +53,33 @@ extension Core {
                 issue(root,"Leitura parcial: limite de trabalho atingido. Escolha uma pasta menor ou revise o escopo.")
                 break
             }
+            autoreleasepool {
             do {
                 let values = try file.resourceValues(forKeys:keys)
-                if values.isSymbolicLink == true { walker.skipDescendants();continue }
+                if values.isSymbolicLink == true { walker.skipDescendants();return }
                 if values.isDirectory == true && ["node_modules","vendor","dist","build"].contains(file.lastPathComponent) {
-                    walker.skipDescendants();continue
+                    walker.skipDescendants();return
                 }
                 guard file.path.hasPrefix(prefix), file.resolvingSymlinksInPath().path.hasPrefix(prefix) else {
-                    issue(file,"A pasta mudou durante a leitura.");walker.skipDescendants();continue
+                    issue(file,"A pasta mudou durante a leitura.");walker.skipDescendants();return
                 }
                 let relative = String(file.path.dropFirst(prefix.count))
                 var available=true
                 if values.isDirectory != true {
-                    if instructionsOnly && !["AGENTS.md","AGENTS.override.md"].contains(file.lastPathComponent) { continue }
-                    if file.pathExtension.lowercased() != "md" { continue }
-                    guard values.isRegularFile == true else { issue(file,"Markdown não é arquivo regular.");continue }
+                    if instructionsOnly && !["AGENTS.md","AGENTS.override.md"].contains(file.lastPathComponent) { return }
+                    if file.pathExtension.lowercased() != "md" { return }
+                    guard values.isRegularFile == true else { issue(file,"Markdown não é arquivo regular.");return }
                     var local=stat()
-                    guard lstat(file.path,&local)==0 else{issue(file,"Não foi possível conferir o arquivo local.");continue}
+                    guard lstat(file.path,&local)==0 else{issue(file,"Não foi possível conferir o arquivo local.");return}
                     if local.st_flags & 0x40000000 != 0 {available=false;issue(file,"Markdown ainda não está disponível localmente; conclua o download no macOS.")}
                     // Explicit omission: a note that grew cannot be mistaken for a deletion.
-                    guard (values.fileSize ?? Int.max) <= 2_000_000 else { issue(file,"Markdown excede 2 MB e não foi indexado.");continue }
+                    guard (values.fileSize ?? Int.max) <= 2_000_000 else { issue(file,"Markdown excede 2 MB e não foi indexado.");return }
                 }
                 entries.append(["path":relative,"name":file.lastPathComponent,"directory":values.isDirectory == true,
                                 "size":values.fileSize ?? 0,"modified":values.contentModificationDate?.timeIntervalSince1970 ?? 0,
                                 "source":inputRoot.path,"available":available])
             } catch { issue(file,error.localizedDescription);walker.skipDescendants() }
+            }
         }
         let sorted=entries.sorted { ($0["path"] as? String ?? "") < ($1["path"] as? String ?? "") }
         let rows=sorted.map { ["path":$0["path"] ?? "", "size":$0["size"] ?? 0,

@@ -14,7 +14,12 @@ func fileDigest(_ url: URL) throws -> String {
     let handle = try FileHandle(forReadingFrom: url)
     defer { try? handle.close() }
     var hash = SHA256()
-    while let chunk = try handle.read(upToCount: 1_048_576), !chunk.isEmpty { hash.update(data: chunk) }
+    // FileHandle buffers are autoreleased; an onboarding work item can last
+    // minutes and hash the bundled engines repeatedly. Drain every chunk.
+    while try autoreleasepool(invoking: { () throws -> Bool in
+        guard let chunk=try handle.read(upToCount:1_048_576),!chunk.isEmpty else{return false}
+        hash.update(data:chunk);return true
+    }) {}
     return hash.finalize().map { String(format: "%02x", $0) }.joined()
 }
 

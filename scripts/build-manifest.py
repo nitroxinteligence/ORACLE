@@ -295,8 +295,12 @@ def assemble(app: Path, executable: Path, record: dict, channel: str) -> None:
         raise BuildError("Staging bundle already exists; do not merge into an old application")
     resources = app / "Contents/Resources"
     resources.mkdir(parents=True)
+    catalog_files = {"catalog/" + row["path"] for row in load(ROOT / "Resources/catalog/manifest.json")["files"]}
     for directory, prefix in ((ROOT / "Resources", ""), (ROOT / "skills", "skills/")):
         for source, relative in resource_files(directory, allow_pack_link=(not prefix)):
+            # Shared pack caches may retain retired collections. Ship only the reviewed catalog.
+            if not prefix and relative.startswith("catalog/packs/") and relative not in catalog_files:
+                continue
             destination = resources / (prefix + relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, destination)

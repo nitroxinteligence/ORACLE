@@ -27,6 +27,22 @@ func runDistributionTests() throws {
     var checks=[String]()
     func check(_ ok:Bool,_ name:String)throws{guard ok else{throw failure(name)};checks.append(name);print("PASS "+name)}
     func rejects(_ name:String,_ action:()throws->Void)throws{do{try action()}catch{checks.append(name);print("PASS "+name);return};throw failure("Did not reject: "+name)}
+    let skillCore=try Core(home:base.appendingPathComponent("skill-state")),skillVault=base.appendingPathComponent("ATLAS")
+    try fm.createDirectory(at:skillVault,withIntermediateDirectories:true)
+    skillCore.config["vault"]=skillVault.path;try skillCore.persist()
+    let installedSkill=try skillCore.installVaultSkill(),skillFolder=URL(fileURLWithPath:installedSkill["folder"] as! String)
+    try check(installedSkill["name"] as? String=="obsidian-atlas","vault skill takes its name from the selected vault")
+    try check(try readJSON(skillFolder.appendingPathComponent("references/vault.json"))["vault"] as? String==skillVault.path,"vault skill binds the selected canonical path")
+    try check(try fm.destinationOfSymbolicLink(atPath:installedSkill["codex"] as! String)==skillFolder.path,"Codex discovers canonical vault skill through a link")
+    let originalSkill=try Data(contentsOf:skillFolder.appendingPathComponent("SKILL.md"))
+    _=try skillCore.installVaultSkill()
+    try check(try Data(contentsOf:skillFolder.appendingPathComponent("SKILL.md"))==originalSkill,"repeat vault skill install is idempotent")
+    try Data("User customization".utf8).write(to:skillFolder.appendingPathComponent("SKILL.md"))
+    try rejects("edited vault skill is preserved"){_=try skillCore.installVaultSkill()}
+    let alternate=base.appendingPathComponent("other/ATLAS");try fm.createDirectory(at:alternate,withIntermediateDirectories:true)
+    skillCore.config["vault"]=alternate.path;try skillCore.persist()
+    let otherSkill=try skillCore.installVaultSkill()
+    try check(otherSkill["name"] as? String != installedSkill["name"] as? String,"same-name vaults do not replace each other's skills")
     let batchRoot=base.appendingPathComponent("batch")
     try fm.createDirectory(at:batchRoot,withIntermediateDirectories:true)
     try rejects("batch releases coordination after accessor failure") {

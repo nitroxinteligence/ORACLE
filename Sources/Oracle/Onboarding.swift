@@ -448,6 +448,7 @@ final class OnboardingController {
             _=try core.initializeMemoryOnly(plan:plan)
             try localPhase("installing","Criando as pastas e instalando o acervo.",generation)
             _=try core.applyPlan();_=try core.applyDistribution(manifest,plan:plan)
+            _=try core.installVaultSkill()
             try core.prepareVaultDownloads { _,_ in try self.core.checkOnboardingCancellation() }
             try localPhase("indexing","Preparando busca textual e links das notas.",generation)
             _=try core.indexMemoryOnly(plan:plan)

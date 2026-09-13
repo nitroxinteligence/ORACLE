@@ -44,7 +44,7 @@ p.add_argument('--source', type=Path, required=True, help='Directory containing 
 p.add_argument('--version', required=True)
 p.add_argument('--output', type=Path, required=True)
 a = p.parse_args()
-allowed = {'ads','code','contents','customer-finder','cyber-security','marketing','personal-branding'}
+allowed = {'ads','code','contents','customer-finder','marketing','personal-branding'}
 extensions = {'md','txt','json','yaml','yml','py','js','ts','sh','toml','css','html','csv','sql','svg','png','jpg','jpeg','webp'}
 files = []
 root = Path(os.path.abspath(a.source));output=Path(os.path.abspath(a.output))

@@ -78,7 +78,7 @@ export async function indexVault(engine:BrainEngine,input:any){
   const latestOwnership=new Map<string,RecordRow>(historical.map(row=>[row.slug,row]));
   const managed=new Map<string,RecordRow>(historical.map(row=>[row.path+'\0'+row.slug,row]));
   const reusable=new Map<string,RecordRow>([...(previous?.records||[]),...(checkpoint?.records||[])].map((row:RecordRow)=>[row.path,normalize(row)]));
-  const records:RecordRow[]=[],failures:Problem[]=[],candidates:ReturnType<typeof readCandidate>[]=[];
+  const records:RecordRow[]=[],failures:Problem[]=[],candidates:Omit<ReturnType<typeof readCandidate>,'text'>[]=[];
   let phase='preflight',upserts=0,removed=0,links=0,sequence=0,needsResume=false,reconciled=false,noOp=false;
   const problem=(path:string,error:unknown)=>{if(failures.length<100)failures.push({path,error:String(error instanceof Error?error.message:error).slice(0,300)})};
   const event=(type:string,summary:string)=>{
@@ -122,10 +122,13 @@ export async function indexVault(engine:BrainEngine,input:any){
           if(duplicate!==undefined)throw Error(`Frontmatter identity collision with ${duplicate}; no canonical note was changed`);
           seenExternalIDs.set(row.external_id,relative);
         }
-        seenSlugs.set(row.slug,relative);candidates.push(row);
+        seenSlugs.set(row.slug,relative);
+        const {text,...metadata}=row;candidates.push(metadata);
+        if(candidates.length%64===0)Bun.gc(true);
       }catch(error){problem(String(relative),error)}
     }
     if(failures.length)throw Error('Preflight failed; no derived upsert was performed');
+    Bun.gc(true);
     // Page read projections deliberately do not expose source_path in this pin.
     // Use the official batch path resolver rather than assuming an internal field.
     const mappings=new Map<string,string>();
@@ -141,6 +144,7 @@ export async function indexVault(engine:BrainEngine,input:any){
       const prior=owned&&mappings.get(owned.path)===row.slug?owned:undefined;
       if(page&&(!prior||(prior.indexed_content_hash&&prior.indexed_content_hash!==page.content_hash)))throw Error(`Derived page changed without an ownership receipt: ${row.path}`);
       checkedOwnership.add(row.slug);
+      if(checkedOwnership.size%64===0)Bun.gc(true);
       if(page&&mappings.get(row.path)!==row.slug&&!historical.some(old=>old.slug===row.slug&&mappings.get(old.path)===row.slug&&
           isProvenCanonicalRename(root,old.path,row.path,input.scan_complete===true)))throw Error(`Existing canonical identity collision: ${row.path}`);
       if(row.external_id){
@@ -163,32 +167,32 @@ export async function indexVault(engine:BrainEngine,input:any){
     // Persist the entire preflighted intent set ONCE before any import. Checkpoint
     // progress is then batched (25), not an O(N²) full fsync on every single note.
     // After a crash at most 24 imports need readback/replay; intents stay durable.
-    for(const {text,bytes,...row} of candidates)managed.set(row.path+'\0'+row.slug,row);
+    for(const {bytes,...row} of candidates)managed.set(row.path+'\0'+row.slug,row);
     if(managed.size>120_000)throw Error('Derived ownership intent budget exceeded');
     phase='upsert';save();
     for(const candidate of candidates){
       check();
-      const {text,bytes,...row}=candidate;
+      const {bytes,...row}=candidate;
       const current=readCandidate(root,row.path);
       if(current.sha256!==row.sha256||current.slug!==row.slug)throw Error(`Canonical note changed during indexing: ${row.path}`);
       const page=await engine.getPage(row.slug,{sourceId:'oracle-vault'}),prior=reusable.get(row.path);
       if(!input.force&&prior?.sha256===row.sha256&&page?.content_hash===prior.indexed_content_hash&&mappings.get(row.path)===row.slug){records.push(prior);continue}
       if(upserts>=maxUpserts){needsResume=true;throw Error('Bounded upsert count reached; resume from checkpoint')}
       // Intent was committed before this batch; canonical content is never written.
-      const imported=await importFromContent(engine,row.slug,text,{noEmbed:true,sourceId:'oracle-vault',sourcePath:row.path,
+      const imported=await importFromContent(engine,row.slug,current.text,{noEmbed:true,sourceId:'oracle-vault',sourcePath:row.path,
         filename:basename(row.path,'.md'),allowEmptyOverwrite:true,forceRechunk:input.force===true||forceOwnedRename.has(row.path)||(!!page&&mappings.get(row.path)!==row.slug)});
       if(imported.error||imported.slug!==row.slug||imported.status==='error')throw Error(imported.error||'Official import did not preserve the requested identity');
       const verified=await engine.getPage(row.slug,{sourceId:'oracle-vault'});
       const verifiedMapping=await engine.resolveSlugsByPaths([row.path],{sourceId:'oracle-vault'});
       if(!verified||verifiedMapping.get(row.path)!==row.slug||typeof verified.content_hash!=='string'||!/^[a-f0-9]{64}$/.test(verified.content_hash))throw Error('Official engine source-path or content-hash readback failed');
       records.push({...row,indexed_content_hash:verified.content_hash,page_hash:verified.content_hash});upserts++;
-      if(upserts%25===0){save();event('gbrain.index_progress',`${records.length} documentos verificados`)}
+      if(upserts%25===0){save();event('gbrain.index_progress',`${records.length} documentos verificados`);Bun.gc(true)}
     }
     if(input.scan_complete!==true)throw Error('Native scan was partial or unverified; no deletions or link reconciliation permitted');
     phase='verify-snapshot';save();check();
     const actual=canonicalFiles(root,deadline);
     if(JSON.stringify(actual)!==JSON.stringify([...files].sort()))throw Error('Canonical scope changed (create/delete/rename) during indexing');
-    for(const row of records){check();if(readCandidate(root,row.path).sha256!==row.sha256)throw Error(`Canonical note changed before reconciliation: ${row.path}`)}
+    for(let i=0;i<records.length;i++){check();const row=records[i]!;if(readCandidate(root,row.path).sha256!==row.sha256)throw Error(`Canonical note changed before reconciliation: ${row.path}`);if((i+1)%64===0)Bun.gc(true)}
     const fingerprint=(rows:RecordRow[])=>canonical(rows.map(row=>[row.path,row.slug,row.sha256,row.indexed_content_hash??row.page_hash]).sort((a,b)=>a[0]!.localeCompare(b[0]!)));
     const unchangedSnapshot=fingerprint(previous?.records||[])===fingerprint(records);
     const desiredPaths=new Set(records.map(row=>row.path)),desiredSlugs=new Set(records.map(row=>row.slug));
@@ -200,9 +204,10 @@ export async function indexVault(engine:BrainEngine,input:any){
     // previously good relation or page. Reconciliation below is one official tx.
     const resolver=makeResolver(engine,{mode:'batch',sourceId:'oracle-vault'});
     const byPath=new Map(records.map(row=>[row.path,row.slug])),known=new Set(records.map(row=>row.slug));
-    const relations:any[]=[],unresolved:any[]=[];let relationBytes=0;
+    const relations:any[]=[],unresolved:any[]=[];let relationBytes=0,relationPages=0;
+    Bun.gc(true);
     for(const row of noOp?[]:records){
-      check();const page=await engine.getPage(row.slug,{sourceId:'oracle-vault'});
+      check();if(++relationPages%25===0)Bun.gc(true);const page=await engine.getPage(row.slug,{sourceId:'oracle-vault'});
       if(!page||page.content_hash!==row.indexed_content_hash)throw Error('Index changed during relation preparation');
       const extracted=await extractPageLinks(page.slug,canonicalizeLocalLinks(page.compiled_truth,row.path,byPath),page.frontmatter,page.type,resolver,{globalBasename:false});
       for(const relation of extracted.candidates){

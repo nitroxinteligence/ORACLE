@@ -109,7 +109,7 @@ function modal(html,options={}){
  const family=options.family||(template.content.querySelector('.editor')?'editor':template.content.querySelector('.markdown-reader')?'reader':'standard');
  modalPage={key,title:heading.textContent,revision:modalRevision,family,document:readDocument,editor:editorSession,settings:settingsTrail};
  const head=document.createElement('div');head.className='modal-header';const titles=document.createElement('div');const breadcrumb=modalBreadcrumb();titles.append(...(breadcrumb?[breadcrumb]:[]),heading);head.append(titles);
- const close=document.createElement('button');close.className='icon-button modal-close';close.dataset.close='';close.setAttribute('aria-label','Fechar janela');close.dataset.tooltip='Fechar · Esc';close.innerHTML=icon('close');head.append(close);
+ const close=document.createElement('button');close.className='icon-button modal-close';close.dataset.close='';close.setAttribute('aria-label','Fechar janela');close.dataset.tooltip='Fechar · Esc';close.innerHTML=icon('close');if(family!=='update-notice')head.append(close);
  footer.remove();const body=document.createElement('div');body.className='modal-body';body.append(template.content);
  content.replaceChildren(head,body,...(footer.children.length?[footer]:[]));dialog.dataset.family=family;
  if(family==='reader'&&!body.querySelector('.reader-layout')){const article=body.querySelector('.markdown-reader');if(article){const layout=document.createElement('div');layout.className='reader-layout';article.before(layout);const outline=document.createElement('nav');outline.className='reader-outline';outline.hidden=true;outline.setAttribute('aria-label','Seções do documento');layout.append(outline,article);mountReaderOutline();}}

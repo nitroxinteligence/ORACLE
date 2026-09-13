@@ -21,6 +21,8 @@
    await check('Notice contains only title and a stable Metal action',async()=>{
     if(!q('#update-notice-metal')){startupUpdateNoticeShown=false;startupUpdateReady=true;latestUpdateStatus=status;maybeShowStartupUpdateNotice()}
     await wait(()=>q('#update-notice-metal button'),'notice');
+    assert(!q('.modal-close'),'notice still has close icon');
+    assert(q('#update-notice-metal button').getBoundingClientRect().height<=38,'notice action too tall');
     assert(!q('#update-notice-later')&&!q('.modal-body p'),'extra notice content');
     click('#update-notice-metal button');await wait(()=>q('#check-updates'),'updates opened');
    });
@@ -32,6 +34,8 @@
     status={...status,busy:false,phase:'complete'};await pollUpdateStatus();await wait(()=>!button.disabled,'check completion');
    });
    await check('Install has its own progress dialog and reopening never disables the icon',async()=>{
+    const metal=q('#apply-update-metal button');assert(metal.getBoundingClientRect().height<=38,'install action too tall');assert(getComputedStyle(metal).backgroundImage.includes('gradient'),'metal fallback missing');
+    window.webkit.messageHandlers.fixture.postMessage({type:'snapshot'});await wait(()=>window.__fixtureSnapshotSaved,'snapshot');
     click('#apply-update-metal button');await wait(()=>q('#modal').dataset.family==='update-installing','installation dialog');
     await wait(()=>f.calls.filter(c=>c.method==='updateStart').at(-1)?.params.operation==='check-apply','Install did not apply');
     await closeModal(true);delay=1500;const started=performance.now();click('#updates');
@@ -44,6 +48,13 @@
     assert(q('#update-message').textContent===status.error,'actual error hidden');
     assert(q('#modal-title').textContent==='Atualização não concluída','false success');
     await closeModal(true);
+   });
+   await check('Left pointer drag cannot move the map',async()=>{
+    const a=atlasController;a.setPaused(true);const before=JSON.stringify(a.target),svg=a.el;
+    svg.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerId:51,clientX:400,clientY:400}));
+    svg.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,button:0,pointerId:51,clientX:580,clientY:520}));
+    svg.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,button:0,pointerId:51,clientX:580,clientY:520}));
+    assert(JSON.stringify(a.target)===before&&!a.drag,'drag moved the camera');
    });
    await check('Search starts with ten skills, appends on scroll and expands on query',async()=>{
     openSearch();assert(qa('#search-results [data-hit]').length===10,'not ten initial results');

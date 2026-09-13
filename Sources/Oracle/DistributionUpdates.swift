@@ -59,6 +59,9 @@ extension Core {
                 results.append(["id":"skills","status":"current","version":manifest.releaseID,"message":"Acervo e arquivos locais atualizados."])
                 results.append(["id":"codex","status":"current","message":"Skills locais atualizadas; descoberta no host tem verificação própria."])
             } else {
+                try prepareVaultDownloads { done,total in
+                    try recordUpdate("downloading","Baixando arquivos do vault no macOS: \(done) de \(total).",results:results)
+                }
                 let plan:[String:Any]
                 if let saved,isMemoryOnly(saved),saved["distribution_sha256"] as? String==manifest.hash,
                    onboardingRecord()["status"] as? String != "completed" {plan=try validatedPlan()}

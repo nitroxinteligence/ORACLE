@@ -833,3 +833,10 @@ body.window-hidden #app .header-actions>#updates.update-ready { animation-play-s
 .gallery-results {scroll-margin-top:110px}
 @media(max-width:680px){.gallery-pagination{flex-wrap:wrap;justify-content:center}.gallery-page-summary:last-child{display:none}.gallery-page-controls{order:-1;width:100%;justify-content:center}}
 body:has(#modal[open][data-family=update-installing]) .ob2-installation {display:none}
+
+/* Compact update actions retain the shader and a visible metal fallback. */
+#modal #apply-update-metal .ob2-metal-button,#modal #update-notice-metal .ob2-metal-button{height:36px;min-width:0;padding:0 18px!important;font-size:14px!important;border-radius:20px!important;background:linear-gradient(155deg,#818b94 0%,#f5f7f8 24%,#b8c2ca 45%,#7c8790 52%,#e9eef2 75%,#a5afb7 100%)!important;box-shadow:inset 0 1px 1px #fff9,inset 0 -1px 1px #52606b80}
+#modal #apply-update-metal .ob2-metal-art,#modal #update-notice-metal .ob2-metal-art{border-radius:inherit;overflow:hidden}
+#modal #apply-update-metal .metal-fx-root,#modal #update-notice-metal .metal-fx-root{width:100%!important;height:100%!important;min-height:36px;border-radius:inherit!important}
+
+#atlas .atlas-scene{cursor:default}

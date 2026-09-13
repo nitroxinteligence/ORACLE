@@ -11,6 +11,20 @@ func runUpdateTests(releasePath: String?) throws {
     func rejects(_ name: String, _ operation: () throws -> Void) throws { do { try operation() } catch { checks.append(name); print("PASS \(name)"); return }; throw failure("Did not reject: " + name) }
     func file(_ path: String, _ text: String) -> UpdateFile { let bytes = Data(text.utf8); return UpdateFile(path: path, hash: digest(bytes), data: bytes) }
     func read(_ path: String) throws -> String { try String(contentsOf: c.scoped(path, root: root), encoding: .utf8) }
+    let cloud=[root.appendingPathComponent("cloud-a.md"),root.appendingPathComponent("cloud-b.md")]
+    var local=Set<URL>(),requested=[URL](),clock:TimeInterval=0,progress=[Int]()
+    try OracleVaultDownloads.prepare(cloud,request:{requested.append($0)},available:{local.contains($0)},progress:{done,_ in progress.append(done)},timeout:3,now:{clock},sleep:{clock+=1;local.insert(cloud[Int(clock)-1])})
+    try expect(requested==cloud && progress.last==2,"cloud download waits for every file without duplicate requests")
+    requested=[]
+    try OracleVaultDownloads.prepare(cloud,request:{requested.append($0)},available:{_ in true},progress:{_,_ in})
+    try expect(requested.isEmpty,"already local files never request downloads")
+    clock=0
+    try rejects("incomplete cloud download times out before installation") {
+        try OracleVaultDownloads.prepare(cloud,request:{_ in},available:{_ in false},progress:{_,_ in},timeout:2,now:{clock},sleep:{clock+=1})
+    }
+    try rejects("cloud provider failure prevents installation") {
+        try OracleVaultDownloads.prepare(cloud,request:{_ in throw failure("synthetic provider unavailable")},available:{_ in false},progress:{_,_ in})
+    }
     let skill = "SISTEMA/skills/code/test/SKILL.md", other = "SISTEMA/skills/ads/test/SKILL.md"
     let manual = "SISTEMA/skills/marketing/personal/SKILL.md"
     let manualURL = try c.scoped(manual, root: root)

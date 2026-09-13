@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "oracle_version": "0.3.2",
+  "oracle_version": "0.3.3",
   "gbrain": {
     "repository": "https://github.com/garrytan/gbrain",
     "bundled_version": "0.48.4.0",

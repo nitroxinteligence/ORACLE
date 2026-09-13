@@ -3,7 +3,7 @@ import Foundation
 extension Core {
     func saveDepartmentAssignments(_ assignments:[String:String]) throws -> [String:Any] {
         try requireCapability(.configure)
-        let allowed:Set<String>=["code","design","marketing","sales","research","content","unassigned"]
+        let allowed:Set<String>=["code","design","marketing","sales","research","content","unassigned","conversao","entrega","leads","oferta","sistemas","trafego"]
         guard assignments.count<=128,assignments.keys.allSatisfy({$0.utf8.count<=128 && !$0.isEmpty && !$0.contains("/")}),assignments.values.allSatisfy({allowed.contains($0)}) else {
             throw failure("Organização de departamentos inválida.")
         }

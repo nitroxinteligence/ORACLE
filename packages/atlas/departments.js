@@ -56,10 +56,13 @@ export function validateManifest(input) {
   }};
 }
 
-const folderDepartments={'Código':'code','Marketing':'marketing','Conteúdo':'content','Vendas':'sales','Design':'design','Pesquisa':'research','Outros':'unassigned'};
+const folderDepartments={codigo:'code',conversao:'conversao',entrega:'entrega',leads:'leads',marketing:'marketing',oferta:'oferta',sistemas:'sistemas',trafego:'trafego',vendas:'sales','Código':'code','Marketing':'marketing','Conteúdo':'content','Vendas':'sales','Design':'design','Pesquisa':'research','Outros':'unassigned'};
+function departmentPath(parts, entry) {
+  return Object.hasOwn(folderDepartments,parts[2]) && (!/^[a-z]+$/.test(parts[2]) || (entry.directory ? parts.length>=4 : parts.length>=6) && parts[3]!=='skills');
+}
 export function departmentForEntry(entry,skillRoot='SISTEMA/skills') {
   const parts=entry?.path?.split('/')||[];
-  return parts.slice(0,2).join('/')===skillRoot && Object.hasOwn(folderDepartments,parts[2]) ? folderDepartments[parts[2]]:null;
+  return parts.slice(0,2).join('/')===skillRoot && departmentPath(parts,entry) ? folderDepartments[parts[2]]:null;
 }
 /** Canonical local path evidence, including department folders. */
 export function collectionForEntry(entry, skillRoot='SISTEMA/skills') {
@@ -67,7 +70,7 @@ export function collectionForEntry(entry, skillRoot='SISTEMA/skills') {
   const parts = entry.path.split('/');
   if (parts.length < 3 || parts.slice(0,2).join('/') !== skillRoot || !parts.every(segment)) return null;
   if (parts.length === 3 && !entry.directory) return null;
-  if (Object.hasOwn(folderDepartments,parts[2])) return parts.length>=5 || (parts.length===4&&entry.directory) ? parts[3]:null;
+  if (departmentPath(parts,entry)) return parts.length>=5 || (parts.length===4&&entry.directory) ? parts[3]:null;
   return parts[2];
 }
 
@@ -200,6 +203,12 @@ export function selectionForSkill(catalog, path) {
  * remain in "Sem departamento" until assigned. No vault paths are rewritten. */
 
 export const definitions=[
+  {id:'conversao',name:'Conversão',icon:'chart',color:'#bf96dd'},
+  {id:'entrega',name:'Entrega',icon:'folder',color:'#dba17c'},
+  {id:'leads',name:'Leads',icon:'search',color:'#a8a1eb'},
+  {id:'oferta',name:'Oferta',icon:'note',color:'#d9c276'},
+  {id:'sistemas',name:'Sistemas',icon:'tool',color:'#92c399'},
+  {id:'trafego',name:'Tráfego',icon:'chart',color:'#91b5ed'},
   {id:'code',name:'Código',icon:'code',color:'#91b5ed'},
   {id:'design',name:'Design',icon:'tool',color:'#d4a1cc'},
   {id:'marketing',name:'Marketing',icon:'chart',color:'#92c399'},

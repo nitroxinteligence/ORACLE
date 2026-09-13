@@ -43,6 +43,18 @@ func runDistributionTests() throws {
     skillCore.config["vault"]=alternate.path;try skillCore.persist()
     let otherSkill=try skillCore.installVaultSkill()
     try check(otherSkill["name"] as? String != installedSkill["name"] as? String,"same-name vaults do not replace each other's skills")
+    let routerSource=bundledRouterFixtureSource()
+    try fm.createDirectory(at:resources.appendingPathComponent("skills"),withIntermediateDirectories:true)
+    if !fm.fileExists(atPath:resources.appendingPathComponent("skills/oracle").path) {try fm.copyItem(at:routerSource,to:resources.appendingPathComponent("skills/oracle"))}
+    let router=try skillCore.installOracleSkill(),routerFolder=URL(fileURLWithPath:router["folder"] as! String)
+    try check(routerFolder.path.hasPrefix(skillCore.distributionHostHome().path+"/.agents/skills/"),"Oracle router lives directly in Codex")
+    try check(!routerFolder.path.hasPrefix(skillVault.path+"/"),"Oracle router is not installed in the vault")
+    _=try skillCore.installOracleSkill()
+    skillCore.config["vault"]=skillVault.path;try skillCore.persist();_=try skillCore.installOracleSkill()
+    let profiles=try readJSON(routerFolder.appendingPathComponent("references/context.json"))["profiles"] as? [String:Any]
+    try check(profiles?.count==1,"same Oracle profile updates its selected vault without duplicate routers")
+    try Data("User router edit".utf8).write(to:routerFolder.appendingPathComponent("SKILL.md"))
+    try rejects("edited Oracle router is preserved"){_=try skillCore.installOracleSkill()}
     let batchRoot=base.appendingPathComponent("batch")
     try fm.createDirectory(at:batchRoot,withIntermediateDirectories:true)
     try rejects("batch releases coordination after accessor failure") {
@@ -60,7 +72,9 @@ func runDistributionTests() throws {
     try check(core.installationErrorMessage(NSError(domain:NSCocoaErrorDomain,code:1,userInfo:[NSUnderlyingErrorKey:provider])).contains("código -5009"),"wrapped provider error is localized")
     try check(core.installationErrorMessage(failure("Synthetic disk failure"))=="Synthetic disk failure","unrelated failure is not mislabeled as iCloud")
     let skill="SISTEMA/skills/research-lab/example/SKILL.md",resource="SISTEMA/skills/research-lab/example/references/reference.txt",prompt="SISTEMA/prompts/Olá.md",tutorial="SISTEMA/Tutoriais/Guide.md"
-    func fixture(_ sequence:Int=1,extra:String="",includeResource:Bool=true)throws->(Data,[String:Data],[String:Any]){
+    func fixture(_ sequence:Int=1,extra:String="",includeResource:Bool=true,structured:Bool=false)throws->(Data,[String:Data],[String:Any]){
+        let skill=structured ? "SISTEMA/skills/oferta/research-lab/example/SKILL.md":"SISTEMA/skills/research-lab/example/SKILL.md"
+        let resource=structured ? "SISTEMA/recursos-skills/research-lab/reference.txt":"SISTEMA/skills/research-lab/example/references/reference.txt"
         let release="fixture-\(sequence)"
         var inputs:[(String,String,String)]=[(skill,"specialists","---\nname: oracle-skill-example\ndescription: Synthetic skill for offline verification.\n---\n# Example\n"+extra),(prompt,"prompts","# Olá\n"+extra),(tutorial,"tutorials","# Guide\n"+extra),("sources/gbrain/"+oracleGBrainPinnedCommit+"/LICENSE","gbrain-source","MIT synthetic upstream snapshot")]
         if includeResource{inputs.append((resource,"specialists","Fixture resource"+extra))}
@@ -77,10 +91,11 @@ func runDistributionTests() throws {
         }
         let required=includeResource ? [skill,resource]:[skill]
         let items:[[String:Any]]=[
-            ["id":"skill-example","name":"Example","kind":"skill","entry":skill,"required_files":required,"department_id":"research","specialist_id":"research-lab","host_name":"oracle-skill-example","dependencies":[]],
+            ["id":"skill-example","name":"Example","kind":"skill","entry":skill,"required_files":required,"department_id":structured ? "oferta":"research","specialist_id":"research-lab","host_name":"oracle-skill-example","dependencies":[]],
             ["id":"prompt-example","name":"Olá","kind":"prompt","entry":prompt,"required_files":[prompt],"department_id":"unassigned","dependencies":[]],
             ["id":"tutorial-example","name":"Guide","kind":"tutorial","entry":tutorial,"required_files":[tutorial],"department_id":"unassigned","dependencies":[]]]
-        let manifest:[String:Any]=["schema_version":3,"release_id":release,"sequence":sequence,"minimum_oracle":"0.3.0","adapter_commit":oracleGBrainPinnedCommit,"gbrain_commit":oracleGBrainPinnedCommit,"gbrain_version":oracleGBrainPinnedVersion,"files":files,"items":items,"packages":packages,"counts":counts,"inventory_sha256":digest(try distributionCanonical(files)),"licenses":["MIT fixture"],"components":["runtime":["source":"signed-app-bundle","version":oracleGBrainPinnedVersion],"gbrain-method":["source":"signed-app-bundle","commit":oracleGBrainPinnedCommit]]]
+        var manifest:[String:Any]=["schema_version":3,"release_id":release,"sequence":sequence,"minimum_oracle":"0.3.0","adapter_commit":oracleGBrainPinnedCommit,"gbrain_commit":oracleGBrainPinnedCommit,"gbrain_version":oracleGBrainPinnedVersion,"files":files,"items":items,"packages":packages,"counts":counts,"inventory_sha256":digest(try distributionCanonical(files)),"licenses":["MIT fixture"],"components":["runtime":["source":"signed-app-bundle","version":oracleGBrainPinnedVersion],"gbrain-method":["source":"signed-app-bundle","commit":oracleGBrainPinnedCommit]]]
+        if structured {manifest["skills_layout"]="department-specialist-skill";manifest["minimum_oracle"]="0.3.3"}
         return (try signed(manifest),payloads,manifest)
     }
     func signed(_ manifest:[String:Any])throws->Data {
@@ -89,6 +104,12 @@ func runDistributionTests() throws {
     }
     func decode(_ bytes:Data)throws->DistributionManifest {try DistributionManifest(bytes:bytes,trust:trust,oracleVersion:"0.3.0",adapterCommit:oracleGBrainPinnedCommit)}
     func cache(_ manifest:DistributionManifest)throws {let path=state.appendingPathComponent("cache/distributions/"+manifest.hash+"/oracle-distribution.json");try fm.createDirectory(at:path.deletingLastPathComponent(),withIntermediateDirectories:true);try manifest.bytes.write(to:path)}
+    let (structuredBytes,structuredPackages,_)=try fixture(structured:true)
+    let structuredManifest=try DistributionManifest(bytes:structuredBytes,trust:trust,oracleVersion:"0.3.3",adapterCommit:oracleGBrainPinnedCommit)
+    for package in structuredManifest.packages {_=try structuredManifest.decodePackage(structuredPackages[package["url"] as! String]!,metadata:package)}
+    try check(core.distributionSkillFolders(structuredManifest).isEmpty,"structured distribution does not inject another department folder")
+    try check(structuredManifest.items.first?.specialist=="research-lab" && structuredManifest.items.first?.department=="oferta","structured distribution distinguishes department and specialist")
+    try rejects("older apps cannot install structured release"){_=try decode(structuredBytes)}
     let (bytes,payloads,document)=try fixture(),manifest=try decode(bytes)
     try check(manifest.files.count==135 && manifest.items.count==3,"signed manifest contains all three libraries and source snapshot")
     try check(String(decoding:try distributionCanonical(["a":"Olá/💡","z":true]),as:UTF8.self)=="{\"a\":\"Ol\\u00e1/\\ud83d\\udca1\",\"z\":true}","canonical signature bytes match Python for Unicode slash and booleans")
@@ -336,4 +357,10 @@ func runReviewedDistributionInstallation(_ release:URL) throws {
         "access_check":"synthetic isolated fixture","host_discovered":false,"physical_license_verified":false,"fixture":base.path]
     try writeJSON(result,state.appendingPathComponent("reviewed-distribution-result.json"))
     print("REVIEWED_DISTRIBUTION_COMPLETE files=\(manifest.files.count) items=\(manifest.items.count) seconds=\(Date().timeIntervalSince(began))")
+}
+
+private func bundledRouterFixtureSource() -> URL {
+    let candidate=URL(fileURLWithPath:fm.currentDirectoryPath).appendingPathComponent("skills/oracle")
+    if fm.fileExists(atPath:candidate.path){return candidate}
+    return Bundle.main.resourceURL!.appendingPathComponent("skills/oracle")
 }

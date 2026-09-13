@@ -706,7 +706,7 @@ def summary(plan, status):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', required=True, type=Path)
-    parser.add_argument('--libraries', choices=['skills','all'], default='skills', help='all mirrors only the three approved roots; use the reviewed publication snapshot')
+    parser.add_argument('--libraries', choices=['skills','all'], default='skills', help='all mirrors approved libraries and optional shared skill resources; use the reviewed publication snapshot')
     parser.add_argument('--destination', required=True, type=Path)
     parser.add_argument('--plan', required=True, type=Path, help='New dry-run JSON path, or existing reviewed plan for apply/resume')
     parser.add_argument('--expected-head', required=True)
@@ -727,6 +727,8 @@ def main(argv=None):
     if ALL_LIBRARIES:
         from oracle_distribution import TEXT_EXTENSIONS, RESOURCE_EXTENSIONS
         PREFIXES=('SISTEMA/skills','SISTEMA/prompts','SISTEMA/Tutoriais')
+        if (args.source/'SISTEMA/recursos-skills').exists():
+            PREFIXES += ('SISTEMA/recursos-skills',)
         EXTENSIONS=TEXT_EXTENSIONS|RESOURCE_EXTENSIONS
         MAX_FILES,MAX_SOURCE,MAX_DESTINATION=30000,512_000_000,1_024_000_000
     try:

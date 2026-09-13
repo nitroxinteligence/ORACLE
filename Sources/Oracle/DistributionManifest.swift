@@ -63,7 +63,7 @@ struct DistributionManifest {
         guard !parts.isEmpty,path.utf8.count<=700,!path.contains("\\"),!path.unicodeScalars.contains(where:CharacterSet.controlCharacters.contains),
               !parts.contains(where:{$0.isEmpty || $0=="." || $0==".." || [".git",".env",".DS_Store","node_modules",".gbrain"].contains(String($0))}) else{return false}
         if source {return path.hasPrefix("sources/gbrain/"+oracleGBrainPinnedCommit+"/")}
-        return parts.count>=3 && parts[0]=="SISTEMA" && ["skills","prompts","Tutoriais"].contains(String(parts[1]))
+        return parts.count>=3 && parts[0]=="SISTEMA" && ["skills","recursos-skills","prompts","Tutoriais"].contains(String(parts[1]))
     }
     static func validHash(_ value:String)->Bool {value.range(of:"^[a-f0-9]{64}$",options:.regularExpression) != nil}
     static func validID(_ value:String)->Bool {value.range(of:"^[a-z0-9][a-z0-9-]{0,63}$",options:.regularExpression) != nil}
@@ -111,7 +111,7 @@ struct DistributionManifest {
                   let mode=Self.integer(row["mode"]),[0o644,0o755].contains(mode),
                   let package=row["package_id"] as? String,Self.validID(package) else{throw failure("Arquivo, modo ou caminho inválido na distribuição.")}
             let prefix=["specialists":"SISTEMA/skills/","prompts":"SISTEMA/prompts/","tutorials":"SISTEMA/Tutoriais/","gbrain-source":"sources/gbrain/"][kind]!
-            guard path.hasPrefix(prefix) else{throw failure("Arquivo fora da biblioteca declarada.")}
+            guard path.hasPrefix(prefix) || (kind=="specialists" && path.hasPrefix("SISTEMA/recursos-skills/")) else{throw failure("Arquivo fora da biblioteca declarada.")}
             total+=size;guard total<=Self.maximumBytes else{throw failure("Distribuição excede o orçamento de instalação.")}
             files.append(DistributionFile(path:path,hash:hash,kind:kind,packageID:package,size:size,mode:mode))
         }
@@ -142,11 +142,11 @@ struct DistributionManifest {
                   let entry=row["entry"] as? String,let entryFile=byPath[entry],entryFile.isVault,
                   let required=row["required_files"] as? [String],!required.isEmpty,required.contains(entry),Set(required).count==required.count,
                   required.allSatisfy({byPath[$0]?.isVault==true}),
-                  let department=row["department_id"] as? String,["code","design","marketing","sales","research","content","unassigned"].contains(department),
+                  let department=row["department_id"] as? String,["code","design","marketing","sales","research","content","unassigned","conversao","entrega","leads","oferta","sistemas","trafego"].contains(department),
                   row["dependencies"] is [Any] else{throw failure("Item visual sem documento, recursos ou dependências declaradas.")}
             let specialist=row["specialist_id"] as? String,hostName=row["host_name"] as? String
             if kind=="skill" {
-                guard entry.hasSuffix("/SKILL.md"),entryFile.kind=="specialists",let specialist,validSpecialistID(specialist),entry.hasPrefix("SISTEMA/skills/"+specialist+"/"),
+                guard entry.hasSuffix("/SKILL.md"),entryFile.kind=="specialists",let specialist,validSpecialistID(specialist),(manifest["skills_layout"] as? String=="department-specialist-skill" ? entry.split(separator:"/").count==6 && entry.split(separator:"/")[3]==Substring(specialist) && Core.structuredSkillDepartments[String(entry.split(separator:"/")[2])]==department : entry.hasPrefix("SISTEMA/skills/"+specialist+"/")),
                       let hostName,hostName=="oracle-"+id,hostName.utf8.count<=64,hostNames.insert(hostName).inserted else{throw failure("Identidade de skill inválida ou duplicada no Codex.")}
             } else {guard entryFile.kind==(kind=="prompt" ? "prompts":"tutorials") else{throw failure("Documento da biblioteca incorreta.")}}
             if let specialist {

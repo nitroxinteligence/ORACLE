@@ -453,7 +453,7 @@ final class OnboardingController {
             try localPhase("indexing","Preparando busca textual e links das notas.",generation)
             _=try core.indexMemoryOnly(plan:plan)
             try localPhase("codex","Preparando as skills locais e a integração com o Codex.",generation)
-            _=try core.installDistributionSkills(manifest,plan:plan);_=try core.prepareBridge()
+            _=try core.installDistributionSkills(manifest,plan:plan);_=try core.installOracleSkill();_=try core.prepareBridge()
             if let settings=plan["maintenance"] as? [String:Any] {_=try core.configureMaintenance(settings)}
             try localPhase("verifying","Conferindo arquivos, bibliotecas, memória e recuperação.",generation)
             let verification=try core.completeMemoryOnly(plan:plan)

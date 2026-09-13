@@ -19,7 +19,7 @@ let core = try Core(home: (argument("--state") ?? validationState).map { URL(fil
 // A CLI is another entrypoint, not an authorization bypass. Test switches only
 // run their own synthetic suites, never a second mutating command in the same invocation.
 let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-backup","--self-test-maintenance","--self-test-maintenance-live","--self-test-distribution"]
-let mutatingSwitches:Set<String>=["--install-vault-skill","--prepare-bridge","--gbrain","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update","--sync-gbrain","--backup","--maintenance"]
+let mutatingSwitches:Set<String>=["--install-oracle-skill","--install-vault-skill","--prepare-bridge","--gbrain","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update","--sync-gbrain","--backup","--maintenance"]
 if arguments.contains("--self-test-distribution") {
     do {guard !arguments.contains(where:{mutatingSwitches.contains($0)}) else{throw failure("Testes e operações de produto precisam de invocações separadas.")};try runDistributionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
 }
@@ -34,6 +34,7 @@ if arguments.contains("--hook") {
     do { let data = FileHandle.standardInput.readDataToEndOfFile(); guard data.count < 4_000_000, let value = try JSONSerialization.jsonObject(with:data) as? [String: Any] else { exit(0) }; try core.ingestHook(value);print(String(decoding:try jsonData(core.maintenanceHookContext(value)),as:UTF8.self));exit(0) } catch { /* Observability must not block Codex. */ }
     print("{}"); exit(0)
 }
+if arguments.contains("--install-oracle-skill") { do { print(String(decoding:try jsonData(core.installOracleSkill()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--install-vault-skill") { do { print(String(decoding:try jsonData(core.installVaultSkill()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--prepare-bridge") { do { print(String(decoding:try jsonData(core.prepareBridge()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if let operation = argument("--gbrain") {

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Oracle"
+  short_description: "Encontre e combine seus especialistas e skills"
+  default_prompt: "Use $oracle para encontrar os especialistas adequados e executar meu pedido."

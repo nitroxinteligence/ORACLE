@@ -50,6 +50,27 @@ class DistributionTests(unittest.TestCase):
             return dist.build(self.source, 'fixture-v3', 1, self.review if review is None else review, self.root,
                               'https://github.com/nitroxinteligence/ORACLE-SKILLS/releases/download/fixture-v3')
 
+    def test_structured_skills_include_resources_without_discovering_templates(self):
+        import shutil
+        old=self.source/'SISTEMA/skills/research'
+        new=self.source/'SISTEMA/skills/oferta/alex-hormozi'
+        new.parent.mkdir(parents=True)
+        shutil.move(str(old),str(new))
+        resource=self.source/'SISTEMA/recursos-skills/example/template/SKILL.md'
+        resource.parent.mkdir(parents=True);resource.write_text('Example source template, not a discoverable skill')
+        inv=dist.inventory(self.source)
+        review={**self.review,'skills_layout':'department-specialist-skill'}
+        review['source_inventory_sha256']=dist.sha(dist.canonical({r['source_path']:dist.sha((self.source/r['source_path']).read_bytes()) for r in inv['files']}))
+        review['items']={k.replace('skills/research/','skills/oferta/alex-hormozi/'):v for k,v in review['items'].items()}
+        manifest,_,report=self.build(review)
+        self.assertEqual(report['problems'],[])
+        skills=[i for i in manifest['items'] if i['kind']=='skill']
+        self.assertEqual(len(skills),1)
+        self.assertEqual(skills[0]['specialist_id'],'alex-hormozi')
+        self.assertEqual(skills[0]['department_id'],'oferta')
+        self.assertEqual(manifest['minimum_oracle'],'0.3.3')
+        self.assertTrue(any(r['path'].startswith('SISTEMA/recursos-skills/') for r in manifest['files']))
+
     def test_complete_signed_snapshot_preserves_resources_and_source(self):
         manifest, packages, report = self.build()
         self.assertEqual(report['problems'], [])

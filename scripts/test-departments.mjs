@@ -226,3 +226,14 @@ test('department folders place new skills in the chosen department with reachabl
  assert.equal(model.specialistByID.get('my-writing').department,'department/content');
  assert.equal(model.specialistByID.get('code').department,'department/code');
 });
+
+
+test('structured departments keep frontend collections under the frontend specialist',()=>{
+  const entries=['codigo/frontend/impeccable','codigo/frontend/richard-design','oferta/alex-hormozi/offers','marketing/corey-haines/strategy'].map(path=>({path:`SISTEMA/skills/${path}/SKILL.md`,name:'SKILL.md',directory:false}));
+  const model=catalog(entries);
+  assert.equal(model.specialistByID.get('frontend').department,'department/code');
+  assert.equal(model.specialistByID.get('frontend').skillCount,2);
+  assert.equal(model.specialistByID.get('alex-hormozi').department,'department/oferta');
+  assert.equal(model.specialistByID.get('corey-haines').department,'department/marketing');
+  assert.equal(model.skillCount,4);
+});

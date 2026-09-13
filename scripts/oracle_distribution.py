@@ -23,7 +23,8 @@ DOMAIN = b'oracle-distribution-v3\x00'
 PIN = '2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d'
 VERSION = '0.48.4.0'
 ROOTS = {'skills': 'specialists', 'prompts': 'prompts', 'tutoriais': 'tutorials'}
-TARGETS = {'skills': 'skills', 'prompts': 'prompts', 'tutoriais': 'Tutoriais'}
+TARGETS = {'skills': 'skills', 'recursos-skills': 'recursos-skills', 'prompts': 'prompts', 'tutoriais': 'Tutoriais'}
+DEPARTMENTS = {'codigo':'code','conversao':'conversao','entrega':'entrega','leads':'leads','marketing':'marketing','oferta':'oferta','sistemas':'sistemas','trafego':'trafego','vendas':'sales'}
 MAX_FILE = 32_000_000
 MAX_PACKAGE_BYTES = 32_000_000
 MAX_PACKAGE_FILES = 1000
@@ -127,7 +128,10 @@ def read_stable(path, info=None):
 def inventory(source):
     """Metadata inventory reports every exclusion instead of silently dropping it."""
     rows, problems, directories = [], [], {}
-    for name, kind in ROOTS.items():
+    roots = dict(ROOTS)
+    if (source / "SISTEMA/recursos-skills").exists():
+        roots["recursos-skills"] = "specialists"
+    for name, kind in roots.items():
         root = source / 'SISTEMA' / name
         try:
             fd = directory_fd(root)
@@ -278,6 +282,7 @@ def audit_portability(rows, blobs, review):
     names = set()
     mapping = review.get('items', {})
     defaults = approved_departments()
+    structured = review.get('skills_layout') == 'department-specialist-skill'
     for row in rows:
         path, data = row['path'], blobs[row['path']]
         try:
@@ -314,18 +319,25 @@ def audit_portability(rows, blobs, review):
                     matches = [p for p in known if p == target or p.endswith('/' + target)]
                     if len(matches) != 1:
                         problems.append({'path': path, 'code': 'ambiguous_or_missing_wikilink', 'reference': ref})
-        kind = 'skill' if PurePosixPath(path).name == 'SKILL.md' and row['kind'] == 'specialists' else {'prompts': 'prompt', 'tutorials': 'tutorial'}.get(row['kind']) if path.lower().endswith('.md') else None
+        kind = 'skill' if PurePosixPath(path).name == 'SKILL.md' and path.startswith('SISTEMA/skills/') and row['kind'] == 'specialists' and (not structured or len(PurePosixPath(path).parts) == 6) else {'prompts': 'prompt', 'tutorials': 'tutorial'}.get(row['kind']) if path.lower().endswith('.md') else None
         if not kind:
             continue
         info = mapping.get(path, {})
         item_id = info.get('id', kind + '-' + sha(path.encode())[:20])
         require(re.fullmatch(r'[a-z0-9][a-z0-9-]{0,54}', item_id) is not None, 'Invalid stable item ID')
         required = [p for p in known if p.startswith(str(PurePosixPath(path).parent) + '/')] if kind == 'skill' else [path]
+        if kind == 'skill':
+            for dependency in info.get('required_files', []):
+                require(dependency in known, 'Missing declared skill resource: ' + dependency)
+                required.append(dependency)
         item = {'id': item_id, 'kind': kind, 'name': info.get('name', PurePosixPath(path).parent.name if kind == 'skill' else PurePosixPath(path).stem),
-                'entry': path, 'required_files': sorted(required), 'department_id': info.get('department_id', defaults.get(PurePosixPath(path).parts[2], 'unassigned') if kind == 'skill' else 'unassigned'),
+                'entry': path, 'required_files': sorted(set(required)), 'department_id': info.get('department_id', defaults.get(PurePosixPath(path).parts[2], 'unassigned') if kind == 'skill' else 'unassigned'),
                 'dependencies': info.get('dependencies', [])}
         if kind == 'skill':
-            item['specialist_id'] = PurePosixPath(path).parts[2]
+            item['specialist_id'] = PurePosixPath(path).parts[3 if structured else 2]
+            if structured:
+                require(PurePosixPath(path).parts[2] in DEPARTMENTS, 'Unknown structured department')
+                item['department_id'] = DEPARTMENTS[PurePosixPath(path).parts[2]]
             if len(item['specialist_id'].encode())>64 or not re.fullmatch(r'[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*',item['specialist_id']):
                 problems.append({'path':path,'code':'invalid_specialist_identity'})
             try:
@@ -350,7 +362,7 @@ def audit_portability(rows, blobs, review):
         items.append(item)
     departments = {}
     for item in items:
-        if item['department_id'] not in {'code','design','marketing','sales','research','content','unassigned'}:
+        if item['department_id'] not in {'code','design','marketing','sales','research','content','unassigned',*DEPARTMENTS.values()}:
             problems.append({'path':item['entry'],'code':'invalid_department'})
         specialist = item.get('specialist_id')
         if specialist:
@@ -496,13 +508,15 @@ def build(source, release_id, sequence, review, gbrain_source, base_url):
     require(len(rows) <= MAX_FILES and sum(r['size'] for r in rows) <= MAX_BYTES, 'Complete distribution exceeds supported budget')
     packages, payloads = make_packages(rows, blobs, release_id, base_url)
     counts = {kind: {'files': sum(r['kind'] == kind for r in rows), 'bytes': sum(r['size'] for r in rows if r['kind'] == kind), 'items': sum(i['kind'] == {'specialists': 'skill', 'prompts': 'prompt', 'tutorials': 'tutorial'}.get(kind) for i in items)} for kind in sorted({r['kind'] for r in rows})}
-    manifest = {'schema_version': SCHEMA, 'release_id': release_id, 'sequence': sequence, 'minimum_oracle': '0.3.0',
+    manifest = {'schema_version': SCHEMA, 'release_id': release_id, 'sequence': sequence, 'minimum_oracle': '0.3.3' if review.get('skills_layout') == 'department-specialist-skill' else '0.3.0',
                 'adapter_commit': PIN, 'gbrain_version': VERSION, 'gbrain_commit': PIN, 'packages': packages, 'files': rows, 'items': items,
                 'counts': counts, 'inventory_sha256': sha(canonical(rows)), 'source_inventory_sha256': report['source_inventory_sha256'],
                 'licenses': review.get('licenses', []), 'adaptations': adaptations, 'supplemental_files': additions, 'renames': review.get('renames', []),
                 'publication_examples': report['publication_examples'], 'machine_path_reviews': report['machine_path_reviews'],
                 'capabilities': ['files', 'keyword-search', 'explicit-links', 'canonical-editing'],
                 'components': {'runtime': {'source': 'signed-app-bundle', 'version': VERSION}, 'gbrain-method': {'source': 'signed-app-bundle', 'commit': PIN}}}
+    if review.get('skills_layout') == 'department-specialist-skill':
+        manifest['skills_layout'] = 'department-specialist-skill'
     require(manifest['licenses'], 'Distribution needs reviewed license inventory')
     return manifest, payloads, report
 

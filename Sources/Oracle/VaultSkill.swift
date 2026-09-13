@@ -14,7 +14,11 @@ extension Core {
             let previous=(try? readJSON(ledgerURL)) ?? [:]
             let skills=try scoped(".agents/skills",root:host)
             try fm.createDirectory(at:skills,withIntermediateDirectories:true)
-            func destination(_ name:String)throws->URL {try scoped("SISTEMA/skills/Pesquisa/obsidian/"+name,root:root)}
+            func destination(_ name:String)throws->URL {
+                let legacy=try scoped("SISTEMA/skills/Pesquisa/obsidian/"+name,root:root)
+                if previous["folder"] as? String==legacy.path {return legacy}
+                return try scoped("SISTEMA/skills/sistemas/obsidian/"+name,root:root)
+            }
             func occupied(_ name:String)throws->Bool {
                 let link=skills.appendingPathComponent(name)
                 if let target=try? fm.destinationOfSymbolicLink(atPath:link.path) {return target != (try destination(name)).path}

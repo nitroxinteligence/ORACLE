@@ -56,12 +56,18 @@ export function validateManifest(input) {
   }};
 }
 
-/** Canonical local path evidence, not a search over labels or package metadata. */
+const folderDepartments={'Código':'code','Marketing':'marketing','Conteúdo':'content','Vendas':'sales','Design':'design','Pesquisa':'research','Outros':'unassigned'};
+export function departmentForEntry(entry,skillRoot='SISTEMA/skills') {
+  const parts=entry?.path?.split('/')||[];
+  return parts.slice(0,2).join('/')===skillRoot && Object.hasOwn(folderDepartments,parts[2]) ? folderDepartments[parts[2]]:null;
+}
+/** Canonical local path evidence, including department folders. */
 export function collectionForEntry(entry, skillRoot='SISTEMA/skills') {
   if (!entry || typeof entry.path !== 'string') return null;
   const parts = entry.path.split('/');
   if (parts.length < 3 || parts.slice(0,2).join('/') !== skillRoot || !parts.every(segment)) return null;
   if (parts.length === 3 && !entry.directory) return null;
+  if (Object.hasOwn(folderDepartments,parts[2])) return parts.length>=5 || (parts.length===4&&entry.directory) ? parts[3]:null;
   return parts[2];
 }
 
@@ -104,8 +110,10 @@ export function createCatalog(collections = [], entries = [], input = FALLBACK_M
     if (!entry.directory && entry.name === 'SKILL.md' && entry.path.endsWith('/SKILL.md')) discovered.get(id).set(entry.path, entry);
   }
   const departmentRows = [...manifest.departments], known = new Set(departmentRows.map(d => d.id)), assigned = new Map();
+  const folderAssignments=Object.create(null);
+  for(const entry of entries){const id=collectionForEntry(entry,skillRoot),department=departmentForEntry(entry,skillRoot);if(id&&department)folderAssignments[id]=department;}
   const overrides = assignments && typeof assignments === 'object' && !Array.isArray(assignments) ? assignments : {};
-  for (const [id, value] of Object.entries(overrides).sort(([a],[b]) => compare(a,b))) {
+  for (const [id, value] of Object.entries({...overrides,...folderAssignments}).sort(([a],[b]) => compare(a,b))) {
     if (!segment(id) || !discovered.has(id)) continue;
     const target = departmentID(value);
     if (!target) continue;
@@ -119,11 +127,13 @@ export function createCatalog(collections = [], entries = [], input = FALLBACK_M
   }
   const specialists = [...discovered].sort(([a],[b]) => compare(a,b)).map(([id, docs]) => {
     const description = descriptions.get(id), name = text(description?.name) ? description.name : id.replace(/[-_]/g, ' ');
-    const groups = catalogGroups(id, [...docs.values()],skillRoot);
+    const sample=[...docs.values()][0]||entries.find(e=>collectionForEntry(e,skillRoot)===id);
+    const physicalRoot=departmentForEntry(sample,skillRoot)?`${skillRoot}/${sample.path.split('/')[2]}`:skillRoot;
+    const groups = catalogGroups(id, [...docs.values()],physicalRoot);
     const department = assigned.get(id) || exact.get(id) || aliases.get(normalize(id)) || aliases.get(normalize(name)) || manifest.fallback_department;
     const skills = [...docs.values()].sort((a,b) => compare(a.path,b.path));
     return {id, name, icon:description?.icon || 'tool', color:identity(id).color,
-      kind:'specialist', department, originPath:`${skillRoot}/${id}`, groups, skills,
+      kind:'specialist', department, originPath:`${physicalRoot}/${id}`, groups, skills,
       skillCount:skills.length, empty:!skills.length, state:skills.length ? 'ready' : 'empty',
       assignment:assigned.has(id) ? 'user' : exact.has(id) ? 'manifest-id' : aliases.has(normalize(id)) || aliases.has(normalize(name)) ? 'manifest-alias' : 'fallback'};
   });

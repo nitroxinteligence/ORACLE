@@ -26,10 +26,7 @@ extension Core {
             guard item["plan_hash"] as? String==plan["plan_hash"] as? String,item["install_id"] as? String==id,item["generation"] as? String==plan["distribution_sha256"] as? String else{continue}
             guard let itemID=item["item_id"] as? String,itemID != "sol",let kind=item["kind"] as? String else{continue}
             var row:[String:Any]=["id":itemID,"kind":kind,"label":item["name"] ?? itemID,"evidence":"persisted verified installation event","sequence":item["sequence"] ?? 0]
-            if let entry=item["entry"] as? String,let roots=plan["library_roots"] as? [String:String] {
-                let mappings=[("SISTEMA/skills",roots["skills"]),("SISTEMA/prompts",roots["prompt"]),("SISTEMA/Tutoriais",roots["tutorial"])]
-                row["path"]=mappings.first(where:{entry.hasPrefix($0.0+"/")}).flatMap{mapping in mapping.1.map{$0+String(entry.dropFirst(mapping.0.count))}} ?? entry
-            }
+            if let entry=item["entry"] as? String {row["path"]=try distributionRelativePath(entry,plan:plan)}
             row["department_id"]=item["department_id"];row["specialist_id"]=item["specialist_id"]
             result.append(row)
         }
@@ -48,7 +45,8 @@ extension Core {
         for entry in entries where entry["directory"] as? Bool != true && entry["name"] as? String == "SKILL.md" {
             let parts=(entry["path"] as? String ?? "").split(separator:"/").map(String.init)
             let library=(config["libraryRoots"] as? [String:String])?["skills"] ?? "SISTEMA/skills"
-            if parts.count>=4,parts.prefix(2).joined(separator:"/")==library,!known.contains(parts[2]) {extra.insert(parts[2])}
+            let index=parts.count>3 && Core.skillDepartmentFolders.values.contains(parts[2]) ? 3:2
+            if parts.count>index+1,parts.prefix(2).joined(separator:"/")==library,!known.contains(parts[index]) {extra.insert(parts[index])}
         }
         for id in extra.sorted() {known.insert(id);rows.append(["id":id,"name":id.replacingOccurrences(of:"-",with:" ").replacingOccurrences(of:"_",with:" ").capitalized,"icon":"tool"])}
         return rows

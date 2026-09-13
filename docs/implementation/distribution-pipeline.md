@@ -204,3 +204,33 @@ https://developer.apple.com/forums/thread/114456
 
 Bun compiled-executable targets, configuration autoload and signing requirements:
 https://bun.com/docs/bundler/executables
+
+
+## Department folders and graph indexes (0.3.11)
+
+Fresh v3 plans map authenticated logical `SISTEMA/skills/<specialist>/...` paths
+into `SISTEMA/skills/<department>/<specialist>/...`. The immutable plan records
+`skill_department_folders`; package signatures, source entries and byte hashes
+remain unchanged. All resources move as one specialist subtree, preserving
+relative references. The vault inventory publishes physical entries. Codex links,
+installation receipts and the app catalog use the same destination mapping.
+Existing confirmed flat installations retain their layout during updates rather
+than duplicating or moving user files. A fresh onboarding uses the new layout.
+Explicit department folder membership also classifies user-added skills.
+
+Update writes remain restricted to authenticated managed catalog files and the
+Second Brain runtime. Personal notes are not update destinations. Edited catalog
+files remain conflicts; deletion/rollback checks reject destinations outside the
+skills, prompts and tutorials roots. Oracle's own inventory receipt is separate.
+
+New daily maintenance consent includes local graph indexes, disclosed on the
+installation screen. Old consent does not enable this phase. Maintenance creates
+only `SISTEMA/indices/oracle-graph/*.md`, linking readable existing Markdown by
+folder with at most 200 links per index and a root map. It does not relocate notes,
+infer semantic relations, edit originals or change `.obsidian` preferences.
+A complete scan and matching owned hashes are required; edited indexes are
+preserved as conflicts. Durable intents support interrupted writes. The next
+complete maintenance removes obsolete owned index pages without deleting notes.
+
+References: https://help.obsidian.md/plugins/graph and https://help.obsidian.md/links
+(Graph edges represent internal links; folders alone do not create edges).

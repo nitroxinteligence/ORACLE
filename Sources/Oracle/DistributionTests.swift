@@ -90,8 +90,11 @@ func runDistributionTests() throws {
     try rejects("partial or empty inventory rejected even with valid signature"){_=try decode(signed(bad))}
     let firstPackage=manifest.packages[0],packageData=payloads[firstPackage["url"] as! String]!
     try rejects("corrupt package is rejected"){_=try manifest.decodePackage(packageData+Data([0]),metadata:firstPackage)}
+    try rejects("distribution cannot overwrite or delete personal notes via a ledger destination"){_=try core.distributionOwnedDestination(vault.appendingPathComponent("AREAS/pessoal/nota.md").path,root:vault)}
     try cache(manifest)
     let plan=try core.makeMemoryOnlyPlan(manifest:manifest,id:UUID().uuidString)
+    try check(try core.distributionRelativePath(skill,plan:plan)=="SISTEMA/skills/Pesquisa/research-lab/example/SKILL.md","fresh installation groups complete skills by department")
+    try check(try core.distributionRelativePath(resource,plan:plan)=="SISTEMA/skills/Pesquisa/research-lab/example/references/reference.txt","relative skill resources remain together")
     try check(try core.memoryOnlyInstallationMode()=="install","absent GBrain selects fresh installation")
     let reuse=try Core(home:base.appendingPathComponent("reuse-state"));reuse.config["vault"]=vault.path;try reuse.persist()
     let reuseProfile=reuse.home.appendingPathComponent("gbrain/profile"),reuseDatabase=reuse.home.appendingPathComponent("gbrain/profile/.gbrain/db")
@@ -123,7 +126,7 @@ func runDistributionTests() throws {
     try atomicWriteData(Data("corrupt cache fixture".utf8),to:cachedFile)
     try core.stageDistribution(manifest,plan:plan,fetch:{url,_ in guard let data=payloads[url] else{throw failure("Unexpected fixture download")};return data})
     try check(try fileDigest(cachedFile)==cachedPackage["sha256"] as? String,"retry replaces corrupted owned cache only after a verified download")
-    try check(!fm.fileExists(atPath:vault.appendingPathComponent(skill).path),"staging all packages never applies a partial distribution")
+    try check(!fm.fileExists(atPath:vault.appendingPathComponent("SISTEMA/skills/Pesquisa/research-lab/example/SKILL.md").path),"staging all packages never applies a partial distribution")
     if realEngine != nil {
         _=try core.initializeMemoryOnly(plan:plan)
         let config=try readJSON(state.appendingPathComponent("gbrain/profile/.gbrain/config.json")),database=URL(fileURLWithPath:config["database_path"] as! String)
@@ -182,7 +185,7 @@ func runDistributionTests() throws {
         try fm.createDirectory(at:secondVault,withIntermediateDirectories:true)
         _=try core.runRuntimeGeneration(["operation":"runtime-generation","action":"switch-vault","id":UUID().uuidString,"vault":secondVault.path])
         core.refreshConfig()
-        try check(core.config["vault"] as? String==secondVault.path && fm.fileExists(atPath:vault.appendingPathComponent(skill).path),"selecting another vault preserves original canonical files")
+        try check(core.config["vault"] as? String==secondVault.path && fm.fileExists(atPath:vault.appendingPathComponent("SISTEMA/skills/Pesquisa/research-lab/example/SKILL.md").path),"selecting another vault preserves original canonical files")
         try check(!fm.fileExists(atPath:state.appendingPathComponent("setup/plan.json").path),"new vault receives a separate plan and preserved prior profile")
         let secondPlan=try core.makeMemoryOnlyPlan(manifest:manifest,id:UUID().uuidString)
         try core.stageDistribution(manifest,plan:secondPlan,fetch:{url,_ in payloads[url]!})
@@ -220,7 +223,7 @@ func runDistributionTests() throws {
     try atomicWriteData(Data("user edit".utf8),to:vault.appendingPathComponent(prompt))
     try rejects("local edits block completion without overwriting originals"){_=try core.applyDistribution(next,plan:nextPlan)}
     try check(try String(contentsOf:vault.appendingPathComponent(prompt))=="user edit","local prompt edit preserved")
-    try check(try String(contentsOf:vault.appendingPathComponent(skill)).contains("# Example") && !String(contentsOf:vault.appendingPathComponent(skill)).contains("new version"),"conflict preflight prevents unrelated partial writes")
+    try check(try String(contentsOf:vault.appendingPathComponent("SISTEMA/skills/Pesquisa/research-lab/example/SKILL.md")).contains("# Example") && !String(contentsOf:vault.appendingPathComponent("SISTEMA/skills/Pesquisa/research-lab/example/SKILL.md")).contains("new version"),"conflict preflight prevents unrelated partial writes")
     let resolved=try core.resolveDistributionConflicts()
     try check(resolved["copies"] as? Int==1,"explicit conflict resolution verifies a copy before authorizing replacement")
     let copy=vault.appendingPathComponent("INBOX/oracle/conflitos/"+(nextPlan["id"] as! String)+"/"+prompt)
@@ -232,14 +235,14 @@ func runDistributionTests() throws {
     try core.stageDistribution(removed,plan:removedPlan,fetch:{url,_ in removedFixture.1[url]!})
     _=try core.applyDistribution(removed,plan:removedPlan)
     let ledger=try readJSON(core.distributionLedgerURL)
-    try check(!fm.fileExists(atPath:vault.appendingPathComponent(resource).path) && (ledger["tombstones"] as? [[String:Any]])?.count==1,"removed unedited owned resource is archived with tombstone")
+    try check(!fm.fileExists(atPath:vault.appendingPathComponent("SISTEMA/skills/Pesquisa/research-lab/example/references/reference.txt").path) && (ledger["tombstones"] as? [[String:Any]])?.count==1,"removed unedited owned resource is archived with tombstone")
     let tombstone=(ledger["tombstones"] as! [[String:Any]])[0]
     try check(fm.fileExists(atPath:tombstone["recovery"] as! String),"release removal preserves recovery bytes")
     _=try core.installDistributionSkills(removed,plan:removedPlan)
     try atomicWriteData(Data("edit after release three".utf8),to:vault.appendingPathComponent(prompt))
     let rollback=try core.rollbackDistribution()
     try check((rollback["preserved"] as? [String])?.contains(prompt)==true && (try String(contentsOf:vault.appendingPathComponent(prompt)))=="edit after release three","rollback preserves canonical edits made after the update")
-    try check((try String(contentsOf:vault.appendingPathComponent(resource))).contains("new version"),"rollback restores retired resources from their exact preimage")
+    try check((try String(contentsOf:vault.appendingPathComponent("SISTEMA/skills/Pesquisa/research-lab/example/references/reference.txt"))).contains("new version"),"rollback restores retired resources from their exact preimage")
     try check((try readJSON(state.appendingPathComponent("setup/plan.json")))["id"] as? String==nextPlan["id"] as? String,"content rollback restores the previous immutable plan")
     let link=core.distributionHostHome().appendingPathComponent(".agents/skills/oracle-skill-example")
     try fm.removeItem(at:link);try fm.createDirectory(at:link,withIntermediateDirectories:true)

@@ -213,3 +213,16 @@ test('resolved skills root and forming receipts exclude phantom departments', ()
   assert.equal(model.departments.length,1);
   assert.equal(createCatalog([],entries,manifest,{},'SISTEMA/skills',true).skillCount,0);
 });
+
+test('department folders place new skills in the chosen department with reachable groups',()=>{
+ const entries=[{path:'SISTEMA/skills/Marketing/my-expert/custom/SKILL.md',name:'SKILL.md'},
+ {path:'SISTEMA/skills/Código/code/build/SKILL.md',name:'SKILL.md'},
+ {path:'SISTEMA/skills/Conteúdo/my-writing/SKILL.md',name:'SKILL.md'}];
+ const model=createCatalog([],entries,manifest,{});
+ assert.equal(model.skillCount,3);
+ assert.equal(model.specialistByID.get('my-expert').department,'department/marketing');
+ assert.equal(model.specialistByID.get('my-expert').originPath,'SISTEMA/skills/Marketing/my-expert');
+ assert.equal(model.specialistByID.get('my-expert').groups[0].skills.length,1);
+ assert.equal(model.specialistByID.get('my-writing').department,'department/content');
+ assert.equal(model.specialistByID.get('code').department,'department/code');
+});

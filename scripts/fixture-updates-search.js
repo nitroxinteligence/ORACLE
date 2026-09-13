@@ -29,9 +29,9 @@
    await check('Check is read-only and keeps its button during polling',async()=>{
     const button=q('#check-updates');click('#check-updates');await wait(()=>status.busy,'check started');
     assert(f.calls.filter(c=>c.method==='updateStart').at(-1).params.operation==='check-only','Check started an install');
-    await sleep(900);assert(q('#check-updates')===button,'poll replaced button');assert(q('#modal .ob2-beam'),'missing beam');
+    await sleep(900);assert(q('#check-updates')===button,'poll replaced button');assert(!q('#modal .update-status .ob2-beam'),'status beam was not removed');
     assert(getComputedStyle(button).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(button).borderTopWidth==='0px','Check is not text-only');
-    status={...status,busy:false,phase:'complete'};await pollUpdateStatus();await wait(()=>!button.disabled,'check completion');
+    status={...status,busy:false,phase:'complete'};await pollUpdateStatus();await wait(()=>!button.disabled,'check completion');assert(q('#update-message').classList.contains('update-ready-badge'),'success badge missing');assert(q('.update-result').classList.contains('update-success'),'green card border missing');window.__fixtureSnapshotSaved=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot',name:'options'});await wait(()=>window.__fixtureSnapshotSaved,'green updates screenshot');
    });
    await check('Install has its own progress dialog and reopening never disables the icon',async()=>{
     const metal=q('#apply-update-metal button');assert(metal.getBoundingClientRect().height<=38,'install action too tall');assert(getComputedStyle(metal).backgroundImage.includes('gradient'),'metal fallback missing');
@@ -45,7 +45,7 @@
    await check('Terminal backend error replaces the spinner with its exact cause',async()=>{
     status={...status,busy:false,phase:'failed',error:'Markdown ainda não está disponível localmente.',results:[{id:'skills',status:'error',message:'Markdown ainda não está disponível localmente.'}]};
     await pollUpdateStatus();await wait(()=>q('#update-progress').hidden,'spinner stopped');
-    assert(q('#update-message').textContent===status.error,'actual error hidden');
+    assert(q('#update-message').textContent===status.error,'actual error hidden');assert(q('#update-message').classList.contains('update-error'),'red error badge missing');window.__fixtureSnapshotSaved=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot',name:'installation'});await wait(()=>window.__fixtureSnapshotSaved,'red update screenshot');
     assert(q('#modal-title').textContent==='Atualização não concluída','false success');
     await closeModal(true);
    });

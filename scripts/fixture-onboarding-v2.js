@@ -109,6 +109,7 @@
         f.installMaintenance=clone(params.maintenance);f.ob.maintenance={...clone(params.maintenance),registered:false};
         f.ob={...f.ob,status:'running',phase:'installing',profileMode:'memory-only',schemaVersion:3,runID:'memory-only-fixture',confirmed:[{id:'sol',kind:'core',label:'Oracle'}]};return clone(f.ob);
       case 'onboardingOpenCodex':return true;
+      case 'onboardingVerifyIntegration':await sleep(200);f.ob.integrationPending=!f.trustReady;return {...clone(f.ob),integrationMessage:f.trustReady?'Integração confirmada. Seu Oracle está pronto.':'Há hooks aguardando confiança no Codex.'};
       case 'onboardingResume':f.ob.status='running';return clone(f.ob);
       case 'onboardingCancel':f.ob.status='paused';return clone(f.ob);
       case 'memoryStatus':return {status:'idle'};
@@ -245,7 +246,12 @@
         await wait(()=>!q('.ob2-installation').hidden&&visible(q('[data-open-codex] button')),'integration card');assert(q('.ob2-installation').getBoundingClientRect().top>=12,'Codex handoff clipped above window');const buttons=qa('.ob2-codex-actions button');assert(buttons.every(b=>!b.classList.contains('ob2-metal-button')&&b.getBoundingClientRect().height<=32),'handoff actions are not compact plain buttons');assert(new Set(buttons.map(b=>Math.round(b.getBoundingClientRect().top))).size===1,'handoff actions wrap');assert(q('.ob2-installation').getBoundingClientRect().width>=500,'handoff card too narrow');const card=q('.ob2-installation').getBoundingClientRect(),tabs=q('.workspace-tabs').getBoundingClientRect();assert(card.right<=tabs.left||card.top>=tabs.bottom,'handoff card obscures navigation');
         click('[data-copy-codex] button');await wait(()=>f.copied?.includes('Synthetic request'),'copied registration procedure');
         assert(!qa('.verified-connector').length,'unexpected graph connectors');
-        f.ob.integrationPending=false;
+        await sleep(50);click('[data-verify-codex] button');
+        await wait(()=>q('[data-verify-codex] button')?.disabled,'verification busy state');
+        await wait(()=>q('.ob2-install-error').textContent.includes('aguardando confiança'),'actionable hook status');
+        await wait(()=>!q('[data-verify-codex] button').disabled,'verify retry enabled');
+        await sleep(30);f.trustReady=true;click('[data-verify-codex] button');
+        await wait(()=>q('.ob2-installation').hidden,'successful Verify dismisses integration');
       });
       await check('Completion removes progress without additional interview',async()=>{
         f.ob.status='completed';f.ob.message='Pronto';await OracleOnboarding.poll();

@@ -64,3 +64,20 @@ extension Core {
         return context.isEmpty ? [:] : ["hookSpecificOutput":["hookEventName":event,"additionalContext":context]]
     }
 }
+
+/// Public hooks/list evidence. Unrelated optional hooks cannot block the three
+/// events needed by memory; installed files alone never confer trust.
+enum OracleHookVerification {
+    static func check(_ response:[String:Any],path:String,workspace:String) -> (trusted:Bool,message:String) {
+        let groups=(response["data"] as? [[String:Any]] ?? []).filter{$0["cwd"] as? String==workspace}
+        if groups.contains(where:{!($0["errors"] as? [Any] ?? []).isEmpty}) {return (false,"O Codex informou um erro ao carregar os hooks deste workspace. Confira os hooks no Codex e tente novamente.")}
+        let hooks=groups.flatMap{$0["hooks"] as? [[String:Any]] ?? []}.filter{($0["sourcePath"] as? String)==path || ($0["key"] as? String ?? "").hasPrefix(path+":")}
+        if hooks.isEmpty {return (false,"O Codex ainda não carregou os hooks do Oracle. Abra o workspace Oracle e revise os hooks no Codex.")}
+        let required=["sessionStart","userPromptSubmit","stop"]
+        let missing=required.filter{event in
+            let handlers=hooks.filter{$0["eventName"] as? String==event}
+            return handlers.isEmpty || !handlers.allSatisfy{$0["enabled"] as? Bool==true && $0["trustStatus"] as? String=="trusted"}
+        }
+        return missing.isEmpty ? (true,"Hooks confirmados no Codex.") : (false,"Há hooks de memória desativados ou aguardando confiança no Codex. Revise SessionStart, UserPromptSubmit e Stop no workspace Oracle e clique em Verificar.")
+    }
+}

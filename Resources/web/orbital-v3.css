@@ -840,3 +840,15 @@ body:has(#modal[open][data-family=update-installing]) .ob2-installation {display
 #modal #apply-update-metal .metal-fx-root,#modal #update-notice-metal .metal-fx-root{width:100%!important;height:100%!important;min-height:36px;border-radius:inherit!important}
 
 #atlas .atlas-scene{cursor:default}
+
+/* Update feedback: translucent states and the modal's directional edge. */
+#modal .update-status {border:0;background:transparent;box-shadow:none;padding:0;margin:16px 0;}
+#modal .update-status .ob2-status-body {padding:0;}
+#update-message.update-ready-badge,#update-message.update-error {display:inline-flex;justify-self:start;max-width:100%;padding:6px 12px;border:0;border-radius:999px;line-height:1.5;}
+#update-message.update-ready-badge {background:#50c87820;color:#b9f0cd;}
+#update-message.update-error {background:#ed555524;color:#ffb4b4;}
+#modal .update-result {border:1px solid transparent;background:linear-gradient(#080808,#080808) padding-box,var(--floating-edge) border-box;}
+#modal .update-result.update-success {--floating-edge:linear-gradient(145deg,#a3e9b9 0%,#39704b 14%,#102719 36%,#254b32 66%,#b7f4ca 91%,#4a9160 100%);}
+#modal .update-result.update-failure {--floating-edge:linear-gradient(145deg,#ffb4b4 0%,#854040 14%,#311717 36%,#613030 66%,#ffd0d0 91%,#a65353 100%);}
+#modal .update-result.update-success .status-badge {background:#50c87820;color:#b9f0cd;border:1px solid #6cda9730;}
+#modal .update-result.update-failure .status-badge {background:#ed555524;color:#ffb4b4;border:1px solid #ed555530;}

@@ -123,14 +123,43 @@ extension Core {
         }
         return result
     }
+    static let skillDepartmentFolders=["code":"Código","marketing":"Marketing","content":"Conteúdo","sales":"Vendas","design":"Design","research":"Pesquisa","unassigned":"Outros"]
+    func distributionSkillFolders(_ manifest:DistributionManifest) -> [String:String] {
+        // Existing immutable installations retain their mapping on update. New
+        // installations use departments without creating a second legacy copy.
+        var previous=[String:String]()
+        if let ledger=try? readJSON(distributionLedgerURL),ledger["vault"] as? String==config["vault"] as? String,
+           !(ledger["files"] as? [String:Any] ?? [:]).isEmpty {
+            previous=((try? readJSON(home.appendingPathComponent("setup/plan.json")))?["skill_department_folders"] as? [String:String]) ?? [:]
+            if previous.isEmpty{return [:]}
+        }
+        var result=previous
+        for item in manifest.items where item.kind=="skill" {
+            if let specialist=item.specialist {result[specialist]=previous[specialist] ?? Self.skillDepartmentFolders[item.department]!}
+        }
+        return result
+    }
+    func distributionRelativePath(_ path:String,plan:[String:Any]) throws -> String {
+        let roots=plan["library_roots"] as? [String:String] ?? [:]
+        for (logical,key) in [("SISTEMA/skills","skills"),("SISTEMA/prompts","prompt"),("SISTEMA/Tutoriais","tutorial")] where path.hasPrefix(logical+"/") {
+            guard let actual=roots[key],portablePathKey(actual)==portablePathKey(logical),actual.split(separator:"/").count==2 else{throw failure("Raiz da biblioteca fora do contrato.")}
+            let suffix=String(path.dropFirst(logical.count+1))
+            if key=="skills",let specialist=suffix.split(separator:"/").first,
+               let department=(plan["skill_department_folders"] as? [String:String])?[String(specialist)] {
+                guard Self.skillDepartmentFolders.values.contains(department) else{throw failure("Departamento fora do contrato.")}
+                return actual+"/"+department+"/"+suffix
+            }
+            return actual+"/"+suffix
+        }
+        return path
+    }
     func distributionDestination(_ file:DistributionFile,plan:[String:Any]) throws -> URL {
         if !file.isVault {return try scoped(file.path,root:home)}
         guard let roots=plan["library_roots"] as? [String:String],let rootPath=plan["vault"] as? String,rootPath==config["vault"] as? String else{throw failure("O destino do plano mudou.")}
-        let key=["specialists":"skills","prompts":"prompt","tutorials":"tutorial"][file.kind]!
-        let logical=["skills":"SISTEMA/skills","prompt":"SISTEMA/prompts","tutorial":"SISTEMA/Tutoriais"][key]!
-        guard let actual=roots[key],portablePathKey(actual)==portablePathKey(logical),actual.split(separator:"/").count==2 else{throw failure("Raiz da biblioteca fora do contrato.")}
-        return try scoped(actual+String(file.path.dropFirst(logical.count)),root:vault())
+        _=roots
+        return try scoped(distributionRelativePath(file.path,plan:plan),root:vault())
     }
+
     func distributionPreflight(_ manifest:DistributionManifest,roots:[String:String]) throws -> [String:Any] {
         let root=try vault(),technical=home.resolvingSymlinksInPath()
         guard root.path != technical.path,!root.path.hasPrefix(technical.path+"/"),!technical.path.hasPrefix(root.path+"/") else{throw failure("Vault e arquivos técnicos do Oracle não podem se sobrepor.")}
@@ -140,7 +169,7 @@ extension Core {
         guard snapshot.complete else{throw failure("Não foi possível inventariar o vault antes de instalar. "+(snapshot.issues.first?["error"] ?? "Revise a pasta."))}
         let existing=Dictionary(uniqueKeysWithValues:snapshot.entries.filter{$0["directory"] as? Bool != true}.compactMap{row -> (String,Int)? in guard let path=row["path"] as? String,let size=row["size"] as? Int else{return nil};return(path,size)})
         var eligible=existing
-        let temporary:[String:Any]=["vault":root.path,"library_roots":roots]
+        let temporary:[String:Any]=["vault":root.path,"library_roots":roots,"skill_department_folders":distributionSkillFolders(manifest)]
         for file in manifest.vaultFiles where file.path.lowercased().hasSuffix(".md") {
             let destination=try distributionDestination(file,plan:temporary),relative=String(destination.path.dropFirst(root.path.count+1))
             eligible[relative]=max(eligible[relative] ?? 0,file.size)
@@ -171,8 +200,10 @@ extension Core {
         let baseline=try scan(root:root),spaces=knowledgeSpaces(baseline)
         var folders=["INBOX/oracle","INBOX/oracle-memory/people","INBOX/oracle-memory/projects","INBOX/oracle-memory/signals","PROJETOS","WIKI/pessoas","WIKI/organizacoes","WIKI/conceitos","FONTES","DIARIO","OUTPUTS","ARQUIVO","SISTEMA/agentes","SISTEMA/modelos","SISTEMA/indices","SISTEMA/oracle"]
         folders += spaces.compactMap{$0["path"]}+roots.values.sorted()
+        let skillFolders=distributionSkillFolders(manifest)
+        if !skillFolders.isEmpty {folders += Self.skillDepartmentFolders.values.sorted().map{roots["skills"]!+"/"+$0}}
         let engine=try engineResources(),method=try Data(contentsOf:officialGBrainMethodRoot().appendingPathComponent("manifest.json"))
-        var plan:[String:Any]=["schema_version":3,"profile_mode":"memory-only","id":id,"vault":root.path,"library_roots":roots,"folders":folders,
+        var plan:[String:Any]=["schema_version":3,"profile_mode":"memory-only","id":id,"vault":root.path,"library_roots":roots,"skill_department_folders":skillFolders,"folders":folders,
             "knowledge_spaces":spaces,"catalog_collections":[String](),"attach":false,"executor":"native-local","template_profile":"complete-distribution-v3",
             "release_id":manifest.releaseID,"distribution_sha256":manifest.hash,"sequence":manifest.sequence,"preflight":preflight,
             "vault_identity":["device":Int64(identity.st_dev),"inode":UInt64(identity.st_ino)],
@@ -365,14 +396,18 @@ extension Core {
         }
     }
     func distributionOwnedDestination(_ path:String,root:URL) throws -> URL {
-        if path.hasPrefix(root.path+"/"){return try scoped(String(path.dropFirst(root.path.count+1)),root:root)}
+        if path.hasPrefix(root.path+"/"){
+            let relative=String(path.dropFirst(root.path.count+1)),key=portablePathKey(relative)
+            guard ["sistema/skills/","sistema/prompts/","sistema/tutoriais/"].contains(where:{key.hasPrefix($0)}) else{throw failure("Atualizações só podem modificar o acervo gerenciado de skills, prompts e tutoriais.")}
+            return try scoped(relative,root:root)
+        }
         let source=home.appendingPathComponent("sources/gbrain").path
         guard path.hasPrefix(source+"/") else{throw failure("Ledger aponta para fora dos destinos gerenciados.")}
         return try scoped(String(path.dropFirst(home.path.count+1)),root:home)
     }
     func publishDistributionInventory(_ manifest:DistributionManifest,plan:[String:Any]) throws {
         let root=try vault(),target=try scoped("SISTEMA/oracle/distribution.json",root:root)
-        let data=try jsonData(["schema_version":3,"release_id":manifest.releaseID,"manifest_sha256":manifest.hash,"counts":manifest.document["counts"]!,"items":manifest.items.map(\.raw),"library_roots":plan["library_roots"]!])
+        let data=try jsonData(["schema_version":3,"release_id":manifest.releaseID,"manifest_sha256":manifest.hash,"counts":manifest.document["counts"]!,"items":try manifest.items.map{item -> [String:Any] in var row=item.raw;row["source_entry"]=item.entry;row["entry"]=try distributionRelativePath(item.entry,plan:plan);row["required_files"]=try item.required.map{try distributionRelativePath($0,plan:plan)};return row},"library_roots":plan["library_roots"]!])
         let receipt=home.appendingPathComponent("distribution/vault-manifest.json"),old=try? readJSON(receipt)
         try coordinatedWrite(at:target) {_ in
             if fm.fileExists(atPath:target.path) {let hash=try fileDigest(target);guard hash==digest(data) || (old?["vault"] as? String==root.path && old?["sha256"] as? String==hash) else{throw failure("Manifesto do vault editado; arquivo preservado.")}}

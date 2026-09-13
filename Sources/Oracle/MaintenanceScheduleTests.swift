@@ -38,5 +38,30 @@ func runMaintenanceScheduleTests() throws {
     let rows:[[String:Any]]=[["model":"gpt-5.6-sol","defaultReasoningEffort":"low","supportedReasoningEfforts":[["reasoningEffort":"low"],["reasoningEffort":"medium"]]]]
     try check(try OracleCodexModel.choose(rows,preferred:"gpt-5.6-sol",preferredEffort:"medium").effort=="medium","maintenance overrides host default effort only when medium is supported")
     do{_=try OracleCodexModel.choose(rows,preferred:"missing",preferredEffort:"medium");throw failure("unexpected model fallback")}catch{try check(!error.localizedDescription.contains("unexpected"),"unavailable selected model fails without fallback")}
+    let hookPath="/fixture/.codex/hooks.json",workspace="/fixture"
+    let hooks:[[String:Any]]=["sessionStart","userPromptSubmit","stop"].map{["sourcePath":hookPath,"eventName":$0,"enabled":true,"trustStatus":"trusted"]}
+    func response(_ rows:[[String:Any]])->[String:Any]{["data":[["cwd":workspace,"hooks":rows]]]}
+    try check(OracleHookVerification.check(response(hooks),path:hookPath,workspace:workspace).trusted,"required hooks complete verification")
+    try check(OracleHookVerification.check(response(hooks+[["sourcePath":hookPath,"eventName":"postToolUse","enabled":false,"trustStatus":"untrusted"]]),path:hookPath,workspace:workspace).trusted,"unrelated disabled hook does not block memory integration")
+    try check(!OracleHookVerification.check(response(hooks+[["sourcePath":hookPath,"eventName":"stop","enabled":false,"trustStatus":"untrusted"]]),path:hookPath,workspace:workspace).trusted,"every required event handler must be trusted")
+    try check(!OracleHookVerification.check(response(Array(hooks.dropLast())),path:hookPath,workspace:workspace).trusted,"missing required hook remains pending")
+    try check(!OracleHookVerification.check(response(hooks),path:"/other/hooks.json",workspace:workspace).trusted,"other workspace hooks cannot prove trust")
+    try check(!OracleHookVerification.check(response([]),path:hookPath,workspace:workspace).message.isEmpty,"unavailable hooks return an actionable message")
+    let note=vault.appendingPathComponent("Pessoal/Plano com espaço.md")
+    try fm.createDirectory(at:note.deletingLastPathComponent(),withIntermediateDirectories:true)
+    try Data("# Nota pessoal\nNão alterar.\n".utf8).write(to:note)
+    let before=try fileDigest(note),first=try core.maintainGraphIndexes()
+    try check(first["notes"] as? Int==1 && first["indexes"] as? Int==2,"graph indexes link real notes through folder groups")
+    try check(try fileDigest(note)==before,"graph maintenance never rewrites personal notes")
+    try check(try core.maintainGraphIndexes()["changed"] as? Int==0,"unchanged graph maintenance performs no writes or duplicate indexes")
+    let graph=try readJSON(core.home.appendingPathComponent("maintenance/graph-index.json"))
+    let files=graph["files"] as! [String:String]
+    let group=files.keys.first{!$0.hasSuffix("Mapa.md")}!
+    try check(try String(contentsOf:vault.appendingPathComponent(group)).contains("Plano%20com%20espa"),"graph links URL encode actual note paths")
+    try fm.removeItem(at:note);_=try core.maintainGraphIndexes()
+    try check(!fm.fileExists(atPath:vault.appendingPathComponent(group).path),"removed notes retire only owned index pages")
+    let map=vault.appendingPathComponent("SISTEMA/indices/oracle-graph/Mapa.md")
+    try Data("Minha edição".utf8).write(to:map)
+    do{_=try core.maintainGraphIndexes();throw failure("unexpected graph overwrite")}catch{try check(!error.localizedDescription.contains("unexpected"),"edited graph index is preserved as a conflict")}
     print("Maintenance schedule: \(count) checks passed; isolated host fixtures only")
 }

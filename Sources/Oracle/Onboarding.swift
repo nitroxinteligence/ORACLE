@@ -617,18 +617,26 @@ final class OnboardingController {
         try writeJSON(["workspace":workspace,"skills":required.sorted(),"verifiedAt":ISO8601DateFormatter().string(from:Date()),"skillDiscoveryVerified":true,"identityFilesVerified":method["identity"] ?? false,"modelExecutionVerified":false,"hooksTrusted":false],core.home.appendingPathComponent("setup/codex-discovery.json"))
     }
     func verifyCodexIntegration() throws -> [String:Any] {
-        try requireAccess();_=try core.verifyGBrainBridge();try ensureBridge()
+        try requireAccess()
         let receipt=try readJSON(core.home.appendingPathComponent("setup/bridge.json"))
         guard let workspace=receipt["workspace"] as? String,let path=receipt["hooks"] as? String else{throw failure("A integração local ainda não foi instalada.")}
-        let response=try bridge.request("hooks/list",["cwds":[workspace]],timeout:15)
-        let groups=response["data"] as? [[String:Any]] ?? []
-        let hooks=groups.flatMap{$0["hooks"] as? [[String:Any]] ?? []}.filter{($0["key"] as? String ?? "").hasPrefix(path+":")}
-        let events=Set(hooks.compactMap{$0["eventName"] as? String})
-        let trusted=Set(["sessionStart","userPromptSubmit","stop"]).isSubset(of:events) && hooks.allSatisfy{$0["trustStatus"] as? String=="trusted" && $0["enabled"] as? Bool==true}
-        let status:[String:Any]=["hooksTrusted":trusted,"hooks_sha256":receipt["hooks_sha256"] ?? "","checkedAt":ISO8601DateFormatter().string(from:Date())]
+        guard fm.fileExists(atPath:path) else{throw failure("Os hooks do Oracle não estão mais no workspace. Reinstale a integração antes de verificar; o agendamento existente foi preservado.")}
+        _=try core.verifyGBrainBridge()
+        // A fresh public connection observes trust changes made in Desktop
+        // after a previous verification, without mutating any trust store.
+        let verifier=CodexBridge();defer{verifier.stop()}
+        try verifier.start(cwd:URL(fileURLWithPath:workspace))
+        let response=try verifier.request("hooks/list",["cwds":[workspace]],timeout:15)
+        let verification=OracleHookVerification.check(response,path:path,workspace:workspace)
+        let status:[String:Any]=["hooksTrusted":verification.trusted,"message":verification.message,"hooks_sha256":receipt["hooks_sha256"] ?? "","checkedAt":ISO8601DateFormatter().string(from:Date())]
         try writeJSON(status,core.home.appendingPathComponent("setup/codex-integration.json"))
-        return try snapshot()
+        var value=try snapshot()
+        let maintenance=value["maintenance"] as? [String:Any] ?? [:]
+        let scheduleReady=maintenance["enabled"] as? Bool != true || maintenance["registered"] as? Bool==true
+        value["integrationMessage"] = !verification.trusted ? verification.message : !scheduleReady ? "Hooks confirmados. O agendamento diário ainda não corresponde ao perfil e horário escolhidos; envie as instruções no Codex e verifique novamente." : "Integração confirmada. Seu Oracle está pronto."
+        return value
     }
+
     func openCodexWorkspace() throws {
         try requireAccess()
         let receipt=try? readJSON(core.home.appendingPathComponent("setup/bridge.json"))

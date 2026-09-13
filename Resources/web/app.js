@@ -129,10 +129,10 @@ $('#modal').addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault
 $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal()});
 $('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));modalRevision=++modalSequence;modalDirty=false;settingsTrail=false;modalHistory=[];modalPage=null;hideTooltip();const origin=modalOrigin;modalOrigin=null;if(origin?.isConnected&&!$('#app').inert)origin.focus({preventScroll:true});atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused)});
 $('#modal').addEventListener('close',()=>{$('#prompts')?.setAttribute('aria-expanded','false');$('#tutorials')?.setAttribute('aria-expanded','false')});
-function skills(id){return visibleEntries().filter(e=>!e.directory&&e.path.startsWith(`${state.config.libraryRoots?.skills||"SISTEMA/skills"}/${id}/`)&&e.name==='SKILL.md')}
+function skills(id){return visibleEntries().filter(e=>!e.directory&&OracleDepartments.collectionForEntry(e,state.config.libraryRoots?.skills||"SISTEMA/skills")===id&&e.name==='SKILL.md')}
 function departmentCatalog(){return OracleDepartments.createCatalog(state.collections,visibleEntries(),state.departmentManifest||window.OracleDepartmentManifest,{...state.distributionDepartmentAssignments,...state.config.departmentAssignments},state.config.libraryRoots?.skills||"SISTEMA/skills",!!state.onboarding?.runID&&state.onboarding.profileMode==="memory-only"&&state.onboarding.status!=="completed")}
 function title(e){return e.name==='SKILL.md'?e.path.split('/').slice(-2,-1)[0]:e.name.replace(/\.md$/,'')}
-function entryLocation(e){const collection=state.collections.find(c=>e.path.startsWith(`${state.config.libraryRoots?.skills||"SISTEMA/skills"}/${c.id}/`));return collection?`${collection.name} · ${e.name==='SKILL.md'?'Skill':'Documento'}`:e.path.split('/').slice(0,-1).slice(-2).join(' / ')||'Pasta principal'}
+function entryLocation(e){const collection=state.collections.find(c=>OracleDepartments.collectionForEntry(e,state.config.libraryRoots?.skills||"SISTEMA/skills")===c.id);return collection?`${collection.name} · ${e.name==='SKILL.md'?'Skill':'Documento'}`:e.path.split('/').slice(0,-1).slice(-2).join(' / ')||'Pasta principal'}
 async function refresh(){
  if(refreshTask)return refreshTask;
  const sequence=++refreshSequence;
@@ -228,7 +228,7 @@ function renderInspector(){
  if(group){$('#inspector-title').textContent=group.name;$('#inspector').innerHTML=`<span class="pill">${group.kind==='folder'?'Pasta':'Por nome'} · ${esc(c?.name||'')}</span><div class="big-count">${group.skills.length}</div><small>${group.skills.length===1?'skill neste grupo':'skills neste grupo'}</small><p class="muted">${group.kind==='folder'?'Arquivos reunidos na mesma pasta.':'Uma faixa alfabética para explorar sua coleção.'}</p><button id="group-parent" class="secondary">Voltar ao especialista</button>`;$('#group-parent').onclick=()=>atlasController.focus(selected);return}
  $('#inspector-title').textContent=c?c.name:'Observatório';
  $('#inspector').innerHTML=c?`<div class="big-count">${skills(c.id).length}</div><small>${skills(c.id).length===1?'skill disponível':'skills disponíveis'}</small><p class="muted">${esc(collectionDescriptions[c.id]||'Seus procedimentos, reunidos por especialidade.')}</p><button id="view-skills" class="secondary">Explorar skills</button>`:`<div class="inspector-orbit">${icon('brain')}</div><p class="inspector-welcome">Seu conhecimento, conectado.</p><p class="muted">Selecione um especialista para explorar suas skills.</p>`;
- $('#view-skills')?.addEventListener('click',()=>openSearch(`${state.config.libraryRoots?.skills||"SISTEMA/skills"}/${c.id}`));
+ $('#view-skills')?.addEventListener('click',()=>openSearch(departmentCatalog().specialistByID.get(c.id)?.originPath||`${state.config.libraryRoots?.skills||"SISTEMA/skills"}/${c.id}`));
 }
 function renderProgress(){
  // Only actual receipts control installation progress; replay never enters here as a source.
@@ -730,7 +730,7 @@ function maybeAutomaticUpdateCheck(status){
  const onboarding=window.OracleOnboarding?.getState?.();
  if(!onboarding||!onboarding.hasVault||(!onboarding.legacyAccess&&onboarding.status!=='completed')||(!onboarding.licensed&&!onboarding.legacyAccess)||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
  const now=Date.now(),checked=Date.parse(status.checkedAt||(status.phase==='complete'?status.at:'')||'');
- const hasError=status.phase==='failed'||status.results?.some(r=>r.status==='error');
+ const hasError=status.phase==='failed'||status.results?.some(r=>['error','offline'].includes(r.status));
  if(automaticUpdateAttempt&&!hasError&&Number.isFinite(checked)&&now-checked>=0&&now-checked<6*3600000)return;
  const delay=Math.min(3600000,300000*2**Math.min(automaticUpdateFailures,4));
  if(automaticUpdateAttempt&&now-automaticUpdateAttempt<delay)return;
@@ -741,7 +741,7 @@ async function pollAutomaticUpdateStatus(attempt){
  try{
   const status=await call('updateStatus');reflectUpdateStatus(status);
   if(status.busy){if(attempt<600)setTimeout(()=>pollAutomaticUpdateStatus(attempt+1),1000);else{automaticUpdateFailures++;updateBusy=false}return}
-  automaticUpdateFailures=(status.phase==='failed'||status.results?.some(r=>r.status==='error'))?automaticUpdateFailures+1:0;
+  automaticUpdateFailures=(status.phase==='failed'||status.results?.some(r=>['error','offline'].includes(r.status)))?automaticUpdateFailures+1:0;
  }catch(error){automaticUpdateFailures++;updateBusy=false;$('#updates').classList.remove('busy')}
 }
 function updateResultRows(status){
@@ -760,15 +760,15 @@ function mountUpdateMetal(host,label,action){
  OracleOnboardingEffects.button(host,{label,onClick:()=>Promise.resolve(action()).catch(e=>toast(e.message,'error'))});
 }
 function mountUpdateBeam(host){if(host){updateEffectHosts.add(host);OracleOnboardingEffects.beam(host)}}
-function updateStatusMarkup(){return '<div class="update-status ob2-status-card" role="status" aria-live="polite"><div class="ob2-beam" data-update-effect aria-hidden="true"></div><div class="ob2-status-body"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso da atualização"></progress></div></div>'}
+function updateStatusMarkup(){return '<div class="update-status" role="status" aria-live="polite"><div class="ob2-status-body"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso da atualização"></progress></div></div>'}
 function renderUpdateStatus(status){
  reflectUpdateStatus(status);cleanUpdateEffects();
  const family=$('#modal').dataset.family;
  if(!$('#modal').open||!['updates','update-installing'].includes(family))return;
- const failed=status.phase==='failed'||status.phase==='interrupted'||status.results?.some(r=>r.status==='error');
+ const failed=status.phase==='failed'||status.phase==='interrupted'||status.results?.some(r=>['error','offline'].includes(r.status));
  const message=$('#update-message'),progress=$('#update-progress');if(!message||!progress)return;
- message.textContent=updateBusy?(status.message||'Verificando e preparando…'):failed?(status.error||status.results?.find(r=>r.status==='error')?.message||status.message||'Não foi possível concluir a atualização.'):family==='update-installing'?'Atualização concluída.':status.available?'Há uma atualização pronta para instalar.':status.knownUpdate?'Há uma versão nova aguardando compatibilidade.':'Verificação concluída.';
- message.classList.toggle('update-ready-badge',family==='updates'&&!updateBusy&&!failed&&!!status.available);message.classList.toggle('update-error',!!failed&&!updateBusy);
+ message.textContent=updateBusy?(status.message||'Verificando e preparando…'):failed?(status.error||status.results?.find(r=>['error','offline'].includes(r.status))?.message||status.message||'Não foi possível concluir a atualização.'):family==='update-installing'?'Atualização concluída.':status.available?'Há uma atualização pronta para instalar.':status.knownUpdate?'Há uma versão nova aguardando compatibilidade.':'Verificação concluída.';
+ message.classList.toggle('update-ready-badge',!updateBusy&&!failed);message.classList.toggle('update-error',!!failed&&!updateBusy);
  progress.hidden=!updateBusy;
  const total=Number(status.total)||Number(status.bytes_total),done=Number(status.total)?Number(status.completed):Number(status.bytes_downloaded);
  if(total>0&&Number.isFinite(done)){progress.max=total;progress.value=Math.max(0,Math.min(total,done));}else progress.removeAttribute('value');
@@ -780,7 +780,7 @@ function renderUpdateStatus(status){
  const results=updateResultRows(status);
     const descriptions={current:'Você já está usando a versão aprovada disponível.',updated:'A atualização foi instalada.',available:'Pronta para instalar.',external:'Gerenciada na instalação que você conectou.',compatibility_required:'Esta versão ainda precisa ser validada para o Oracle.',not_configured:'Configure uma fonte aprovada antes de verificar o catálogo.',not_checked:'Use Verificar para consultar novidades.',preserved_edits:'Suas alterações foram mantidas.',offline:'Sem conexão para consultar a fonte. A versão instalada foi preservada.',error:'Não foi possível concluir a consulta; isso não significa ausência de atualizações.'};
 
-    const resultsHTML=results.map(r=>`<section class="update-result"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${esc(r.message||descriptions[r.status]||'Consulte o estado desta fonte antes de atualizar.')}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.pendingUpdate?`<p>Atualização conhecida${r.pendingUpdate.version?' · versão '+esc(r.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}</section>`).join('');
+    const resultsHTML=results.map(r=>`<section class="update-result ${['available','current','updated'].includes(r.status)?'update-success':['error','offline'].includes(r.status)?'update-failure':''}"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${esc(r.message||descriptions[r.status]||'Consulte o estado desta fonte antes de atualizar.')}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.pendingUpdate?`<p>Atualização conhecida${r.pendingUpdate.version?' · versão '+esc(r.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}</section>`).join('');
  const resultsHost=$('#update-results');
  if(!(updateBusy&&!status.results?.length&&resultsHost.children.length)&&resultsHost.oracleHTML!==resultsHTML){resultsHost.innerHTML=resultsHTML;resultsHost.oracleHTML=resultsHTML;}
  const recoveryHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar acervo anterior</button>':'');

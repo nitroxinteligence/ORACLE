@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   let api, root, screen, activation, progress, current={}, stage='', timer, generation=0, pending=false, busy=false;
-  let progressRun='',progressValue=0,openedRun='';
+  let progressRun='',progressValue=0,openedRun='',integrationMessage='';
   let integration={enabled:true,autoCapture:false,remoteProcessing:false,hour:15,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone};
   const needsRecovery=value=>value.licensed&&!['starting','running','cancelling','completed'].includes(value.status)&&(value.libraryRootChoices?.length||value.distributionConflicts?.length);
   const motionHandles=new Set();
@@ -53,12 +53,12 @@
       content.innerHTML=logo()+'<h1>Escolha seu Obsidian.</h1><p class="ob2-description"><span>Selecione o vault que você já criou no Obsidian.</span><span>Todo o Second Brain será instalado neste vault.</span></p><div class="ob2-vault-selection"></div><div class="ob2-action" data-ob2-effect></div>';
       updateVaultSelection();
     }else if(next==='install'){
-      content.innerHTML=logo()+`<h1>Instale seu segundo cérebro.</h1><p class="ob2-destination">Destino: <strong>${esc(current.vaultName)}</strong><span>${esc(current.vaultPath||'')}</span></p><div class="ob2-integration"><div class="ob2-setting"><label for="ob-daily"><input id="ob-daily" type="checkbox" ${integration.enabled?'checked':''}><span>Manutenção diária no Codex</span></label><div class="ob2-time"><label for="ob-daily-hour">Horário</label><select id="ob-daily-hour" aria-label="Horário da manutenção">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===integration.hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select></div></div><div class="ob2-setting"><label for="ob-capture"><input id="ob-capture" type="checkbox" ${integration.autoCapture?'checked':''}><span>Guardar mensagens no espaço Oracle do Codex</span></label></div><div class="ob2-setting"><label for="ob-synthesis"><input id="ob-synthesis" type="checkbox" ${integration.remoteProcessing?'checked':''}><span>Enviar essas mensagens ao Codex para consolidar a wiki</span></label></div><p>GPT-5.6 Sol · esforço médio. Após a instalação local, conclua a autorização dos hooks e o registro da manutenção no Codex. O Mac precisa estar acordado no horário.</p></div><div class="ob2-action" data-ob2-effect></div>`;
+      content.innerHTML=logo()+`<h1>Instale seu segundo cérebro.</h1><p class="ob2-destination">Destino: <strong>${esc(current.vaultName)}</strong><span>${esc(current.vaultPath||'')}</span></p><div class="ob2-integration"><div class="ob2-setting"><label for="ob-daily"><input id="ob-daily" type="checkbox" ${integration.enabled?'checked':''}><span>Manutenção diária no Codex</span></label><div class="ob2-time"><label for="ob-daily-hour">Horário</label><select id="ob-daily-hour" aria-label="Horário da manutenção">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===integration.hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select></div></div><div class="ob2-setting"><label for="ob-capture"><input id="ob-capture" type="checkbox" ${integration.autoCapture?'checked':''}><span>Guardar mensagens no espaço Oracle do Codex</span></label></div><div class="ob2-setting"><label for="ob-synthesis"><input id="ob-synthesis" type="checkbox" ${integration.remoteProcessing?'checked':''}><span>Enviar essas mensagens ao Codex para consolidar a wiki</span></label></div><p>A manutenção cria índices com links para organizar o Graph do Obsidian, sem alterar suas notas. GPT-5.6 Sol · esforço médio. Após a instalação local, conclua a autorização dos hooks e o registro da manutenção no Codex. O Mac precisa estar acordado no horário.</p></div><div class="ob2-action" data-ob2-effect></div>`;
       const readIntegration=()=>{const find=id=>content.querySelector('#'+id);integration={...integration,enabled:find('ob-daily').checked,hour:Number(find('ob-daily-hour').value),autoCapture:find('ob-daily').checked&&find('ob-capture').checked,remoteProcessing:find('ob-daily').checked&&find('ob-capture').checked&&find('ob-synthesis').checked};find('ob-capture').disabled=!integration.enabled;find('ob-daily-hour').disabled=!integration.enabled;find('ob-synthesis').disabled=!integration.autoCapture;if(!integration.autoCapture)find('ob-synthesis').checked=false;};
       for(const id of ['ob-daily','ob-daily-hour','ob-capture','ob-synthesis'])content.querySelector('#'+id).onchange=readIntegration;readIntegration();
       metal(content.querySelector('.ob2-action'),'Instalar',async()=>{
         readIntegration();const button=content.querySelector('.ob2-action button');button.disabled=true;
-        try{await invoke('onboardingInstallMemoryOnly',{maintenance:{...integration,consolidateWiki:integration.remoteProcessing,captureSource:integration.autoCapture?'codex_workspace_hooks_v1':null,synthesisScope:integration.remoteProcessing?'captured_messages_codex_v1':null}});current=await invoke('onboardingStatus');await api.refresh?.();document.body.classList.remove('ob2-configuring');const exit=await animate(screen,[{opacity:1},{opacity:0}],460,true);closeScreen();release(exit);stage='progress';updateProgress();}
+        try{await invoke('onboardingInstallMemoryOnly',{maintenance:{...integration,graphIndexes:integration.enabled,consolidateWiki:integration.remoteProcessing,captureSource:integration.autoCapture?'codex_workspace_hooks_v1':null,synthesisScope:integration.remoteProcessing?'captured_messages_codex_v1':null}});current=await invoke('onboardingStatus');await api.refresh?.();document.body.classList.remove('ob2-configuring');const exit=await animate(screen,[{opacity:1},{opacity:0}],460,true);closeScreen();release(exit);stage='progress';updateProgress();}
         finally{if(button.isConnected)button.disabled=false;}
       });
     }
@@ -136,7 +136,7 @@
     progress.querySelector('strong').textContent=integrating?'Conclua a integração no Codex':phase[2]+(counted&&unit==='arquivos'?` · ${done}/${total}`:'…');
     const failed=['failed','interrupted','paused','cancelled'].includes(current.status);
     const error=progress.querySelector('.ob2-install-error');error.hidden=!failed&&!integrating;
-    error.textContent=integrating?'Instalação local concluída. Abra o Codex, revise os hooks e envie as instruções copiadas para registrar a manutenção. Depois clique em Verificar.':failed?(current.message||'Não foi possível concluir a instalação.'):'';
+    error.textContent=integrating?integrationMessage||'Instalação local concluída. Abra o Codex, revise os hooks e envie as instruções copiadas para registrar a manutenção. Depois clique em Verificar.':failed?(current.message||'Não foi possível concluir a instalação.'):'';
     error.classList.toggle('ob2-pending',integrating);
     const retry=progress.querySelector('.ob2-retry');retry.hidden=!failed;
     if(failed&&!retry.querySelector('button'))metal(retry,'Tentar novamente',async()=>{await invoke('onboardingResume');await poll();});
@@ -144,7 +144,12 @@
     if(integrating&&!actions.querySelector('button')){
       plain(actions.querySelector('[data-open-codex]'),'Abrir Codex',async()=>{await invoke('onboardingOpenCodex');});
       plain(actions.querySelector('[data-copy-codex]'),'Copiar instruções',async()=>{const value=await invoke('maintenanceScheduleRequest');await invoke('copy',{text:value.request});api.toast?.('Instruções copiadas. Envie-as em uma conversa no espaço Oracle.');});
-      plain(actions.querySelector('[data-verify-codex]'),'Verificar',async()=>{await invoke('onboardingVerifyIntegration');await poll();});
+      plain(actions.querySelector('[data-verify-codex]'),'Verificar',async()=>{
+        const button=actions.querySelector('[data-verify-codex] button');button.disabled=true;button.textContent='Verificando…';
+        try {const value=await invoke('onboardingVerifyIntegration');current=value;integrationMessage=value.integrationMessage||'';updateProgress();api.toast?.(integrationMessage||'Verificação concluída.');await api.refresh?.();}
+        catch(error){integrationMessage=error.message||'Não foi possível verificar a integração.';updateProgress();throw error;}
+        finally {button.disabled=false;button.textContent='Verificar';}
+      });
     }
     if(integrating&&openedRun!==current.runID){openedRun=current.runID;invoke('onboardingOpenCodex').catch(errorToast);}
     positionProgress();

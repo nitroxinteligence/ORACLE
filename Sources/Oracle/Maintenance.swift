@@ -21,7 +21,7 @@ enum OracleMaintenancePolicy {
                 "remoteProcessing":enabled && raw["remoteProcessing"] as? Bool==true,"timezone":zone,"hour":hour,
                 "captureSource":raw["captureSource"] as? String ?? NSNull(),
                 "synthesisScope":raw["synthesisScope"] as? String ?? NSNull(),
-                "model":"gpt-5.6-sol","effort":"medium","consolidateWiki":enabled && raw["consolidateWiki"] as? Bool==true]
+                "graphIndexes":enabled && raw["graphIndexes"] as? Bool==true,"model":"gpt-5.6-sol","effort":"medium","consolidateWiki":enabled && raw["consolidateWiki"] as? Bool==true]
     }
 }
 
@@ -104,6 +104,8 @@ extension Core {
         2. No prompt recorrente, inclua o marcador \(maintenanceMarker(settings)) e a execução deste comando como lista de argumentos:
         \(command)
         A tarefa deve conferir o recibo, respeitar os consentimentos atuais e retomar pendências na próxima execução. Não execute durante instalação, atualização ou outra manutenção. blocked, skipped e failed não significam sucesso. Fique em silêncio quando não houver erro ou mudança que exija ação.
+        O comando mantém índices com links em SISTEMA/indices/oracle-graph quando essa opção estiver autorizada no perfil. Não mova nem reescreva notas pessoais e não altere configurações do Graph View. Atualizações ficam restritas ao Second Brain e ao acervo gerenciado.
+
         3. Após registrar, execute o mesmo comando substituindo run por status. Só confirme o agendamento se hostSchedule.registered for true e a tarefa existir na interface oficial. Informe separadamente qualquer pendência de confiança dos hooks. Sem ferramenta oficial, informe a pendência; não escreva automation.toml, bancos privados ou registros de confiança.
 
         Captura autorizada: \(settings["autoCapture"]!). Processamento remoto autorizado: \(settings["remoteProcessing"]!). A captura limita-se a UserPromptSubmit.prompt e Stop.last_assistant_message recebidos pelos hooks confiados deste workspace. Não leia transcript_path, históricos privados, raciocínio ou ferramentas. A síntese usa apenas capturas autorizadas e não altera SOUL/USER nem transforma mensagens em fatos confirmados. Sem capacidade de inferência disponível, deixe essa fase pendente.
@@ -152,6 +154,7 @@ extension Core {
                 } else {deferred.append("synthesis_requires_explicit_captured_message_scope")}
             }
             guard !cancelled(),maintenanceConsentCurrent(settings) else{throw failure("Manutenção pausada ou consentimento alterado.")}
+            if settings["graphIndexes"] as? Bool==true {result["graphIndexes"]=try maintainGraphIndexes()}
             let value=try sync()
             result["sync"]=value
             guard value["status"] as? String=="verified",value["complete"] as? Bool==true else {

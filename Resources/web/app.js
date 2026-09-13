@@ -499,7 +499,7 @@ $('#motion').onchange=safe(()=>saveVisualPreference('reduceMotion',$('#motion').
 $('#timeline').oninput=safe(scrub);$('#play').onclick=safe(play);$('#live').onclick=live;
 $('#speed').onclick=()=>{speed=speed===4?1:speed*2;$('#speed').textContent=speed+'×';atlasController?.setFormation({rate:speed});if(timer){clearInterval(timer);timer=null;play()}renderPlayback()};
 $('.wordmark').onclick=e=>{e.preventDefault();setView('map',()=>{renderAtlas();atlasController?.select(null);atlasController?.fit()})};
-$('#updates').onclick=safe(()=>showUpdates(false));
+$('#updates').onclick=()=>{showUpdates(false).catch(e=>toast(e.message,'error'))};
 function setZoom(factor){atlasController?.zoomAt(factor)}$('#zoom-in').onclick=()=>setZoom(1.2);$('#zoom-out').onclick=()=>setZoom(1/1.2);$('#zoom-reset').onclick=()=>atlasController?.fit();$('#context-back').onclick=()=>atlasController?.back();$('#reset-layout').onclick=()=>{atlasController?.reset();toast('Posições restauradas. Nenhum arquivo foi movido.')};$('#economy').onchange=safe(()=>saveVisualPreference('economy',$('#economy').checked));
 window.oracleLock=()=>{
  startupUpdateReady=false;latestUpdateStatus=null;
@@ -621,29 +621,34 @@ function openSearch(initial='',scope={}){
  if(navigationBlocked())return;
  const prefix=/^(SISTEMA|INBOX|PROJETOS|AREAS|WIKI|FONTES)\//i.test(initial)?initial:'';
  const catalog=departmentCatalog(),department=catalog.departmentByID.get(scope.department);
- let selectedIndex=0,hits=[],page=0;
+ let selectedIndex=0,hits=[],shown=0;
  modal(`<span class="step-label">MEU UNIVERSO</span><h1>Buscar notas e skills</h1>
  <label class="search search-field">${icon('search')}<input id="universe-query" type="search" autocomplete="off" spellcheck="false" aria-label="Buscar notas e skills" placeholder="Nome, assunto ou caminho…" value="${esc(prefix?'':initial)}" aria-controls="search-results"></label>
  ${prefix||department?`<button class="search-scope" id="clear-search-scope">${icon('folder')}${esc(department?.name||prefix)} ${icon('close')}</button>`:''}
  <div class="search-meta" id="search-count" role="status" aria-live="polite"></div>
  <div id="search-results" class="search-results" role="listbox" aria-label="Resultados da busca"></div>
- <nav id="search-pages" aria-label="Páginas de resultados"></nav>
  <div class="actions"><span class="keyboard-guide"><kbd>↑</kbd><kbd>↓</kbd> navegar <kbd>↵</kbd> abrir <kbd>esc</kbd> fechar</span></div>`,{family:'search',focus:'#universe-query'});
  const input=$('#universe-query');input.setAttribute('role','combobox');input.setAttribute('aria-expanded','true');input.setAttribute('aria-autocomplete','list');
- const select=()=>{const buttons=$$('#search-results [role=option]');buttons.forEach((b,i)=>{b.setAttribute('aria-selected',String(i===selectedIndex));b.classList.toggle('active',i===selectedIndex)});if(buttons[selectedIndex]){input.setAttribute('aria-activedescendant',buttons[selectedIndex].id);buttons[selectedIndex].scrollIntoView({block:'nearest'})}else input.removeAttribute('aria-activedescendant')};
+ const select=(scroll=true)=>{const buttons=$$('#search-results [role=option]');buttons.forEach((b,i)=>{b.setAttribute('aria-selected',String(i===selectedIndex));b.classList.toggle('active',i===selectedIndex)});if(buttons[selectedIndex]){input.setAttribute('aria-activedescendant',buttons[selectedIndex].id);if(scroll)buttons[selectedIndex].scrollIntoView({block:'nearest'})}else input.removeAttribute('aria-activedescendant')};
  const open=safe(async index=>{const entry=hits[index];if(!entry)return;if(catalog.skillByPath.has(entry.path)){atlasController?.revealSkill(entry.path);renderInspector()}await openNote(entry.path)});
+ const host=$('#search-results');
+ const append=()=>{
+  const start=shown;shown=Math.min(hits.length,shown+10);
+  host.insertAdjacentHTML('beforeend',hits.slice(start,shown).map((e,j)=>{const i=start+j;return `<button role="option" aria-selected="${i===selectedIndex}" tabindex="-1" class="result" id="search-option-${i}" data-hit="${i}">${icon('note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div><span class="result-enter" aria-hidden="true">↵</span></button>`}).join(''));
+  host.querySelectorAll('[data-hit]').forEach(b=>{b.onclick=()=>open(Number(b.dataset.hit));b.onpointermove=()=>{selectedIndex=Number(b.dataset.hit);select(false)}});
+  $('#search-count').textContent=hits.length?`${shown} de ${hits.length} resultados`:'Nenhum resultado';
+ };
  const search=()=>{
   const terms=OracleDepartments.normalize(input.value).split(/\s+/).filter(Boolean);
-  const all=state.entries.filter(e=>!e.directory&&(!prefix||e.path===prefix||e.path.startsWith(prefix+'/'))&&(!department||catalog.skillByPath.get(e.path)?.department===department.id)&&terms.every(t=>OracleDepartments.normalize(title(e)+' '+e.path+' '+entryLocation(e)+' '+(catalog.departmentByID.get(catalog.skillByPath.get(e.path)?.department)?.name||'')).includes(t)));
-  all.sort((a,b)=>{const q=input.value.trim().toLowerCase();return Number(title(b).toLowerCase()===q)-Number(title(a).toLowerCase()===q)||title(a).localeCompare(title(b))});
-  const pages=Math.max(1,Math.ceil(all.length/100));page=Math.min(page,pages-1);hits=all.slice(page*100,(page+1)*100);selectedIndex=0;
-  $('#search-count').textContent=all.length?`${all.length} ${all.length===1?'resultado':'resultados'} · página ${page+1} de ${pages}`:'Nenhum resultado';
-  $('#search-pages').innerHTML=pages>1?`<button class="secondary" id="search-previous" ${page===0?'disabled':''}>← Anterior</button><button class="secondary" id="search-next" ${page+1>=pages?'disabled':''}>Próxima →</button>`:'';
-  $('#search-previous')?.addEventListener('click',()=>{page--;search();input.focus()});$('#search-next')?.addEventListener('click',()=>{page++;search();input.focus()});
-  $('#search-results').innerHTML=hits.length?hits.map((e,i)=>`<button role="option" aria-selected="${i===0}" tabindex="-1" class="result" id="search-option-${i}" data-hit="${i}">${icon('note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div><span class="result-enter" aria-hidden="true">↵</span></button>`).join(''):`<div class="search-empty">${icon('search')}<h2>${input.value?'Não encontramos resultados.':'Seu universo ainda está vazio.'}</h2><p>${input.value?'Experimente outro nome ou parte do caminho.':'Conecte uma pasta nos ajustes para explorar notas e skills.'}</p></div>`;
-  $$('[data-hit]').forEach(b=>{b.onclick=()=>open(Number(b.dataset.hit));b.onpointermove=()=>{selectedIndex=Number(b.dataset.hit);select()}});select();
+  hits=visibleEntries().filter(e=>!e.directory&&(terms.length||prefix||catalog.skillByPath.has(e.path))&&(!prefix||e.path===prefix||e.path.startsWith(prefix+'/'))&&(!department||catalog.skillByPath.get(e.path)?.department===department.id)&&terms.every(t=>OracleDepartments.normalize(title(e)+' '+e.path+' '+entryLocation(e)+' '+(catalog.departmentByID.get(catalog.skillByPath.get(e.path)?.department)?.name||'')).includes(t)));
+  hits.sort((a,b)=>{const q=input.value.trim().toLowerCase();return Number(title(b).toLowerCase()===q)-Number(title(a).toLowerCase()===q)||title(a).localeCompare(title(b))});
+  shown=0;selectedIndex=0;host.replaceChildren();host.scrollTop=0;append();
+  if(!hits.length)host.innerHTML=`<div class="search-empty">${icon('search')}<h2>${input.value?'Não encontramos resultados.':'Nenhuma skill disponível.'}</h2><p>${input.value?'Experimente outro nome ou parte do caminho.':'Pesquise para encontrar outras notas do seu universo.'}</p></div>`;
+  select(false);
  };
- input.oninput=()=>{page=0;search()};input.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();selectedIndex=Math.max(0,Math.min(hits.length-1,selectedIndex+(e.key==='ArrowDown'?1:-1)));select()}else if(e.key==='Enter'){e.preventDefault();open(selectedIndex)}};
+ const more=()=>{if(shown<hits.length&&host.scrollTop+host.clientHeight>=host.scrollHeight-60)append();};
+ host.addEventListener('scroll',more,{passive:true});host.addEventListener('wheel',e=>{if(e.deltaY>0)more();},{passive:true});
+ input.oninput=search;input.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();selectedIndex=Math.max(0,Math.min(hits.length-1,selectedIndex+(e.key==='ArrowDown'?1:-1)));if(selectedIndex>=shown)append();select()}else if(e.key==='Enter'){e.preventDefault();open(selectedIndex)}};
  $('#clear-search-scope')?.addEventListener('click',()=>openSearch(input.value));search();
 }
 
@@ -682,10 +687,9 @@ function maybeShowStartupUpdateNotice(){
  if(!startupUpdateReady||startupUpdateNoticeShown||!latestUpdateStatus?.available||latestUpdateStatus.busy||updateBusy||document.hidden||window.oracleWindowVisible===false||$('#app').inert||navigationBlocked()||$('#modal').open)return;
  const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
  if(!onboarding.hasVault||(!onboarding.licensed&&!onboarding.legacyAccess)||(!onboarding.legacyAccess&&onboarding.status!=='completed')||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
- if(!modal(`<h1>Atualização disponível</h1><p>Há uma atualização pronta para o seu Oracle.</p><p>Abra Atualizações para revisar as novidades e instalar quando preferir.</p>${actions('<button class="secondary" id="update-notice-later">Agora não</button><button class="primary" id="update-notice-open">Ver atualização</button>')}`,{family:'update-notice',root:true}))return;
+ if(!modal(`<h1>Atualização disponível</h1>${actions('<div id="update-notice-metal" data-update-effect></div>')}`,{family:'update-notice',root:true}))return;
  startupUpdateNoticeShown=true;
- $('#update-notice-later').onclick=()=>closeModal();
- $('#update-notice-open').onclick=safe(()=>showUpdates());
+ mountUpdateMetal($('#update-notice-metal'),'Ver atualização',()=>showUpdates());
 }
 function finishUpdateStartup(){
  startupUpdateReady=true;
@@ -734,47 +738,76 @@ function updateResultRows(status){
  }
  return (displayed.size?[...displayed.values()]:[{id:'gbrain',status:'not_checked',version:status.gbrain_version},{id:'skills',status:'not_checked'}]).filter(row=>row.status!=='not_adopted');
 }
-async function showUpdates(operation=null){
- const epoch=navigationEpoch;
- startupUpdateNoticeShown=true;
- if(operation===true)operation='check-apply';if(operation===false)operation=null;
- if(operation){
-  if($('#modal').open&&$('#modal').dataset.family==='updates'){
-   const content=$('#modal-content');content.style.height=content.getBoundingClientRect().height+'px';
-  }
-  await call('updateStart',{operation});updateBusy=true;
+let updateOperation=null,updatePollPending=null;
+const updateEffectHosts=new Set();
+function cleanUpdateEffects(){for(const host of updateEffectHosts)if(!host.isConnected||!host.closest('dialog')?.open){OracleOnboardingEffects.destroy(host);updateEffectHosts.delete(host)}}
+function mountUpdateMetal(host,label,action){
+ if(!host)return;cleanUpdateEffects();updateEffectHosts.add(host);
+ OracleOnboardingEffects.button(host,{label,onClick:()=>Promise.resolve(action()).catch(e=>toast(e.message,'error'))});
+}
+function mountUpdateBeam(host){if(host){updateEffectHosts.add(host);OracleOnboardingEffects.beam(host)}}
+function updateStatusMarkup(){return '<div class="update-status ob2-status-card" role="status" aria-live="polite"><div class="ob2-beam" data-update-effect aria-hidden="true"></div><div class="ob2-status-body"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso da atualização"></progress></div></div>'}
+function renderUpdateStatus(status){
+ reflectUpdateStatus(status);cleanUpdateEffects();
+ const family=$('#modal').dataset.family;
+ if(!$('#modal').open||!['updates','update-installing'].includes(family))return;
+ const failed=status.phase==='failed'||status.phase==='interrupted'||status.results?.some(r=>r.status==='error');
+ const message=$('#update-message'),progress=$('#update-progress');if(!message||!progress)return;
+ message.textContent=updateBusy?(status.message||'Verificando e preparando…'):failed?(status.error||status.results?.find(r=>r.status==='error')?.message||status.message||'Não foi possível concluir a atualização.'):family==='update-installing'?'Atualização concluída.':status.available?'Há uma atualização pronta para instalar.':status.knownUpdate?'Há uma versão nova aguardando compatibilidade.':'Verificação concluída.';
+ message.classList.toggle('update-ready-badge',family==='updates'&&!updateBusy&&!failed&&!!status.available);message.classList.toggle('update-error',!!failed&&!updateBusy);
+ progress.hidden=!updateBusy;
+ const total=Number(status.total)||Number(status.bytes_total),done=Number(status.total)?Number(status.completed):Number(status.bytes_downloaded);
+ if(total>0&&Number.isFinite(done)){progress.max=total;progress.value=Math.max(0,Math.min(total,done));}else progress.removeAttribute('value');
+ if(family==='update-installing'){
+  $('#modal-title').textContent=updateBusy?'Atualizando seu segundo cérebro…':failed?'Atualização não concluída':'Atualização concluída';return;
  }
- // Resolve the initial rows before the entrance so the dialog does not resize mid-fade.
- const initialStatus=await call('updateStatus');
- if(epoch!==navigationEpoch||navigationBlocked())return;
- const alreadyOpen=$('#modal').open&&$('#modal').dataset.family==='updates';
- if(!alreadyOpen&&!modal(`<h1>Atualizações</h1><p>Verifica as fontes e instala atualizações compatíveis, preservando suas personalizações.</p><div class="update-status" role="status" aria-live="polite"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso das atualizações"></progress></div><div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="primary" id="check-updates">Verificar</button><button class="secondary" id="apply-updates" hidden>Instalar atualização</button>')}`,{family:'updates',root:true}))return;
- const revision=modalRevision;
- $('#check-updates').onclick=safe(()=>showUpdates('check-apply'));$('#apply-updates').onclick=safe(()=>showUpdates('check-apply'));
- const poll=async(initial=null)=>{
-  try{
-   const status=initial||await call('updateStatus');reflectUpdateStatus(status);
-   if($('#modal').open&&modalRevision===revision){
-    $('#update-message').textContent=updateBusy?'Verificando e preparando…':status.phase==='interrupted'?'A atualização foi interrompida. Você pode tentar novamente.':status.available?'Há uma atualização pronta para instalar.':status.knownUpdate?'Há uma versão nova aguardando compatibilidade.':status.phase==='complete'?'Verificação concluída.':'Confira se há novidades para seu Oracle.';
-    $('#update-message').classList.toggle('update-ready-badge',!updateBusy&&status.phase!=='interrupted'&&!!status.available);
-    const progress=$('#update-progress');progress.hidden=!updateBusy;if(status.total>0){progress.max=status.total;progress.value=status.completed||0}else progress.removeAttribute('value');
-    $('#check-updates').disabled=updateBusy;$('#apply-updates').hidden=!status.available;$('#apply-updates').disabled=updateBusy;
-    const results=updateResultRows(status);
+ $('#check-updates').disabled=updateBusy;
+ const applyHost=$('#apply-update-metal'),apply=applyHost?.querySelector('button');applyHost.hidden=!status.available;if(apply)apply.disabled=updateBusy;
+ const results=updateResultRows(status);
     const descriptions={current:'Você já está usando a versão aprovada disponível.',updated:'A atualização foi instalada.',available:'Pronta para instalar.',external:'Gerenciada na instalação que você conectou.',compatibility_required:'Esta versão ainda precisa ser validada para o Oracle.',not_configured:'Configure uma fonte aprovada antes de verificar o catálogo.',not_checked:'Use Verificar para consultar novidades.',preserved_edits:'Suas alterações foram mantidas.',offline:'Sem conexão para consultar a fonte. A versão instalada foi preservada.',error:'Não foi possível concluir a consulta; isso não significa ausência de atualizações.'};
 
-    const resultsHTML=results.map(r=>`<section class="update-result"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${descriptions[r.status]||'Consulte o estado desta fonte antes de atualizar.'}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.pendingUpdate?`<p>Atualização conhecida${r.pendingUpdate.version?' · versão '+esc(r.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}</section>`).join('');
-    const resultsHost=$('#update-results');
-    if(!(updateBusy&&!status.results?.length&&resultsHost.children.length)&&resultsHost.oracleHTML!==resultsHTML){resultsHost.innerHTML=resultsHTML;resultsHost.oracleHTML=resultsHTML;}
-    const recoveryHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar acervo anterior</button>':'');
-    const recovery=$('#update-recovery');if(recovery.oracleHTML!==recoveryHTML){recovery.innerHTML=recoveryHTML;recovery.oracleHTML=recoveryHTML;}
-
-    $$('[data-rollback]').forEach(b=>{b.disabled=updateBusy;b.onclick=safe(()=>showUpdates(b.dataset.rollback))});
-   }
-   if(updateBusy)updatePolling=setTimeout(poll,800);
-  }catch(e){$('#updates').classList.remove('busy');if(modalRevision===revision)toast(e.message)}
- };
- clearTimeout(updatePolling);await poll(initialStatus);
+    const resultsHTML=results.map(r=>`<section class="update-result"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${esc(r.message||descriptions[r.status]||'Consulte o estado desta fonte antes de atualizar.')}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.pendingUpdate?`<p>Atualização conhecida${r.pendingUpdate.version?' · versão '+esc(r.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}</section>`).join('');
+ const resultsHost=$('#update-results');
+ if(!(updateBusy&&!status.results?.length&&resultsHost.children.length)&&resultsHost.oracleHTML!==resultsHTML){resultsHost.innerHTML=resultsHTML;resultsHost.oracleHTML=resultsHTML;}
+ const recoveryHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar acervo anterior</button>':'');
+ const recovery=$('#update-recovery');if(recovery.oracleHTML!==recoveryHTML){recovery.innerHTML=recoveryHTML;recovery.oracleHTML=recoveryHTML;}
+ $$('[data-rollback]').forEach(b=>{b.disabled=updateBusy;b.onclick=()=>showUpdates(b.dataset.rollback).catch(e=>toast(e.message,'error'))});
 }
+async function pollUpdateStatus(){
+ if(updatePollPending)return updatePollPending;
+ const epoch=navigationEpoch;
+ updatePollPending=(async()=>{
+  try{
+   const status=await call('updateStatus');if(epoch!==navigationEpoch)return;
+   renderUpdateStatus(status);
+   if(status.busy){clearTimeout(updatePolling);updatePolling=setTimeout(()=>{void pollUpdateStatus()},800);}
+  }catch(e){
+   if(epoch!==navigationEpoch)return;
+   const message=$('#update-message');if(message)message.textContent='Não foi possível consultar o progresso. Tentando novamente…';
+   if(updateBusy){clearTimeout(updatePolling);updatePolling=setTimeout(()=>{void pollUpdateStatus()},1800)}else toast(e.message,'error');
+  }finally{updatePollPending=null;}
+ })();return updatePollPending;
+}
+async function showUpdates(operation=null){
+ startupUpdateNoticeShown=true;
+ if(operation===false)operation=null;if(operation===true)operation='check-apply';
+ const starting=!!operation&&!updateBusy,installing=starting?operation!=='check-only':updateBusy&&updateOperation&&updateOperation!=='check-only';
+ if(starting){updateOperation=operation;updateBusy=true;latestUpdateStatus={...latestUpdateStatus,busy:true,phase:installing?'preparing':'checking',message:installing?'Preparando a atualização…':'Verificando e preparando…',error:null,completed:0,total:0};}
+ const family=installing?'update-installing':'updates';
+ if(!$('#modal').open||$('#modal').dataset.family!==family){
+  const content=installing?`<h1>Atualizando seu segundo cérebro…</h1>${updateStatusMarkup()}`:`<h1>Atualizações</h1><p>Verifica as fontes e instala atualizações compatíveis, preservando suas personalizações.</p>${updateStatusMarkup()}<div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="update-check-text" id="check-updates">Verificar</button><div id="apply-update-metal" data-update-effect></div>')}`;
+  if(!modal(content,{family,root:true}))return;
+  cleanUpdateEffects();mountUpdateBeam($('#modal .ob2-beam'));
+  if(!installing){$('#check-updates').onclick=()=>{void showUpdates('check-only')};mountUpdateMetal($('#apply-update-metal'),'Instalar atualização',()=>showUpdates('check-apply'));}
+ }
+ renderUpdateStatus(latestUpdateStatus||{busy:false,phase:'idle',results:[]});
+ if(starting){
+  try{await call('updateStart',{operation})}catch(e){renderUpdateStatus({...latestUpdateStatus,busy:false,phase:'failed',error:e.message});return;}
+ }
+ clearTimeout(updatePolling);await pollUpdateStatus();
+}
+new MutationObserver(cleanUpdateEffects).observe($('#modal-content'),{childList:true,subtree:true});
+document.addEventListener('close',e=>{if(e.target===$('#modal'))cleanUpdateEffects()},true);
 
 // Panels expand from their own controls. The stage's ResizeObserver preserves camera scale.
 let autoHiddenNavigation=false;

@@ -1,7 +1,7 @@
 /* Dedicated library pages over the same inventory used by the Atlas. */
 class OracleLibraryGallery {
  constructor(element,hooks){
-  this.el=element;this.h=hooks;this.active=false;this.mode='prompts';this.models=new Map();this.cache=new Map();this.pending=new Map();this.queue=[];this.running=0;this.sequence=0;this.revision=0;this.pageSize=24;
+  this.el=element;this.h=hooks;this.active=false;this.mode='prompts';this.models=new Map();this.cache=new Map();this.pending=new Map();this.queue=[];this.running=0;this.sequence=0;this.revision=0;this.pageSize=9;
   this.options={prompts:{id:'prompt',root:'SISTEMA/prompts',title:'Prompts',description:'Modelos para criar, pensar e executar.'},tutorials:{id:'tutorial',root:'SISTEMA/Tutoriais',title:'Tutoriais',description:'Guias para aprender, consultar e colocar em prática.'}};
  }
  model(){if(!this.models.has(this.mode))this.models.set(this.mode,{query:'',folder:'',order:'az',page:0,scroll:0,selected:'',choice:''});return this.models.get(this.mode)}
@@ -82,15 +82,22 @@ class OracleLibraryGallery {
   host.querySelectorAll('[data-gallery-ancestor]').forEach(b=>b.onclick=()=>navigate(ancestors[Number(b.dataset.galleryAncestor)]));
   host.querySelectorAll('[data-gallery-folder]').forEach(b=>b.onclick=()=>navigate(children[Number(b.dataset.galleryFolder)]));
  }
+ pagination(total,pages){
+  if(pages<=1)return '';
+  const page=this.model().page,indices=[...new Set([0,pages-1,page-1,page,page+1,...(pages<=7?Array.from({length:pages},(_,i)=>i):[])])].filter(i=>i>=0&&i<pages).sort((a,b)=>a-b);
+  let previous=-1;
+  const numbers=indices.map(i=>{const gap=previous>=0&&i>previous+1?'<span class="gallery-page-gap" aria-hidden="true">…</span>':'';previous=i;return gap+`<button type="button" data-gallery-target="${i}" aria-label="Página ${i+1}" ${i===page?'aria-current="page"':''}>${i+1}</button>`}).join('');
+  return `<nav class="gallery-pagination" aria-label="Páginas de ${this.options[this.mode].title}"><span class="gallery-page-summary">${page*this.pageSize+1}–${Math.min(total,(page+1)*this.pageSize)} de ${total}</span><div class="gallery-page-controls"><button type="button" data-gallery-target="${page-1}" aria-label="Página anterior" ${page===0?'disabled':''}><span aria-hidden="true">‹</span></button>${numbers}<button type="button" data-gallery-target="${page+1}" aria-label="Próxima página" ${page===pages-1?'disabled':''}><span aria-hidden="true">›</span></button></div><span class="gallery-page-summary">Página ${page+1} de ${pages}</span></nav>`;
+ }
  renderResults(){
   if(!this.active||this.model().selected)return;
   const {esc}=this.h,data=this.data(),model=this.model(),items=this.filtered(data),pages=Math.max(1,Math.ceil(items.length/this.pageSize));model.page=Math.min(model.page,pages-1);
   const rows=items.slice(model.page*this.pageSize,(model.page+1)*this.pageSize);this.visible=rows;
   const host=this.el.querySelector('.gallery-results');if(!host)return;
-  host.innerHTML=`<div class="gallery-result-heading"><span role="status">${items.length} ${this.mode==='prompts'?(items.length===1?'prompt':'prompts'):(items.length===1?'tutorial':'tutoriais')}${model.query?(items.length===1?' encontrado':' encontrados'):''}</span>${model.query||model.folder?'<button type="button" class="quiet-link" data-gallery-clear>Limpar filtros</button>':''}</div>`+(rows.length?`<div class="gallery-grid" aria-label="${this.options[this.mode].title} encontrados">${rows.map(entry=>`<button type="button" class="gallery-card" data-card-path="${esc(entry.path)}"></button>`).join('')}</div>`:`<div class="gallery-empty"><h2>${data.ambiguous?'Escolha a biblioteca de origem':model.query||model.folder?'Nenhum resultado encontrado':'Sua biblioteca ainda está vazia'}</h2><p>${data.ambiguous?'Há mais de uma pasta correspondente. Selecione qual delas deseja explorar.':model.query||model.folder?'Tente outro nome ou remova um filtro.':'Os documentos aparecerão aqui quando estiverem disponíveis.'}</p></div>`)+(pages>1?`<nav class="gallery-pagination" aria-label="Páginas da galeria"><button type="button" data-gallery-page="-1" ${model.page===0?'disabled':''}>Anterior</button><span>${model.page+1} de ${pages}</span><button type="button" data-gallery-page="1" ${model.page===pages-1?'disabled':''}>Próxima</button></nav>`:'');
+  host.innerHTML=`<div class="gallery-result-heading"><span role="status">${items.length} ${this.mode==='prompts'?(items.length===1?'prompt':'prompts'):(items.length===1?'tutorial':'tutoriais')}${model.query?(items.length===1?' encontrado':' encontrados'):''}</span>${model.query||model.folder?'<button type="button" class="quiet-link" data-gallery-clear>Limpar filtros</button>':''}</div>`+(rows.length?`<div class="gallery-grid" aria-label="${this.options[this.mode].title} encontrados">${rows.map(entry=>`<button type="button" class="gallery-card" data-card-path="${esc(entry.path)}"></button>`).join('')}</div>`:`<div class="gallery-empty"><h2>${data.ambiguous?'Escolha a biblioteca de origem':model.query||model.folder?'Nenhum resultado encontrado':'Sua biblioteca ainda está vazia'}</h2><p>${data.ambiguous?'Há mais de uma pasta correspondente. Selecione qual delas deseja explorar.':model.query||model.folder?'Tente outro nome ou remova um filtro.':'Os documentos aparecerão aqui quando estiverem disponíveis.'}</p></div>`)+this.pagination(items.length,pages);
   host.querySelectorAll('[data-card-path]').forEach((button,i)=>{this.fillCard(button,rows[i]);button.onclick=()=>this.openDocument(button.dataset.cardPath)});
   host.querySelector('[data-gallery-clear]')?.addEventListener('click',()=>{model.query='';model.folder='';model.page=0;this.sequence++;this.render();this.el.querySelector('input')?.focus()});
-  host.querySelectorAll('[data-gallery-page]').forEach(button=>button.onclick=()=>{model.page+=Number(button.dataset.galleryPage);this.sequence++;this.renderResults();this.el.querySelector('.gallery-results').scrollIntoView({block:'start'});this.el.querySelector('[data-card-path]')?.focus({preventScroll:true})});
+  host.querySelectorAll('[data-gallery-target]').forEach(button=>button.onclick=()=>{const target=Number(button.dataset.galleryTarget);if(target<0||target>=pages||target===model.page)return;model.page=target;this.sequence++;this.renderResults();this.el.querySelector('.gallery-results').scrollIntoView({block:'start'});this.el.querySelector('.gallery-pagination [aria-current=page]')?.focus({preventScroll:true})});
   this.hydrate(rows);
  }
  async openDocument(path){if(this.h.blocked()||!this.data().documents.some(e=>e.path===path))return;const model=this.model();model.scroll=this.el.scrollTop;model.selected=path;this.sequence++;this.queue=[];this.el.scrollTop=0;await this.renderDocument();}

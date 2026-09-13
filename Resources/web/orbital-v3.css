@@ -799,3 +799,37 @@ body.window-hidden #app .header-actions>#updates.update-ready { animation-play-s
 /* Status changes occupy the same space while an update is running. */
 #modal[data-family=updates] .update-status { grid-template-rows:minmax(32px,auto) 3px;align-items:center;gap:8px; }
 #modal[data-family=updates] #update-progress[hidden] { display:block!important;visibility:hidden; }
+
+/* Stable update surfaces reuse the onboarding metal and progress treatment. */
+#modal .update-check-text,#modal .update-check-text:hover,#modal .update-check-text:active {background:transparent;border:0;box-shadow:none;color:#ccc;min-height:44px;padding:10px 16px;transition:color .18s ease;transform:none}
+#modal .update-check-text:hover {color:#fff}
+#modal .update-check-text:disabled {opacity:.45}
+#modal .ob2-metal-button:hover,#modal .ob2-metal-button:active {transform:none}
+#modal .ob2-status-card {position:relative;display:block;border:1px solid #ffffff25;border-radius:16px;background:#101010;margin:16px 0;isolation:isolate}
+#modal .ob2-status-card .ob2-status-body {padding:20px 24px;gap:16px}
+#modal .ob2-status-card #update-progress[hidden] {display:none!important}
+#modal .update-error {color:#ffaaaa;white-space:pre-line}
+#modal [data-update-effect][hidden] {display:none}
+#modal[data-family=update-notice] {max-width:440px}
+#modal[data-family=update-notice] .modal-header {border-bottom:0}
+#modal[data-family=update-notice] .actions {border-top:0;justify-content:center;padding-top:0}
+#modal[data-family=update-notice] .modal-body:empty {display:none}
+#modal[data-family=update-installing] {max-width:440px;overflow:visible;background:#101010}
+#modal[data-family=update-installing] .modal-header {padding:24px 28px 8px;border-bottom:0}
+#modal[data-family=update-installing] #modal-title {font-size:15px;font-weight:500;line-height:1.5}
+#modal[data-family=update-installing] .modal-body {overflow:visible;padding:0 28px 24px}
+#modal[data-family=update-installing] .ob2-status-card {position:static;margin:0;border:0;background:transparent}
+#modal[data-family=update-installing] .ob2-status-body {padding:8px 0 0;position:relative}
+#modal[data-family=update-installing] .modal-header {position:relative;z-index:1}
+.gallery-pagination {display:flex;align-items:center;justify-content:space-between;gap:16px;margin:30px 0 8px;padding:20px 0;border-top:1px solid #ffffff12}
+.gallery-page-summary {color:#888;font-size:12px;white-space:nowrap}
+.gallery-page-controls {display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #ffffff16;border-radius:14px;background:#ffffff03}
+.gallery-page-controls button {display:grid;place-items:center;min-width:34px;height:34px;padding:0 8px;border:0;border-radius:9px;background:transparent;color:#999;font-size:12px;transition:background-color .16s,color .16s}
+.gallery-page-controls button:hover:not(:disabled) {background:#ffffff0d;color:#fff}
+.gallery-page-controls button[aria-current=page] {background:#e6e6e6;color:#141414}
+.gallery-page-controls button:disabled {opacity:.25;cursor:default}
+.gallery-page-controls button>span {font-size:21px;line-height:1}
+.gallery-page-gap {padding:0 4px;color:#666}
+.gallery-results {scroll-margin-top:110px}
+@media(max-width:680px){.gallery-pagination{flex-wrap:wrap;justify-content:center}.gallery-page-summary:last-child{display:none}.gallery-page-controls{order:-1;width:100%;justify-content:center}}
+body:has(#modal[open][data-family=update-installing]) .ob2-installation {display:none}

@@ -114,6 +114,14 @@ extension Core {
         if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),isMemoryOnly(plan),let id=plan["id"] as? String,UUID(uuidString:id) != nil {
             value["skills_rollback"]=((try? readJSON(home.appendingPathComponent("staging/"+id+"/transaction.json")))?["status"] as? String).map{["applying","files_installed","rolling_back"].contains($0)} ?? false
         }
+        if ["downloading","installing"].contains(value["phase"] as? String ?? ""),
+           let id=onboardingRecord()["runID"] as? String,UUID(uuidString:id) != nil,
+           let progress=try? readJSON(home.appendingPathComponent("onboarding/installations/"+id+"/progress.json")) {
+            for field in ["completed","total","bytes_downloaded","bytes_total"] {if let number=progress[field] {value[field]=number}}
+        }
+        let errors=(value["results"] as? [[String:Any]] ?? []).filter{$0["status"] as? String=="error"}
+        if value["phase"] as? String=="complete",!errors.isEmpty {value["phase"]="failed"}
+        if !errors.isEmpty {value["error"]=errors.compactMap{$0["message"] as? String}.joined(separator:"\n")}
         value["catalog_origins"] = catalogSummary().filter { $0["repo"] as? String != nil }.map { ["id":$0["id"] ?? "", "repo":$0["repo"] ?? "", "commit":$0["commit"] ?? ""] }
         return value
     }

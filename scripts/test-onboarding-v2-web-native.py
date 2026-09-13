@@ -16,7 +16,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 BRANCH = None
-SCRATCH = ROOT / ".work/onboarding-v2/native-ui"
+UPDATES = "--updates-search" in sys.argv
+SCRATCH = ROOT / (".work/updates-search/native-ui" if UPDATES else ".work/onboarding-v2/native-ui")
 
 
 def guard() -> None:
@@ -52,6 +53,9 @@ def main() -> int:
         (SCRATCH / "assets" / name).write_bytes(data)
     guard()
     shutil.copyfile(ROOT / "scripts/fixture-onboarding-v2.js", SCRATCH / "fixture.js")
+    if UPDATES:
+        with (SCRATCH / "fixture.js").open("a") as fixture:
+            fixture.write((ROOT / "scripts/fixture-updates-search.js").read_text())
     harness = (ROOT / "scripts/atlas-web-fixture.m").read_text()
     harness = harness.replace('    if ([body[@"type"] isEqual:@"case"]) {', r'''    if ([body[@"type"] isEqual:@"snapshot"]) {
         [self.web takeSnapshotWithConfiguration:nil completionHandler:^(NSImage *image, NSError *error) {

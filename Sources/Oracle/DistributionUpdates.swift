@@ -39,6 +39,7 @@ extension Core {
             }
         } catch {results.append(["id":"gbrain","status":"error","message":error.localizedDescription])}
         do {
+            try recordUpdate("verifying","Conferindo o acervo local",results:results)
             let manifest=try resolveDistribution(),ledger=(try? readJSON(distributionLedgerURL)) ?? [:]
             let saved=try? readJSON(home.appendingPathComponent("setup/plan.json"))
             if let saved,isMemoryOnly(saved),let id=saved["id"] as? String,
@@ -66,6 +67,7 @@ extension Core {
                 func state(_ status:String,_ phase:String,_ message:String)throws {
                     var record=onboardingRecord();record["schemaVersion"]=3;record["profileMode"]="memory-only";record["runID"]=id;record["status"]=status;record["phase"]=phase;record["message"]=message;record["ownerPID"]=Int(getpid());record["localStarted"]=true
                     try writeJSON(record,onboardingURL)
+                    try recordUpdate(phase,message,results:results)
                 }
                 try state("running","downloading","Baixando a atualização do acervo.")
                 do {
@@ -92,7 +94,8 @@ extension Core {
             }
         } catch {results.append(["id":"skills","status":"error","message":error.localizedDescription])}
         let current=results.allSatisfy{["current","external"].contains($0["status"] as? String ?? "")}
-        try recordUpdate("complete",current ? "Tudo atualizado":"Verificação concluída; confira o resultado de cada componente.",results:results)
+        let failed=results.contains{$0["status"] as? String=="error"}
+        try recordUpdate(failed ? "failed":"complete",failed ? "A atualização não foi concluída. Confira o erro abaixo.":current ? "Tudo atualizado":"Verificação concluída; confira o resultado de cada componente.",results:results)
         return try updateStatus()
     }
     /// Recovery is allowed without a new license grant. It only restores proven

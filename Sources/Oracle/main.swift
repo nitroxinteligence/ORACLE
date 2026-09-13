@@ -105,6 +105,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
     let queue = DispatchQueue(label:"oracle.core")
     let updateQueue = DispatchQueue(label:"oracle.updates")
+    let updateStatusQueue = DispatchQueue(label:"oracle.updates.status",qos:.userInitiated)
     let memoryQueue = DispatchQueue(label:"oracle.memory.reads",qos:.userInitiated)
     var updating = false
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -292,7 +293,20 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 } catch {DispatchQueue.main.async {self.reply(id,nil,error.localizedDescription)}}
             };return
         }
-        let updaterBusy=updating
+        if method == "updateStatus" {
+            // Status reads must not wait behind a vault scan or editor operation.
+            updateStatusQueue.async {
+                do {
+                    let service=try Core(home:core.home)
+                    var status=try service.updateStatus()
+                    DispatchQueue.main.async {
+                        status["busy"]=self.updating
+                        if !self.updating,["checking","preparing","downloading","verifying","applying","installing","indexing"].contains(status["phase"] as? String ?? "") {status["phase"]="interrupted";status["message"]="Operação interrompida. Verifique novamente para recuperar com segurança."}
+                        self.reply(id,status)
+                    }
+                } catch {DispatchQueue.main.async {self.reply(id,nil,error.localizedDescription)}}
+            };return
+        }
         queue.async {
             do {
                 var result:Any = NSNull()
@@ -301,7 +315,6 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                     guard let layout=p["layout"] as? [String:Any],let nodes=layout["nodes"] as? [String:[String:Double]],let leaves=layout["leaves"] as? [String:[String:Double]],nodes.count<=128,leaves.count<=2000 else { throw failure("Layout inválido") }
                     for point in Array(nodes.values)+Array(leaves.values) { guard let x=point["x"],let y=point["y"],x.isFinite,y.isFinite,abs(x)<=2000,abs(y)<=2000 else { throw failure("Posição inválida") } }
                     core.config["layout"]=layout; try core.persist(); result=true
-                case "updateStatus": var status=try core.updateStatus();status["busy"]=updaterBusy;if !updaterBusy,["checking","downloading","verifying","applying"].contains(status["phase"] as? String ?? "") {status["phase"]="interrupted";status["message"]="Operação interrompida. Verifique novamente para recuperar com segurança."};result=status
                 case "configureSkillSource": try core.requireCapability(.manageCatalogSource);result = try core.configureSkillSource(p["repository"] as? String ?? "")
                 case "maintenanceStatus":result=try core.maintenanceSnapshot()
                 case "configureMaintenance":result=try core.configureMaintenance(p)

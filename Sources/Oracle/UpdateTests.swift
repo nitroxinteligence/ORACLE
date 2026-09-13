@@ -82,6 +82,12 @@ func runUpdateTests(releasePath: String?) throws {
     try expect(try c.updateStatus()["available"] as? Bool==true,"status exposes verified availability")
     try c.recordUpdate("complete","Em dia",results:[["id":"skills","status":"current"]])
     try expect(try c.updateStatus()["available"] as? Bool==false,"current result clears availability")
+    try c.recordUpdate("complete","Disponível",results:[["id":"skills","status":"available"]])
+    try c.recordUpdate("complete","Consulta concluída",results:[["id":"skills","status":"error","message":"Markdown ainda não está disponível localmente."]])
+    let failedStatus=try c.updateStatus()
+    try expect(failedStatus["phase"] as? String=="failed" && failedStatus["error"] as? String=="Markdown ainda não está disponível localmente.","terminal component errors are exposed as failures with their actual cause")
+    try expect(failedStatus["knownUpdate"] as? Bool==true,"failed installation preserves known update for explicit retry")
+
     let held = try c.acquireOperationLock("updates")
     try rejects("concurrent update excluded") { _ = try c.performUpdates() }
     c.releaseOperationLock(held)

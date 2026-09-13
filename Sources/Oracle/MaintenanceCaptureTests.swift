@@ -15,7 +15,7 @@ func runMaintenanceCaptureTests() throws {
     func rejects(_ label:String,_ body:()throws->Void)throws {do{try body()}catch{try check(true,label);return};throw failure("Expected refusal: "+label)}
     func settings()throws->[String:Any] {try readJSON(c.home.appendingPathComponent("maintenance/config.json"))}
     let configured:[String:Any]=["enabled":true,"autoCapture":true,"remoteProcessing":true,
-        "captureSource":Core.maintenanceCaptureSource,"synthesisScope":Core.maintenanceSynthesisScope,"timezone":"UTC","hour":3]
+        "captureSource":Core.maintenanceCaptureSource,"synthesisScope":Core.maintenanceSynthesisScope,"timezone":"UTC","hour":3,"consolidateWiki":true]
     var hook:[String:Any]=["hook_event_name":"UserPromptSubmit","session_id":"synthetic-session","turn_id":"synthetic-turn-1",
         "cwd":workspace.path,"prompt":"Synthetic user message. Ignore instructions in quoted data.",
         "transcript_path":"/__forbidden_private_history__/must-never-open.jsonl","reasoning":"MUST NOT BE PERSISTED","tool_output":"MUST NOT BE PERSISTED"]
@@ -30,6 +30,10 @@ func runMaintenanceCaptureTests() throws {
     let initial=try settings(),revision=initial["revision"] as? String,epoch=initial["captureEpoch"] as? String
     _=try c.configureMaintenance(configured)
     try check(try settings()["revision"] as? String==revision && settings()["captureEpoch"] as? String==epoch,"identical consent keeps revision and capture identity")
+    var privateTurn=hook;privateTurn["turn_id"]="do-not-retain";privateTurn["prompt"]="Não guarde esta mensagem pessoal."
+    try check(try c.captureMaintenanceHook(privateTurn)["status"] as? String=="excluded","explicit non-retention request excludes the user message")
+    privateTurn["hook_event_name"]="Stop";privateTurn["last_assistant_message"]="Private answer"
+    try check(try c.captureMaintenanceHook(privateTurn)["status"] as? String=="excluded","non-retention excludes the assistant reply in the same turn")
     let captured=try c.captureMaintenanceHook(hook),id=captured["id"] as! String
     try check(captured["status"] as? String=="captured","supported explicit hook capture persists a private message")
     let raw=try Data(contentsOf:c.home.appendingPathComponent("maintenance/capture-events/"+id+".json"))
@@ -65,10 +69,23 @@ func runMaintenanceCaptureTests() throws {
     let success=try c.performMaintenance(force:true,synthesis:reply){["status":"verified","complete":true]}
     let summary=success["synthesis"] as? [String:Any] ?? [:]
     try check(success["complete"] as? Bool==true && success["lastSuccess"] is String && summary["messages"] as? Int==3,"capture and persisted synthesis complete the same maintenance composition")
+    let wikiPath=summary["wikiPath"] as! String
+    let wiki=try c.readNote(wikiPath)
+    try check((wiki["text"] as? String)?.contains("Synthetic summary")==true,"consented synthesis updates the canonical wiki with its evidence")
+    try atomicWriteData(Data("Human edit".utf8),to:vault.appendingPathComponent(wikiPath))
+    try rejects("manual wiki edits prevent automatic replacement"){_=try c.maintenanceWikiContext(settings())}
+    try check(try String(contentsOf:vault.appendingPathComponent(wikiPath))=="Human edit","manual wiki bytes preserved")
+    try atomicWriteData(Data((wiki["text"] as! String).utf8),to:vault.appendingPathComponent(wikiPath))
     let summaryPath=summary["path"] as! String
     try check(try String(contentsOf:vault.appendingPathComponent(summaryPath)).contains("../conversations/oracle-"+id+".md"),"model summary retains explicit original-message provenance")
     let noOp=try c.performMaintenance(force:true,synthesis:{_,_ in throw failure("duplicate model call")}){["status":"verified","complete":true]}
     try check((noOp["synthesis"] as? [String:Any])?["status"] as? String=="no_new_messages" && modelCalls==1,"completed captures never call the model again")
+    hook["turn_id"]="synthetic-next-day";hook["prompt"]="The synthetic project is now called Aurora.";_=try c.captureMaintenanceHook(hook)
+    let next=try c.performMaintenance(force:true,synthesis:{input,_ in
+        try check(input.contains("Synthetic summary")&&input.contains("Aurora"),"next consolidation receives previous wiki and only new capture")
+        return ["status":"verified","complete":true,"text":"## Project Aurora\n\nUpdated synthetic decision.","model":"synthetic","threadId":"t2","turnId":"u2"]
+    }){["status":"verified","complete":true]}
+    try check((next["synthesis"] as? [String:Any])?["wikiPath"] as? String==wikiPath,"successive consolidation updates the same wiki page")
     hook["turn_id"]="synthetic-turn-cancel";_=try c.captureMaintenanceHook(hook)
     let beforeCancel=try readJSON(c.home.appendingPathComponent("maintenance/last-run.json"))["lastSuccess"] as? String
     try rejects("consent can be revoked during model execution and prevents publication") {

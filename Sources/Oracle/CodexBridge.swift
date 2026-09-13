@@ -70,6 +70,22 @@ final class CodexBridge:CodexConnection {
         let candidates=["/Applications/Codex.app/Contents/Resources/codex","/Applications/ChatGPT.app/Contents/Resources/codex",home.appendingPathComponent("Applications/Codex.app/Contents/Resources/codex").path,home.appendingPathComponent(".npm-global/bin/codex").path,"/opt/homebrew/bin/codex","/usr/local/bin/codex"]
         guard let path=candidates.first(where:{fm.isExecutableFile(atPath:$0)}) else {throw failure("Instale o Codex para continuar e tente conectar novamente.")};return URL(fileURLWithPath:path)
     }
+    /// The app-server loads global AGENTS.md outside execution environments.
+    /// Deny those reads in this child only; keep login owned by the official CLI.
+    static func maintenanceConnection() throws -> CodexBridge {
+        let userHome=fm.homeDirectoryForCurrentUser
+        let paths=["AGENTS.md","AGENTS.override.md"].flatMap { name -> [String] in
+            let url=userHome.appendingPathComponent(".codex/"+name)
+            return [url.path,url.resolvingSymlinksInPath().path]
+        }
+        let literals=try Set(paths).sorted().map { path in
+            "(literal "+String(decoding:try JSONSerialization.data(withJSONObject:path,options:[.fragmentsAllowed,.withoutEscapingSlashes]),as:UTF8.self)+")"
+        }.joined(separator:" ")
+        let profile="(version 1)(allow default)(deny file-read* "+literals+")"
+        return CodexBridge(launch:CodexLaunchConfiguration(executable:URL(fileURLWithPath:"/usr/bin/sandbox-exec"),
+            arguments:["-p",profile,try executable().path,"app-server","--stdio"],
+            environment:["HOME":userHome.path,"PATH":"/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin","LANG":"en_US.UTF-8","TERM":"dumb"]))
+    }
     func start(cwd:URL) throws {
         try start(cwd:cwd,configurationOverrides:[])
     }

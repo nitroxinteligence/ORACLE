@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   let api, root, screen, activation, progress, current={}, stage='', timer, generation=0, pending=false, busy=false;
+  let integration={enabled:true,autoCapture:false,remoteProcessing:false,hour:15,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone};
   const needsRecovery=value=>value.licensed&&!['starting','running','cancelling','completed'].includes(value.status)&&(value.libraryRootChoices?.length||value.distributionConflicts?.length);
   const motionHandles=new Set();
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -51,10 +52,12 @@
       content.innerHTML=logo()+'<h1>Escolha seu Obsidian.</h1><p class="ob2-description"><span>Selecione o vault que você já criou no Obsidian.</span><span>Todo o Second Brain será instalado neste vault.</span></p><div class="ob2-vault-selection"></div><div class="ob2-action" data-ob2-effect></div>';
       updateVaultSelection();
     }else if(next==='install'){
-      content.innerHTML=logo()+'<h1>Instale seu segundo cérebro.</h1><div class="ob2-action" data-ob2-effect></div>';
+      content.innerHTML=logo()+`<h1>Instale seu segundo cérebro.</h1><div class="ob2-integration"><label><input id="ob-daily" type="checkbox" ${integration.enabled?'checked':''}>Manutenção diária no Codex <select id="ob-daily-hour" aria-label="Horário da manutenção">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===integration.hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select></label><label><input id="ob-capture" type="checkbox" ${integration.autoCapture?'checked':''}>Guardar mensagens das conversas no espaço Oracle do Codex</label><label><input id="ob-synthesis" type="checkbox" ${integration.remoteProcessing?'checked':''}>Enviar essas mensagens ao Codex para consolidar a wiki</label><p>GPT-5.6 Sol · esforço médio. Ao concluir, o Codex será aberto para autorizar os hooks e registrar a manutenção. O Mac precisa estar acordado e o Codex aberto no horário.</p></div><div class="ob2-action" data-ob2-effect></div>`;
+      const readIntegration=()=>{const find=id=>content.querySelector('#'+id);integration={...integration,enabled:find('ob-daily').checked,hour:Number(find('ob-daily-hour').value),autoCapture:find('ob-daily').checked&&find('ob-capture').checked,remoteProcessing:find('ob-daily').checked&&find('ob-capture').checked&&find('ob-synthesis').checked};find('ob-capture').disabled=!integration.enabled;find('ob-daily-hour').disabled=!integration.enabled;find('ob-synthesis').disabled=!integration.autoCapture;if(!integration.autoCapture)find('ob-synthesis').checked=false;};
+      for(const id of ['ob-daily','ob-daily-hour','ob-capture','ob-synthesis'])content.querySelector('#'+id).onchange=readIntegration;readIntegration();
       metal(content.querySelector('.ob2-action'),'Instalar',async()=>{
         const button=content.querySelector('button');button.disabled=true;
-        try{await invoke('onboardingInstallMemoryOnly');current=await invoke('onboardingStatus');await api.refresh?.();document.body.classList.remove('ob2-configuring');const exit=await animate(screen,[{opacity:1},{opacity:0}],460,true);closeScreen();release(exit);stage='progress';updateProgress();}
+        try{await invoke('onboardingInstallMemoryOnly',{maintenance:{...integration,consolidateWiki:integration.remoteProcessing,captureSource:integration.autoCapture?'codex_workspace_hooks_v1':null,synthesisScope:integration.remoteProcessing?'captured_messages_codex_v1':null}});current=await invoke('onboardingStatus');await api.refresh?.();document.body.classList.remove('ob2-configuring');const exit=await animate(screen,[{opacity:1},{opacity:0}],460,true);closeScreen();release(exit);stage='progress';updateProgress();}
         finally{if(button.isConnected)button.disabled=false;}
       });
     }
@@ -130,7 +133,8 @@
     if(pending||!api)return;pending=true;const epoch=generation;
     try{
       const value=await invoke('onboardingStatus');if(epoch!==generation)return;
-      const before=JSON.stringify([current.status,current.installationProgress,current.confirmed]);current=value;
+      const previousStatus=current.status,before=JSON.stringify([current.status,current.installationProgress,current.confirmed]);current=value;
+      if(current.status==='completed'&&['starting','running','cancelling'].includes(previousStatus)&&current.maintenance?.enabled&&!current.maintenance?.registered){invoke('onboardingOpenCodex').catch(errorToast);api.toast?.('Memória local instalada. Abra uma conversa no espaço Oracle para autorizar os hooks e registrar a manutenção.');}
       if(needsRecovery(current)&&api.openRecovery){await api.openRecovery();return;}
       updateProgress();
       if(before!==JSON.stringify([current.status,current.installationProgress,current.confirmed])){

@@ -18,7 +18,7 @@ let validationState = Bundle.main.bundleIdentifier?.hasSuffix(".validation") == 
 let core = try Core(home: (argument("--state") ?? validationState).map { URL(fileURLWithPath:$0) })
 // A CLI is another entrypoint, not an authorization bypass. Test switches only
 // run their own synthetic suites, never a second mutating command in the same invocation.
-let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-backup","--self-test-maintenance","--self-test-distribution"]
+let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-backup","--self-test-maintenance","--self-test-maintenance-live","--self-test-distribution"]
 let mutatingSwitches:Set<String>=["--prepare-bridge","--gbrain","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update","--sync-gbrain","--backup","--maintenance"]
 if arguments.contains("--self-test-distribution") {
     do {guard !arguments.contains(where:{mutatingSwitches.contains($0)}) else{throw failure("Testes e operações de produto precisam de invocações separadas.")};try runDistributionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
@@ -31,7 +31,7 @@ if arguments.contains(where:{mutatingSwitches.contains($0)}) {
     } catch {fputs(error.localizedDescription+"\n",stderr);exit(1)}
 }
 if arguments.contains("--hook") {
-    do { let data = FileHandle.standardInput.readDataToEndOfFile(); guard data.count < 4_000_000, let value = try JSONSerialization.jsonObject(with:data) as? [String: Any] else { exit(0) }; try core.ingestHook(value) } catch { /* Observability must not block Codex. */ }
+    do { let data = FileHandle.standardInput.readDataToEndOfFile(); guard data.count < 4_000_000, let value = try JSONSerialization.jsonObject(with:data) as? [String: Any] else { exit(0) }; try core.ingestHook(value);print(String(decoding:try jsonData(core.maintenanceHookContext(value)),as:UTF8.self));exit(0) } catch { /* Observability must not block Codex. */ }
     print("{}"); exit(0)
 }
 if arguments.contains("--prepare-bridge") { do { print(String(decoding:try jsonData(core.prepareBridge()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
@@ -81,7 +81,17 @@ if let operation = argument("--setup") {
     do {guard ["apply","verify","rollback"].contains(operation) else{throw failure("Operação de configuração inválida.")};let result = try core.applyPlan(rollback:operation == "rollback",verifyOnly:operation == "verify"); print(String(decoding:try jsonData(result),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
 if arguments.contains("--self-test-backup") { do { try runGBrainBackupTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
-if arguments.contains("--self-test-maintenance") { do { try runMaintenanceCaptureTests();try runMaintenanceSynthesisTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
+if arguments.contains("--self-test-maintenance-live") {
+    do {
+        guard ProcessInfo.processInfo.environment["ORACLE_TEST_ALLOW_MODEL"]=="1" else{throw failure("A prova com modelo exige ORACLE_TEST_ALLOW_MODEL=1 e usa apenas texto sintético.")}
+        let root=try oracleTestDirectory("maintenance-live"),workspace=root.appendingPathComponent("model")
+        defer{try? fm.removeItem(at:root)}
+        try fm.createDirectory(at:workspace,withIntermediateDirectories:true)
+        let value=try OracleMaintenanceSynthesis.run(bridge:CodexBridge.maintenanceConnection(),workspace:workspace,input:"{\"previousWiki\":\"\",\"messages\":[{\"role\":\"user\",\"text\":\"Decidi chamar o projeto de teste de Aurora. Este dado é sintético.\"}]}",preferredModel:"gpt-5.6-sol",preferredEffort:"medium",cancelled:{false})
+        print(String(decoding:try jsonData(value),as:UTF8.self));exit(0)
+    } catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
+}
+if arguments.contains("--self-test-maintenance") { do { try runMaintenanceScheduleTests();try runMaintenanceCaptureTests();try runMaintenanceSynthesisTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-editor") { do { try runEditorTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--codex-inventory") { do {let bridge=CodexBridge();defer{bridge.stop()};try bridge.start(cwd:core.home);let account=try bridge.account();guard account["connected"] as? Bool==true else{throw failure("Conecte sua conta no Codex primeiro.")};print(String(decoding:try jsonData(bridge.inventory()),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)} }
 if arguments.contains("--onboarding-verify") { do { print(String(decoding:try jsonData(core.onboardingFinalVerification()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }

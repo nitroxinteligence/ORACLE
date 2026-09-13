@@ -5,7 +5,7 @@ extension Core {
     /// Isolated native fixtures must never write into the operator's real skills.
     func distributionHostHome() -> URL {
         let fixtureRoot=ProcessInfo.processInfo.environment["ORACLE_TEST_ROOT"].map{URL(fileURLWithPath:$0).standardizedFileURL.path}
-        let fixtureInvocation=ProcessInfo.processInfo.arguments.contains("--self-test-distribution") && fixtureRoot.map{home.path.hasPrefix($0+"/")}==true
+        let fixtureInvocation=ProcessInfo.processInfo.arguments.contains(where:{["--self-test-distribution","--self-test-maintenance"].contains($0)}) && fixtureRoot.map{home.path.hasPrefix($0+"/")}==true
         if home.pathComponents.contains(".work"),Bundle.main.bundleIdentifier==nil || Bundle.main.bundleIdentifier?.hasSuffix(".validation")==true || fixtureInvocation {
             return home.appendingPathComponent("host-fixture")
         }

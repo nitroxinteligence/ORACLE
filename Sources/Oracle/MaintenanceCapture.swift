@@ -92,6 +92,15 @@ extension Core {
               !text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty,text.utf8.count<=64_000 else {
             throw failure("Hook sem mensagem/identificadores suportados ou acima de 64 KB; não houve captura parcial.")
         }
+        let retentionID=digest(Data((epoch+session+turn).utf8)),excluded=try scoped("maintenance/excluded-turns/"+retentionID+".json",root:home)
+        let normalized=text.folding(options:[.caseInsensitive,.diacriticInsensitive],locale:Locale(identifier:"pt_BR"))
+        let doNotRetain=normalized.range(of:"(?:nao|nunca)\\s+(?:guarde|salve|memorize|registre|retenha)|nao anote|do not (?:remember|save|retain)|off.the.record",options:.regularExpression) != nil
+        let secret=text.range(of:"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----|\\bsk-(?:proj-)?[A-Za-z0-9_-]{24,}|\\bgh[pousr]_[A-Za-z0-9]{25,}",options:.regularExpression) != nil
+        if (kind=="UserPromptSubmit" && doNotRetain) || secret {
+            try writeJSON(["excluded":true],excluded)
+            return ["status":"excluded","executed":false]
+        }
+        if fm.fileExists(atPath:excluded.path){return ["status":"excluded","executed":false]}
         let payload:[String:Any]=["schemaVersion":1,"source":Self.maintenanceCaptureSource,"epoch":epoch,
             "vault":config["vault"]!,"session":digest(Data(session.utf8)),"turn":digest(Data(turn.utf8)),
             "role":kind=="Stop" ? "assistant" : "user","text":text]
@@ -177,10 +186,11 @@ extension Core {
             } else {pending.append(row)}
         }
         guard !pending.isEmpty else{return ["status":"no_new_messages","complete":true,"executed":false]}
+        let previousWiki=try maintenanceWikiContext(settings)
         var batch=[[String:Any]](),size=0
         for row in pending {
             let count=try jsonData(row).count
-            if batch.count>=64 || size+count>120_000 {break}
+            if batch.count>=64 || size+count>48_000 {break}
             batch.append(row);size += count
         }
         guard !batch.isEmpty else{throw failure("Mensagem excede o lote de síntese; nenhum conteúdo truncado.")}
@@ -190,7 +200,7 @@ extension Core {
             return ["id":row["id"]!,"session":payload["session"]!,"turn":payload["turn"]!,
                     "role":payload["role"]!,"text":payload["text"]!]
         }
-        let input=try jsonData(messages),batchID=digest(input)
+        let input=try jsonData(["previousWiki":previousWiki,"messages":messages]),batchID=digest(try jsonData(messages))
         func stopped() -> Bool {cancelled() || !self.maintenanceConsentCurrent(settings)}
         guard !stopped() else{throw failure("Síntese cancelada antes do envio.")}
         let responsePath="maintenance/synthesis-results/"+batchID+".json",responseURL=try scoped(responsePath,root:home)
@@ -213,10 +223,17 @@ extension Core {
         let consentLock=try acquireOperationLock("maintenance-config");defer{releaseOperationLock(consentLock)}
         guard !stopped() else{throw failure("Consentimento alterado; síntese não publicada.")}
         try publishMaintenanceNote(content,path:path)
+        var wikiPath:String?
+        if settings["consolidateWiki"] as? Bool==true {
+            let priorSources=previousWiki.components(separatedBy:"\n").filter{$0.hasPrefix("- [Fonte](../../INBOX/oracle-history/syntheses/")}
+            let sources=Array(Set(priorSources+["- [Fonte](../../"+path+")"])).sorted().joined(separator:"\n")
+            let wiki="# Memória consolidada\n\nSíntese gerada pelo Codex; declarações do usuário e sugestões do assistente mantêm atribuição.\n\n"+text+"\n\n## Fontes\n"+sources+"\n"
+            wikiPath=try publishMaintenanceWiki(wiki,settings:settings,expected:previousWiki)
+        }
         for id in ids {ledger[id]=["path":path,"sha256":digest(content)]}
         try writeJSON(ledger,ledgerURL)
         return ["status":"verified","complete":batch.count==pending.count,"executed":true,"messages":batch.count,
-                "remaining":pending.count-batch.count,"path":path,"sha256":digest(content),"model":model,
+                "wikiPath":wikiPath as Any? ?? NSNull(),"remaining":pending.count-batch.count,"path":path,"sha256":digest(content),"model":model,
                 "threadId":response["threadId"]!,"turnId":response["turnId"]!,"inputSHA256":batchID]
     }
 }

@@ -119,3 +119,15 @@ brains are preserved: do not start a second profile or auto-sync their files.
 Do not propose or start any first-memory exercise, guided first use, tutorial
 or cold-start prompt before or after onboarding. End with verified state;
 wait for the user's normal task instead of manufacturing a first task.
+
+## Daily Second Brain integration
+
+When the reviewed plan enables maintenance, read `<state>/maintenance/schedule-request.md`
+and use the desktop app's official automation tool to create or update the dedicated
+local daily task. Use GPT-5.6 Sol with medium reasoning, the selected hour/timezone,
+and the exact profile marker and command supplied by Oracle. Do not create duplicates,
+write automation.toml, bypass hook trust, or change unrelated tasks. Read back
+`Oracle --state <state> --maintenance status`; only `hostSchedule.registered: true`
+confirms the matching active host configuration. An unavailable tool remains pending.
+Capture and remote wiki consolidation need their respective recorded consents.
+No Obsidian plugin is installed. Hooks only cover this Oracle workspace.

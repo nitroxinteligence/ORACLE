@@ -25,6 +25,7 @@ extension Core {
             value=["schemaVersion":2,"status":"not_started","legacyProfilePreserved":config["vault"] as? String != nil]
             try writeJSON(value,onboardingURL)
         }
+        value["maintenance"]=try maintenanceSnapshot()
         let license=activeLicense()
         value["licensed"]=license != nil;value["legacyAccess"]=license?.role == "owner"
         value["role"]=license == nil ? "locked" : license?.role ?? "student";value["capabilities"]=licenseCapabilities(license)
@@ -381,7 +382,7 @@ final class OnboardingController {
     }
     /// One click selects a native immutable distribution plan. The shell can open
     /// immediately; resolution and network work run on the existing worker queue.
-    func installMemoryOnly(resuming:Bool=false,replaceLegacy:Bool=false) throws -> [String:Any] {
+    func installMemoryOnly(resuming:Bool=false,replaceLegacy:Bool=false,maintenance:[String:Any]?=nil) throws -> [String:Any] {
         stateLock.lock();defer{stateLock.unlock()}
         try requireAccess();core.refreshConfig()
         let prior=core.onboardingRecord()
@@ -403,6 +404,7 @@ final class OnboardingController {
             id=UUID().uuidString
         }
         _=try core.vault();try clearCancel()
+        if !resuming {try writeJSON(try OracleMaintenancePolicy.settings(maintenance ?? [:]),core.home.appendingPathComponent("onboarding/installations/"+id+"/maintenance.json"))}
         runGeneration=UUID();let generation=runGeneration;localInFlight=true;completedTurn=false
         try update(["schemaVersion":3,"profileMode":"memory-only","runID":id,"status":"starting","executor":"native-local","phase":"preparing","message":"Preparando seu segundo cérebro…","ownerPID":Int(getpid()),"localStarted":true,"awaitingIdentity":false,"codexStarted":false,"threadID":NSNull(),"turnID":NSNull(),"confirmedAt":NSNull(),"verification":NSNull(),"formation":[]])
         handedOff=true
@@ -437,6 +439,7 @@ final class OnboardingController {
             _=try core.indexMemoryOnly(plan:plan)
             try localPhase("installing","Preparando as skills locais e a integração com o Codex.",generation)
             _=try core.installDistributionSkills(manifest,plan:plan);_=try core.prepareBridge()
+            if let settings=plan["maintenance"] as? [String:Any] {_=try core.configureMaintenance(settings)}
             try localPhase("verifying","Conferindo arquivos, bibliotecas, memória e recuperação.",generation)
             let verification=try core.completeMemoryOnly(plan:plan)
             try core.checkOnboardingCancellation();try requireAccess()

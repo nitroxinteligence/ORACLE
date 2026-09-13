@@ -53,7 +53,7 @@ extension App {
                 case "onboardingClearVault":try controller.clearSelectedVault()
                 case "onboardingPlan":result=try controller.plan(params)
                 case "onboardingInstall":result=try controller.install(params["hash"] as? String ?? "")
-                case "onboardingInstallMemoryOnly":result=try controller.installMemoryOnly(replaceLegacy:params["replaceLegacy"] as? Bool==true)
+                case "onboardingInstallMemoryOnly":result=try controller.installMemoryOnly(replaceLegacy:params["replaceLegacy"] as? Bool==true,maintenance:params["maintenance"] as? [String:Any])
                 case "onboardingResolveConflicts":try controller.requireAccess();try controller.ensureNotRunning();result=try controller.core.resolveDistributionConflicts()
                 case "onboardingResume":result=try controller.resume()
                 case "onboardingInstallWithCodex":result=try controller.installWithCodex(params["hash"] as? String ?? "")

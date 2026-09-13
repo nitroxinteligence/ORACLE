@@ -62,3 +62,6 @@ body.reduced .oracle-onboarding-v2 *{animation:none!important;transition:none!im
 .ob2-installation.ob2-in-header .ob2-status-body {padding:11px 20px;gap:8px}
 .ob2-installation.ob2-in-header .ob2-status-body strong {font-size:12px}
 @media(max-width:480px){.ob2-description>span{display:inline}.ob2-description>span+span:before{content:' '}}
+
+.ob2-integration{width:100%;text-align:left;margin:0 0 24px;font-size:13px;line-height:1.5;color:#ccc}
+.ob2-integration label{display:flex;align-items:flex-start;gap:10px;margin:14px 0}.ob2-integration input{flex:none;margin:3px 0;accent-color:#ddd}.ob2-integration select{margin-left:auto;background:#171717;color:#eee;border:1px solid #ffffff30;border-radius:6px;padding:2px 6px}.ob2-integration p{font-size:12px;color:#999;margin:18px 0 0}.ob2-integration :focus-visible{outline:2px solid #bfc8d1;outline-offset:3px}

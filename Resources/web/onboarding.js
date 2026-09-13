@@ -9,6 +9,7 @@
   const groups=[['AGENT_NAME','PRINCIPAL_NAME','PRINCIPAL_TIMEZONE'],['AGENT_PURPOSE','AGENT_TOP_JOBS'],['PRINCIPAL_CONTEXT','VOICE_REGISTER']];
   const fresh=()=>({answers:{},catalogCollections:[],newVault:true,attach:false});
   let api,root,dialog,card,timer,epoch=0,pollPromise=null,open=false,suspended=true,stage='',group=0,current={},draft=fresh(),review=null,origin=null,fromSettings=false;
+  let integration={enabled:true,autoCapture:false,remoteProcessing:false,hour:15,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone};
   let saveTimer,lastSignature='',lastView='',dirty=false,draftWrites=Promise.resolve(),licenseCode='',connectionRequested=false,checkingConnection=false,replaceLegacy=false;
   const $=selector=>root?.querySelector(selector);
   const invoke=async(method,params={})=>{
@@ -27,7 +28,7 @@
     const prior=JSON.stringify(draft);
     if(stage==='identity'){
       for(const input of dialog.querySelectorAll('[data-answer]'))draft.answers[input.dataset.answer]=input.value;
-      if($('#ob-maintenance'))draft.maintenance={enabled:$('#ob-maintenance').checked,autoCapture:false,remoteProcessing:false,timezone:draft.answers.PRINCIPAL_TIMEZONE||'UTC',hour:3};
+      if($('#ob-maintenance'))draft.maintenance={enabled:$('#ob-maintenance').checked,autoCapture:false,remoteProcessing:false,timezone:draft.answers.PRINCIPAL_TIMEZONE||'UTC',hour:15};
     }
     if(stage==='vault'){draft.newVault=!!$('#ob-new')?.checked;draft.attach=!!$('#ob-attach')?.checked;draft.catalogCollections=[];}
     if(prior!==JSON.stringify(draft))dirty=true;
@@ -102,17 +103,19 @@
       $('#ob-vault-next').disabled=!current.hasVault;
       $('#ob-vault-next').onclick=action(async()=>{if(!current.hasVault)throw Error('Escolha uma pasta para continuar.');await navigate('install');});
     }else if(stage==='install'){
-      frame('Instale seu segundo cérebro.',`<p>O Oracle vai baixar os componentes e instalar o acervo completo em <strong>${esc(current.vaultName)}</strong>, com as skills também preparadas para o Codex neste computador.</p><p class="ob-muted">Ao terminar: arquivos, memória estruturada, busca textual, links e edição local.</p>`,button('ob-install-back','Voltar',false)+button('ob-install-complete','Instalar'));
+      frame('Instale seu segundo cérebro.',`<p>O Oracle vai baixar os componentes e instalar o acervo completo em <strong>${esc(current.vaultName)}</strong>, com as skills também preparadas para o Codex neste computador.</p><p class="ob-muted">Ao terminar: arquivos, memória estruturada, busca textual, links e edição local.</p><label class="ob-check"><input id="ob-daily" type="checkbox" ${integration.enabled?'checked':''}>Criar manutenção diária no Codex</label><label for="ob-daily-hour">Horário</label><select id="ob-daily-hour">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===integration.hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select><label class="ob-check"><input id="ob-capture" type="checkbox" ${integration.autoCapture?'checked':''}>Guardar mensagens das conversas no espaço Oracle do Codex</label><label class="ob-check"><input id="ob-synthesis" type="checkbox" ${integration.remoteProcessing?'checked':''}>Enviar essas mensagens ao Codex para consolidar a wiki</label><p class="ob-muted">GPT-5.6 Sol · esforço médio. O Codex será aberto para concluir a integração. Autorize os hooks no próprio Codex. O Mac precisa estar acordado e o Codex aberto no horário. Nenhum plugin do Obsidian é necessário.</p>`,button('ob-install-back','Voltar',false)+button('ob-install-complete','Instalar'));
       $('#ob-install-back').onclick=action(()=>navigate('vault'));
+      const readIntegration=()=>{integration={...integration,enabled:$('#ob-daily').checked,hour:Number($('#ob-daily-hour').value),autoCapture:$('#ob-daily').checked&&$('#ob-capture').checked,remoteProcessing:$('#ob-daily').checked&&$('#ob-capture').checked&&$('#ob-synthesis').checked};$('#ob-capture').disabled=!integration.enabled;$('#ob-synthesis').disabled=!integration.autoCapture;if(!integration.autoCapture)$('#ob-synthesis').checked=false;};
+      for(const id of ['ob-daily','ob-daily-hour','ob-capture','ob-synthesis'])$('#'+id).onchange=readIntegration;readIntegration();
       $('#ob-install-complete').onclick=action(async()=>{
         dismiss();
-        try{await invoke('onboardingInstallMemoryOnly',{replaceLegacy});await refreshStatus();await api.refresh?.();}
+        try{await invoke('onboardingInstallMemoryOnly',{replaceLegacy,maintenance:{...integration,consolidateWiki:integration.remoteProcessing,captureSource:integration.autoCapture?'codex_workspace_hooks_v1':null,synthesisScope:integration.remoteProcessing?'captured_messages_codex_v1':null}});await refreshStatus();await api.refresh?.();}
         catch(error){stage='install';reveal();throw error;}
       });
     }else if(stage==='identity'){
       group=Math.max(0,Math.min(2,group));
       frame(['Vamos nos conhecer.','Seu contexto de trabalho.','Suas preferências.'][group],`<p>Registre somente informações que deseja usar no seu segundo cérebro. Você revisará o conteúdo antes da criação.</p><div class="ob-fields">${groups[group].map(k=>`<label for="ob-${k}">${labels[k]}</label>${limits[k]<=128?`<input id="ob-${k}" data-answer="${k}" maxlength="${limits[k]}" value="${esc(draft.answers[k]||'')}">`:`<textarea id="ob-${k}" data-answer="${k}" maxlength="${limits[k]}" rows="3">${esc(draft.answers[k]||'')}</textarea>`}`).join('')}</div>`,button('ob-identity-next',group===2?'Revisar plano':'Continuar'));
-      if(group===2){const consent=document.createElement('div');consent.innerHTML=`<label class="ob-check"><input type="checkbox" id="ob-maintenance" ${draft.maintenance?.enabled?'checked':''}>Autorizar manutenção local diária</label><p class="ob-muted">Às 3h ou na próxima abertura elegível, verifica o índice local. Essa autorização não inclui captura, síntese remota nem backup. Você pode desmarcar esta opção na configuração.</p>`;dialog.querySelector('.ob-fields').append(consent);}
+      if(group===2){const consent=document.createElement('div');consent.innerHTML=`<label class="ob-check"><input type="checkbox" id="ob-maintenance" ${draft.maintenance?.enabled?'checked':''}>Autorizar manutenção local diária</label><p class="ob-muted">Às 15h ou na próxima abertura elegível, verifica o índice local. Essa autorização não inclui captura, síntese remota nem backup. Você pode desmarcar esta opção na configuração.</p>`;dialog.querySelector('.ob-fields').append(consent);}
       $('#ob-identity-next').onclick=action(async()=>{capture();for(const k of groups[group])if(!draft.answers[k]?.trim())throw Error('Preencha os campos apresentados.');dirty=true;await flushInputs();if(group<2){group++;dirty=true;render();}else await plan();});
     }else if(stage==='review'){
       review=current.review||null;
@@ -192,6 +195,10 @@
     const task=(async()=>{
       const value=await invoke('onboardingStatus');if(suspended||generation!==epoch)return;
       const prior=current;current=value;review=current.review||null;
+      if(current.status==='completed'&&active.has(prior.status)&&current.maintenance?.enabled&&!current.maintenance?.registered){
+        invoke('onboardingOpenCodex').catch(message);
+        api.toast?.('Memória local instalada. Abra uma conversa no espaço Oracle para autorizar os hooks e registrar a manutenção.');
+      }
       const signature=JSON.stringify([current.runID,current.status,current.phase,current.confirmed]);
       if(signature!==lastSignature){lastSignature=signature;window.dispatchEvent(new CustomEvent('oracle:onboarding-progress',{detail:{schemaVersion:2,runID:current.runID,status:current.status,phase:current.phase,confirmed:current.confirmed||[],completed:current.completed,total:current.total}}));if(current.status==='completed'||active.has(current.status))Promise.resolve(api.refresh?.()).catch(message);}
       if(open){

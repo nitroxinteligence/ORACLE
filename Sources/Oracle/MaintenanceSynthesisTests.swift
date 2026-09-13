@@ -9,7 +9,7 @@ private final class MaintenanceSynthesisFixture: CodexConnection {
     var scenario = "success", inherited = [String: Any](), cancelled = false
     var threadID = "fixture-thread", turnID = "fixture-turn", cwd = ""
     var permissionID = "", launchOverrides = [String]()
-    func start(cwd: URL) throws { startCount += 1; self.cwd = cwd.path; isRunning = true }
+    func start(cwd: URL) throws { startCount += 1; self.cwd = cwd.path; isRunning = true; if scenario=="ignored-optional-role" {onNotification?("configWarning",["summary":"Ignoring malformed agent role definition: fixture must define `developer_instructions`","details":NSNull()])} }
     func start(cwd:URL,configurationOverrides:[String]) throws {
         launchOverrides=configurationOverrides
         guard let setting=configurationOverrides.first(where:{$0.hasPrefix("default_permissions=")}),
@@ -48,8 +48,8 @@ private final class MaintenanceSynthesisFixture: CodexConnection {
             let profile:[String:Any]=["filesystem":filesystem,"network":["enabled":scenario=="network-enabled","proxy_url":NSNull()],
                 "extends":scenario=="inherited-profile" ? ":read-only" as Any : NSNull(),"workspace_roots":NSNull(),"description":NSNull()]
             config["permissions"]=[permissionID:profile];config["default_permissions"]=permissionID
-            config["sandbox_mode"]=scenario=="legacy-sandbox-conflict" ? "read-only" as Any : NSNull()
-            let origins=Dictionary(uniqueKeysWithValues:["default_permissions","permissions.\(permissionID).filesystem.:root",
+            config["sandbox_mode"]=scenario=="legacy-sandbox-conflict" ? "danger-full-access" : "read-only"
+            let origins=Dictionary(uniqueKeysWithValues:["sandbox_mode","default_permissions","permissions.\(permissionID).filesystem.:root",
                 "permissions.\(permissionID).filesystem.\(cwd)","permissions.\(permissionID).network.enabled"].map {($0,["name":["type":scenario=="foreign-profile-origin" ? "user" : "sessionFlags"]])})
             return ["config":config,"origins":origins,"layers":scenario=="project-layer" ? [["name":["type":"project"]]] : []]
         case "experimentalFeature/list":
@@ -59,18 +59,13 @@ private final class MaintenanceSynthesisFixture: CodexConnection {
                 "nextCursor": scenario == "feature-cycle" ? "repeat" as Any : NSNull()]
         case "thread/start":
             return ["thread": ["id": threadID, "turns": []], "model": scenario == "model-change" ? "other-model" : "fixture-model",
-                "modelProvider": "openai", "cwd": cwd, "runtimeWorkspaceRoots": [cwd], "reasoningEffort": "low",
+                "modelProvider": "openai", "cwd": cwd, "runtimeWorkspaceRoots": [String](), "reasoningEffort": scenario=="missing-policy-readback" ? NSNull() : "low" as Any,
                 "instructionSources": scenario == "instructions" ? ["/synthetic/AGENTS.md"] : [],
                 "approvalPolicy": "never", "approvalsReviewer": "user", "sandbox": ["type": "readOnly"],
-                "activePermissionProfile":["id":scenario=="wrong-start-profile" ? "other-profile" : permissionID,"extends":NSNull()]]
-        case "thread/settings/update":
-            if scenario == "missing-policy-readback" { return [:] }
-            onNotification?("thread/settings/updated", ["threadId": threadID, "threadSettings": [
-                "model": "fixture-model", "modelProvider": "openai", "approvalPolicy": "never",
-                "approvalsReviewer": "user", "activePermissionProfile":["id":scenario=="broad-read" ? ":read-only" : permissionID,"extends":NSNull()]]])
-            return [:]
+                "activePermissionProfile":["id":["wrong-start-profile","broad-read"].contains(scenario) ? "other-profile" : permissionID,"extends":NSNull()]]
         case "mcpServerStatus/list":
             if scenario == "premature-turn" { item(); completion() }
+            if scenario=="disabled-mcp" {return ["data":[["name":"fixture","runtimeStatus":"disabled","tools":[String:Any](),"resources":[Any](),"resourceTemplates":[Any]()]],"nextCursor":NSNull()]}
             return ["data": scenario == "mcp-remains" ? [["name": "fixture-mcp", "tools": ["read": [:]]]] : [], "nextCursor": NSNull()]
         case "turn/start":
             switch scenario {
@@ -130,6 +125,8 @@ func runMaintenanceSynthesisTests() throws {
         try OracleMaintenanceSynthesis.run(bridge: fixture, workspace: workspace, input: hostileInput,
             preferredModel: nil, timeout: timeout, cancelled: { fixture.cancelled })
     }
+    let harmless = MaintenanceSynthesisFixture();harmless.scenario="ignored-optional-role"
+    try check(try execute(harmless)["complete"] as? Bool==true,"ignored optional role does not block independently isolated synthesis")
     let fixture = MaintenanceSynthesisFixture()
     let result = try execute(fixture)
     try check(result["status"] as? String == "verified" && result["complete"] as? Bool == true,
@@ -179,11 +176,15 @@ func runMaintenanceSynthesisTests() throws {
         if scenario == "approval" || scenario == "tool-rpc" { try check(fake.rejected.count == 1, "server request denied for " + scenario) }
         if scenario == "no-response" || scenario == "cancel-running" { try check(fake.params("turn/interrupt") != nil, "active turn interrupted for " + scenario) }
     }
-    for scenario in ["legacy-phase", "with-commentary"] {
+    for scenario in ["legacy-phase", "with-commentary", "disabled-mcp"] {
         let fake = MaintenanceSynthesisFixture(); fake.scenario = scenario
         let value = try execute(fake)
         try check(value["text"] as? String == "# Síntese\n\nDecisão registrada.", "final answer accepted for " + scenario)
     }
+    let emptyHooks=MaintenanceSynthesisFixture()
+    emptyHooks.inherited=["hooks":["SessionStart":[Any](),"Stop":[Any](),"state":["synthetic-hook":["trusted_hash":"sha256:synthetic"]]]]
+    _=try execute(emptyHooks)
+    try check(emptyHooks.params("turn/start") != nil,"empty hook lists with trust metadata do not constitute executable hooks")
     let inherited = MaintenanceSynthesisFixture()
     inherited.inherited = ["mcp_servers": ["server.with.dots": ["command": "never-launch"]], "plugins": ["fixture/plugin": ["enabled": true]]]
     _ = try execute(inherited)

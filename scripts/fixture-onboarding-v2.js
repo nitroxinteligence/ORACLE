@@ -34,7 +34,7 @@
     ob:{schemaVersion:1,status:'not_started',licensed:false,legacyAccess:false,hasVault:false,hasExistingBrain:false,
       codexConnected:false,authorizing:false,deviceID:null,confirmed:[],models:[],modelSelection:null},
     config:{fixture:true,layout:{nodes:{},leaves:{}}}, entries, requests:[], calls:[], failures:[], cases:[], jsErrors:[],
-    maintenance:{enabled:false,external:false,hour:3,timezone:'UTC',scheduleState:'disabled',autoCapture:false,remoteProcessing:false,lastRun:{},message:'Executor local; registro externo não verificado.'},
+    maintenance:{enabled:false,external:false,hour:15,timezone:'UTC',scheduleState:'disabled',autoCapture:false,remoteProcessing:false,lastRun:{},message:'Executor local; registro externo não verificado.'},
     backup:{enabled:false,available:true,lastRun:{}},failDeviceRequest:true,failBackup:false,
     draftActive:0,draftMax:0,draftCompleted:[],holdDrafts:false,draftReleases:[],failNextDraft:false,
     releaseDrafts(){this.holdDrafts=false;for(const resolve of this.draftReleases.splice(0))resolve();},
@@ -106,7 +106,9 @@
         f.ob.draft=clone(params);f.ob.status='review';f.ob.runID='synthetic-run';
         f.ob.reviewPlan={id:'synthetic-run',plan_hash:'synthetic-plan-hash'};return clone(f.ob.reviewPlan);
       case 'onboardingInstallMemoryOnly':
+        f.installMaintenance=clone(params.maintenance);f.ob.maintenance={...clone(params.maintenance),registered:false};
         f.ob={...f.ob,status:'running',phase:'installing',profileMode:'memory-only',schemaVersion:3,runID:'memory-only-fixture',confirmed:[{id:'sol',kind:'core',label:'Oracle'}]};return clone(f.ob);
+      case 'onboardingOpenCodex':return true;
       case 'onboardingResume':f.ob.status='running';return clone(f.ob);
       case 'onboardingCancel':f.ob.status='paused';return clone(f.ob);
       case 'memoryStatus':return {status:'idle'};
@@ -165,9 +167,17 @@
         click('.ob2-action button');await wait(()=>q('.ob2-content h1')?.textContent==='Instale seu segundo cérebro.','install stage');
         assert(!qa('[data-answer]').length&&!q('#ob-connect'),'identity or account required');
       });
+      await check('Daily schedule defaults to 15h and capture has separate consent',async()=>{
+        assert(q('#ob-daily').checked&&q('#ob-daily-hour').value==='15','daily schedule default');
+        assert(!q('#ob-capture').checked&&!q('#ob-synthesis').checked&&q('#ob-synthesis').disabled,'remote capture enabled without consent');
+        q('#ob-capture').checked=true;q('#ob-capture').dispatchEvent(new Event('change',{bubbles:true}));
+        assert(!q('#ob-synthesis').disabled,'synthesis consent unavailable');
+        q('#ob-synthesis').checked=true;q('#ob-synthesis').dispatchEvent(new Event('change',{bubbles:true}));
+      });
       await check('Install reveals the shell with a compact header progress and no extra buttons',async()=>{
         await sleep(100);click('.ob2-action button');
         await wait(()=>!q('.ob2-screen').open&&f.ob.status==='running','shell during install');
+        assert(f.installMaintenance?.hour===15&&f.installMaintenance?.consolidateWiki===true&&f.installMaintenance?.captureSource==='codex_workspace_hooks_v1','consent missing from install request');
         assert(countCalls('onboardingPlan')===0&&countCalls('onboardingInstall')===0,'legacy path called');
         assert(q('aside')&&q('#atlas'),'sidebar or map absent');
         assert(!q('.ob2-installation').hidden&&!qa('.ob2-installation button').some(visible),'missing progress or extra actions');
@@ -205,6 +215,7 @@
         f.ob.status='completed';f.ob.message='Pronto';await OracleOnboarding.poll();
         await wait(()=>q('.ob2-installation').hidden&&!q('.ob2-screen').open,'completion without another screen');
         assert(countCalls('onboardingConnect')===0&&countCalls('onboardingConfirmIdentity')===0,'implicit consent or login');
+        assert(countCalls('onboardingOpenCodex')===1,'missing or duplicate automatic Codex handoff');
       });
     } catch(error){f.error=error.message;}
     if(f.failures.length||f.jsErrors.length)f.cases.push({name:'No bridge or JavaScript failures',ok:false,error:JSON.stringify([...f.failures,...f.jsErrors])});

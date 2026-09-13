@@ -11,7 +11,7 @@ enum OracleMaintenancePolicy {
     }
     static func settings(_ raw:[String:Any]) throws -> [String:Any] {
         let zone=raw["timezone"] as? String ?? TimeZone.current.identifier
-        let hour=raw["hour"] as? Int ?? 3
+        let hour=raw["hour"] as? Int ?? 15
         guard TimeZone(identifier:zone) != nil,(0...23).contains(hour) else{throw failure("Horário de manutenção inválido.")}
         let enabled=raw["enabled"] as? Bool==true
         for (key,expected) in [("captureSource",Core.maintenanceCaptureSource),("synthesisScope",Core.maintenanceSynthesisScope)] {
@@ -20,7 +20,8 @@ enum OracleMaintenancePolicy {
         return ["schemaVersion":1,"enabled":enabled,"autoCapture":enabled && raw["autoCapture"] as? Bool==true,
                 "remoteProcessing":enabled && raw["remoteProcessing"] as? Bool==true,"timezone":zone,"hour":hour,
                 "captureSource":raw["captureSource"] as? String ?? NSNull(),
-                "synthesisScope":raw["synthesisScope"] as? String ?? NSNull()]
+                "synthesisScope":raw["synthesisScope"] as? String ?? NSNull(),
+                "model":"gpt-5.6-sol","effort":"medium","consolidateWiki":enabled && raw["consolidateWiki"] as? Bool==true]
     }
 }
 
@@ -56,6 +57,10 @@ extension Core {
             let request="""
             # Manutenção do Oracle — solicitação de agendamento local
 
+            Você está no Codex Desktop, executando a configuração do Second Brain autorizada no Oracle. Quando a ferramenta oficial de automações estiver disponível, crie ou atualize a tarefa abaixo nesta conversa. Não peça novamente o consentimento já registrado no perfil. A confiança de hooks continua exclusiva do Codex.
+            Marcador obrigatório no prompt da tarefa: \(maintenanceMarker(value)).
+            Crie uma tarefa independente (cron), local, diária, com model gpt-5.6-sol e reasoningEffort medium. Use o horário e o fuso abaixo. O prompt deve incluir este marcador e os argumentos exatos do comando; não inclua toda esta solicitação de instalação no prompt recorrente. A tarefa deve executar a manutenção, conferir o recibo e ficar em silêncio quando não houver erro ou mudança que exija ação. Localize antes uma tarefa com o identificador estável deste perfil e atualize-a, sem duplicar. Preserve automações de outros perfis.
+            Depois da criação, execute o mesmo binário com --state e --maintenance status. Só confirme registro se hostSchedule.registered for true. A interface oficial também deve mostrar a tarefa. Não escreva arquivos privados do Codex diretamente.
             Identificador estável: \(value["id"]!). Fuso: \(settings["timezone"]!). Horário preferencial: \(settings["hour"]!)h diariamente.
             Use o mecanismo oficial de tarefas do aplicativo desktop. Procure uma tarefa com este identificador antes de criar; reutilize-a sem sobrescrever personalizações. Não escreva bancos privados, automation.toml ou confiança de hooks para simular registro.
             A tarefa trabalha neste perfil Oracle e somente no vault autorizado. Execute o comando como uma lista de argumentos, nunca por concatenação no shell: \(command).
@@ -83,15 +88,18 @@ extension Core {
         let external=self.config["gbrainWorkspace"] != nil
         let enabled=config["enabled"] as? Bool==true && targetMatches && self.config["gbrainAccess"] as? Bool != false && !external
         let zone=TimeZone(identifier:config["timezone"] as? String ?? "") ?? .current
-        let due=enabled && OracleMaintenancePolicy.due(now:now,lastSuccess:last,createdAt:created,timeZone:zone,hour:config["hour"] as? Int ?? 3)
-        return ["enabled":enabled,"scheduleState":config["enabled"] as? Bool == true ? "pending_host_registration" : "disabled","registered":false,"autoCapture":config["autoCapture"] ?? false,
-                "remoteProcessing":config["remoteProcessing"] ?? false,"due":due,"external":external,"hour":config["hour"] ?? 3,
+        let host=maintenanceHostSchedule(config)
+        let capture=(try? readJSON(maintenanceRoot.appendingPathComponent("last-capture.json"))) ?? [:]
+        let captured=capture["vault"] as? String==config["vault"] as? String && capture["epoch"] as? String==config["captureEpoch"] as? String && capture["status"] as? String=="captured"
+        let due=enabled && OracleMaintenancePolicy.due(now:now,lastSuccess:last,createdAt:created,timeZone:zone,hour:config["hour"] as? Int ?? 15)
+        return ["enabled":enabled,"scheduleState":host["status"]!,"registered":host["registered"]!,"hostSchedule":host,"model":"gpt-5.6-sol","effort":"medium","consolidateWiki":config["consolidateWiki"] as? Bool==true,"autoCapture":config["autoCapture"] ?? false,
+                "remoteProcessing":config["remoteProcessing"] ?? false,"due":due,"external":external,"hour":config["hour"] ?? 15,
                 "timezone":zone.identifier,"lastRun":receipt,"id":config["id"] ?? NSNull(),"targetMatches":targetMatches,"localExecutor":"oracle_while_open",
-                "backup":gbrainBackupStatus(),"capabilities":["localSync":true,"privateDatabaseBackup":true,"autoCapture":true,"modelSynthesis":true],
+                "captureObserved":captured,"lastCapture":captured ? capture : [:],"backup":gbrainBackupStatus(),"capabilities":["localSync":true,"privateDatabaseBackup":true,"autoCapture":true,"modelSynthesis":true],
                 "captureSource":config["captureSource"] ?? NSNull(),"synthesisScope":config["synthesisScope"] ?? NSNull(),
                 "captureConfigured":maintenanceContentConsent(config),"synthesisConfigured":maintenanceContentConsent(config,remote:true),
                 "captureCoverage":"Somente prompts e últimas respostas entregues pelos hooks do workspace Oracle; sem histórico privado.",
-                "message":!enabled ? "Manutenção automática desativada ou aguardando revisão do vault." : external ? "Instalação externa preservada; manutenção gerenciada pelo seu operador." : "Manutenção local enquanto o Oracle estiver aberto. Agendamento no Codex é separado e ainda requer confirmação."]
+                "message":!enabled ? "Manutenção automática desativada ou aguardando revisão do vault." : external ? "Instalação externa preservada; manutenção gerenciada pelo seu operador." : (host["registered"] as? Bool==true ? "Agendamento confirmado no Codex. O computador e o Codex precisam estar disponíveis." : "Manutenção local preparada. Abra o espaço Oracle no Codex para registrar a tarefa diária.")]
     }
 
     func maintenanceScheduleRequest() throws -> String {
@@ -133,8 +141,8 @@ extension Core {
                     let execute=synthesis ?? {input,stopped in
                         let workspace=try self.scoped("maintenance/model-workspace",root:self.home)
                         try fm.createDirectory(at:workspace,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-                        let preferred=(self.onboardingRecord()["draft"] as? [String:Any])?["model"] as? String
-                        return try OracleMaintenanceSynthesis.run(bridge:CodexBridge(),workspace:workspace,input:input,preferredModel:preferred,cancelled:stopped)
+                        let preferred=settings["model"] as? String ?? "gpt-5.6-sol"
+                        return try OracleMaintenanceSynthesis.run(bridge:CodexBridge.maintenanceConnection(),workspace:workspace,input:input,preferredModel:preferred,preferredEffort:"medium",cancelled:stopped)
                     }
                     let value=try synthesizeMaintenanceCaptures(settings,cancelled:cancelled,run:execute)
                     result["synthesis"]=value;contentComplete=value["complete"] as? Bool==true

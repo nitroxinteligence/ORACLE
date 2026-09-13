@@ -40,6 +40,33 @@ extension Core {
                                         userInfo:["home":home.path,"reason":reason])
     }
 
+    /// Announce a bounded group at its directory roots. Apple's batching API
+    /// still requires individual coordination and hash checks inside the accessor.
+    func coordinatedWriteBatch<T>(at roots:[URL], _ body:()throws->T) throws -> T {
+        var coordinationError:NSError?
+        var result:Result<T,Error>?
+        let coordinator=NSFileCoordinator(filePresenter:nil)
+        coordinator.prepare(forReadingItemsAt:[],options:[],writingItemsAt:roots,options:[],error:&coordinationError) { finished in
+            defer { finished() }
+            result=Result { try body() }
+        }
+        if let coordinationError { throw coordinationError }
+        guard let result else { throw failure("Não foi possível coordenar o lote de arquivos. Tente novamente.") }
+        return try result.get()
+    }
+
+    func installationErrorMessage(_ error:Error) -> String {
+        var current=error as NSError
+        for _ in 0..<8 {
+            if current.domain=="NSFileProviderErrorDomain" {
+                return "O serviço de arquivos do macOS interrompeu o acesso ao vault (código \(current.code)). Se estiver no iCloud, confira a sincronização e a disponibilidade local no Finder e tente novamente. A instalação retomará os arquivos já verificados."
+            }
+            guard let underlying=current.userInfo[NSUnderlyingErrorKey] as? NSError else { break }
+            current=underlying
+        }
+        return error.localizedDescription
+    }
+
     /// rmdir is atomic and refuses nonempty directories. FileManager.removeItem
     /// would recursively delete a note created after an earlier empty check.
     func removeEmptyVaultDirectory(_ url:URL) throws -> Bool {

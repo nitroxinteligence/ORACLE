@@ -285,7 +285,13 @@ extension Core {
             let itemMap=Dictionary(grouping:manifest.items.flatMap{item in item.required.map{($0,item.id)}},by:{$0.0})
             var remaining=Dictionary(uniqueKeysWithValues:manifest.items.map{($0.id,Set($0.required))})
             let items=Dictionary(uniqueKeysWithValues:manifest.items.map{($0.id,$0)})
-            for file in manifest.files {
+            for start in stride(from:0,to:manifest.files.count,by:128) {
+                let batch=manifest.files[start..<min(start+128,manifest.files.count)]
+                var roots=[URL]()
+                if batch.contains(where:{!$0.path.hasPrefix("sources/gbrain/")}) { roots.append(root) }
+                if batch.contains(where:{$0.path.hasPrefix("sources/gbrain/")}) { roots.append(home) }
+                try coordinatedWriteBatch(at:roots) {
+                for file in batch {
                 try autoreleasepool {
                 try checkOnboardingCancellation()
                 let target=try distributionDestination(file,plan:plan),key=digest(Data(file.path.utf8)),input=stage.appendingPathComponent("files/"+key)
@@ -325,6 +331,9 @@ extension Core {
                     }
                 }
             }
+            }
+                }
+                try distributionEvent(plan:plan,phase:"installing",kind:"files",itemID:"copy-progress",status:"verified",paths:[],completed:verified.count,total:manifest.files.count)
             }
             var tombstones=[[String:Any]]()
             for (path,entry) in old.sorted(by:{$0.key<$1.key}) where !newPaths.contains(path) {

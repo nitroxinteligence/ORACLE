@@ -88,7 +88,7 @@ final class MemorySyncCoordinator {
             }
             var result:[String:Any]=["entries":cached.entries,"scan":cached.metadata]
             if !cached.complete {
-                result["scanError"]=cached.unavailableCount>0 ? "\(cached.unavailableCount) notas ainda estão no iCloud. Baixe o vault no Finder para concluir a leitura. Os arquivos locais foram preservados." : "Algumas notas não puderam ser lidas. "+(cached.issues.first?["error"] ?? "Confira o acesso à pasta.")
+                result["scanError"]=cached.unavailableCount>0 ? "\(cached.unavailableCount) \(cached.unavailableCount==1 ? "nota ainda está":"notas ainda estão") no iCloud. Baixe o vault no Finder para concluir a leitura. Os arquivos locais foram preservados." : "Algumas notas não puderam ser lidas. "+(cached.issues.first?["error"] ?? "Confira o acesso à pasta.")
             }
             return result
         }

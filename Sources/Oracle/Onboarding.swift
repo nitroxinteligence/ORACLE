@@ -463,13 +463,13 @@ final class OnboardingController {
         } catch {
             stateLock.lock();defer{stateLock.unlock()};guard runGeneration==generation else{return}
             let cancelled=fm.fileExists(atPath:core.home.appendingPathComponent("onboarding/cancel").path)
-            try? update(["status":cancelled ? "paused":"failed","message":cancelled ? "Instalação pausada; os avanços foram preservados.":error.localizedDescription,"errorCode":cancelled ? "cancelled":"installation_failed"])
+            try? update(["status":cancelled ? "paused":"failed","message":cancelled ? "Instalação pausada; os avanços foram preservados.":core.installationErrorMessage(error),"errorCode":cancelled ? "cancelled":"installation_failed"])
         }
     }
     private func localPhase(_ phase:String,_ message:String,_ generation:UUID) throws {
         stateLock.lock();defer{stateLock.unlock()}
         guard runGeneration==generation else{throw failure("Esta instalação foi substituída por outra execução.")}
-        try core.checkOnboardingCancellation();try update(["status":"running","phase":phase,"message":message])
+        try core.checkOnboardingCancellation();try update(["status":"running","phase":phase,"message":message,"errorCode":NSNull()])
     }
     private func runLocalPhases(_ generation:UUID) {
         defer {stateLock.lock();localInFlight=false;stateLock.unlock()}

@@ -219,14 +219,14 @@
         assert(OracleInstallationVisual.projection(isolated).entries.length===1,'verified tutorial missing');
       });
       await check('Interrupted installation offers explicit same-plan continuation',async()=>{
-        f.ob.status='interrupted';f.ob.message='Synthetic interruption';await OracleOnboarding.poll();OracleOnboarding.open();
-        await wait(()=>visible(q('.ob2-retry')),'resume action');click('.ob2-retry button');
+        f.ob.status='interrupted';f.ob.message='O serviço de arquivos do macOS interrompeu o acesso ao vault (código -5009). Confira a sincronização e a disponibilidade local no Finder e tente novamente.';await OracleOnboarding.poll();OracleOnboarding.open();
+        await wait(()=>visible(q('.ob2-retry')),'resume action');assert(q('.ob2-installation').getBoundingClientRect().top>=12,'error card clipped above window');assert(q('.ob2-installation').getBoundingClientRect().bottom<=innerHeight,'error card clipped below window');click('.ob2-retry button');
         await wait(()=>!q('.ob2-screen').open&&f.ob.status==='running','resume shell');
         assert(f.ob.runID==='memory-only-fixture','resume changed install ID');
       });
       await check('Codex integration remains pending until hooks and scheduler are verified',async()=>{
         f.ob.status='completed';f.ob.integrationPending=true;await OracleOnboarding.poll();
-        assert(!q('.ob2-installation').hidden&&visible(q('[data-open-codex] button')),'integration silently skipped');
+        assert(!q('.ob2-installation').hidden&&visible(q('[data-open-codex] button')),'integration silently skipped');assert(q('.ob2-installation').getBoundingClientRect().top>=12,'Codex handoff clipped above window');
         click('[data-copy-codex] button');await wait(()=>f.copied?.includes('Synthetic request'),'copied registration procedure');
         assert(!qa('.verified-connector').length,'unexpected graph connectors');
         f.ob.integrationPending=false;

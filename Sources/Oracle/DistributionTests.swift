@@ -27,11 +27,28 @@ func runDistributionTests() throws {
     var checks=[String]()
     func check(_ ok:Bool,_ name:String)throws{guard ok else{throw failure(name)};checks.append(name);print("PASS "+name)}
     func rejects(_ name:String,_ action:()throws->Void)throws{do{try action()}catch{checks.append(name);print("PASS "+name);return};throw failure("Did not reject: "+name)}
+    let batchRoot=base.appendingPathComponent("batch")
+    try fm.createDirectory(at:batchRoot,withIntermediateDirectories:true)
+    try rejects("batch releases coordination after accessor failure") {
+        try core.coordinatedWriteBatch(at:[batchRoot]) { throw failure("Synthetic batch interruption") }
+    }
+    try core.coordinatedWriteBatch(at:[batchRoot]) {
+        for i in 0..<130 {
+            let path=batchRoot.appendingPathComponent("note-\(i).md")
+            try core.coordinatedWrite(at:path) { target in try Data("# Note \(i)".utf8).write(to:target) }
+        }
+    }
+    try check(try fm.contentsOfDirectory(atPath:batchRoot.path).count==130,"nested coordinated writes complete after interrupted batch")
+    let provider=NSError(domain:"NSFileProviderErrorDomain",code:-5009)
+    try check(core.installationErrorMessage(provider).contains("código -5009"),"provider error keeps original code with actionable Portuguese message")
+    try check(core.installationErrorMessage(NSError(domain:NSCocoaErrorDomain,code:1,userInfo:[NSUnderlyingErrorKey:provider])).contains("código -5009"),"wrapped provider error is localized")
+    try check(core.installationErrorMessage(failure("Synthetic disk failure"))=="Synthetic disk failure","unrelated failure is not mislabeled as iCloud")
     let skill="SISTEMA/skills/research-lab/example/SKILL.md",resource="SISTEMA/skills/research-lab/example/references/reference.txt",prompt="SISTEMA/prompts/Olá.md",tutorial="SISTEMA/Tutoriais/Guide.md"
     func fixture(_ sequence:Int=1,extra:String="",includeResource:Bool=true)throws->(Data,[String:Data],[String:Any]){
         let release="fixture-\(sequence)"
         var inputs:[(String,String,String)]=[(skill,"specialists","---\nname: oracle-skill-example\ndescription: Synthetic skill for offline verification.\n---\n# Example\n"+extra),(prompt,"prompts","# Olá\n"+extra),(tutorial,"tutorials","# Guide\n"+extra),("sources/gbrain/"+oracleGBrainPinnedCommit+"/LICENSE","gbrain-source","MIT synthetic upstream snapshot")]
         if includeResource{inputs.append((resource,"specialists","Fixture resource"+extra))}
+        for i in 0..<130 {inputs.append(("sources/gbrain/"+oracleGBrainPinnedCommit+"/fixture-\(i).txt","gbrain-source","Source fixture \(i)"))}
         var files=[[String:Any]](),packages=[[String:Any]](),payloads=[String:Data](),counts=[String:[String:Any]]()
         for kind in ["specialists","prompts","tutorials","gbrain-source"] {
             let group=inputs.filter{$0.1==kind},id=kind+"-0001",asset=id+".json",url="https://github.com/nitroxinteligence/ORACLE-SKILLS/releases/download/"+release+"/"+asset
@@ -57,7 +74,7 @@ func runDistributionTests() throws {
     func decode(_ bytes:Data)throws->DistributionManifest {try DistributionManifest(bytes:bytes,trust:trust,oracleVersion:"0.3.0",adapterCommit:oracleGBrainPinnedCommit)}
     func cache(_ manifest:DistributionManifest)throws {let path=state.appendingPathComponent("cache/distributions/"+manifest.hash+"/oracle-distribution.json");try fm.createDirectory(at:path.deletingLastPathComponent(),withIntermediateDirectories:true);try manifest.bytes.write(to:path)}
     let (bytes,payloads,document)=try fixture(),manifest=try decode(bytes)
-    try check(manifest.files.count==5 && manifest.items.count==3,"signed manifest contains all three libraries and source snapshot")
+    try check(manifest.files.count==135 && manifest.items.count==3,"signed manifest contains all three libraries and source snapshot")
     try check(String(decoding:try distributionCanonical(["a":"Olá/💡","z":true]),as:UTF8.self)=="{\"a\":\"Ol\\u00e1/\\ud83d\\udca1\",\"z\":true}","canonical signature bytes match Python for Unicode slash and booleans")
     var envelope=try JSONSerialization.jsonObject(with:bytes) as! [String:Any];envelope["signature_base64"]=Data(repeating:0,count:64).base64EncodedString()
     try rejects("tampered signature rejected before filesystem access"){_=try decode(distributionCanonical(envelope))}

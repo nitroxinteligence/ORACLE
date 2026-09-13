@@ -58,7 +58,8 @@ body.reduced .oracle-onboarding-v2 *{animation:none!important;transition:none!im
 .ob2-selected-vault span {font-size:11px;color:#909090;display:block;overflow-wrap:anywhere;margin-top:7px}
 .ob2-remove-vault {color:#ff7373;background:#ff535308;border:1px solid #ff535320;border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;padding:8px;flex:none;cursor:pointer}
 .ob2-remove-vault:hover {background:#ff535318;border-color:#ff535350}.ob2-remove-vault svg {width:19px;height:19px}
-.ob2-installation.ob2-in-header {transform:translate(-50%,-50%)}
+.ob2-installation {max-height:calc(100vh - 100px);overflow-y:auto;overflow-wrap:anywhere}
+.ob2-installation.ob2-in-header {transform:translateX(-50%);max-height:calc(100vh - 24px)}
 .ob2-installation.ob2-in-header .ob2-status-body {padding:11px 20px;gap:8px}
 .ob2-installation.ob2-in-header .ob2-status-body strong {font-size:12px}
 @media(max-width:480px){.ob2-description>span{display:inline}.ob2-description>span+span:before{content:' '}}

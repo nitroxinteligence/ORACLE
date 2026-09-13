@@ -109,7 +109,7 @@
     if(!progress||progress.hidden)return;
     const logo=document.querySelector('#app .wordmark')?.getBoundingClientRect(),tabs=document.querySelector('.workspace-tabs')?.getBoundingClientRect();
     const left=logo?logo.right+24:24,right=tabs?tabs.left-24:innerWidth-24,room=right-left;
-    if(room>=270){progress.style.left=(left+right)/2+'px';progress.style.top=(logo?(logo.top+logo.bottom)/2:48)+'px';progress.style.width=Math.min(380,room)+'px';progress.classList.add('ob2-in-header');}
+    if(room>=270){progress.style.left=(left+right)/2+'px';progress.style.width=Math.min(380,room)+'px';progress.classList.add('ob2-in-header');progress.style.top=Math.max(12,(logo?(logo.top+logo.bottom)/2:48)-progress.offsetHeight/2)+'px';}
     else{progress.style.left='50%';progress.style.top='88px';progress.style.width='min(380px,calc(100vw - 40px))';progress.classList.remove('ob2-in-header');}
   }
   function updateProgress(){
@@ -145,6 +145,7 @@
       metal(actions.querySelector('[data-verify-codex]'),'Verificar',async()=>{await invoke('onboardingVerifyIntegration');await poll();});
     }
     if(integrating&&openedRun!==current.runID){openedRun=current.runID;invoke('onboardingOpenCodex').catch(errorToast);}
+    positionProgress();
   }
 
   async function poll(){

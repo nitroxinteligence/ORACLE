@@ -17,10 +17,12 @@ enum OracleScheduleRecord {
     static func matches(_ fields:[String:String],marker:String,hour:Int) -> Bool {
         let rule=fields["rrule",default:""].replacingOccurrences(of:"RRULE:",with:"")
         let components=Set(rule.split(separator:";").map(String.init))
+        // Codex emits minute-resolution rules without BYSECOND; explicit zero is also valid.
+        let daily=Set(["FREQ=DAILY","BYHOUR=\(hour)","BYMINUTE=0"])
         return fields["kind"]=="cron" && fields["status"]=="ACTIVE" &&
             fields["model"]=="gpt-5.6-sol" && fields["reasoning_effort"]=="medium" &&
             fields["prompt",default:""].contains(marker) &&
-            components==Set(["FREQ=DAILY","BYHOUR=\(hour)","BYMINUTE=0","BYSECOND=0"])
+            (components==daily || components==daily.union(["BYSECOND=0"]))
     }
 }
 

@@ -24,6 +24,13 @@ func runMaintenanceScheduleTests() throws {
     try fm.createDirectory(at:automation.deletingLastPathComponent(),withIntermediateDirectories:true)
     try atomicWriteData(Data(try encoded(fields).utf8),to:automation)
     try check(core.maintenanceHostSchedule(config)["registered"] as? Bool==true,"readback confirms matching active host schedule with exact model effort and hour")
+    fields["rrule"]="RRULE:FREQ=DAILY;BYHOUR=15;BYMINUTE=0"
+    try atomicWriteData(Data(try encoded(fields).utf8),to:automation)
+    try check(core.maintenanceHostSchedule(config)["registered"] as? Bool==true,"official Codex rule without BYSECOND confirms the existing task")
+    for invalidRule in ["FREQ=DAILY;BYHOUR=15;BYMINUTE=0;BYSECOND=30","FREQ=DAILY;BYHOUR=15;BYMINUTE=30","FREQ=DAILY;BYHOUR=18;BYMINUTE=0","FREQ=WEEKLY;BYHOUR=15;BYMINUTE=0","FREQ=DAILY;BYHOUR=15;BYMINUTE=0;INTERVAL=2"] {
+        var invalid=fields;invalid["rrule"]=invalidRule
+        try check(!OracleScheduleRecord.matches(invalid,marker:marker,hour:15),"nonmatching recurrence stays pending: "+invalidRule)
+    }
     fields["status"]="PAUSED";try atomicWriteData(Data(try encoded(fields).utf8),to:automation)
     try check(core.maintenanceHostSchedule(config)["registered"] as? Bool==false,"paused task is never advertised as active")
     fields["status"]="ACTIVE";fields["model"]="other-model"

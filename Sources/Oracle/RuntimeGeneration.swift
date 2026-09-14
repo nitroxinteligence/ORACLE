@@ -25,6 +25,15 @@ extension Core {
         return try runRuntimeGeneration(["operation":"runtime-generation","action":"recover"])
     }
     func validateDownloadedRuntime(_ executable:URL,release:[String:Any]) throws {
+        if OfficialRuntimeRelease.valid(release) {
+            // Integrity/provenance is established by the official HTTPS asset digest
+            // before execution. Do not strip quarantine or forge a distributor signature.
+            // The official arm64 asset is a thin 64-bit Mach-O. Inspect its
+            // header without requiring Xcode/Command Line Tools on user Macs.
+            let file=try FileHandle(forReadingFrom:executable);defer{try? file.close()}
+            guard try file.read(upToCount:8)==Data([0xcf,0xfa,0xed,0xfe,0x0c,0x00,0x00,0x01]) else{throw failure("O arquivo do Second Brain não é compatível com este Mac.")}
+            return
+        }
         guard Bundle.main.bundleIdentifier != nil,Bundle.main.bundleIdentifier?.hasSuffix(".validation") != true else{return}
         guard let team=release["distribution_signing_team"] as? String,team.range(of:"^[A-Z0-9]{10}$",options:.regularExpression) != nil else{throw failure("O runtime baixado ainda não foi homologado para Gatekeeper. O mantenedor precisa fornecer um pacote assinado.")}
         let environment=["PATH":"/usr/bin:/bin","HOME":executable.deletingLastPathComponent().path]

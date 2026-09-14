@@ -1,5 +1,5 @@
 /** Closed-profile runtime transactions. No model, canonical note writes, global
- * backups or arbitrary migration commands. Only the app's same-adapter matrix.
+ * backups or arbitrary migration commands. The app adapter remains pinned.
  * The durable gate blocks new readers/writers; real PGLite locks drain old ones.
  */
 import {constants,copyFileSync,existsSync,lstatSync,mkdirSync,openSync,closeSync,fsyncSync,readFileSync,readdirSync,realpathSync,renameSync,unlinkSync,writeFileSync} from 'node:fs';
@@ -10,6 +10,7 @@ import {toEngineConfig} from '../../vendor/gbrain/src/core/config.ts';
 import {acquireLock,releaseLock} from '../../vendor/gbrain/src/core/pglite-lock.ts';
 import {ownedConfig,verifyMemorySource} from './owned-runtime.ts';
 import {acquireRuntimeAccess,releaseRuntimeAccess} from './runtime-gate.ts';
+import {probeRuntime} from './runtime-probe.ts';
 
 const PIN='2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -110,6 +111,13 @@ async function runLocked(input:any,c:ReturnType<typeof context>){
   fault('after-gate');
   // Drains an already-running MCP operation by acquiring the official lock.
   engine=await createEngine(toEngineConfig(config));await engine.connect(toEngineConfig(config));await verifyMemorySource(engine);
+  if(metadata.official_release){
+   const tables=await engine.executeRaw<{name:string}>("SELECT tablename AS name FROM pg_tables WHERE schemaname='public' AND tablename='minion_jobs'");
+   if(tables.length){
+    const pending=await engine.executeRaw<{count:string}>("SELECT count(*)::text AS count FROM minion_jobs WHERE status NOT IN ('completed','failed','cancelled')");
+    if(Number(pending[0]?.count||0)>0)throw Error('Há tarefas pendentes no Second Brain. Conclua ou revise essas tarefas antes de atualizar.');
+   }
+  }
   const before={stats:await engine.getStats(),sources:await engine.listAllSources({includeArchived:true}),keyword:await engine.getConfig('search.mcp_keyword_only')};
   await engine.disconnect();engine=undefined;
   const lock=await acquireLock(config.database_path!,{timeoutMs:40_000});
@@ -122,6 +130,8 @@ async function runLocked(input:any,c:ReturnType<typeof context>){
   const relativeDatabase=relative(c.profile,config.database_path!);
   if(relativeDatabase.startsWith('..')||!relativeDatabase.startsWith('.gbrain/'))throw Error('Database lies outside owned profile');
   raw.database_path=join(candidate,relativeDatabase);atomic(join(candidate,'.gbrain/config.json'),raw);
+  if(metadata.official_release)await probeRuntime(join(slot,'gbrain'),candidate);
+  fault('after-candidate-probe');
   const observed=await readback({...config,database_path:raw.database_path});
   if(stable(observed)!==stable(before))throw Error('Candidate database readback differs after official initialization');
   fault('after-validation');

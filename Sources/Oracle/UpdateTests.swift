@@ -5,12 +5,21 @@ private struct UpdateFixtureDevice: OracleLicenseDeviceProviding {
     func identifier(create: Bool) throws -> String { "ORACLE-MAC2-" + String(repeating: "a", count: 64) }
 }
 
-func runUpdateTests(releasePath: String?) throws {
+func runUpdateTests(releasePath: String?, officialReleasePath:String?=nil) throws {
     let base = try oracleTestDirectory("oracle-update-test")
     defer { try? fm.removeItem(at: base) }
     let signer=Curve25519.Signing.PrivateKey(),device=UpdateFixtureDevice()
     let trust=LicenseKeys(version:1,keys:["fixture":signer.publicKey.rawRepresentation.base64EncodedString()])
     let c = try Core(home: base.appendingPathComponent("state"),licenseDevice:device,licenseTrust:trust), root = base.appendingPathComponent("vault")
+    // Keep this suite offline; the public catalog is tested separately.
+    let originalEngine=c.bundledEngineResources(),oldOverride=ProcessInfo.processInfo.environment["ORACLE_ENGINE_RESOURCES"]
+    let fixtureResources=base.appendingPathComponent("resources"),fixtureEngine=fixtureResources.appendingPathComponent("engine")
+    try fm.createDirectory(at:fixtureEngine,withIntermediateDirectories:true)
+    var fixtureManifest=try c.updateManifest();fixtureManifest.removeValue(forKey:"skills")
+    try writeJSON(fixtureManifest,fixtureResources.appendingPathComponent("updates/sources.json"))
+    for name in ["gbrain","oracle-gbrain-read"] {try fm.linkItem(at:originalEngine.appendingPathComponent(name),to:fixtureEngine.appendingPathComponent(name))}
+    setenv("ORACLE_ENGINE_RESOURCES",fixtureEngine.path,1)
+    defer{if let oldOverride{setenv("ORACLE_ENGINE_RESOURCES",oldOverride,1)}else{unsetenv("ORACLE_ENGINE_RESOURCES")}}
     _=try c.licenseDeviceRequest()
     let license=OracleLicense(version:2,product:"oracle-macos",keyID:"fixture",licenseID:UUID().uuidString,subject:"Synthetic update fixture",issuedAt:1,expiresAt:nil,deviceID:try device.identifier(create:false))
     let payload=try JSONEncoder().encode(license)
@@ -22,6 +31,23 @@ func runUpdateTests(releasePath: String?) throws {
     func rejects(_ name: String, _ operation: () throws -> Void) throws { do { try operation() } catch { checks.append(name); print("PASS \(name)"); return }; throw failure("Did not reject: " + name) }
     func file(_ path: String, _ text: String) -> UpdateFile { let bytes = Data(text.utf8); return UpdateFile(path: path, hash: digest(bytes), data: bytes) }
     func read(_ path: String) throws -> String { try String(contentsOf: c.scoped(path, root: root), encoding: .utf8) }
+    let assetURL=OfficialRuntimeRelease.repository+"/releases/download/v0.99.1.0/"+OfficialRuntimeRelease.asset
+    let officialAsset:[String:Any]=["id":123,"name":OfficialRuntimeRelease.asset,"size":1024,"digest":"sha256:"+String(repeating:"a",count:64),"browser_download_url":assetURL]
+    let officialResponse:[String:Any]=["draft":false,"prerelease":false,"tag_name":"v0.99.1.0","html_url":OfficialRuntimeRelease.repository+"/releases/tag/v0.99.1.0","assets":[officialAsset]]
+    let candidate=try OfficialRuntimeRelease.resolve(officialResponse,adapterCommit:oracleGBrainPinnedCommit)
+    try expect(OfficialRuntimeRelease.valid(candidate) && candidate["version"] as? String=="0.99.1.0","new official release needs no embedded version allowlist")
+    for field in ["draft","prerelease"] {
+        var bad=officialResponse;bad[field]=true
+        try rejects("rejects "+field){_=try OfficialRuntimeRelease.resolve(bad,adapterCommit:oracleGBrainPinnedCommit)}
+    }
+    for (field,value) in [("digest",""),("digest","sha256:invalid"),("browser_download_url","https://github.com/attacker/gbrain/releases/download/v0.99.1.0/gbrain-darwin-arm64"),("name","gbrain-linux-x64")] {
+        var asset=officialAsset;asset[field]=value;var response=officialResponse;response["assets"]=[asset]
+        try rejects("rejects invalid official asset "+field){_=try OfficialRuntimeRelease.resolve(response,adapterCommit:oracleGBrainPinnedCommit)}
+    }
+    var duplicate=officialResponse;duplicate["assets"]=[officialAsset,officialAsset]
+    try rejects("duplicate platform assets are ambiguous"){_=try OfficialRuntimeRelease.resolve(duplicate,adapterCommit:oracleGBrainPinnedCommit)}
+    var future=candidate;future["tag"]="v0.99.1.1"
+    try expect(!OfficialRuntimeRelease.valid(future),"release receipt rejects mismatched version and tag")
     var attempts=0
     let transient=ProcessResult(code:1,output:String(decoding:try JSONSerialization.data(withJSONObject:["ok":false,"error":"PGLite failed to initialize its WASM runtime."]),as:UTF8.self))
     let recovered=try readGBrainResponse(retryInitialization:true,run:{attempts+=1;return attempts<3 ? transient:ProcessResult(code:0,output:"{\"ok\":true,\"value\":{}}")},wait:{_ in})
@@ -137,6 +163,21 @@ func runUpdateTests(releasePath: String?) throws {
     let independentResults=independent["results"] as? [[String:Any]] ?? []
     try expect(independentResults.contains { $0["id"] as? String=="gbrain" && $0["status"] as? String=="external" } && independentResults.contains { $0["id"] as? String=="skills" && $0["status"] as? String=="error" },"blocked recovery does not hide independent source results")
     c.config.removeValue(forKey:"gbrainWorkspace");try c.persist()
+    if let officialReleasePath {
+        let binary=try Data(contentsOf:URL(fileURLWithPath:officialReleasePath))
+        var release=candidate
+        release["version"]="0.50.0.0";release["tag"]="v0.50.0.0"
+        release["download_url"]=OfficialRuntimeRelease.repository+"/releases/download/v0.50.0.0/"+OfficialRuntimeRelease.asset
+        release["sha256"]=digest(binary)
+        try rejects("official download rejects corrupt bytes before activation"){_=try c.activateRuntime(binary:Data("broken".utf8),release:release)}
+        _=try c.activateRuntime(binary:binary,release:release)
+        let active=try c.engineResources(),pointer=try Data(contentsOf:c.updatePath("runtime/current.json"))
+        try expect(try fileDigest(active.appendingPathComponent("gbrain"))==digest(binary),"new official runtime receipt opens without an embedded allowlist entry")
+        try rejects("failed candidate never replaces active runtime"){_=try c.activateRuntime(binary:binary,release:release,validate:{_ in throw failure("synthetic validation failure")})}
+        try expect(try Data(contentsOf:c.updatePath("runtime/current.json"))==pointer,"failed activation preserves exact previous pointer")
+        _=try c.rollbackRuntime()
+        try expect(try c.engineResources()==c.bundledEngineResources(),"official runtime rollback returns to bundled engine")
+    }
     // The actual approved upstream binary is optional for quick offline tests.
     if let releasePath {
         let bytes = try Data(contentsOf: URL(fileURLWithPath: releasePath))

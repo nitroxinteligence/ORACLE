@@ -234,3 +234,26 @@ complete maintenance removes obsolete owned index pages without deleting notes.
 
 References: https://help.obsidian.md/plugins/graph and https://help.obsidian.md/links
 (Graph edges represent internal links; folders alone do not create edges).
+
+## Atualizações oficiais do Second Brain (13/09/2026)
+
+O atualizador consulta `garrytan/gbrain/releases/latest` e aceita releases estáveis
+com asset `gbrain-darwin-arm64`, URL oficial exata e SHA-256 publicado na API.
+Não depende de cadastrar cada versão em `compatible_releases`. A matriz antiga
+permanece apenas para verificar recibos legados; o adapter compilado continua
+vinculado ao aplicativo e ao seu hash.
+
+A ativação verifica hash, arquitetura e versão antes de alterar o perfil. Com
+perfil existente, fecha o acesso concorrente, exige ausência de trabalhos de fila
+pendentes, copia o banco e executa somente `apply-migrations --force-schema --yes`
+do novo binário nessa cópia. O processo tem prazo de 180 segundos, rede negada e
+escrita restrita à cópia pelo sandbox do macOS. O adapter verifica estatísticas,
+fontes e a política de busca antes e após a troca atômica. Falhas revertem perfil
+e ponteiro; interrupções mantêm o journal para recuperação na abertura seguinte.
+Notas canônicas não são movidas nem reescritas. Uma atualização apenas do motor
+não reinstala um acervo cujos arquivos e links continuam verificados.
+
+A origem é verificada pelo HTTPS e digest oficial, sem exigir um Team ID privado
+na matriz. Isso não declara notarização do upstream, não remove quarentena e não
+altera a assinatura do download. Mudanças incompatíveis com o adapter continuam
+falhando na verificação local, com a versão anterior preservada.

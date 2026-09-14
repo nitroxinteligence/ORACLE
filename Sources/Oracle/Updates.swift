@@ -3,7 +3,7 @@ import CryptoKit
 import Darwin
 
 // Update artifacts stay in the application's own state. No git checkout is mutated.
-// Executable versions are an explicit allowlist shipped alongside their compiled adapter.
+// Official executable releases are verified dynamically; the compiled adapter stays pinned.
 struct UpdateFile {
     let path: String
     let hash: String
@@ -133,7 +133,7 @@ extension Core {
     func verifiedRuntime(_ metadata: [String: Any]) throws -> URL {
         guard let id = metadata["directory"] as? String, UUID(uuidString: id) != nil, let files = metadata["files"] as? [String: String], Set(files.keys) == Set(["gbrain", "oracle-gbrain-read"]) else { throw failure("Recibo do motor inválido; restaure a versão anterior nos ajustes") }
         guard let source=try updateManifest()["gbrain"] as? [String:Any],metadata["commit"] as? String==source["adapter_commit"] as? String,
-              (source["compatible_releases"] as? [[String:Any]] ?? []).contains(where:{$0["version"] as? String==metadata["version"] as? String && $0["sha256"] as? String==files["gbrain"]}),
+              ((metadata["official_release"] as? [String:Any]).map { OfficialRuntimeRelease.valid($0) && $0["version"] as? String == metadata["version"] as? String && $0["sha256"] as? String == files["gbrain"] } == true || (source["compatible_releases"] as? [[String:Any]] ?? []).contains(where:{$0["version"] as? String==metadata["version"] as? String && $0["sha256"] as? String==files["gbrain"]})),
               try fileDigest(bundledEngineResources().appendingPathComponent("oracle-gbrain-read"))==files["oracle-gbrain-read"] else { throw failure("Recibo sem correspondência com uma versão aprovada") }
         let root = try updatePath("runtime/versions/" + id)
         for (file, expected) in files {
@@ -150,13 +150,14 @@ extension Core {
     }
     func activateRuntime(binary: Data, release: [String: Any], validate: ((URL) throws -> Void)? = nil) throws -> [String: Any] {
         let manifest = try updateManifest()
+        let official=OfficialRuntimeRelease.valid(release)
         guard let oracleVersion = manifest["oracle_version"] as? String,
               let expected = release["sha256"] as? String, digest(binary) == expected,
               let version = release["version"] as? String, let commit = release["commit"] as? String,
               release["platform"] as? String == "darwin-arm64",
-              let minimum = release["minimum_oracle"] as? String, minimum.compare(oracleVersion, options:.numeric) != .orderedDescending,
+              official || (release["minimum_oracle"] as? String).map { $0.compare(oracleVersion, options:.numeric) != .orderedDescending } == true,
               let gbrain = manifest["gbrain"] as? [String: Any], commit == gbrain["adapter_commit"] as? String,
-              (gbrain["compatible_releases"] as? [[String: Any]] ?? []).contains(where: { $0["version"] as? String == version && $0["sha256"] as? String == expected }) else { throw failure("Pacote sem integridade ou compatibilidade aprovada") }
+              (official || (gbrain["compatible_releases"] as? [[String: Any]] ?? []).contains(where: { $0["version"] as? String == version && $0["sha256"] as? String == expected })) else { throw failure("Pacote sem integridade ou compatibilidade aprovada") }
         let currentURL = try updatePath("runtime/current.json")
         let previous = try fm.fileExists(atPath: currentURL.path) ? readJSON(currentURL) : ["bundled": true, "version": gbrain["bundled_version"] ?? ""]
         if previous["bundled"] as? Bool != true { _ = try verifiedRuntime(previous) }
@@ -171,12 +172,13 @@ extension Core {
         // Version check has no database, vault, credentials or home profile available.
         if let validate { try validate(executable) } else {
             let result = try runProcess(executable, ["--version"], cwd: slot, environment: ["PATH": "/usr/bin:/bin", "HOME": slot.path, "GBRAIN_HOME": slot.path, "GBRAIN_SKIP_UPDATE_CHECK": "1", "GBRAIN_HOOKS": "0"], timeout: 20)
-            guard result.code == 0, result.output.contains(version) else { throw failure("O motor não passou na verificação de versão") }
+            guard result.code == 0, result.output.trimmingCharacters(in:.whitespacesAndNewlines) == "gbrain "+version else { throw failure("O motor não passou na verificação de versão") }
         }
-        let metadata: [String: Any] = ["directory": id, "version": version, "commit": commit, "upstream_sha256":release["upstream_sha256"] ?? expected,"distributed_sha256":expected,"files": ["gbrain": try fileDigest(executable), "oracle-gbrain-read": try fileDigest(adapter)], "previous": previous]
+        var metadata: [String: Any] = ["directory": id, "version": version, "commit": commit, "upstream_sha256":release["upstream_sha256"] ?? expected,"distributed_sha256":expected,"files": ["gbrain": try fileDigest(executable), "oracle-gbrain-read": try fileDigest(adapter)], "previous": previous]
+        if official {metadata["official_release"]=release}
         try writeJSON(metadata, slot.appendingPathComponent("receipt.json"))
         if fm.fileExists(atPath:home.appendingPathComponent("gbrain/profile/.gbrain/config.json").path) {
-            guard release["database_compatibility"] as? String=="same-schema" else{throw failure("A migração deste banco ainda não foi homologada na matriz do aplicativo.")}
+            guard official || release["database_compatibility"] as? String=="same-schema" else{throw failure("A migração deste banco ainda não foi homologada na matriz do aplicativo.")}
             _=try runRuntimeGeneration(["operation":"runtime-generation","action":"activate","id":UUID().uuidString,"commit":commit,"database_compatibility":"same-schema","metadata":metadata])
             return try readJSON(currentURL)
         }
@@ -345,32 +347,14 @@ extension Core {
         let checkOnly = operation == "check-only"
         var recoveryError:String?
         if let pending = try? readJSON(updatePath("skills/transaction.json")), pending["status"] as? String == "applying" { if checkOnly { recoveryError="Há uma atualização interrompida. Use Restaurar skills anteriores antes de continuar." } else { do { _ = try rollbackSkills() } catch { recoveryError=error.localizedDescription } } }
-        let manifest = try updateManifest(), network = UpdateNetwork()
+        let network = UpdateNetwork()
         var results = [[String: Any]]()
         try recordUpdate("checking", "Consultando releases oficiais")
         do {
-            let gbrain = manifest["gbrain"] as! [String: Any]
             if config["gbrainWorkspace"] != nil {
                 results.append(["id": "gbrain", "status": "external", "message": "Instalação externa preservada. Atualização deve ser validada pelo operador dessa fonte."])
             } else {
-                let latest = try network.json("https://api.github.com/repos/garrytan/gbrain/releases/latest")
-                let current = ((try? readJSON(updatePath("runtime/current.json")))?["version"] as? String) ?? (gbrain["bundled_version"] as! String)
-                let tag = latest["tag_name"] as? String ?? ""
-                if tag == "v" + current {
-                    _ = try engineResources()
-                    results.append(["id": "gbrain", "status": "current", "version": current, "message": "Second Brain está na versão compatível atual."])
-                } else if let release = (gbrain["compatible_releases"] as? [[String: Any]])?.first(where: { $0["tag"] as? String == tag }) {
-                    guard let asset = (latest["assets"] as? [[String: Any]])?.first(where: { $0["name"] as? String == release["asset"] as? String }), asset["digest"] as? String == "sha256:" + (release["sha256"] as! String), let url = asset["browser_download_url"] as? String else { throw failure("Release sem checksum esperado") }
-                    if checkOnly {
-                        results.append(["id":"gbrain","status":"available","version":release["version"]!,"message":"Uma atualização compatível está disponível."])
-                    } else {
-                    try recordUpdate("downloading", "Baixando motor compatível")
-                    let bytes = try network.fetch(url, limit: 220_000_000)
-                    try recordUpdate("verifying", "Verificando motor e adaptador")
-                    _ = try activateRuntime(binary: bytes, release: release)
-                    results.append(["id": "gbrain", "status": "updated", "version": release["version"]!, "message": "Motor atualizado; banco e identidade preservados."])
-                    }
-                } else { results.append(["id": "gbrain", "status": "compatibility_required", "version": tag, "message": "Release novo encontrado. Aguardando validação do adaptador Oracle e do formato do banco."]) }
+                results.append(try updateOfficialRuntime(network:network,checkOnly:checkOnly,locksHeld:true))
             }
         } catch { results.append(["id": "gbrain", "status": "error", "message": error.localizedDescription]) }
         if let recoveryError { results.append(["id":"skills","status":"error","message":recoveryError]) }

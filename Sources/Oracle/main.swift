@@ -98,7 +98,7 @@ if arguments.contains("--self-test-editor") { do { try runEditorTests();exit(0) 
 if arguments.contains("--codex-inventory") { do {let bridge=CodexBridge();defer{bridge.stop()};try bridge.start(cwd:core.home);let account=try bridge.account();guard account["connected"] as? Bool==true else{throw failure("Conecte sua conta no Codex primeiro.")};print(String(decoding:try jsonData(bridge.inventory()),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)} }
 if arguments.contains("--onboarding-verify") { do { print(String(decoding:try jsonData(core.onboardingFinalVerification()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-onboarding") { do { try runOnboardingTests();try runOnboardingLifecycleTests();try runImplementationPolicyTests();try runLicenseDeviceTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
-if arguments.contains("--self-test-updates") { do { try runUpdateTests(releasePath:argument("--test-release"));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
+if arguments.contains("--self-test-updates") { do { try runUpdateTests(releasePath:argument("--test-release"),officialReleasePath:argument("--test-official-release"));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test") { do { try runTests(); exit(0) } catch { fputs("FAIL: \(error)\n",stderr); exit(1) } }
 
 if let operation = argument("--update") {
@@ -264,7 +264,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         if method=="memoryRefresh" {core.memorySync.invalidate(reason:"manual-refresh");core.memorySync.start();reply(id,core.memorySync.status());return}
         if method == "chooseVault" || method == "chooseProject" {
             let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
-            panel.message = method == "chooseVault" ? "Escolha o vault. Oracle lê os documentos e salva os arquivos que você editar nesta pasta." : method == "chooseProject" ? "Autorize somente a descoberta de AGENTS.md e AGENTS.override.md neste projeto." : "Escolha o workspace GBrain existente. Apenas operações oficiais de consulta serão usadas."
+            panel.message = method == "chooseVault" ? "Escolha o vault. Oracle lê os documentos e salva os arquivos que você editar nesta pasta." : method == "chooseProject" ? "Autorize somente a descoberta de AGENTS.md e AGENTS.override.md neste projeto." : "Escolha o workspace do Second Brain existente. Apenas operações oficiais de consulta serão usadas."
             panel.beginSheetModal(for:window) { response in
                 guard response == .OK, let url = panel.url else { self.reply(id,NSNull()); return }
                 self.queue.async { do {

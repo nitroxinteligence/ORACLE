@@ -14,28 +14,12 @@ extension Core {
         try requireCapability(.configure)
         let checkOnly=operation=="check-only",network=UpdateNetwork()
         var results=[[String:Any]]()
-        try recordUpdate("checking","Consultando o acervo e o GBrain")
+        try recordUpdate("checking","Consultando o acervo e o Second Brain")
         do {
             if config["gbrainWorkspace"] != nil {results.append(["id":"gbrain","status":"external","message":"Perfil externo preservado."])}
             else if onboardingRecord()["profileMode"] as? String=="memory-only", !["completed","not_started"].contains(onboardingRecord()["status"] as? String ?? "not_started") {results.append(["id":"gbrain","status":"recovery_required","message":"Conclua a instalação atual antes de mudar o motor."])}
             else {
-                let matrix=try updateManifest()["gbrain"] as? [String:Any] ?? [:]
-                let latest=try network.json("https://api.github.com/repos/garrytan/gbrain/releases/latest"),tag=latest["tag_name"] as? String ?? ""
-                let version=(try? readJSON(updatePath("runtime/current.json")))?["version"] as? String ?? oracleGBrainPinnedVersion
-                if tag=="v"+version {results.append(["id":"gbrain","status":"current","version":version,"message":"GBrain está atualizado no conjunto compatível."])}
-                else if let release=(matrix["compatible_releases"] as? [[String:Any]])?.first(where:{$0["tag"] as? String==tag}) {
-                    if checkOnly {results.append(["id":"gbrain","status":"available","version":tag,"message":"Conjunto compatível disponível."])}
-                    else {
-                        guard let asset=(latest["assets"] as? [[String:Any]])?.first(where:{$0["name"] as? String==release["asset"] as? String}),let url=asset["browser_download_url"] as? String,
-                              asset["digest"] as? String=="sha256:"+(release["sha256"] as? String ?? "") else{throw failure("Asset GBrain não corresponde à matriz homologada.")}
-                        let binary=try network.fetch(url,limit:220_000_000)
-                        let setup=try acquireOperationLock("setup");defer{releaseOperationLock(setup)}
-                        let brain=try acquireOperationLock("gbrain");defer{releaseOperationLock(brain)}
-                        try requireCapability(.configure)
-                        _=try activateRuntime(binary:binary,release:release)
-                        results.append(["id":"gbrain","status":"updated","version":tag,"message":"Conjunto compatível atualizado e verificado."])
-                    }
-                } else {results.append(["id":"gbrain","status":"compatibility_required","version":tag,"message":"Atualize o Oracle para instalar esta versão do GBrain. O conjunto atual foi preservado."])}
+                results.append(try updateOfficialRuntime(network:network,checkOnly:checkOnly))
             }
         } catch {results.append(["id":"gbrain","status":"error","message":error.localizedDescription])}
         do {
@@ -54,8 +38,7 @@ extension Core {
                 results.append(["id":"skills","status":contentValid ? "current":"available","version":manifest.releaseID,"message":contentValid ? "Acervo local conferido.":same ? "Há arquivos locais que precisam ser recuperados.":"Novo acervo completo disponível: skills, prompts e tutoriais."])
                 results.append(["id":"codex","status":linksValid ? "current":"available","message":linksValid ? "Skills locais conferidas; descoberta no host tem recibo próprio.":"Skills locais precisam ser instaladas ou recuperadas."])
             } else if ledger["manifest_sha256"] as? String==manifest.hash,let plan=try? validatedPlan(),isMemoryOnly(plan),
-                      (try? verifyDistribution(manifest,plan:plan)) != nil,(try? verifyDistributionSkills(manifest,plan:plan)) != nil,
-                      (try? verifyMemoryOnly(plan:plan)) != nil {
+                      (try? verifyDistribution(manifest,plan:plan)) != nil,(try? verifyDistributionSkills(manifest,plan:plan)) != nil {
                 results.append(["id":"skills","status":"current","version":manifest.releaseID,"message":"Acervo e arquivos locais atualizados."])
                 results.append(["id":"codex","status":"current","message":"Skills locais atualizadas; descoberta no host tem verificação própria."])
             } else {

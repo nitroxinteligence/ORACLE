@@ -173,7 +173,7 @@ extension Core {
             if isMemoryOnly(plan) {_=try verifyMemoryOnly(plan:plan)}
             else {guard (try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")))?["status"] as? String=="identity_and_index_verified" else { throw failure("Finalize GBrain com --gbrain finish antes de preparar sua conexão MCP.") }}
             func toml(_ value:String)->String { let data=try! JSONSerialization.data(withJSONObject:[value],options:[.withoutEscapingSlashes]);return String(decoding:data,as:UTF8.self).dropFirst().dropLast().description }
-            let adapter=try engineResources().appendingPathComponent("oracle-gbrain-read").path
+            let adapter=try readAdapterExecutable().path
             let content="""
             # Oracle-owned project configuration. Review in Codex; no global settings changed.
             [mcp_servers.oracle_companion]

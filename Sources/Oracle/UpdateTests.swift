@@ -188,6 +188,34 @@ func runUpdateTests(releasePath: String?, officialReleasePath:String?=nil) throw
         _=try c.rollbackRuntime()
         try expect(try c.engineResources()==c.bundledEngineResources(),"official runtime rollback returns to bundled engine")
     }
+    // Reproduce replacing Oracle.app after installing an official CLI release.
+    // Tiny inert files exercise the receipt resolver without executing anything.
+    do {
+        let id=UUID().uuidString,slot=try c.updatePath("runtime/versions/"+id)
+        try fm.createDirectory(at:slot,withIntermediateDirectories:true)
+        let cli=Data("synthetic official CLI".utf8),oldAdapter=Data("previous Oracle build adapter".utf8)
+        try cli.write(to:slot.appendingPathComponent("gbrain"));try oldAdapter.write(to:slot.appendingPathComponent("oracle-gbrain-read"))
+        var release=candidate;release["sha256"]=digest(cli)
+        let receipt:[String:Any]=["directory":id,"version":release["version"]!,"commit":oracleGBrainPinnedCommit,"official_release":release,"files":["gbrain":digest(cli),"oracle-gbrain-read":digest(oldAdapter)],"previous":["bundled":true]]
+        let pointer=try c.updatePath("runtime/current.json");try writeJSON(receipt,pointer)
+        defer{try? fm.removeItem(at:pointer)}
+        let before=try Data(contentsOf:pointer)
+        try expect(try c.engineResources().path==slot.path,"app replacement accepts an intact official runtime with a previous-build adapter")
+        try expect(try c.readAdapterExecutable()==fixtureEngine.appendingPathComponent("oracle-gbrain-read"),"reads use the current app adapter, never the archived adapter")
+        let reopened=try Core(home:c.home,licenseDevice:device,licenseTrust:trust)
+        try expect(try reopened.engineResources().path==slot.path,"official runtime remains valid after reopening the app")
+        try expect(try Data(contentsOf:pointer)==before,"app replacement preserves the release receipt without rewriting it")
+        var wrongPin=receipt;wrongPin["commit"]="unknown-adapter-pin"
+        try rejects("app replacement still rejects an unsupported adapter API pin"){_=try c.verifiedRuntime(wrongPin)}
+        try atomicWriteData(Data("tampered CLI".utf8),to:slot.appendingPathComponent("gbrain"))
+        try rejects("app replacement still rejects modified official runtime bytes"){_=try c.readAdapterExecutable()}
+        try atomicWriteData(cli,to:slot.appendingPathComponent("gbrain"))
+        try atomicWriteData(Data("tampered archived adapter".utf8),to:slot.appendingPathComponent("oracle-gbrain-read"))
+        try rejects("archived adapter integrity remains checked"){_=try c.engineResources()}
+        try atomicWriteData(oldAdapter,to:slot.appendingPathComponent("oracle-gbrain-read"))
+        _=try c.rollbackRuntime()
+        try expect(try c.engineResources().path==fixtureEngine.path,"rollback remains available after an app replacement")
+    }
     // The actual approved upstream binary is optional for quick offline tests.
     if let releasePath {
         let bytes = try Data(contentsOf: URL(fileURLWithPath: releasePath))

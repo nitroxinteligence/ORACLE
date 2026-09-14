@@ -209,7 +209,7 @@ extension Core {
             "knowledge_spaces":spaces,"catalog_collections":[String](),"attach":false,"executor":"native-local","template_profile":"complete-distribution-v3",
             "release_id":manifest.releaseID,"distribution_sha256":manifest.hash,"sequence":manifest.sequence,"preflight":preflight,
             "vault_identity":["device":Int64(identity.st_dev),"inode":UInt64(identity.st_ino)],
-            "runtime_sha256":try fileDigest(engine.appendingPathComponent("gbrain")),"adapter_sha256":try fileDigest(engine.appendingPathComponent("oracle-gbrain-read")),
+            "runtime_sha256":try fileDigest(engine.appendingPathComponent("gbrain")),"adapter_sha256":try fileDigest(readAdapterExecutable()),
             "method_sha256":digest(method),"created_at":ISO8601DateFormatter().string(from:Date())]
         if let settings=try? readJSON(home.appendingPathComponent("onboarding/installations/"+id+"/maintenance.json")) {plan["maintenance"]=try OracleMaintenancePolicy.settings(settings)}
         plan["plan_hash"]=try planDigest(plan)

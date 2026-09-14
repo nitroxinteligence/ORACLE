@@ -86,7 +86,7 @@ extension Core {
         }
         var request:[String:Any]=["operation":"backup","action":action,"state":home.path,"confirmed":confirmed]
         if let id { request["id"]=id }
-        let result=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:home,
+        let result=try runProcess(readAdapterExecutable(),[],cwd:home,
             environment:engineEnvironment(),input:jsonData(request),timeout:600)
         guard let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")}),
               let response=try JSONSerialization.jsonObject(with:Data(line.utf8)) as? [String:Any] else {throw failure("Backup sem resposta verificável; não foi declarado concluído.")}

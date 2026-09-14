@@ -27,7 +27,7 @@ extension Core {
               (expected["device"] as? NSNumber)?.int64Value==Int64(identity.st_dev),(expected["inode"] as? NSNumber)?.uint64Value==UInt64(identity.st_ino) else{throw failure("O vault foi movido ou substituído. Selecione a pasta novamente para criar um plano separado.")}
         let engine=try engineResources()
         guard try fileDigest(engine.appendingPathComponent("gbrain"))==plan["runtime_sha256"] as? String,
-              try fileDigest(engine.appendingPathComponent("oracle-gbrain-read"))==plan["adapter_sha256"] as? String,
+              try fileDigest(readAdapterExecutable())==plan["adapter_sha256"] as? String,
               try fileDigest(officialGBrainMethodRoot().appendingPathComponent("manifest.json"))==plan["method_sha256"] as? String else{throw failure("O conjunto de motor, adapter ou método mudou. Retome com a versão do Oracle usada neste plano.")}
     }
     /// No answers, interview, render or synthetic readback. Existing identity

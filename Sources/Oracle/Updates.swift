@@ -150,8 +150,7 @@ extension Core {
     func verifiedRuntime(_ metadata: [String: Any]) throws -> URL {
         guard let id = metadata["directory"] as? String, UUID(uuidString: id) != nil, let files = metadata["files"] as? [String: String], Set(files.keys) == Set(["gbrain", "oracle-gbrain-read"]) else { throw failure("Recibo do motor inválido; restaure a versão anterior nos ajustes") }
         guard let source=try updateManifest()["gbrain"] as? [String:Any],metadata["commit"] as? String==source["adapter_commit"] as? String,
-              ((metadata["official_release"] as? [String:Any]).map { OfficialRuntimeRelease.valid($0) && $0["version"] as? String == metadata["version"] as? String && $0["sha256"] as? String == files["gbrain"] } == true || (source["compatible_releases"] as? [[String:Any]] ?? []).contains(where:{$0["version"] as? String==metadata["version"] as? String && $0["sha256"] as? String==files["gbrain"]})),
-              try fileDigest(bundledEngineResources().appendingPathComponent("oracle-gbrain-read"))==files["oracle-gbrain-read"] else { throw failure("Recibo sem correspondência com uma versão aprovada") }
+              ((metadata["official_release"] as? [String:Any]).map { OfficialRuntimeRelease.valid($0) && $0["version"] as? String == metadata["version"] as? String && $0["sha256"] as? String == files["gbrain"] } == true || (source["compatible_releases"] as? [[String:Any]] ?? []).contains(where:{$0["version"] as? String==metadata["version"] as? String && $0["sha256"] as? String==files["gbrain"]})) else { throw failure("A versão instalada do Second Brain não corresponde à fonte oficial registrada.") }
         let root = try updatePath("runtime/versions/" + id)
         for (file, expected) in files {
             let path = try scoped(file, root: root)
@@ -165,6 +164,14 @@ extension Core {
         guard fm.fileExists(atPath: current.path) else { return bundledEngineResources() }
         return try verifiedRuntime(readJSON(current))
     }
+    /// The release slot preserves its original checksums for integrity/rollback.
+    /// Oracle's adapter belongs to the signed app, not to the downloaded CLI.
+    /// A new app build may change its bytes without changing the upstream API pin.
+    func readAdapterExecutable() throws -> URL {
+        _ = try engineResources()
+        return try scoped("oracle-gbrain-read",root:bundledEngineResources())
+    }
+
     func activateRuntime(binary: Data, release: [String: Any], validate: ((URL) throws -> Void)? = nil) throws -> [String: Any] {
         let manifest = try updateManifest()
         let official=OfficialRuntimeRelease.valid(release)

@@ -197,7 +197,7 @@ extension Core {
         let response:[String:Any]
         do {
             response=try readGBrainResponse(retryInitialization:allowSetup && existing==nil && operation=="status") {
-                try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],cwd:cwd,environment:environment,input:jsonData(request),timeout:75,operation:"A consulta à memória local")
+                try runProcess(readAdapterExecutable(),[],cwd:cwd,environment:environment,input:jsonData(request),timeout:75,operation:"A consulta à memória local")
             }
         } catch {
             if operation == "get" || operation == "graph" {memorySync.invalidate(reason:"read-refused-stale-or-busy")}
@@ -359,7 +359,7 @@ extension Core {
             do {
                 // Work budget starts after the runtime lease (up to 40s) and
                 // PGLite startup; reserve bounded time for these and cleanup.
-                let result=try runProcess(engineResources().appendingPathComponent("oracle-gbrain-read"),[],
+                let result=try runProcess(readAdapterExecutable(),[],
                     cwd:try scoped("gbrain/workspace",root:home),environment:env,input:jsonData(payload),timeout:budget+60,operation:"A atualização do índice local")
                 let line=result.output.split(separator:"\n").last(where:{$0.hasPrefix("{")})
                 let response=line.flatMap{(try? JSONSerialization.jsonObject(with:Data($0.utf8))) as? [String:Any]}

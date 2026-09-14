@@ -109,8 +109,9 @@ function modal(html,options={}){
  const family=options.family||(template.content.querySelector('.editor')?'editor':template.content.querySelector('.markdown-reader')?'reader':'standard');
  modalPage={key,title:heading.textContent,revision:modalRevision,family,document:readDocument,editor:editorSession,settings:settingsTrail};
  const head=document.createElement('div');head.className='modal-header';const titles=document.createElement('div');const breadcrumb=modalBreadcrumb();titles.append(...(breadcrumb?[breadcrumb]:[]),heading);head.append(titles);
- const close=document.createElement('button');close.className='icon-button modal-close';close.dataset.close='';close.setAttribute('aria-label','Fechar janela');close.dataset.tooltip='Fechar · Esc';close.innerHTML=icon('close');if(family!=='update-notice')head.append(close);
+ const close=document.createElement('button');close.className='icon-button modal-close';close.dataset.close='';close.setAttribute('aria-label','Fechar janela');close.dataset.tooltip='Fechar · Esc';close.innerHTML=icon('close');if(!['update-notice','update-installing'].includes(family))head.append(close);
  footer.remove();const body=document.createElement('div');body.className='modal-body';body.append(template.content);
+ dialog.querySelector('.update-modal-beam')?.remove();
  content.replaceChildren(head,body,...(footer.children.length?[footer]:[]));dialog.dataset.family=family;
  if(family==='reader'&&!body.querySelector('.reader-layout')){const article=body.querySelector('.markdown-reader');if(article){const layout=document.createElement('div');layout.className='reader-layout';article.before(layout);const outline=document.createElement('nav');outline.className='reader-outline';outline.hidden=true;outline.setAttribute('aria-label','Seções do documento');layout.append(outline,article);mountReaderOutline();}}
  dialog.append($('#tooltip'));if(!dialog.open)dialog.showModal();
@@ -119,6 +120,7 @@ function modal(html,options={}){
  return true;
 }
 function closeModal(force=false){
+ if(!force&&$('#modal').dataset.family==='update-installing'&&updateBusy)return;
  if(modalDirty&&!force){requestEditorExit();return}
  navigationEpoch++;modalRevision=++modalSequence;return OracleTransitions.dismissDialog($('#modal'),{immediate:force});
 }
@@ -775,9 +777,10 @@ function renderUpdateStatus(status){
  message.classList.toggle('update-ready-badge',!updateBusy&&!failed);message.classList.toggle('update-error',!!failed&&!updateBusy);
  progress.hidden=!updateBusy;
  const total=Number(status.total)||Number(status.bytes_total),done=Number(status.total)?Number(status.completed):Number(status.bytes_downloaded);
- if(total>0&&Number.isFinite(done)){progress.max=total;progress.value=Math.max(0,Math.min(total,done));}else progress.removeAttribute('value');
+ if(total>0&&Number.isFinite(done)){progress.max=total;progress.value=Math.max(0,Math.min(total,done));progress.setAttribute('aria-valuetext',Math.floor(progress.value/total*100)+'% da etapa atual');}else {progress.removeAttribute('value');progress.removeAttribute('aria-valuetext');}
  if(family==='update-installing'){
-  $('#modal-title').textContent=updateBusy?'Atualizando seu segundo cérebro…':failed?'Atualização não concluída':'Atualização concluída';return;
+  $('#modal-title').textContent=updateBusy?'Atualizando seu segundo cérebro…':failed?'Atualização não concluída':'Atualização concluída';
+  let finish=$('#update-finish');if(!updateBusy&&!finish){finish=document.createElement('button');finish.id='update-finish';finish.className='secondary';finish.textContent='Voltar às atualizações';finish.onclick=()=>{void showUpdates()};message.parentElement.append(finish)}if(finish)finish.hidden=updateBusy;return;
  }
  $('#check-updates').disabled=updateBusy;
  const applyHost=$('#apply-update-metal'),apply=applyHost?.querySelector('button');applyHost.hidden=!status.available;if(apply)apply.disabled=updateBusy;
@@ -810,12 +813,12 @@ async function showUpdates(operation=null){
  startupUpdateNoticeShown=true;
  if(operation===false)operation=null;if(operation===true)operation='check-apply';
  const starting=!!operation&&!updateBusy,installing=starting?operation!=='check-only':updateBusy&&updateOperation&&updateOperation!=='check-only';
- if(starting){updateOperation=operation;updateBusy=true;latestUpdateStatus={...latestUpdateStatus,busy:true,phase:installing?'preparing':'checking',message:installing?'Preparando a atualização…':'Verificando e preparando…',error:null,completed:0,total:0};}
+ if(starting){updateOperation=operation;updateBusy=true;latestUpdateStatus={...latestUpdateStatus,busy:true,phase:installing?'preparing':'checking',message:installing?'Preparando a atualização…':'Verificando e preparando…',error:null,completed:0,total:0,bytes_downloaded:0,bytes_total:0};}
  const family=installing?'update-installing':'updates';
  if(!$('#modal').open||$('#modal').dataset.family!==family){
   const content=installing?`<h1>Atualizando seu segundo cérebro…</h1>${updateStatusMarkup()}`:`<h1>Atualizações</h1><p>Verifica as fontes e instala atualizações compatíveis, preservando suas personalizações.</p>${updateStatusMarkup()}<div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="update-check-text" id="check-updates">Verificar</button><div id="apply-update-metal" data-update-effect></div>')}`;
   if(!modal(content,{family,root:true}))return;
-  cleanUpdateEffects();mountUpdateBeam($('#modal .ob2-beam'));
+  cleanUpdateEffects();if(installing){const beam=document.createElement('div');beam.className='ob2-beam update-modal-beam';beam.setAttribute('aria-hidden','true');$('#modal').prepend(beam);mountUpdateBeam(beam);}
   if(!installing){$('#check-updates').onclick=()=>{void showUpdates('check-only')};mountUpdateMetal($('#apply-update-metal'),'Instalar atualização',()=>showUpdates('check-apply'));}
  }
  renderUpdateStatus(latestUpdateStatus||{busy:false,phase:'idle',results:[]});

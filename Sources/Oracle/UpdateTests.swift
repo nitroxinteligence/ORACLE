@@ -149,6 +149,16 @@ func runUpdateTests(releasePath: String?, officialReleasePath:String?=nil) throw
     try expect(failedStatus["phase"] as? String=="failed" && failedStatus["error"] as? String=="Markdown ainda não está disponível localmente.","terminal component errors are exposed as failures with their actual cause")
     try expect(failedStatus["knownUpdate"] as? Bool==true,"failed installation preserves known update for explicit retry")
 
+    let priorOnboarding=c.onboardingRecord(),oldRun=UUID().uuidString
+    try writeJSON(["status":"running","runID":oldRun],c.onboardingURL)
+    try writeJSON(["completed":13501,"total":13501],base.appendingPathComponent("state/onboarding/installations/"+oldRun+"/progress.json"))
+    try c.recordUpdate("downloading","Download",completed:25,total:100,progressSource:"runtime")
+    let downloadStatus=try c.updateStatus()
+    try expect(downloadStatus["completed"] as? Int==25 && downloadStatus["total"] as? Int==100,"runtime download never inherits old onboarding counters")
+    try c.recordUpdate("verifying","Verificando",progressSource:"runtime")
+    try expect(try c.updateStatus()["total"] as? Int==0,"verification does not retain a completed download percentage")
+    try writeJSON(priorOnboarding,c.onboardingURL)
+
     let held = try c.acquireOperationLock("updates")
     try rejects("concurrent update excluded") { _ = try c.performUpdates() }
     c.releaseOperationLock(held)

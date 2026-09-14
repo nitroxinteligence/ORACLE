@@ -17,7 +17,7 @@
   if(f.started)return;f.started=true;const cases=[];
   const check=async(name,run)=>{try{await run();cases.push({name,ok:true})}catch(e){cases.push({name,ok:false,error:e.message});throw e}};
   try{
-   await wait(()=>q('#app')&&q('#lock-screen').hidden&&window.OracleOnboarding,'app startup');await sleep(150);
+   await wait(()=>q('#app')&&q('#lock-screen').hidden&&window.OracleOnboarding,'app startup');await sleep(150);applyAccessibility({reduceMotion:false});
    await check('Notice contains only title and a stable Metal action',async()=>{
     if(!q('#update-notice-metal')){startupUpdateNoticeShown=false;startupUpdateReady=true;latestUpdateStatus=status;maybeShowStartupUpdateNotice()}
     await wait(()=>q('#update-notice-metal button'),'notice');
@@ -38,6 +38,15 @@
     window.webkit.messageHandlers.fixture.postMessage({type:'snapshot'});await wait(()=>window.__fixtureSnapshotSaved,'snapshot');
     click('#apply-update-metal button');await wait(()=>q('#modal').dataset.family==='update-installing','installation dialog');
     await wait(()=>f.calls.filter(c=>c.method==='updateStart').at(-1)?.params.operation==='check-apply','Install did not apply');
+    await pollUpdateStatus();
+    assert(!q('#modal-content > .modal-header .modal-close'),'installation still has close icon');
+    assert(q('#modal > .update-modal-beam')?.childElementCount>0,'full modal beam not mounted');
+    assert(q('#update-progress').value===2&&q('#update-progress').max===10,'actual 20% progress not rendered');
+    await closeModal();assert(q('#modal').open,'busy installation dismissed accidentally');
+    status={...status,phase:'verifying',completed:0,total:0};await pollUpdateStatus();
+    assert(!q('#update-progress').hasAttribute('value'),'unknown verification percentage was invented');
+    status={...status,phase:'downloading',message:'Baixando atualização do Second Brain',completed:37,total:100};await pollUpdateStatus();
+    await sleep(600);window.__fixtureSnapshotSaved=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot',name:'installation'});await wait(()=>window.__fixtureSnapshotSaved,'beam and real progress screenshot');
     await closeModal(true);delay=1500;const started=performance.now();click('#updates');
     assert(q('#modal').open&&performance.now()-started<150&&!q('#updates').disabled,'opening waits for backend');
     await sleep(1800);delay=0;
@@ -45,7 +54,7 @@
    await check('Terminal backend error replaces the spinner with its exact cause',async()=>{
     status={...status,busy:false,phase:'failed',error:'Markdown ainda não está disponível localmente.',results:[{id:'skills',status:'error',message:'Markdown ainda não está disponível localmente.'}]};
     await pollUpdateStatus();await wait(()=>q('#update-progress').hidden,'spinner stopped');
-    assert(q('#update-message').textContent===status.error,'actual error hidden');assert(q('#update-message').classList.contains('update-error'),'red error badge missing');window.__fixtureSnapshotSaved=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot',name:'installation'});await wait(()=>window.__fixtureSnapshotSaved,'red update screenshot');
+    assert(q('#update-message').textContent===status.error,'actual error hidden');assert(q('#update-message').classList.contains('update-error'),'red error badge missing');assert(q('#update-finish')&&!q('#update-finish').hidden,'no exit after terminal failure');
     assert(q('#modal-title').textContent==='Atualização não concluída','false success');
     await closeModal(true);
    });

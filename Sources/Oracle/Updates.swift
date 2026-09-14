@@ -31,7 +31,7 @@ final class UpdateNetwork: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
         completionHandler(request.url.map { Self.permitted($0) } == true ? request : nil)
     }
-    func fetch(_ text: String, limit: Int = 2_000_000) throws -> Data {
+    func fetch(_ text: String, limit: Int = 2_000_000, progress: ((Int, Int) -> Void)? = nil) throws -> Data {
         guard let url = URL(string: text), Self.permitted(url) else { throw failure("Fonte de atualização não permitida") }
         let settings = URLSessionConfiguration.ephemeral
         settings.httpCookieStorage = nil; settings.urlCredentialStorage = nil
@@ -52,10 +52,24 @@ final class UpdateNetwork: NSObject, URLSessionTaskDelegate {
             } catch { value = .failure(error) }
             mutex.lock(); result = value; mutex.unlock(); done.signal()
         }
+        // URLSession reports bytes actually transferred, without a simulated timer.
+        let progressLock=NSLock();var lastProgress=Date.distantPast
+        let observation=task.observe(\.countOfBytesReceived,options:[.new]) { state,_ in
+            guard let progress else{return}
+            progressLock.lock();defer{progressLock.unlock()}
+            let now=Date()
+            guard now.timeIntervalSince(lastProgress)>=0.5 else{return}
+            lastProgress=now
+            progress(Int(state.countOfBytesReceived),max(0,Int(state.countOfBytesExpectedToReceive)))
+        }
+        defer{observation.invalidate()}
         task.resume()
         guard done.wait(timeout: .now() + 190) == .success else { task.cancel(); throw failure("Atualização sem resposta; versão atual preservada") }
         mutex.lock(); let answer = result; mutex.unlock()
-        return try answer!.get()
+        observation.invalidate()
+        let data=try answer!.get()
+        progress?(data.count,data.count)
+        return data
     }
     func json(_ url: String) throws -> [String: Any] {
         guard let value = try JSONSerialization.jsonObject(with: fetch(url)) as? [String: Any] else { throw failure("Manifesto inválido") }
@@ -92,7 +106,7 @@ extension Core {
     private func updateSourceKey() -> String {
         (updatePreferences()["skills_repository"] as? String ?? "")+"|"+(config["gbrainWorkspace"] as? String ?? "managed")+"|"+(config["vault"] as? String ?? "")
     }
-    func recordUpdate(_ phase: String, _ text: String, completed: Int = 0, total: Int = 0, results: [[String: Any]] = []) throws {
+    func recordUpdate(_ phase: String, _ text: String, completed: Int = 0, total: Int = 0, results: [[String: Any]] = [], progressSource: String? = nil) throws {
         let path=try updatePath("status.json"),old=(try? readJSON(path)) ?? [:]
         let key=updateSourceKey(),oldKey=old["availabilitySourceKey"] as? String
         let prior=(oldKey == nil || oldKey == key) ? (old["pendingUpdates"] as? [[String:Any]] ?? old["results"] as? [[String:Any]] ?? []) : []
@@ -100,6 +114,7 @@ extension Core {
         let now=ISO8601DateFormatter().string(from:Date())
         var value:[String:Any]=["phase":phase,"message":text,"completed":completed,"total":total,
             "results":results,"at":now,"pendingUpdates":pending,"availabilitySourceKey":key]
+        if let progressSource {value["progressSource"]=progressSource}
         if phase=="complete" {value["checkedAt"]=now}
         else if let checked=old["checkedAt"] {value["checkedAt"]=checked}
         try writeJSON(value,path)
@@ -119,7 +134,9 @@ extension Core {
         if let plan=try? readJSON(home.appendingPathComponent("setup/plan.json")),isMemoryOnly(plan),let id=plan["id"] as? String,UUID(uuidString:id) != nil {
             value["skills_rollback"]=((try? readJSON(home.appendingPathComponent("staging/"+id+"/transaction.json")))?["status"] as? String).map{["applying","files_installed","rolling_back"].contains($0)} ?? false
         }
-        if ["downloading","installing"].contains(value["phase"] as? String ?? ""),
+        if value["progressSource"] as? String != "runtime",
+           onboardingRecord()["status"] as? String == "running",
+           ["downloading","installing"].contains(value["phase"] as? String ?? ""),
            let id=onboardingRecord()["runID"] as? String,UUID(uuidString:id) != nil,
            let progress=try? readJSON(home.appendingPathComponent("onboarding/installations/"+id+"/progress.json")) {
             for field in ["completed","total","bytes_downloaded","bytes_total"] {if let number=progress[field] {value[field]=number}}

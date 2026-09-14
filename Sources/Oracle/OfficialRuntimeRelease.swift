@@ -48,12 +48,14 @@ extension Core {
             return ["id":"gbrain","status":"current","version":current,"message":"Second Brain está atualizado."]
         }
         if checkOnly {return ["id":"gbrain","status":"available","version":version,"message":"Nova versão oficial disponível."]}
-        try recordUpdate("downloading","Baixando atualização do Second Brain")
-        let binary=try network.fetch(release["download_url"] as! String,limit:220_000_000)
+        try recordUpdate("downloading","Baixando atualização do Second Brain",progressSource:"runtime")
+        let binary=try network.fetch(release["download_url"] as! String,limit:220_000_000) { downloaded,total in
+            try? self.recordUpdate("downloading","Baixando atualização do Second Brain",completed:downloaded,total:total,progressSource:"runtime")
+        }
         let setup=try locksHeld ? nil : acquireOperationLock("setup");defer{if let setup{releaseOperationLock(setup)}}
         let brain=try locksHeld ? nil : acquireOperationLock("gbrain");defer{if let brain{releaseOperationLock(brain)}}
         try requireCapability(.configure)
-        try recordUpdate("verifying","Verificando o Second Brain em uma cópia local")
+        try recordUpdate("verifying","Verificando o Second Brain em uma cópia local",progressSource:"runtime")
         _=try activateRuntime(binary:binary,release:release)
         return ["id":"gbrain","status":"updated","version":version,"message":"Second Brain atualizado e verificado."]
     }

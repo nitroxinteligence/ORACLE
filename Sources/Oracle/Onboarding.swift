@@ -272,6 +272,7 @@ final class OnboardingController {
         let access=root.startAccessingSecurityScopedResource();defer{if access{root.stopAccessingSecurityScopedResource()}}
         _=try fm.contentsOfDirectory(at:root,includingPropertiesForKeys:[],options:[.skipsHiddenFiles])
         core.refreshConfig()
+        if core.config["vault"] as? String == root.path{return}
         let bookmark=(try? root.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil))?.base64EncodedString()
         if let old=core.config["vault"] as? String,old != root.path,
            fm.fileExists(atPath:core.home.appendingPathComponent("gbrain/profile/oracle-owned.json").path) || fm.fileExists(atPath:core.home.appendingPathComponent("vault-profiles/index.json").path) {
@@ -280,7 +281,7 @@ final class OnboardingController {
         }
         core.config["vault"]=root.path;core.config.removeValue(forKey:"vaultBookmark")
         if let bookmark{core.config["vaultBookmark"]=bookmark}
-        try core.persist();try update(["status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull()])
+        try core.persist();try update(["status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull(),"localStarted":false,"codexStarted":false])
         core.notifyVaultChanged(reason:"vault-selected")
     }
     /// Clears only the selection before installation; never deletes files in the vault.
@@ -649,13 +650,27 @@ final class OnboardingController {
         return value
     }
 
-    func codexWorkspaceLink() throws -> URL {
+    func codexIntegrationLink() throws -> URL {
         try requireAccess()
+        core.refreshConfig()
+        let vault=try core.vault().path
+        let prompt=try core.maintenanceScheduleRequest()
+        return try codexWorkspaceLink(prompt:prompt,vault:vault)
+    }
+
+    func codexWorkspaceLink(prompt:String?=nil,vault:String?=nil) throws -> URL {
+        try requireAccess()
+        core.refreshConfig()
+        if let prompt {
+            guard !prompt.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty,prompt.utf8.count<=65_536,!prompt.contains("\0"),
+                  let vault,vault==core.config["vault"] as? String,(try? core.vault()) != nil else{throw failure("A pasta selecionada mudou. Reabra Knowledge Base e tente novamente.")}
+        }
         let receipt=try? readJSON(core.home.appendingPathComponent("setup/bridge.json"))
         let workspace=(receipt?["workspace"] as? String).map{URL(fileURLWithPath:$0)} ?? core.home.appendingPathComponent("onboarding/workspace")
         guard workspace.standardizedFileURL.path.hasPrefix(core.home.path+"/"),fm.fileExists(atPath:workspace.path) else{throw failure("Configure seu Oracle antes de abrir esse espaço.")}
         var link=URLComponents();link.scheme="codex";link.host="threads";link.path="/new"
         link.queryItems=[URLQueryItem(name:"path",value:workspace.path)]
+        if let prompt{link.queryItems?.append(URLQueryItem(name:"prompt",value:prompt))}
         guard let url=link.url else{throw failure("Não foi possível localizar o espaço Oracle no Codex.")}
         return url
     }

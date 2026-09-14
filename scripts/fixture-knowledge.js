@@ -6,11 +6,15 @@
  const wait=async(fn,m)=>{for(let i=0;i<240;i++){if(fn())return;await sleep(25)}throw Error(m)};
  const click=s=>{assert(q(s)&&!q(s).disabled,'missing '+s);q(s).click()};
  f.ob={...f.ob,status:'completed',licensed:true,legacyAccess:true,hasVault:true,runID:'knowledge-1'};f.config.vault='/__synthetic_oracle__/Vault de Ana & João';
+ let openRequest=null,readFails=false,chooseResult=null;
  let updates={busy:false,available:false,phase:'complete',results:[{id:'gbrain',status:'current'},{id:'skills',status:'updated'},{id:'codex',status:'available'},{id:'fixture',status:'error'}]};
  window.__oracleFixtureReceive=async r=>{
+  if(r.method==='onboardingOpenKnowledgeCodex'){openRequest=r.params;window.oracleReply(r.id,{value:true});return}
+  if(r.method==='chooseVault'){if(chooseResult){f.config.vault=chooseResult.path;Object.assign(f.ob,{status:'configuring',runID:null,localStarted:false,codexStarted:false});}window.oracleReply(r.id,{value:chooseResult});return}
   if(r.method==='updateStatus'){window.oracleReply(r.id,{value:updates});return}
   if(r.method==='read'){
    f.calls.push({method:r.method,params:r.params});
+   if(readFails){window.oracleReply(r.id,{error:'Synthetic read unavailable'});return}
    const text=r.params.path.includes('pessoal')?'# Perfil pessoal\n\n## Resumo\n\nAna gosta de aprender desenho e reservar tempo para os amigos.\n\n## Rotina e interesses\n\nCaminhadas curtas e leitura fazem parte da rotina combinada.':'# Perfil profissional\n\n## Atuação e empresa\n\nAna trabalha com pesquisa e coordena o projeto de documentação.';
    window.oracleReply(r.id,{value:{path:r.params.path,text}});return;
   }
@@ -19,7 +23,7 @@
  window.__oracleFixtureRun=async()=>{
   if(f.started)return;f.started=true;const cases=[];
   const check=async(name,fn)=>{try{await fn();cases.push({name,ok:true})}catch(e){cases.push({name,ok:false,error:e.message});throw e}};
-  const shot=async name=>{window.__fixtureSnapshotSaved=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot',name});await wait(()=>window.__fixtureSnapshotSaved,'screenshot')};
+  const shot=async name=>{const toast=q('#toast');if(toast.matches(':popover-open'))toast.hidePopover();toast.hidden=true;window.__fixtureSnapshotSaved=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot',name});await wait(()=>window.__fixtureSnapshotSaved,'screenshot')};
   try{
    await check('Completed onboarding opens prompts and persists a presentation receipt',async()=>{
     await wait(()=>q('#modal[open][data-family="knowledge-prompts"]'),'automatic welcome');
@@ -38,11 +42,28 @@
     for(const id of ['personal','professional']){f.copied='';click(`[data-copy-knowledge="${id}"]`);await wait(()=>f.copied,'copied');assert(f.copied.startsWith('/oracle\n'),'router');assert(f.copied.includes(f.config.vault),'selected path');assert((f.copied.match(/^\d+\. /gm)||[]).length===30,'question count')}
     const previous=f.copied;f.config.vault='/__synthetic_oracle__/Other';click('[data-copy-knowledge="personal"]');await sleep(200);assert(f.copied===previous,'stale vault copied');f.config.vault='/__synthetic_oracle__/Vault de Ana & João';
    });
+   await check('Open Codex passes the complete prompt and rejects a stale vault',async()=>{
+    click('[data-open-knowledge="personal"]');await wait(()=>openRequest,'Codex request');assert(openRequest.vault===f.config.vault&&openRequest.prompt.startsWith('/oracle\n')&&openRequest.prompt.includes(f.config.vault),'wrong handoff');
+    const previous=openRequest;f.config.vault='/__synthetic_oracle__/Other';click('[data-open-knowledge="professional"]');await sleep(200);assert(openRequest===previous,'stale vault opened');f.config.vault='/__synthetic_oracle__/Vault de Ana & João';
+   });
    await check('Existing knowledge shows two areas, real excerpts and live file changes',async()=>{
     click('#knowledge-view-notes');await wait(()=>q('.hub-overview'),'personal summary');assert(qa('[data-hub-tab]').length===2&&!q('[data-hub-tab="memory"]'),'memory tab remains');assert(q('.hub-overview').textContent.includes('desenho'),'personal excerpt');
+    assert(q('.hub-inline-source'),'source action missing');await sleep(250);await shot('knowledge-summary');
     click('[data-hub-tab="professional"]');await wait(()=>q('.hub-overview')?.textContent.includes('pesquisa'),'professional excerpt');
     f.entries.push({path:'AREAS/profissional/Perfil novo.md',name:'Perfil novo.md',directory:false,size:120});await window.oracleVaultSnapshotChanged();await wait(()=>f.calls.some(c=>c.method==='read'&&c.params.path.includes('Perfil novo')),'updated notes read');
     click('.hub-build-context');await wait(()=>q('[data-copy-knowledge]'),'reopen prompts');
+   });
+   await check('Empty knowledge guides the selected area and read errors offer retry',async()=>{
+    const original=f.entries.slice();f.entries.splice(0);await refresh();await openKnowledgeHub();await wait(()=>q('.hub-empty'),'empty state');
+    assert(q('.hub-empty h2').textContent.includes('vida pessoal'),'wrong area');assert(!q('.hub-provenance'),'empty provenance');
+    const buttons=qa('.hub-tabs button');assert(Math.abs(buttons[0].getBoundingClientRect().width-buttons[1].getBoundingClientRect().width)<1,'unequal tabs');
+    await sleep(250);await shot('knowledge-empty');click('[data-hub-tab="professional"]');await wait(()=>q('.hub-empty h2')?.textContent.includes('vida profissional'),'professional empty');click('.hub-build-context');await wait(()=>q('[data-open-knowledge="professional"]'),'area prompt action');
+    f.entries.splice(0,f.entries.length,...original);readFails=true;await refresh();await openKnowledgeHub();await wait(()=>q('.hub-empty-error'),'error state');assert(q('[data-hub-retry]'),'retry missing');readFails=false;click('[data-hub-retry]');await wait(()=>q('.hub-overview'),'retry summary');
+   });
+   await check('Configure Oracle opens only vault selection and cancellation keeps the current vault',async()=>{
+    settings();click('#restart-setup');await wait(()=>q('#vault-settings-choose'),'vault settings');assert(!q('.ob2-screen[open]'),'installation opened');
+    await sleep(250);await shot('vault-settings');const vault=f.config.vault;click('#vault-settings-choose');await sleep(100);assert(f.config.vault===vault,'cancel changed vault');
+    const oldOnboarding={...f.ob};chooseResult={name:'Second vault',path:'/__synthetic_oracle__/Second vault'};click('#vault-settings-choose');await wait(()=>q('.vault-settings-current').textContent.includes('Second vault'),'new selection');assert(!q('.ob2-screen[open]'),'selection opened installer');f.config.vault=vault;f.ob=oldOnboarding;chooseResult=null;
    });
    await check('Settings reopen prompts and remove the technical section without overflow',async()=>{
     await closeModal(true);await refresh();await sleep(200);assert(!q('#modal').open,'welcome repeated');

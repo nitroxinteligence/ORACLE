@@ -138,13 +138,13 @@
     progress.querySelector('strong').textContent=integrating?'Conclua a integração no Codex':phase[2]+(counted&&unit==='arquivos'?` · ${done}/${total}`:'…');
     const failed=['failed','interrupted','paused','cancelled'].includes(current.status);
     const error=progress.querySelector('.ob2-install-error');error.hidden=!failed&&!integrating;
-    error.textContent=integrating?integrationMessage||'Instalação local concluída. Abra o Codex, revise os hooks e envie as instruções copiadas para registrar a manutenção. Depois clique em Verificar.':failed?(current.message||'Não foi possível concluir a instalação.'):'';
+    error.textContent=integrating?integrationMessage||'Instalação local concluída. Abra o Codex com o roteiro pronto. Revise os hooks e envie a mensagem para registrar a manutenção. Depois clique em Verificar.':failed?(current.message||'Não foi possível concluir a instalação.'):'';
     error.classList.toggle('ob2-pending',integrating);
     const retry=progress.querySelector('.ob2-retry');retry.hidden=!failed;
     if(failed&&!retry.querySelector('button'))metal(retry,'Tentar novamente',async()=>{await invoke('onboardingResume');await poll();});
     const actions=progress.querySelector('.ob2-codex-actions');actions.hidden=!integrating;
     if(integrating&&!actions.querySelector('button')){
-      plain(actions.querySelector('[data-open-codex]'),'Abrir Codex',async()=>{await invoke('onboardingOpenCodex');});
+      plain(actions.querySelector('[data-open-codex]'),'Abrir Codex',async()=>{await invoke('onboardingOpenIntegrationCodex');});
       plain(actions.querySelector('[data-copy-codex]'),'Copiar instruções',async()=>{const value=await invoke('maintenanceScheduleRequest');await invoke('copy',{text:value.request});api.toast?.('Instruções copiadas. Envie-as em uma conversa no espaço Oracle.');});
       plain(actions.querySelector('[data-verify-codex]'),'Verificar',async()=>{
         const button=actions.querySelector('[data-verify-codex] button');button.disabled=true;button.textContent='Verificando…';
@@ -153,7 +153,7 @@
         finally {button.disabled=false;button.textContent='Verificar';}
       });
     }
-    if(integrating&&openedRun!==current.runID){openedRun=current.runID;invoke('onboardingOpenCodex').catch(errorToast);}
+    if(integrating&&openedRun!==current.runID){openedRun=current.runID;invoke('onboardingOpenIntegrationCodex').catch(errorToast);}
     positionProgress();
   }
 

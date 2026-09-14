@@ -210,9 +210,36 @@ func runOnboardingLifecycleTests() throws {
     try writeJSON(["workspace":launchWorkspace.path],home.appendingPathComponent("setup/bridge.json"))
     let launchLink=try controller.codexWorkspaceLink(),linkParts=URLComponents(url:launchLink,resolvingAgainstBaseURL:false)
     try t.check(launchLink.scheme=="codex" && launchLink.host=="threads" && launchLink.path=="/new" && linkParts?.queryItems?.first?.value==launchWorkspace.path,"Desktop workspace link preserves spaces and URL punctuation without spawning CLI")
+    let previousVault=controller.core.config["vault"]
+    controller.core.config["vault"]=vault.path;try controller.core.persist()
+    let prompt="/oracle\nVida pessoal & profissional? # plano\n"+String(repeating:"Contexto do usuário. ",count:800)
+    let promptLink=try controller.codexWorkspaceLink(prompt:prompt,vault:vault.path)
+    let query=URLComponents(url:promptLink,resolvingAgainstBaseURL:false)?.queryItems
+    try t.check(query?.first(where:{$0.name=="prompt"})?.value==prompt && query?.first(where:{$0.name=="path"})?.value==launchWorkspace.path,"Codex handoff round-trips long Unicode prompts and uses the recorded workspace")
+    try t.rejects("Codex prompt handoff rejects stale vault") {_ = try controller.codexWorkspaceLink(prompt:prompt,vault:vault.path+"-stale")}
+    try t.rejects("Codex prompt handoff is bounded") {_ = try controller.codexWorkspaceLink(prompt:String(repeating:"x",count:65_537),vault:vault.path)}
+    _ = try controller.core.configureMaintenance(["enabled":true,"hour":18,"timezone":"America/Recife","autoCapture":false,"remoteProcessing":false])
+    let integrationPrompt=try controller.core.maintenanceScheduleRequest()
+    let integrationLink=try controller.codexIntegrationLink()
+    let integrationQuery=URLComponents(url:integrationLink,resolvingAgainstBaseURL:false)?.queryItems
+    try t.check(integrationQuery?.first(where:{$0.name=="prompt"})?.value==integrationPrompt && integrationPrompt.contains(vault.path) && integrationPrompt.contains("18h"),"Integration handoff uses the full current schedule request")
+    _ = try controller.core.configureMaintenance(["enabled":false])
+    try t.rejects("Integration handoff cannot enable maintenance consent") {_ = try controller.codexIntegrationLink()}
+    try fm.removeItem(at:home.appendingPathComponent("maintenance"))
+    controller.core.config["vault"]=previousVault;try controller.core.persist()
     try writeJSON(["workspace":vault.path],home.appendingPathComponent("setup/bridge.json"))
     try t.rejects("Desktop launch rejects workspace outside the Oracle profile") {_ = try controller.codexWorkspaceLink()}
     try fm.removeItem(at:home.appendingPathComponent("setup/bridge.json"))
+    try controller.selectVault(vault)
+    let selectionRecord=controller.core.onboardingRecord()
+    try writeJSON(["status":"completed","runID":"preserve-selection","localStarted":true],controller.core.onboardingURL)
+    try controller.selectVault(vault)
+    try t.check(controller.core.onboardingRecord()["runID"] as? String=="preserve-selection","Selecting the same vault preserves its installation receipt")
+    let anotherVault=root.appendingPathComponent("another-vault");try fm.createDirectory(at:anotherVault,withIntermediateDirectories:true)
+    try controller.selectVault(anotherVault)
+    let switched=controller.core.onboardingRecord()
+    try t.check(switched["status"] as? String=="configuring" && switched["localStarted"] as? Bool==false && !(switched["runID"] is String),"Changing vault detaches the previous install without starting another")
+    try writeJSON(selectionRecord,controller.core.onboardingURL)
     try controller.selectVault(vault)
     try controller.clearSelectedVault()
     try t.check(controller.core.config["vault"]==nil && controller.core.config["vaultBookmark"]==nil,"clearing a pre-install vault clears only its selection and bookmark")

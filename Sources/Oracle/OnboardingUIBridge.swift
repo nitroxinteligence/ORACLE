@@ -10,9 +10,17 @@ extension App {
             queue.async {do{let value=try self.onboardingController?.snapshot() ?? core.onboardingSnapshot();DispatchQueue.main.async{self.reply(id,value)}}catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}};return true
         }
         guard let controller=onboardingController else {reply(id,nil,"A configuração do Oracle não pôde ser aberta.");return true}
-        if method=="onboardingOpenCodex" {
+        if ["onboardingOpenCodex","onboardingOpenKnowledgeCodex","onboardingOpenIntegrationCodex"].contains(method) {
             controller.queue.async {
-                do {let link=try controller.codexWorkspaceLink();DispatchQueue.main.async{self.openCodexApplication(id,link:link)}}
+                do {
+                    let link:URL
+                    if method=="onboardingOpenKnowledgeCodex" {
+                        guard let prompt=params["prompt"] as? String,let vault=params["vault"] as? String else{throw failure("Abra Knowledge Base para preparar o roteiro.")}
+                        link=try controller.codexWorkspaceLink(prompt:prompt,vault:vault)
+                    }else if method=="onboardingOpenIntegrationCodex" {link=try controller.codexIntegrationLink()}
+                    else{link=try controller.codexWorkspaceLink()}
+                    DispatchQueue.main.async{self.openCodexApplication(id,link:link)}
+                }
                 catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}
             };return true
         }

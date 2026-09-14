@@ -409,7 +409,7 @@ function settings(){
  modal(`<h1>Ajustes do Oracle</h1><p class="settings-intro">Seu conhecimento, suas preferências e o aplicativo.</p>
  <section class="settings-section"><h2>Seu espaço</h2><div class="setting-group">
  ${row('knowledge-settings','Knowledge Base','Prompts para organizar sua vida pessoal e profissional','book')}
- ${row('restart-setup','Configurar Oracle','Pasta do Obsidian e configuração do Second Brain')}
+ ${row('restart-setup','Configurar Oracle','Selecionar a pasta do seu segundo cérebro')}
  </div></section>
  <section class="settings-section"><h2>Privacidade</h2><div class="setting-group">
  ${row('protect-settings','Bloqueio',state.config.protected?'Touch ID ou senha do Mac ativados':'Ativar Touch ID ou senha do Mac','lock')}
@@ -421,12 +421,22 @@ function settings(){
  ${row('export-view','Exportar imagem','Salvar uma imagem do seu universo')}
  </div></section>`,{family:'settings',footer:false,root:true});
  $('#knowledge-settings').onclick=safe(()=>openKnowledgePrompts());
- $('#restart-setup').onclick=()=>showSetup({fromSettings:true});
+ $('#restart-setup').onclick=vaultSettings;
  $('#catalog-settings')?.addEventListener('click',safe(catalogSettings));
  $('#updates-settings').onclick=safe(()=>showUpdates(false));
  $('#export-view').onclick=safe(async()=>{await closeModal();const path=await call('exportSnapshot');if(path)toast('Imagem salva.')});
  $('#protect-settings').onclick=safe(async()=>{await call('protect');await refresh();settings();toast('Bloqueio ativado')});
  $('#revoke').onclick=()=>{modal(`<h1>Desconectar pastas?</h1><p>O Oracle deixará de acessar seus documentos. Os arquivos continuam no Obsidian e você pode conectar a pasta novamente.</p>${actions('<button class="secondary" id="revoke-cancel">Voltar</button><button class="primary" id="confirm-revoke">Desconectar</button>')}`);$('#revoke-cancel').onclick=settings;$('#confirm-revoke').onclick=safe(async()=>{await call('revoke');live();selected=null;selectedSkill=null;query='';await refresh();settings();toast('Pastas desconectadas.','success')})};
+}
+function vaultSettings(){
+ const vault=state.config.vault||'',name=vault.split('/').filter(Boolean).at(-1)||'Nenhuma pasta selecionada';
+ modal(`<h1>Configurar Oracle</h1><p>Selecione a pasta do seu segundo cérebro.</p><div class="vault-settings-current">${icon('folder')}<div><small>Pasta atual</small><strong>${esc(name)}</strong>${vault?`<span>${esc(vault)}</span>`:''}</div></div><p class="vault-settings-note">Trocar a pasta conecta o Oracle ao vault escolhido. Os arquivos da pasta anterior continuam no lugar.</p>${actions('<button class="secondary" id="vault-settings-back">Voltar</button><button class="primary" id="vault-settings-choose">Selecionar outro vault</button>')}`,{family:'vault-settings',key:'vault-settings'});
+ $('#vault-settings-back').onclick=settings;
+ $('#vault-settings-choose').onclick=safe(async()=>{
+  const button=$('#vault-settings-choose');button.disabled=true;
+  try{const selected=await call('chooseVault');if(!selected)return;await refresh();await window.OracleOnboarding?.poll?.();vaultSettings();toast('Pasta selecionada.','success');}
+  finally{if(button.isConnected)button.disabled=false}
+ });
 }
 async function maintenanceSettings(){
  const value=await call('maintenanceStatus'),sync=state.gbrainSync||{},last=value.lastRun?.lastSuccess;
@@ -920,6 +930,16 @@ const knowledgeWelcomeShown=new Set();
 function knowledgeWelcomePending(){return OracleKnowledgePrompts.welcomeEligible(state.onboarding,state.config.vault)&&!knowledgeWelcomeShown.has(JSON.stringify([state.onboarding.runID,state.config.vault]));}
 function knowledgeContext(){return OracleKnowledgePrompts.context(state.config.vault,state.entries);}
 function bindKnowledgeCopy(ctx){
+ $$('[data-open-knowledge]').forEach(button=>button.onclick=safe(async()=>{
+  const id=button.dataset.openKnowledge;button.disabled=true;
+  try{
+   const latest=await call('snapshot');
+   if(latest.config.vault!==ctx.vault)throw Error('A pasta selecionada mudou. Reabra Knowledge Base para abrir o roteiro correto.');
+   const fresh=OracleKnowledgePrompts.context(latest.config.vault,latest.entries);
+   await call('onboardingOpenKnowledgeCodex',{vault:fresh.vault,prompt:OracleKnowledgePrompts.build(id,fresh)});
+   if($('#knowledge-copy-status'))$('#knowledge-copy-status').textContent='Codex aberto com o roteiro. Continue por lá.';
+  }finally{if(button.isConnected)button.disabled=false}
+ }));
  $$('[data-copy-knowledge]').forEach(button=>button.onclick=safe(async()=>{
   const id=button.dataset.copyKnowledge;button.disabled=true;
   try{
@@ -933,24 +953,25 @@ function bindKnowledgeCopy(ctx){
 }
 function openKnowledgePromptPreview(id,ctx){
  const topic=OracleKnowledgePrompts.topics[id];
- if(modal(`<h1>${topic.name}</h1><p class="knowledge-preview-intro">Este é o roteiro que você vai enviar ao Codex.</p><pre class="knowledge-prompt-text">${esc(OracleKnowledgePrompts.build(id,ctx))}</pre><p id="knowledge-copy-status" role="status" aria-live="polite"></p>${actions(`<button class="secondary" data-copy-knowledge="${id}">Copiar prompt</button>`)}`,{family:'knowledge-prompt-preview',key:'knowledge-prompt-'+id})===false)return;
+ if(modal(`<h1>${topic.name}</h1><p class="knowledge-preview-intro">Este roteiro abre no Codex, no espaço vinculado ao seu segundo cérebro.</p><pre class="knowledge-prompt-text">${esc(OracleKnowledgePrompts.build(id,ctx))}</pre><p id="knowledge-copy-status" role="status" aria-live="polite"></p>${actions(`<button class="quiet-link" data-copy-knowledge="${id}">Copiar prompt</button><button class="primary" data-open-knowledge="${id}">Abrir Codex</button>`)}`,{family:'knowledge-prompt-preview',key:'knowledge-prompt-'+id})===false)return;
  bindKnowledgeCopy(ctx);
 }
-function openKnowledgePrompts({welcome=false}={}){
+function openKnowledgePrompts({welcome=false,topic=null}={}){
  if(navigationBlocked())return false;
  let ctx;try{ctx=knowledgeContext()}catch(error){toast(error.message);return false}
  const topics=OracleKnowledgePrompts.topics;
  const descriptions={personal:'Valores, rotina, relações e planos.',professional:'Carreira, projetos, responsabilidades e negócio.'};
  const subjects={personal:['Quem você é e o que importa','Sua rotina e suas relações','Prioridades para os próximos meses'],professional:['Sua atuação e o valor que entrega','Projetos e responsabilidades atuais','Direção para sua carreira ou negócio']};
  if(modal(`<h1>Knowledge Base</h1><div class="knowledge-start"><h2>${welcome?'Seu segundo cérebro está pronto.':'Dê contexto ao seu segundo cérebro.'}</h2><p>Escolha uma área para organizar com o Codex.</p></div>
- <div class="knowledge-prompt-list">${Object.entries(topics).map(([id,t])=>`<section class="knowledge-prompt-option"><div class="knowledge-prompt-title">${icon(id==='personal'?'person':'code')}<h2>${t.name}</h2></div><p>${descriptions[id]}</p><ul>${subjects[id].map(text=>`<li>${text}</li>`).join('')}</ul><div class="knowledge-prompt-actions"><button class="quiet-link" data-preview-knowledge="${id}">Ver prompt</button><button class="secondary" data-copy-knowledge="${id}">Copiar prompt</button></div></section>`).join('')}</div>
- <ol class="knowledge-steps" aria-label="Como começar"><li><span>1</span>Copie um prompt</li><li><span>2</span>Cole no Codex</li><li><span>3</span>Responda no seu ritmo</li></ol>
+ <div class="knowledge-prompt-list">${Object.entries(topics).map(([id,t])=>`<section class="knowledge-prompt-option"><div class="knowledge-prompt-title">${icon(id==='personal'?'person':'code')}<h2>${t.name}</h2></div><p>${descriptions[id]}</p><ul>${subjects[id].map(text=>`<li>${text}</li>`).join('')}</ul><div class="knowledge-prompt-actions"><button class="quiet-link" data-preview-knowledge="${id}">Ver prompt</button><button class="quiet-link" data-copy-knowledge="${id}">Copiar prompt</button><button class="primary" data-open-knowledge="${id}">Abrir Codex</button></div></section>`).join('')}</div>
+ <ol class="knowledge-steps" aria-label="Como começar"><li><span>1</span>Escolha uma área</li><li><span>2</span>Abra no Codex</li><li><span>3</span>Responda no seu ritmo</li></ol>
  <div class="knowledge-destination">${icon('folder')}<div><span>Obsidian selecionado</span><strong>${esc(ctx.name)}</strong></div><details><summary>Ver caminho</summary><small>${esc(ctx.vault)}</small></details></div>
  <p id="knowledge-copy-status" role="status" aria-live="polite"></p>
  ${actions('<p class="knowledge-footer-note">Você pode voltar aqui pelos Ajustes.</p><button class="quiet-link" id="knowledge-view-notes">Ver minhas notas</button>')}`,{family:'knowledge-prompts',key:'knowledge-prompts'})===false)return false;
  bindKnowledgeCopy(ctx);
  $$('[data-preview-knowledge]').forEach(button=>button.onclick=()=>openKnowledgePromptPreview(button.dataset.previewKnowledge,ctx));
  $('#knowledge-view-notes').onclick=safe(openKnowledgeHub);
+ if(topic)requestAnimationFrame(()=>$(`[data-open-knowledge="${topic}"]`)?.focus({preventScroll:true}));
  return true;
 }
 async function maybeShowKnowledgeWelcome(){
@@ -970,7 +991,7 @@ document.addEventListener('visibilitychange',()=>void maybeShowKnowledgeWelcome(
 
 function openKnowledgeHub(){
  if(navigationBlocked())return;
- return window.OracleKnowledgeHub.open({modal,entries:state.entries,call,openNote:safe(openNote),memoryPage:safe(memoryPage),conversations:safe(conversations),prompts:()=>openKnowledgePrompts(),esc,icon});
+ return window.OracleKnowledgeHub.open({modal,entries:state.entries,call,openNote:safe(openNote),memoryPage:safe(memoryPage),conversations:safe(conversations),prompts:topic=>openKnowledgePrompts({topic}),esc,icon});
 }
 
 $$('.workspace-tabs [data-workspace]').forEach((button,index)=>{

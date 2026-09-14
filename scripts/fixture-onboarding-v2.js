@@ -110,7 +110,7 @@
       case 'onboardingInstallMemoryOnly':
         f.installMaintenance=clone(params.maintenance);f.ob.maintenance={...clone(params.maintenance),registered:false};
         f.ob={...f.ob,status:'running',phase:'installing',profileMode:'memory-only',schemaVersion:3,runID:'memory-only-fixture',confirmed:[{id:'sol',kind:'core',label:'Oracle'}]};return clone(f.ob);
-      case 'onboardingOpenCodex':return true;
+      case 'onboardingOpenCodex':case 'onboardingOpenIntegrationCodex':return true;
       case 'onboardingVerifyIntegration':await sleep(200);f.ob.integrationPending=!f.trustReady;return {...clone(f.ob),integrationMessage:f.trustReady?'Integração confirmada. Seu Oracle está pronto.':'Há hooks aguardando confiança no Codex.'};
       case 'onboardingResume':f.ob.status='running';return clone(f.ob);
       case 'onboardingCancel':f.ob.status='paused';return clone(f.ob);
@@ -248,6 +248,7 @@
         await wait(()=>!q('.ob2-installation').hidden&&visible(q('[data-open-codex] button')),'integration card');assert(q('.ob2-installation').getBoundingClientRect().top>=12,'Codex handoff clipped above window');const buttons=qa('.ob2-codex-actions button');assert(buttons.every(b=>!b.classList.contains('ob2-metal-button')&&b.getBoundingClientRect().height<=32),'handoff actions are not compact plain buttons');assert(new Set(buttons.map(b=>Math.round(b.getBoundingClientRect().top))).size===1,'handoff actions wrap');assert(q('.ob2-installation').getBoundingClientRect().width>=500,'handoff card too narrow');const card=q('.ob2-installation').getBoundingClientRect(),tabs=q('.workspace-tabs').getBoundingClientRect();assert(card.right<=tabs.left||card.top>=tabs.bottom,'handoff card obscures navigation');
         assert(getComputedStyle(q('.ob2-installation')).overflowX==='hidden'&&getComputedStyle(q('.ob2-installation')).overflowY==='hidden','integration card exposes scrollbars');
         assert(q('.ob2-installation').scrollWidth<=q('.ob2-installation').clientWidth+1,'integration card overflows horizontally');
+        assert(countCalls('onboardingOpenIntegrationCodex')===1,'automatic handoff lacks integration prompt');click('[data-open-codex] button');await wait(()=>countCalls('onboardingOpenIntegrationCodex')===2,'manual integration prompt handoff');
         click('[data-copy-codex] button');await wait(()=>f.copied?.includes('Synthetic request'),'copied registration procedure');
         assert(!qa('.verified-connector').length,'unexpected graph connectors');
         await sleep(50);click('[data-verify-codex] button');
@@ -261,7 +262,7 @@
         f.ob.status='completed';f.ob.message='Pronto';await OracleOnboarding.poll();
         await wait(()=>q('.ob2-installation').hidden&&!q('.ob2-screen').open,'completion without another screen');
         assert(countCalls('onboardingConnect')===0&&countCalls('onboardingConfirmIdentity')===0,'implicit consent or login');
-        assert(countCalls('onboardingOpenCodex')===1,'missing or duplicate automatic Codex handoff');
+        assert(countCalls('onboardingOpenIntegrationCodex')===2&&countCalls('onboardingOpenCodex')===0,'missing or duplicate automatic Codex handoff');
         await wait(()=>q('#modal[open][data-family="knowledge-prompts"]'),'optional knowledge prompts');
         await closeModal(true);
       });

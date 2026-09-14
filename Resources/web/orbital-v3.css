@@ -376,7 +376,7 @@ html[data-input-mode=keyboard] #atlas:has(.central-hub-hit:focus-visible) .oracl
 #modal[data-family=knowledge-hub] { width:min(880px,calc(100vw - 40px)); }
 #modal[data-family=knowledge-hub] .modal-body { padding-top:4px; }
 .knowledge-hub { min-width:0; }
-.hub-tabs { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding:5px;background:#ffffff04;border:1px solid #ffffff0d;border-radius:15px;margin-bottom:26px; }
+.hub-tabs { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:5px;background:#ffffff04;border:1px solid #ffffff0d;border-radius:15px;margin-bottom:26px; }
 .hub-tabs button { display:flex;align-items:center;justify-content:center;gap:9px;padding:14px 8px;color:#b2b2b2;background:transparent;border:1px solid transparent;border-radius:11px;font-size:13px; }
 .hub-tabs button[aria-selected=true] { color:#f0f0f0;background:#ffffff09;border-color:#ffffff15; }
 .hub-tabs svg { width:18px;height:18px;flex:none; }
@@ -925,3 +925,35 @@ body.reduced .gallery-skeleton { animation:none; }
 #atlas .specialist-portrait { opacity:0;pointer-events:none; }
 #atlas .has-portrait .specialist-portrait { opacity:1; }
 #atlas .category-node.has-portrait .planet-surface { filter:none;stroke:var(--node-accent); }
+
+/* Knowledge overview: compact navigation and actionable, source-aware states. */
+#modal[data-family=knowledge-hub] { width:min(760px,calc(100vw - 40px)); }
+.hub-description { margin:8px 0 24px;color:#b2b2b2;font-size:13px;line-height:1.6; }
+.hub-tabs { margin-bottom:24px; }
+.hub-tabs button { padding:10px 8px; }
+.hub-empty { padding:28px 20px 34px;max-width:490px;margin:0 auto; }
+.hub-empty>svg { width:30px;height:30px;color:#b8b8b8;margin-bottom:14px; }
+.hub-empty h2 { font-size:21px;font-weight:500;letter-spacing:-.025em;color:#ededed;margin:0 0 12px; }
+.hub-empty p { margin:0 auto 23px;max-width:46ch;line-height:1.7; }
+.hub-empty .primary { padding:11px 18px; }
+.hub-topics { display:block;margin:24px 0; }
+.hub-topic { padding:20px 0;border-top:1px solid #ffffff12; }
+.hub-topic li p { margin:0; }
+.hub-overview h2 { font-size:15px;font-weight:500;margin:0 0 12px; }
+.hub-inline-source { display:inline-flex;align-items:center;gap:6px;color:#b2b2b2;font-size:11px;padding:5px 0;margin-top:4px;text-align:left; }
+.hub-inline-source svg { width:12px;height:12px;flex:none; }
+.hub-skeleton { padding:26px 0;min-height:205px;display:flex;flex-direction:column;gap:14px; }
+.hub-skeleton i { display:block;height:12px;border-radius:4px;background:#ffffff0b; }
+.hub-skeleton i:first-of-type { width:25%;height:18px;margin-bottom:10px; }
+.hub-skeleton i:nth-of-type(3) { width:90%; }
+.hub-skeleton i:last-of-type { width:60%; }
+#modal[data-family=vault-settings] { width:min(620px,calc(100vw - 40px)); }
+.vault-settings-current { display:flex;align-items:center;gap:18px;padding:24px 0;margin:12px 0;border-block:1px solid #ffffff16; }
+.vault-settings-current>svg { width:30px;height:30px;flex:none;color:#b8b8b8; }
+.vault-settings-current div { min-width:0;display:flex;flex-direction:column;gap:7px; }
+.vault-settings-current small { color:#aaa; }
+.vault-settings-current strong { font-size:17px;font-weight:500; }
+.vault-settings-current span { color:#aaa;font-size:12px;overflow-wrap:anywhere; }
+.vault-settings-note { max-width:58ch;line-height:1.7;color:#aaa; }
+.knowledge-prompt-actions { flex-wrap:wrap;gap:8px; }
+.knowledge-prompt-actions [data-preview-knowledge] { margin-right:auto; }

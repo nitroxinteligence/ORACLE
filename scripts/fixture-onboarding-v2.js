@@ -44,6 +44,7 @@
   const countCalls = method => f.calls.filter(call=>call.method===method).length;
   function snapshot() {
     return clone({config:f.config,entries:f.ob.hasVault?entries:[],collections,events:[],projects:[],
+      scan:{signature:JSON.stringify(entries.map(e=>[e.path,e.size])),complete:true,pending:false},
       onboarding:f.ob,operations:{setup:f.ob.status==='running',gbrain:false},
       setup:f.ob.runID?{plan_id:f.ob.runID}:null,setupBaselinePaths:[],
       codexPlugins:{status:f.ob.codexConnected?'available':'unavailable',plugins:[]},
@@ -56,6 +57,7 @@
       case 'events': return [];
       case 'updateStatus': return {busy:false,available:false,knownUpdate:false,phase:'complete',checkedAt:new Date().toISOString(),results:[]};
       case 'onboardingStatus': return clone(f.ob);
+      case 'onboardingKnowledgeWelcomeSeen': f.ob.knowledgeWelcome=clone(params);return true;
       case 'onboardingDraftUI':f.ob.ui={...f.ob.ui,...clone(params)};return true;
       case 'onboardingDeviceRequest':
         if(f.failDeviceRequest){f.failDeviceRequest=false;throw Error('Synthetic device unavailable');}
@@ -255,11 +257,13 @@
         await sleep(30);f.trustReady=true;click('[data-verify-codex] button');
         await wait(()=>q('.ob2-installation').hidden,'successful Verify dismisses integration');
       });
-      await check('Completion removes progress without additional interview',async()=>{
+      await check('Completion removes progress and offers optional knowledge prompts',async()=>{
         f.ob.status='completed';f.ob.message='Pronto';await OracleOnboarding.poll();
         await wait(()=>q('.ob2-installation').hidden&&!q('.ob2-screen').open,'completion without another screen');
         assert(countCalls('onboardingConnect')===0&&countCalls('onboardingConfirmIdentity')===0,'implicit consent or login');
         assert(countCalls('onboardingOpenCodex')===1,'missing or duplicate automatic Codex handoff');
+        await wait(()=>q('#modal[open][data-family="knowledge-prompts"]'),'optional knowledge prompts');
+        await closeModal(true);
       });
       await check('Graph reconstructs on every tab return with points before lines',async()=>{
         applyAccessibility({reduceMotion:false});

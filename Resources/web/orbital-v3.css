@@ -360,7 +360,7 @@ body.reduce-transparency dialog,body.reduce-transparency .oracle-onboarding .ob-
 #app .map-tools { left:auto;right:28px;transform:none; }
 @media(max-width:900px) { #app .map-tools { right:20px; } }
 
-#atlas .orbital-scaffolding { display:block;fill:none;stroke:#b7bec7;stroke-width:.55;stroke-opacity:.055;pointer-events:none; }
+#atlas .orbital-scaffolding { display:block;fill:none;stroke:#b7bec7;stroke-width:.55;stroke-opacity:.08;pointer-events:none; }
 #atlas .department-backdrop { pointer-events:none; }
 #atlas .department-backdrop-ring { fill:none;stroke:#b7bec7;stroke-width:.65;stroke-opacity:.09; }
 #atlas .department-backdrop-title { font-family:'Oracle Michroma',sans-serif;font-weight:400;letter-spacing:.12em;fill:#dededb;fill-opacity:.045;stroke:none; }
@@ -739,15 +739,63 @@ body { background:var(--bg); }
 .conversation-message .markdown-reader { font-size:13px; }
 .editor-recovery>.source-details { flex-basis:100%; }
 .editor-recovery>p { line-height:1.6; }
-@media(min-width:761px) {
- #modal[data-family=settings] { width:min(820px,calc(100vw - 64px)); }
- #modal[data-family=settings] .modal-body { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 24px; }
- #modal[data-family=settings] .settings-section { margin:0; }
- #modal[data-family=settings] .settings-section:nth-of-type(3),#modal[data-family=settings] .modal-body>.source-details { grid-column:1/-1; }
- #modal[data-family=settings] .settings-section:nth-of-type(3) .setting-group { display:grid;grid-template-columns:repeat(2,minmax(0,1fr)); }
- #modal[data-family=settings] .settings-section:nth-of-type(3) .setting-row+.setting-row { border-top:0;border-left:1px solid var(--line); }
-}
+
 .modal-header>div:not(:has(.modal-breadcrumb)) { align-self:center; }
+/* Settings are a quiet, single-column list; each row keeps the same affordance. */
+#modal[data-family=settings] { width:min(660px,calc(100vw - 32px)); }
+#modal[data-family=settings] .modal-body { display:flex;flex-direction:column;align-items:stretch;gap:22px; }
+#modal[data-family=settings] .settings-intro { margin:0;color:#b9b9b9; }
+#modal[data-family=settings] .settings-section { margin:0;min-width:0;width:100%; }
+#modal[data-family=settings] .setting-group { display:block;background:transparent; }
+#modal[data-family=settings] .setting-row { padding:14px 16px;gap:16px;min-height:64px; }
+#modal[data-family=settings] .setting-row+.setting-row { border-left:0;border-top:1px solid var(--line); }
+#modal[data-family=settings] .setting-row strong { font-size:14px;font-weight:500; }
+#modal[data-family=settings] .setting-row small { white-space:normal;color:#aaa;line-height:1.5; }
+#modal[data-family=settings] .setting-row>svg { flex-shrink:0; }
+#modal[data-family=knowledge-prompts] { width:min(820px,calc(100vw - 32px)); }
+#modal[data-family=knowledge-prompts] .modal-body { padding:26px 28px; }
+#modal[data-family=knowledge-prompts] .knowledge-start h2 { margin:0 0 8px;font-size:20px;font-weight:500;letter-spacing:-.02em; }
+#modal[data-family=knowledge-prompts] .knowledge-start p { margin:0;color:#a9a9a9;font-size:13px;line-height:1.6; }
+.knowledge-prompt-list { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:24px 0; }
+.knowledge-prompt-option { display:flex;flex-direction:column;min-width:0;padding:22px;border:1px solid #ffffff20;border-radius:16px;background:#ffffff04; }
+.knowledge-prompt-title { display:flex;align-items:center;gap:10px; }
+.knowledge-prompt-title svg { width:20px;height:20px;color:#c5c5c5;flex-shrink:0; }
+.knowledge-prompt-title h2 { margin:0;font-size:16px;font-weight:550;letter-spacing:-.015em; }
+#modal[data-family=knowledge-prompts] .knowledge-prompt-option>p { margin:12px 0 20px;color:#999;font-size:12px;line-height:1.6;min-height:3.2em; }
+.knowledge-prompt-option ul { display:flex;flex-direction:column;gap:10px;padding:0;margin:0 0 26px;list-style:none;color:#c5c5c5;font-size:12px;line-height:1.6; }
+.knowledge-prompt-option li { display:flex;gap:9px;align-items:baseline; }
+.knowledge-prompt-option li::before { content:'·';color:#777; }
+.knowledge-prompt-actions { display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto;padding-top:18px;border-top:1px solid #ffffff10; }
+.knowledge-prompt-actions button { min-height:36px;font-size:12px; }
+.knowledge-prompt-actions .quiet-link { padding:6px 0;color:#b1b1b1; }
+.knowledge-steps { display:flex;justify-content:space-between;gap:12px;list-style:none;margin:0;padding:0 0 24px;color:#b2b2b2;font-size:12px; }
+.knowledge-steps li { display:flex;align-items:center;gap:8px; }
+.knowledge-steps span { display:grid;place-items:center;width:22px;height:22px;border:1px solid #ffffff18;border-radius:50%;font-size:10px;color:#999;flex-shrink:0; }
+.knowledge-destination { display:flex;align-items:center;gap:10px;padding:16px 0 0;border-top:1px solid var(--line); }
+.knowledge-destination>svg { width:20px;height:20px;flex-shrink:0;color:#888; }
+.knowledge-destination>div { min-width:0;flex:1; }
+.knowledge-destination div>span { display:block;font-size:10px;color:#8c8c8c;margin-bottom:4px; }
+.knowledge-destination strong { display:block;font-size:12px;font-weight:500;overflow-wrap:anywhere; }
+.knowledge-destination details { max-width:55%;text-align:right; }
+.knowledge-destination summary { cursor:pointer;font-size:11px;color:#aaa; }
+.knowledge-destination small { display:block;overflow-wrap:anywhere;color:#999;margin-top:8px;font-size:11px; }
+#modal[data-family=knowledge-prompts] .knowledge-footer-note { margin:0 auto 0 0;color:#888;font-size:11px;line-height:1.5; }
+#knowledge-view-notes { font-size:12px; }
+#knowledge-copy-status { font-size:12px;color:#c5dfcf;line-height:1.6;margin-top:16px; }
+#knowledge-copy-status:empty { display:none; }
+#modal[data-family=knowledge-prompt-preview] { width:min(780px,calc(100vw - 32px)); }
+.knowledge-prompt-text { white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.75 system-ui;color:#c9c9c9;margin:22px 0 0; }
+.knowledge-preview-intro { color:#999; }
+.hub-build-context { margin:4px 0 18px; }
+@media(max-width:600px) {
+ .knowledge-prompt-list { grid-template-columns:1fr;gap:14px; }
+ #modal[data-family=knowledge-prompts] .knowledge-prompt-option>p { min-height:0;margin-bottom:14px; }
+ .knowledge-prompt-option { padding:18px; }
+ .knowledge-prompt-option ul { margin-bottom:18px; }
+ .knowledge-steps { flex-direction:column;gap:10px; }
+ .knowledge-destination { flex-wrap:wrap; }
+ .knowledge-destination details { max-width:100%; }
+}
 .modal-transition-snapshot { position:absolute!important;inset:0;display:flex;flex-direction:column;max-height:100%;overflow:hidden;pointer-events:none;background:var(--floating-fill);z-index:4;margin:0!important; }
 .modal-transition-snapshot .modal-body { pointer-events:none; }
 /* An auto basis preserves intrinsic dialog height in WKWebView. */
@@ -859,3 +907,21 @@ body:has(#modal[open][data-family=update-installing]) .ob2-installation {display
 #modal[data-family=update-installing] .update-modal-beam,
 #modal[data-family=update-installing] .update-modal-beam>div {border-radius:inherit}
 #modal[data-family=update-installing] #update-finish {align-self:flex-start;margin-top:12px;font-size:12px;padding:8px 12px}
+
+/* A real loading state: no artificial percentage or minimum wait. */
+.gallery-skeleton { animation:gallery-skeleton-pulse 1.2s ease-in-out infinite alternate; }
+.gallery-skeleton-search { height:50px;border-radius:12px;background:#ffffff08; }
+.gallery-skeleton-categories { height:32px;width:55%;margin:26px 0 42px;border-radius:8px;background:#ffffff08; }
+.gallery-skeleton-card { pointer-events:none;border-color:#ffffff08;background:#ffffff03; }
+.gallery-skeleton-card>span:first-child { background:#ffffff04; }
+.gallery-skeleton-card>span:last-child { height:16px;margin:30px 24px;width:62%;border-radius:4px;background:#ffffff08; }
+@keyframes gallery-skeleton-pulse { from { opacity:.45; } to { opacity:.85; } }
+@media(prefers-reduced-motion:reduce) { .gallery-skeleton { animation:none; } }
+body.reduced .gallery-skeleton { animation:none; }
+
+/* Graph labels are navigation, while note/editor text remains selectable. */
+#atlas, #atlas text { -webkit-user-select:none;user-select:none; }
+#atlas .department-backdrop { pointer-events:none; }
+#atlas .specialist-portrait { opacity:0;pointer-events:none; }
+#atlas .has-portrait .specialist-portrait { opacity:1; }
+#atlas .category-node.has-portrait .planet-surface { filter:none;stroke:var(--node-accent); }

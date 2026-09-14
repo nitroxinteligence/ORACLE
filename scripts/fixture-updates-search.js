@@ -5,7 +5,7 @@
  const assert=(value,message)=>{if(!value)throw Error(message)};
  const wait=async(fn,message)=>{for(let i=0;i<240;i++){if(fn())return;await sleep(25)}throw Error(message)};
  const click=s=>{const el=q(s);assert(el&&!el.disabled,'Disabled/missing '+s);el.click()};
- f.ob={...f.ob,status:'completed',licensed:true,legacyAccess:true,hasVault:true,runID:'synthetic-complete'};f.config.vault='/__synthetic_oracle__/vault';
+ f.ob={...f.ob,status:'completed',licensed:true,legacyAccess:true,hasVault:true,runID:'synthetic-complete'};f.config.vault='/__synthetic_oracle__/vault';f.ob.knowledgeWelcome={runID:f.ob.runID,vault:f.config.vault};
  let status={busy:false,available:true,knownUpdate:true,phase:'complete',results:[{id:'skills',status:'available'}]},delay=0;
  window.__oracleFixtureReceive=async request=>{
   const {id,method,params={}}=request;

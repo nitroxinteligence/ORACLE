@@ -1,19 +1,48 @@
 /* Dedicated library pages over the same inventory used by the Atlas. */
 class OracleLibraryGallery {
  constructor(element,hooks){
-  this.el=element;this.h=hooks;this.active=false;this.mode='prompts';this.models=new Map();this.cache=new Map();this.pending=new Map();this.queue=[];this.running=0;this.sequence=0;this.revision=0;this.pageSize=9;
+  this.el=element;this.h=hooks;this.active=false;this.mode='prompts';this.models=new Map();this.cache=new Map();this.pending=new Map();this.queue=[];this.running=0;this.sequence=0;this.revision=0;this.pageSize=9;this.inventories=new Map();this.labels=new Map();this.collator=new Intl.Collator('pt-BR');this.loading=false;
   this.options={prompts:{id:'prompt',root:'SISTEMA/prompts',title:'Prompts',description:'Modelos para criar, pensar e executar.'},tutorials:{id:'tutorial',root:'SISTEMA/Tutoriais',title:'Tutoriais',description:'Guias para aprender, consultar e colocar em prática.'}};
  }
  model(){if(!this.models.has(this.mode))this.models.set(this.mode,{query:'',folder:'',order:'az',page:0,scroll:0,selected:'',choice:''});return this.models.get(this.mode)}
- data(){const o=this.options[this.mode],state=this.h.state();return OracleLibrary.inventory(state.entries,o.root,this.model().choice||state.config?.libraryRoots?.[o.id])}
- label(path){return path.split('/').at(-1).replace(/\.md$/i,'').replace(/[-_]+/g,' ')}
+ data(){
+  const state=this.h.state(),source=state.scan?.signature??state.entries,vault=state.config?.vault;
+  if(source!==this.source||vault!==this.vault){this.source=source;this.vault=vault;this.revision++;this.inventories.clear();this.labels.clear();this.cache.clear();this.pending.clear()}
+  const o=this.options[this.mode],choice=this.model().choice||state.config?.libraryRoots?.[o.id]||'',key=JSON.stringify([this.mode,choice]);
+  if(!this.inventories.has(key)){
+   const data=OracleLibrary.inventory(state.entries,o.root,choice),counts=new Map();
+   for(const entry of data.documents){let folder=entry.path.slice(0,entry.path.lastIndexOf('/'));while(this.inside(folder,data.root)){counts.set(folder,(counts.get(folder)||0)+1);if(folder===data.root)break;folder=folder.slice(0,folder.lastIndexOf('/'))}}
+   data.counts=counts;this.inventories.set(key,data);
+  }
+  return this.inventories.get(key);
+ }
+ label(path){if(!this.labels.has(path))this.labels.set(path,path.split('/').at(-1).replace(/\.md$/i,'').replace(/[-_]+/g,' '));return this.labels.get(path)}
  inside(path,root){return path===root||path.startsWith(root+'/')}
  key(text){return String(text||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLocaleLowerCase('pt-BR')}
- signature(){const d=this.data();return JSON.stringify([this.mode,d.root,d.ambiguous,this.h.state().scan?.signature,d.documents.map(e=>[e.path,e.size,e.modified_at,e.modified,e.hash])])}
- open(mode){if(this.active)this.model().scroll=this.el.scrollTop;this.mode=mode;this.active=true;this.sequence++;const key=this.signature();if(key!==this.keyValue){this.revision++;this.cache.clear();this.pending.clear()}this.keyValue=key;this.render();this.el.scrollTop=this.model().scroll;}
- reset(){this.hide();this.revision++;this.cache.clear();this.pending.clear();this.models.clear();this.el.replaceChildren();}
- hide(){if(this.active)this.model().scroll=this.el.scrollTop;this.active=false;this.sequence++;this.queue=[];}
- refresh(){if(!this.active)return;const key=this.signature();if(key!==this.keyValue){this.keyValue=key;this.revision++;this.cache.clear();this.pending.clear();this.sequence++;this.model().selected='';this.render()}}
+ signature(){const d=this.data();return JSON.stringify([this.mode,d.root,d.ambiguous,this.revision])}
+ async open(mode){
+  if(this.active&&!this.loading)this.model().scroll=this.el.scrollTop;
+  this.mode=mode;this.active=true;this.loading=true;const sequence=++this.sequence;this.queue=[];
+  this.skeleton();
+  // Paint the tab and its lightweight placeholder before inventory/layout work.
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  if(!this.active||sequence!==this.sequence)return false;
+  this.keyValue=this.signature();this.loading=false;this.el.removeAttribute('aria-busy');this.render();this.el.scrollTop=this.model().scroll;
+  void window.OracleTransitions?.animate(this.el.firstElementChild,[{opacity:0},{opacity:1}],{duration:190,name:'library-content-enter'});
+  return true;
+ }
+ skeleton(){
+  const o=this.options[this.mode];this.el.setAttribute('aria-busy','true');this.el.scrollTop=0;
+  this.el.innerHTML=`<div class="library-page-inner"><header class="gallery-heading"><div><h1>${o.title}</h1><p>${o.description}</p></div></header><div class="gallery-skeleton" role="status" aria-label="Carregando ${o.title}"><div class="gallery-skeleton-search" aria-hidden="true"></div><div class="gallery-skeleton-categories" aria-hidden="true"></div><div class="gallery-grid" aria-hidden="true">${Array.from({length:this.pageSize},()=>'<div class="gallery-card gallery-skeleton-card"><span></span><span></span></div>').join('')}</div></div></div>`;
+ }
+ reset(){this.hide();this.revision++;this.source=null;this.inventories.clear();this.labels.clear();this.cache.clear();this.pending.clear();this.models.clear();this.el.replaceChildren();}
+ hide(){if(this.active&&!this.loading)this.model().scroll=this.el.scrollTop;this.active=false;this.loading=false;this.sequence++;this.queue=[];this.el.removeAttribute('aria-busy');}
+ refresh(){if(!this.active||this.loading)return;const key=this.signature();if(key!==this.keyValue){this.keyValue=key;this.sequence++;this.model().selected='';this.render()}}
+ remember(path,value){
+  this.cache.delete(path);this.cache.set(path,value);
+  let size=0;for(const v of this.cache.values())size+=(v.text?.length||0)+(v.cover?.length||0);
+  while(this.cache.size>24||(size>4_000_000&&this.cache.size>1)){const [key,v]=this.cache.entries().next().value;size-=(v.text?.length||0)+(v.cover?.length||0);this.cache.delete(key)}
+ }
  metadata(text,entry,document){
   const fields={},raw=String(text||''),front=raw.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/)?.[1]||'';
   for(const line of front.split(/\r?\n/)){const match=line.match(/^([\w-]+):\s*(.*?)\s*$/);if(match)fields[match[1].toLowerCase()]=match[2].replace(/^(['"])(.*)\1$/,'$2')}
@@ -31,7 +60,7 @@ class OracleLibraryGallery {
   const cached=this.cache.get(entry.path);if(cached&&!cached.error)return Promise.resolve(cached);
   if(this.pending.has(entry.path))return this.pending.get(entry.path);
   const revision=this.revision;
-  const task=this.h.call('read',{path:entry.path}).then(async doc=>{const value=this.metadata(doc.text,entry,doc);if(!value.cover&&value.reference&&this.h.readImage){try{value.cover=await this.h.readImage(value.reference,entry.path)}catch{value.cover=''}}if(revision===this.revision)this.cache.set(entry.path,value);return value}).catch(error=>{const value={title:this.label(entry.path),text:'',cover:'',error:error.message};if(revision===this.revision)this.cache.set(entry.path,value);return value}).finally(()=>{if(this.pending.get(entry.path)===task)this.pending.delete(entry.path)});
+  const task=this.h.call('read',{path:entry.path}).then(doc=>{const value=this.metadata(doc.text,entry,doc);if(revision===this.revision)this.remember(entry.path,value);return value}).catch(error=>{const value={title:this.label(entry.path),text:'',cover:'',error:error.message};if(revision===this.revision)this.remember(entry.path,value);return value}).finally(()=>{if(this.pending.get(entry.path)===task)this.pending.delete(entry.path)});
   this.pending.set(entry.path,task);return task;
  }
  hydrate(entries){
@@ -40,7 +69,7 @@ class OracleLibraryGallery {
   const pump=()=>{while(this.active&&sequence===this.sequence&&this.running<3&&this.queue.length){const entry=this.queue.shift();this.running++;this.read(entry).then(()=>{if(this.active&&sequence===this.sequence&&!this.model().selected){const button=[...this.el.querySelectorAll('[data-card-path]')].find(b=>b.dataset.cardPath===entry.path);if(button)this.fillCard(button,entry)}}).finally(()=>{this.running--;if(this.active){if(sequence===this.sequence)pump();else this.hydrate(this.visible||[])}})}};
   pump();
  }
- filtered(data){const model=this.model(),terms=this.key(model.query).split(/\s+/).filter(Boolean);return data.documents.filter(e=>this.inside(e.path,model.folder||data.root)&&terms.every(t=>this.key(e.path+' '+(e.name||'')+' '+(this.cache.get(e.path)?.title||'')).includes(t))).sort((a,b)=>(model.order==='za'?-1:1)*this.label(a.path).localeCompare(this.label(b.path),'pt-BR'))}
+ filtered(data){const model=this.model(),terms=this.key(model.query).split(/\s+/).filter(Boolean);return data.documents.filter(e=>this.inside(e.path,model.folder||data.root)&&terms.every(t=>this.key(e.path+' '+(e.name||'')+' '+(this.cache.get(e.path)?.title||'')).includes(t))).sort((a,b)=>(model.order==='za'?-1:1)*this.collator.compare(this.label(a.path),this.label(b.path)))}
  fillCard(button,entry){
   const value=this.cache.get(entry.path),title=value?.title||this.label(entry.path);
   const parts=entry.path.slice(this.data().root.length+1).split('/');
@@ -56,7 +85,7 @@ class OracleLibraryGallery {
   button.querySelector('img').addEventListener('error',e=>e.target.remove(),{once:true});
  }
  render(){
-  if(!this.active)return;
+  if(!this.active||this.loading)return;
   if(this.model().selected){void this.renderDocument();return}
   const {esc,icon}=this.h,o=this.options[this.mode],model=this.model(),data=this.data();
   if(model.folder&&!data.folders.includes(model.folder))model.folder='';
@@ -71,12 +100,12 @@ class OracleLibraryGallery {
  renderFilters(){
   const {esc}=this.h,data=this.data(),model=this.model(),first=path=>path.slice(data.root.length+1).split('/')[0];
   const categories=data.folders.filter(path=>path!==data.root&&path.split('/').length===data.root.split('/').length+1),selected=model.folder?first(model.folder):'';
-  const chips=[{label:'Todos',path:'',count:data.documents.length},...categories.map(path=>({label:this.label(path),path,count:data.documents.filter(e=>this.inside(e.path,path)).length}))];
+  const chips=[{label:'Todos',path:'',count:data.documents.length},...categories.map(path=>({label:this.label(path),path,count:(data.counts.get(path)||0)}))];
   const nav=this.el.querySelector('.gallery-categories');nav.innerHTML=chips.map((c,i)=>`<button type="button" data-gallery-category="${i}" aria-pressed="${c.path?first(c.path)===selected:!selected}">${esc(c.label)}<span>${c.count}</span></button>`).join('');
   nav.querySelectorAll('button').forEach(button=>button.onclick=()=>{model.folder=chips[Number(button.dataset.galleryCategory)].path;model.page=0;this.sequence++;this.renderFilters();this.renderResults();this.el.querySelectorAll('[data-gallery-category]')[Number(button.dataset.galleryCategory)]?.focus({preventScroll:true})});
   const current=model.folder||data.root,ancestors=[];if(model.folder){const parts=model.folder.slice(data.root.length+1).split('/');for(let i=0;i<parts.length;i++)ancestors.push(data.root+'/'+parts.slice(0,i+1).join('/'))}
   const children=data.folders.filter(path=>path.slice(0,path.lastIndexOf('/'))===current&&current!==data.root);
-  const host=this.el.querySelector('.gallery-folder-controls');host.innerHTML=ancestors.length?`<nav class="gallery-breadcrumb" aria-label="Pasta atual"><button type="button" data-gallery-root>${this.options[this.mode].title}</button>${ancestors.map((path,i)=>`<span aria-hidden="true">/</span><button type="button" data-gallery-ancestor="${i}" ${path===current?'aria-current="page"':''}>${esc(this.label(path))}</button>`).join('')}</nav>${children.length?`<div class="gallery-subfolders"><span>Subpastas</span>${children.map((path,i)=>`<button type="button" data-gallery-folder="${i}">${esc(this.label(path))}<span>${data.documents.filter(e=>this.inside(e.path,path)).length}</span></button>`).join('')}</div>`:''}`:'';
+  const host=this.el.querySelector('.gallery-folder-controls');host.innerHTML=ancestors.length?`<nav class="gallery-breadcrumb" aria-label="Pasta atual"><button type="button" data-gallery-root>${this.options[this.mode].title}</button>${ancestors.map((path,i)=>`<span aria-hidden="true">/</span><button type="button" data-gallery-ancestor="${i}" ${path===current?'aria-current="page"':''}>${esc(this.label(path))}</button>`).join('')}</nav>${children.length?`<div class="gallery-subfolders"><span>Subpastas</span>${children.map((path,i)=>`<button type="button" data-gallery-folder="${i}">${esc(this.label(path))}<span>${(data.counts.get(path)||0)}</span></button>`).join('')}</div>`:''}`:'';
   const navigate=path=>{model.folder=path;model.page=0;this.sequence++;this.renderFilters();this.renderResults();this.el.querySelector('.gallery-breadcrumb button[aria-current=page],.gallery-categories button')?.focus({preventScroll:true})};
   host.querySelector('[data-gallery-root]')?.addEventListener('click',()=>navigate(''));
   host.querySelectorAll('[data-gallery-ancestor]').forEach(b=>b.onclick=()=>navigate(ancestors[Number(b.dataset.galleryAncestor)]));
@@ -90,7 +119,7 @@ class OracleLibraryGallery {
   return `<nav class="gallery-pagination" aria-label="Páginas de ${this.options[this.mode].title}"><span class="gallery-page-summary">${page*this.pageSize+1}–${Math.min(total,(page+1)*this.pageSize)} de ${total}</span><div class="gallery-page-controls"><button type="button" data-gallery-target="${page-1}" aria-label="Página anterior" ${page===0?'disabled':''}><span aria-hidden="true">‹</span></button>${numbers}<button type="button" data-gallery-target="${page+1}" aria-label="Próxima página" ${page===pages-1?'disabled':''}><span aria-hidden="true">›</span></button></div><span class="gallery-page-summary">Página ${page+1} de ${pages}</span></nav>`;
  }
  renderResults(){
-  if(!this.active||this.model().selected)return;
+  if(!this.active||this.loading||this.model().selected)return;
   const {esc}=this.h,data=this.data(),model=this.model(),items=this.filtered(data),pages=Math.max(1,Math.ceil(items.length/this.pageSize));model.page=Math.min(model.page,pages-1);
   const rows=items.slice(model.page*this.pageSize,(model.page+1)*this.pageSize);this.visible=rows;
   const host=this.el.querySelector('.gallery-results');if(!host)return;
@@ -108,8 +137,10 @@ class OracleLibraryGallery {
   this.el.innerHTML=shell();this.el.querySelector('.gallery-back').onclick=()=>{model.selected='';this.sequence++;this.render();this.el.scrollTop=model.scroll;[...this.el.querySelectorAll('[data-card-path]')].find(b=>b.dataset.cardPath===path)?.focus({preventScroll:true})};
   const host=this.el.querySelector('.gallery-document-body');host.innerHTML='<p class="gallery-loading" role="status">Abrindo documento…</p>';
   const value=await this.read(entry);if(!this.active||sequence!==this.sequence||model.selected!==path)return;
+  // Covers are needed by the opened document, not by metallic gallery cards.
+  if(!value.error&&!value.cover&&value.reference&&this.h.readImage){try{value.cover=await this.h.readImage(value.reference,entry.path)}catch{value.cover=''}if(!this.active||sequence!==this.sequence||model.selected!==path)return;}
   if(value.error){host.innerHTML=`<div class="gallery-empty" role="alert"><h1>Não foi possível abrir este documento</h1><p>${esc(value.error)}</p><button type="button" class="secondary" data-gallery-retry>Tentar novamente</button></div>`;host.querySelector('button').onclick=()=>{this.cache.delete(path);this.renderDocument()};return}
-  host.innerHTML=`<header class="gallery-document-heading"><span class="gallery-eyebrow">${esc(path.slice(this.data().root.length+1).split('/').slice(0,-1).map(this.label).join(' / ')||this.options[this.mode].title)}</span><h1 tabindex="-1">${esc(value.title)}</h1><div class="gallery-document-actions"><button type="button" class="secondary" data-gallery-copy>Copiar ${this.mode==='prompts'?'prompt':'conteúdo'}</button><button type="button" class="quiet-link" data-gallery-original>Abrir nota original</button></div></header>${value.cover?`<img class="gallery-document-cover" src="${esc(value.cover)}" alt="">`:''}<article class="markdown-reader gallery-document-content">${OracleMarkdown.render(value.text.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,'').replace(/^\s*#\s+[^\n]+(?:\n|$)/,''))}</article>`;
+  host.innerHTML=`<header class="gallery-document-heading"><span class="gallery-eyebrow">${esc(path.slice(this.data().root.length+1).split('/').slice(0,-1).map(path=>this.label(path)).join(' / ')||this.options[this.mode].title)}</span><h1 tabindex="-1">${esc(value.title)}</h1><div class="gallery-document-actions"><button type="button" class="secondary" data-gallery-copy>Copiar ${this.mode==='prompts'?'prompt':'conteúdo'}</button><button type="button" class="quiet-link" data-gallery-original>Abrir nota original</button></div></header>${value.cover?`<img class="gallery-document-cover" src="${esc(value.cover)}" alt="">`:''}<article class="markdown-reader gallery-document-content">${OracleMarkdown.render(value.text.replace(/^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/,'').replace(/^\s*#\s+[^\n]+(?:\n|$)/,''))}</article>`;
   host.querySelector('h1').focus({preventScroll:true});host.querySelector('img')?.addEventListener('error',e=>e.target.remove(),{once:true});
   host.querySelector('[data-gallery-copy]').onclick=async()=>{try{await this.h.call('copy',{text:value.text});this.h.toast('Texto copiado.','success')}catch(error){this.h.toast(error.message,'error')}};
   host.querySelector('[data-gallery-original]').onclick=()=>this.h.openNote(path);this.h.bindMarkdown(host,path);

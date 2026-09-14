@@ -343,6 +343,17 @@ final class OnboardingController {
         guard Set(value.keys).isSubset(of:["step","expanded","tab"]),(try jsonData(value)).count<=2048 else{throw failure("Estado visual inválido.")}
         try update(["ui":value])
     }
+    // Presentation receipt only: never changes installation, identity or hook readiness.
+    func knowledgeWelcomeSeen(_ value:[String:Any]) throws {
+        stateLock.lock();defer{stateLock.unlock()}
+        try requireAccess();core.refreshConfig()
+        let record=core.onboardingRecord()
+        guard record["status"] as? String=="completed",
+              let run=record["runID"] as? String,run==value["runID"] as? String,
+              let path=core.config["vault"] as? String,path==value["vault"] as? String,
+              (try? core.vault()) != nil else{throw failure("A instalação ou a pasta mudou. Abra Knowledge Base novamente.")}
+        try update(["knowledgeWelcome":["runID":run,"vault":path]])
+    }
     func plan(_ params:[String:Any]) throws -> [String:Any] {
         stateLock.lock();defer{stateLock.unlock()}
         try requireAccess();try ensureNotRunning();core.refreshConfig()

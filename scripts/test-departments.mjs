@@ -237,3 +237,23 @@ test('structured departments keep frontend collections under the frontend specia
   assert.equal(model.specialistByID.get('corey-haines').department,'department/marketing');
   assert.equal(model.skillCount,4);
 });
+
+test('opening every department specialist retains real skills, groups and all pages', () => {
+  const departments=['codigo','conversao','entrega','leads','marketing','oferta','sistemas','trafego','vendas'];
+  const entries=departments.flatMap((dep,d)=>Array.from({length:d===3?117:3},(_,i)=>({path:`SISTEMA/skills/${dep}/person-${d}/skill-${String(i).padStart(3,'0')}/SKILL.md`,name:'SKILL.md',directory:false})));
+  const model=catalog(entries);
+  for(const specialist of model.specialists){
+    const first=hierarchyPlan(model,{specialist:specialist.id}),seen=new Set();
+    assert.equal(first.total,specialist.skills.length);
+    for(let page=0;page<first.pages;page++){
+      const view=hierarchyPlan(model,{specialist:specialist.id,page});
+      assert.ok(view.leaves.length>0&&view.leaves.length<=50);
+      for(const leaf of view.leaves){assert.equal(leaf.parent,specialist.id);seen.add(leaf.id)}
+    }
+    assert.deepEqual([...seen].sort(),specialist.skills.map(s=>s.path).sort());
+    for(const group of specialist.groups){
+      const view=hierarchyPlan(model,{specialist:specialist.id,group:group.id});
+      assert.ok(view.leaves.length>0);assert.ok(view.leaves.every(l=>group.skills.some(s=>s.path===l.id)));
+    }
+  }
+});

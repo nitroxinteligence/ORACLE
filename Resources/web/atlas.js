@@ -17,7 +17,7 @@ class OracleAtlas {
       <linearGradient id="orbit-silver" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f2f2ef" stop-opacity=".5"/><stop offset=".45" stop-color="#8c929b" stop-opacity=".04"/><stop offset="1" stop-color="#dddeda" stop-opacity=".32"/></linearGradient>
       <radialGradient id="planet-fill" cx=".3" cy=".15" r=".9"><stop stop-color="#232526"/><stop offset=".7" stop-color="#0c0e0f"/><stop offset="1" stop-color="#07090a"/></radialGradient>
     </defs><g class="atlas-camera"><g class="orbital-scaffolding" aria-hidden="true">
-      <circle r="154"/><circle r="172"/><circle r="190"/><circle r="208"/><circle r="226"/><circle r="244"/><circle r="262"/><circle r="280"/><circle r="298"/><circle r="316"/><circle r="334"/><circle r="352"/><circle r="370"/><circle r="388"/><circle r="406"/><circle r="424"/>
+      <circle r="100"/><circle r="140"/><circle r="192"/><circle r="256"/><circle r="333"/><circle r="424"/>
     </g><g class="atlas-edges"></g><g class="atlas-groups"></g><g class="atlas-leaves"></g><g class="atlas-nodes"></g>
     <g class="oracle-core" transform="scale(.46)" role="img" tabindex="-1" data-core="true" aria-label="Oracle">
       <circle r="155" fill="url(#oracle-core-halo)" class="core-atmosphere"/><circle r="57" class="core-outline"/>
@@ -27,7 +27,7 @@ class OracleAtlas {
       <circle r="45" fill="none" stroke="#d9dcdd" stroke-opacity=".08" stroke-width=".6"/>
       <image x="-29" y="-29" width="58" height="58" href="brand/symbol-white.svg" aria-hidden="true"/>
       <circle r="55" fill="transparent" class="core-hit"/>
-    </g><path class="central-hub-hit" data-central-hub="true" role="button" tabindex="0" aria-label="Abrir conhecimento: vida pessoal, vida profissional e memórias" fill="transparent" fill-rule="evenodd" d="M145 0a145 145 0 1 0-290 0a145 145 0 1 0 290 0 M26 0a26 26 0 1 1-52 0a26 26 0 1 1 52 0"/></g></svg><div class="atlas-caption"><span class="atlas-instruction">Role para girar departamentos · Clique para explorar</span></div><nav class="atlas-context glass" aria-label="Navegação do mapa" hidden><button data-map-back aria-label="Voltar um nível">←</button><div class="atlas-breadcrumb"></div><div class="atlas-page" hidden><button data-map-page="-1" aria-label="Skills anteriores">‹</button><span></span><button data-map-page="1" aria-label="Próximas skills">›</button></div></nav>`;
+    </g><path class="central-hub-hit" data-central-hub="true" role="button" tabindex="0" aria-label="Abrir conhecimento: vida pessoal e vida profissional" fill="transparent" fill-rule="evenodd" d="M145 0a145 145 0 1 0-290 0a145 145 0 1 0 290 0 M26 0a26 26 0 1 1-52 0a26 26 0 1 1 52 0"/></g></svg><div class="atlas-caption"><span class="atlas-instruction">Role para girar departamentos · Clique para explorar</span></div><nav class="atlas-context glass" aria-label="Navegação do mapa" hidden><button data-map-back aria-label="Voltar um nível">←</button><div class="atlas-breadcrumb"></div><div class="atlas-page" hidden><button data-map-page="-1" aria-label="Skills anteriores">‹</button><span></span><button data-map-page="1" aria-label="Próximas skills">›</button></div></nav>`;
     this.specialistHeading=document.createElement('h3');this.specialistHeading.className='specialist-hover-name';this.specialistHeading.hidden=true;this.specialistHeading.setAttribute('aria-hidden','true');this.el.append(this.specialistHeading);
     this.contextNav=this.el.querySelector('.atlas-context');
     const tabs=document.querySelector('.workspace-tabs');
@@ -59,6 +59,7 @@ class OracleAtlas {
   revealGraph(){
     this.finishReveal();
     if(this.data?.hidden||document.hidden||document.querySelector('dialog[open]')||document.body.classList.contains('ob2-configuring'))return false;
+    if(this.autoFit!==false){this.resize();this.camera={...this.target};this.draw();}
     if(!window.OracleTransitions||this.reduced)return true;
     const elements=new Set(),pending=[],cleanup=[];this.revealElements=elements;this.revealCleanup=cleanup;this.el.dataset.revealing='true';
     const show=(element,delay,duration=440,line=false)=>{
@@ -301,22 +302,37 @@ class OracleAtlas {
     if(![x,y,k,v.left,v.right,this.height].every(Number.isFinite)||k<=0)return;
     const font=Math.max(10,Math.min(14,(v.right-v.left)/65));
     this.departmentLabelWidths??=new Map();
-    for(const n of this.nodes.values())if(n.kind==='department'){
+    const nodes=[...this.nodes.values()],placed=[];
+    const obstacles=nodes.map(n=>({x:x+n.x*k,y:y+n.y*k,r:this.nodeScreenRadius(n,k)+7}));
+    const intersects=(box,circle)=>Math.hypot(circle.x-Math.max(box.left,Math.min(box.right,circle.x)),circle.y-Math.max(box.top,Math.min(box.bottom,circle.y)))<circle.r;
+    const offsets=[0,.2,-.2,.4,-.4,.65,-.65,.9,-.9,1.2,-1.2,1.6,-1.6,Math.PI];
+    for(const n of nodes)if(n.kind==='department'){
       if(![n.x,n.y].every(Number.isFinite))continue;
-      const angle=Math.atan2(n.y,n.x),ux=Math.cos(angle),uy=Math.sin(angle);
+      const angle=Math.atan2(n.y,n.x);
       const orbit=Math.max(64,...(this.geometry.orbitalRings||[]).filter(r=>r.parent===n.id).map(r=>r.radius));
       n.label.style.fontSize=font/k+'px';
       const metric=n.name+':'+font+':'+k;
       let width=this.departmentLabelWidths.get(metric);
       if(width===undefined){width=n.label.getComputedTextLength()*k;this.departmentLabelWidths.set(metric,width);}
-      const offset=orbit*k+30,anchor=Math.abs(ux)<.35?'middle':ux>0?'start':'end';
-      let sx=x+n.x*k+ux*offset,sy=y+n.y*k+uy*offset;
-      const left=anchor==='middle'?width/2:anchor==='end'?width:0,right=width-left;
-      sx=Math.max(v.left+left+8,Math.min(v.right-right-8,sx));
-      sy=Math.max(94,Math.min(this.height-26,sy));
-      n.label.setAttribute('text-anchor',anchor);n.label.setAttribute('x',(sx-x-n.x*k)/k);n.label.setAttribute('y',(sy-y-n.y*k)/k);
+      const portraitRadius=Math.max(0,...nodes.filter(p=>p.parent===n.id&&p.portraitSource).map(p=>this.nodeScreenRadius(p,k)));
+      const distance=orbit*k+portraitRadius+30;
+      let best=null;
+      for(const extra of [0,20,40])for(const offset of offsets){
+        const a=angle+offset,ux=Math.cos(a),uy=Math.sin(a),anchor=Math.abs(ux)<.35?'middle':ux>0?'start':'end';
+        const left=anchor==='middle'?width/2:anchor==='end'?width:0,right=width-left;
+        const sx=Math.max(v.left+left+8,Math.min(v.right-right-8,x+n.x*k+ux*(distance+extra)));
+        const sy=Math.max(94+font,Math.min(this.height-26,y+n.y*k+uy*(distance+extra)));
+        const box={left:sx-left-3,right:sx+right+3,top:sy-font-3,bottom:sy+font*.35+3};
+        const collisions=obstacles.filter(o=>intersects(box,o)).length+placed.filter(o=>box.left<o.right&&box.right>o.left&&box.top<o.bottom&&box.bottom>o.top).length;
+        const score=collisions*10000+Math.abs(offset)*100+extra;
+        if(!best||score<best.score)best={sx,sy,anchor,box,score};
+        if(score===0)break;
+      }
+      placed.push(best.box);
+      n.label.setAttribute('text-anchor',best.anchor);n.label.setAttribute('x',(best.sx-x-n.x*k)/k);n.label.setAttribute('y',(best.sy-y-n.y*k)/k);
     }
   }
+
   renderOrbitalMaterials(){
     this.orbitalGuides?.remove();this.orbitalGuides=this.make('g',{class:'department-orbits','aria-hidden':'true'},this.world);this.world.insertBefore(this.orbitalGuides,this.edgeLayer);
     for(const ring of this.geometry.orbitalRings||[]){
@@ -387,6 +403,7 @@ class OracleAtlas {
       if(!this.selected&&!this.department&&!this.knowledge){n.g.querySelector('.category-symbol').removeAttribute('transform');n.g.querySelector('.selection-ring').setAttribute('r',31);n.g.querySelector('.planet-surface').setAttribute('r',25)}
       Object.assign(n,{name:p.name,color:p.color,tx:p.x,ty:p.y,index:i,skills:p.skills,angle:p.angle,kind:p.kind,parent:p.parent,department:p.department,empty:p.empty,state:p.state,specialistCount:p.specialistCount,visualRadius:p.visualRadius,orbitRadius:p.orbitRadius,localOrbit:p.localOrbit});this.palette[i]=p.color;
       n.g.querySelector('.planet-surface').style.fill=`url(#${p.gradient})`;
+      this.updatePortrait(n,p);
       n.g.dataset.kind=p.kind||'knowledge';n.g.dataset.state=p.state||'';n.g.classList.toggle('department-node',p.kind==='department');
       n.g.style.setProperty('--node-accent',p.color);n.edge.style.setProperty('--node-accent',p.color);n.flow.style.setProperty('--node-accent',p.color);n.label.textContent=p.kind==='department'?p.name.toLocaleUpperCase('pt-BR'):p.name;
       n.label.style.display=p.kind==='department'?'block':'';
@@ -424,6 +441,24 @@ class OracleAtlas {
     if(this.width){this.baseScale=this.fittedScale();const k=this.baseScale*ratio;this.target={x:this.viewCenter().x-anchor.x*k,y:this.viewCenter().y-anchor.y*k,k};this.camera.k=k;this.lastZoom=null}
     this.buildLeaves(ratio);this.lastSelectionKey=null;this.lastLabelK=null;this.invalidate();if(recovered)this.notifySelection();
   }
+  updatePortrait(node,point){
+    const portrait=point.kind==='specialist'&&!this.knowledge?window.OraclePortraits?.[point.id]:null;
+    if(node.portraitSource===portrait)return;
+    node.portraitSource=portrait;node.g.classList.remove('has-portrait');
+    node.portrait?.remove();node.portrait=null;
+    if(!portrait)return;
+    const [x,y,size]=portrait.crop;
+    const frame=this.make('svg',{class:'specialist-portrait',viewBox:`${x} ${y} ${size} ${size}`,'aria-hidden':'true',overflow:'hidden'},node.g);
+    const defs=this.make('defs',{},frame),clipID='portrait-mask-'+point.id;
+    const clip=this.make('clipPath',{id:clipID,clipPathUnits:'userSpaceOnUse'},defs);
+    this.make('circle',{cx:x+size/2,cy:y+size/2,r:size/2},clip);
+    const image=this.make('image',{width:portrait.width,height:portrait.height,'clip-path':`url(#${clipID})`,'aria-hidden':'true'},frame);
+    node.portrait=frame;
+    image.addEventListener('load',()=>{if(node.portrait===frame){node.g.classList.add('has-portrait');this.invalidate();}},{once:true});
+    image.addEventListener('error',()=>{if(node.portrait===frame){node.g.classList.remove('has-portrait');frame.remove();node.portrait=null;}},{once:true});
+    image.setAttribute('href',portrait.src);
+  }
+
   buildLeaves(level=this.camera.k/this.baseScale){
     if(!this.geometry)return;
     const visible=(this.contextTravelling?this.target.k/this.baseScale:level)>.500001,rows=visible?this.geometry.leaves:[],wanted=new Set(rows.map(l=>l.id));
@@ -722,10 +757,13 @@ class OracleAtlas {
     }
   }
   edgePath(x1,y1,x2,y2,bend=.035){const dx=x2-x1,dy=y2-y1;return `M${x1} ${y1} C${x1+dx*.34-dy*bend} ${y1+dy*.34+dx*bend},${x1+dx*.72-dy*bend*.5} ${y1+dy*.72+dx*bend*.5},${x2} ${y2}`}
+  nodeScreenRadius(node,k=this.camera.k){
+    return node.portraitSource?Math.max((node.visualRadius||25)*k,this.selected===node.id?52:this.department?19:12):Math.max((node.visualRadius||25)*k,node.kind==='department'?15:4.5);
+  }
   planetEdge(parent,node,flow=false){
     const px=parent?.x||0,py=parent?.y||0,dx=node.x-px,dy=node.y-py,distance=Math.hypot(dx,dy)||1,k=this.camera.k;
-    const from=parent?Math.max(parent.visualRadius||25,(parent.kind==='department'?15:4.5)/k):!flow&&this.departmentJunctions?.has(node.id)?72:23;
-    const to=Math.max(node.visualRadius||25,(node.kind==='department'?15:4.5)/k);
+    const from=parent?this.nodeScreenRadius(parent,k)/k:!flow&&this.departmentJunctions?.has(node.id)?72:23;
+    const to=this.nodeScreenRadius(node,k)/k;
     return this.edgePath(px+dx/distance*from,py+dy/distance*from,node.x-dx/distance*to,node.y-dy/distance*to,.055);
   }
   draw(syncUniverse=true){
@@ -737,7 +775,8 @@ class OracleAtlas {
     if(k!==this.lastLabelK){
       for(const dot of this.el.querySelectorAll('.prompt-orbit-node:not(.area-root):not(.central-knowledge-node) .knowledge-orbit-dot,.tutorial-orbit-node:not(.area-root):not(.central-knowledge-node) .knowledge-orbit-dot'))dot.style.r=`${4/k}px`;
       for(const n of this.nodes.values()){
-        const radius=n.visualRadius||25,screenRadius=Math.max(radius*k,n.kind==='department'?15:4.5);
+        const screenRadius=this.nodeScreenRadius(n,k);
+        if(n.portrait){const r=screenRadius/k;for(const [key,value] of Object.entries({x:-r,y:-r,width:r*2,height:r*2}))n.portrait.setAttribute(key,value);}
         n.g.querySelector('.planet-surface').setAttribute('r',screenRadius/k);
         n.g.querySelector('.selection-ring').setAttribute('r',(screenRadius+5)/k);
         n.g.querySelector('.category-symbol').setAttribute('transform',`scale(${(n.kind==='department' ? .72 : 1)*Math.max(1,.85/k)})`);
@@ -914,7 +953,7 @@ class OracleAtlas {
     this.target={x:this.viewCenter().x-center.x*k,y:this.viewCenter().y-center.y*k,k};this.autoFit=prior.autoFit;
     this.camera.k=k;
     // Restore the saved center while keeping the fixed user-requested scale.
-    if(!this.selected&&!this.knowledge)this.fit();
+    if(!this.selected&&!this.department&&!this.knowledge)this.fit();
     this.lastSelectionKey=null;this.selection();this.invalidate();this.notifySelection();
     if(prior.focus&&document.documentElement.dataset.inputMode!=='pointer'){
       const target=this.leaves.get(prior.focus.skill)||this.groups.get(prior.focus.group)||this.nodes.get(prior.focus.category);

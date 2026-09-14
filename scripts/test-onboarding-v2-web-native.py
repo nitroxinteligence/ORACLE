@@ -17,7 +17,9 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 BRANCH = None
 UPDATES = "--updates-search" in sys.argv
-SCRATCH = ROOT / (".work/updates-search/native-ui" if UPDATES else ".work/onboarding-v2/native-ui")
+KNOWLEDGE = "--knowledge" in sys.argv
+SPECIALISTS = "--specialists-gallery" in sys.argv
+SCRATCH = ROOT / (".work/specialists/native-ui" if SPECIALISTS else ".work/knowledge/native-ui" if KNOWLEDGE else ".work/updates-search/native-ui" if UPDATES else ".work/onboarding-v2/native-ui")
 
 
 def guard() -> None:
@@ -53,15 +55,17 @@ def main() -> int:
         (SCRATCH / "assets" / name).write_bytes(data)
     guard()
     shutil.copyfile(ROOT / "scripts/fixture-onboarding-v2.js", SCRATCH / "fixture.js")
-    if UPDATES:
+    if UPDATES or KNOWLEDGE or SPECIALISTS:
         with (SCRATCH / "fixture.js").open("a") as fixture:
-            fixture.write((ROOT / "scripts/fixture-updates-search.js").read_text())
+            fixture.write((ROOT / ("scripts/fixture-specialists-gallery.js" if SPECIALISTS else "scripts/fixture-knowledge.js" if KNOWLEDGE else "scripts/fixture-updates-search.js")).read_text())
     harness = (ROOT / "scripts/atlas-web-fixture.m").read_text()
+    harness = harness.replace('[host.window orderFront:nil];', '[host.window makeKeyAndOrderFront:nil]; [NSApp activateIgnoringOtherApps:YES];')
     harness = harness.replace('    if ([body[@"type"] isEqual:@"case"]) {', r'''    if ([body[@"type"] isEqual:@"snapshot"]) {
         [self.web takeSnapshotWithConfiguration:nil completionHandler:^(NSImage *image, NSError *error) {
             NSBitmapImageRep *bitmap = image ? [NSBitmapImageRep imageRepWithData:image.TIFFRepresentation] : nil;
             NSData *png = [bitmap representationUsingType:NSBitmapImageFileTypePNG properties:@{}];
-            NSString *path = [[self.reportPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[body[@"name"] isEqual:@"options"] ? @"options.png" : @"installation.png"];
+            NSString *name = [@[@"options", @"overview", @"specialist", @"gallery"] containsObject:body[@"name"]] ? body[@"name"] : @"installation";
+            NSString *path = [[self.reportPath stringByDeletingLastPathComponent] stringByAppendingPathComponent:[name stringByAppendingString:@".png"]];
             BOOL saved = png && [png writeToFile:path options:0 error:nil];
             [self.web evaluateJavaScript:saved ? @"window.__fixtureSnapshotSaved=true" : @"window.__fixtureSnapshotSaved=false" completionHandler:nil];
         }];

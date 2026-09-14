@@ -97,7 +97,7 @@ export function separateSpecialists(nodes, coreRadius = 250, minimum = 168) {
 // A specialist is a separate constellation: its root stays at the origin and
 // at most 50 actual files surround it; the complete catalog stays in navigation.
 function specialistPlan(collection, entries, context) {
-  const catalog = catalogGroups(collection.id, entries);
+  const catalog = collection.groups || catalogGroups(collection.id, entries);
   const root = {...collection, x:0, y:0, angle:-Math.PI/2, color:identity(collection.id).color,
     skills:catalog.flatMap(g=>g.skills), groups:catalog};
   const candidates = context.group ? catalog.filter(g=>g.id===context.group) : catalog;

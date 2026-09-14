@@ -247,10 +247,18 @@ func runOnboardingLifecycleTests() throws {
     try t.check(controller.core.onboardingRecord()["status"] as? String=="completed" && fake.calls.isEmpty,"local completion requires no skills/list or remote turn")
     try t.check(try String(contentsOf:original)=="Keep original","resumable local phases preserve original vault document")
     try t.check((controller.core.onboardingRecord()["verification"] as? [String:Any])?["hooksTrusted"] as? Bool==false,"local readiness never asserts Codex hook trust")
+    let welcomeRun=controller.core.onboardingRecord()["runID"] as! String
+    let welcomeVault=controller.core.config["vault"] as! String
+    try t.rejects("knowledge welcome rejects another installation") {try controller.knowledgeWelcomeSeen(["runID":"stale","vault":welcomeVault])}
+    try t.rejects("knowledge welcome rejects another vault") {try controller.knowledgeWelcomeSeen(["runID":welcomeRun,"vault":welcomeVault+"/other"])}
+    try controller.knowledgeWelcomeSeen(["runID":welcomeRun,"vault":welcomeVault])
+    try controller.knowledgeWelcomeSeen(["runID":welcomeRun,"vault":welcomeVault])
+    try t.check((controller.core.onboardingRecord()["knowledgeWelcome"] as? [String:Any])?["runID"] as? String==welcomeRun && controller.core.onboardingRecord()["status"] as? String=="completed","knowledge welcome persists once without changing installation readiness")
     let nextPlan=try controller.plan(parameters),entered=DispatchSemaphore(value:0),release=DispatchSemaphore(value:0)
     driver.beforeApply={entered.signal();guard release.wait(timeout:.now()+5) == .success else{throw failure("Synthetic phase synchronization timed out")}}
     _=try controller.install(nextPlan["plan_hash"] as! String)
     try t.check(entered.wait(timeout:.now()+5) == .success,"synthetic running phase entered")
+    try t.rejects("knowledge welcome cannot mark running installation complete") {try controller.knowledgeWelcomeSeen(["runID":welcomeRun,"vault":welcomeVault])}
     var same=parameters;same["step"]="progress"
     try controller.saveDraft(same);try controller.saveUIState(["step":"progress","expanded":false])
     var changed=parameters;changed["newVault"]=true

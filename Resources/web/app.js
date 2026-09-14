@@ -142,7 +142,8 @@ async function refresh(){
   const librariesChanged=state.scan?.signature!==next.scan?.signature||state.scan?.pending!==next.scan?.pending||state.scan?.complete!==next.scan?.complete||state.scanError!==next.scanError||JSON.stringify(state.config.libraryRoots)!==JSON.stringify(next.config.libraryRoots);
   const scanErrorChanged=state.scanError!==next.scanError;
   state=next;applyVisualPreferences(false);render();
-  if(librariesChanged){promptBrowser.render();tutorialBrowser.render();}
+  if(librariesChanged){promptBrowser.render();tutorialBrowser.render();window.OracleKnowledgeHub.refresh?.(state.entries);}
+  void maybeShowKnowledgeWelcome();
   if(!updateBusy)call('updateStatus').then(status=>{if(sequence!==refreshSequence||!$('#lock-screen').hidden)return;reflectUpdateStatus(status);maybeAutomaticUpdateCheck(status)}).catch(()=>{});if(state.scanError&&scanErrorChanged)toast(state.scanError);
   clearTimeout(initialScanTimer);if(state.scan?.pending&&initialScanRetries++<20)initialScanTimer=setTimeout(()=>safe(refresh)(),750);else if(!state.scan?.pending)initialScanRetries=0;
  })();
@@ -211,15 +212,15 @@ function setView(next,onReady){
  OracleTransitions.cancelPage();
  $$('.workspace-tabs [data-workspace]').forEach(button=>{const selected=button.dataset.workspace===next;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});
  OracleTransitions.indicator();
- if(next===previous){onReady?.();return true;}
+ if(next===previous){if(gallery&&libraryGallery.loading){void libraryGallery.open(next).then(ready=>{if(ready&&view===next)onReady?.()}).catch(e=>toast(e.message,'error'));}else onReady?.();return true;}
  const commit=()=>{
   if(navigationBlocked()){$$('.workspace-tabs [data-workspace]').forEach(button=>{const selected=button.dataset.workspace===view;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});OracleTransitions.indicator();return false;}
   view=next;if(next==='map')graphEntrancePending=true;document.body.classList.toggle('library-view',gallery);
   $('#graph-page').hidden=gallery;$('#library-page').hidden=!gallery;
   if(!gallery){$('#atlas').hidden=next!=='map';$('#results').hidden=next==='map';$('.map-tools').hidden=next!=='map';}
   $('#navigation-toggle').disabled=gallery;$('#replay-panel').hidden=true;
-  if(gallery){libraryGallery.open(next);$('#library-page').setAttribute('aria-labelledby','workspace-'+next)}else{libraryGallery.hide();renderResults();atlasController?.resize();renderAtlas()}
-  atlasController?.setPaused(next!=='map'||document.hidden||visualPaused||!!document.querySelector('dialog[open]'));onReady?.();return true;
+  if(gallery){void libraryGallery.open(next).then(ready=>{if(ready&&view===next)onReady?.()}).catch(e=>toast(e.message,'error'));$('#library-page').setAttribute('aria-labelledby','workspace-'+next)}else{libraryGallery.hide();renderResults();atlasController?.resize();renderAtlas()}
+  atlasController?.setPaused(next!=='map'||document.hidden||visualPaused||!!document.querySelector('dialog[open]'));if(!gallery)onReady?.();return true;
  };
  OracleTransitions.changePage($('#'+(['prompts','tutorials'].includes(previous)?'library-page':'graph-page')),$('#'+(gallery?'library-page':'graph-page')),commit);
  return true;
@@ -405,10 +406,10 @@ function settings(){
  if(modalDirty){requestEditorExit(false,settings);return}
  settingsTrail=true;
  const row=(id,name,description,ic='chevron')=>`<button class="setting-row" id="${id}"><span><strong>${name}</strong><small>${description}</small></span>${icon(ic)}</button>`;
- modal(`<h1>Ajustes do Oracle</h1>
- <section class="settings-section"><h2>Seu Oracle</h2><div class="setting-group">
- ${row('restart-setup','Configurar Oracle','Identidade, instalação local e pasta do Obsidian')}
- ${row('gbrain-memory','Consultar memória','Encontrar notas e suas conexões')}
+ modal(`<h1>Ajustes do Oracle</h1><p class="settings-intro">Seu conhecimento, suas preferências e o aplicativo.</p>
+ <section class="settings-section"><h2>Seu espaço</h2><div class="setting-group">
+ ${row('knowledge-settings','Knowledge Base','Prompts para organizar sua vida pessoal e profissional','book')}
+ ${row('restart-setup','Configurar Oracle','Pasta do Obsidian e configuração do Second Brain')}
  </div></section>
  <section class="settings-section"><h2>Privacidade</h2><div class="setting-group">
  ${row('protect-settings','Bloqueio',state.config.protected?'Touch ID ou senha do Mac ativados':'Ativar Touch ID ou senha do Mac','lock')}
@@ -416,17 +417,13 @@ function settings(){
  </div></section>
  <section class="settings-section"><h2>Aplicativo</h2><div class="setting-group">
  ${row('updates-settings','Atualizações','Verificar novidades e versões','refresh')}
- ${state.onboarding?.capabilities?.manageCatalogSource?row('catalog-settings','Fonte oficial de skills','Ação administrativa desta licença'):''}
+ ${state.onboarding?.capabilities?.manageCatalogSource?row('catalog-settings','Fonte oficial de skills','Gerenciar o acervo distribuído por esta licença'):''}
  ${row('export-view','Exportar imagem','Salvar uma imagem do seu universo')}
- </div></section>
- <details class="source-details"><summary>Avançado</summary><div class="setting-group">
- ${row('graphics-diagnostics','Desempenho do mapa','Medidas desta janela')}
- ${row('activity-settings','Histórico técnico','Consultar registros de atividade')}
- </div><div class="source">${window.ORACLE_PREVIEW||state.config.fixture?'Ambiente de validação · dados sintéticos':'Instalação local'}<br>Pasta: ${esc(state.config.vault||'Não selecionada')}<br>${esc(buildDescription())}</div></details>${actions()}`,{family:'settings',footer:false,root:true});
+ </div></section>`,{family:'settings',footer:false,root:true});
+ $('#knowledge-settings').onclick=safe(()=>openKnowledgePrompts());
  $('#restart-setup').onclick=()=>showSetup({fromSettings:true});
  $('#catalog-settings')?.addEventListener('click',safe(catalogSettings));
- $('#gbrain-memory').onclick=safe(memory);
- $('#graphics-diagnostics').onclick=graphicsDiagnostics;$('#activity-settings').onclick=activity;$('#updates-settings').onclick=safe(()=>showUpdates(false));
+ $('#updates-settings').onclick=safe(()=>showUpdates(false));
  $('#export-view').onclick=safe(async()=>{await closeModal();const path=await call('exportSnapshot');if(path)toast('Imagem salva.')});
  $('#protect-settings').onclick=safe(async()=>{await call('protect');await refresh();settings();toast('Bloqueio ativado')});
  $('#revoke').onclick=()=>{modal(`<h1>Desconectar pastas?</h1><p>O Oracle deixará de acessar seus documentos. Os arquivos continuam no Obsidian e você pode conectar a pasta novamente.</p>${actions('<button class="secondary" id="revoke-cancel">Voltar</button><button class="primary" id="confirm-revoke">Desconectar</button>')}`);$('#revoke-cancel').onclick=settings;$('#confirm-revoke').onclick=safe(async()=>{await call('revoke');live();selected=null;selectedSkill=null;query='';await refresh();settings();toast('Pastas desconectadas.','success')})};
@@ -701,7 +698,7 @@ function onboardingBlocksUpdates(){
  return document.body.classList.contains('ob2-configuring')||!!document.querySelector('.ob2-screen[open],.ob2-activation[open]')||!!onboarding.integrationPending||!!(onboarding.runID&&onboarding.status!=='completed');
 }
 function maybeShowStartupUpdateNotice(){
- if(onboardingBlocksUpdates())return;
+ if(onboardingBlocksUpdates()||knowledgeWelcomePending())return;
  if(!startupUpdateReady||startupUpdateNoticeShown||!latestUpdateStatus?.available||latestUpdateStatus.busy||updateBusy||document.hidden||window.oracleWindowVisible===false||$('#app').inert||navigationBlocked()||$('#modal').open)return;
  const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
  if(!onboarding.hasVault||(!onboarding.licensed&&!onboarding.legacyAccess)||(!onboarding.legacyAccess&&onboarding.status!=='completed')||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
@@ -731,7 +728,7 @@ function reflectUpdateStatus(status){
 }
 let automaticUpdateAttempt=0,automaticUpdateFailures=0;
 function maybeAutomaticUpdateCheck(status){
- if(onboardingBlocksUpdates())return;
+ if(onboardingBlocksUpdates()||knowledgeWelcomePending())return;
  if(window.ORACLE_PREVIEW||state.config?.fixture||document.hidden||window.oracleWindowVisible===false||!$('#lock-screen').hidden||$('#modal').open||updateBusy||status.busy)return;
  const onboarding=window.OracleOnboarding?.getState?.();
  if(!onboarding||!onboarding.hasVault||(!onboarding.legacyAccess&&onboarding.status!=='completed')||(!onboarding.licensed&&!onboarding.legacyAccess)||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
@@ -787,7 +784,7 @@ function renderUpdateStatus(status){
  const results=updateResultRows(status);
     const descriptions={current:'Você já está usando a versão aprovada disponível.',updated:'A atualização foi instalada.',available:'Pronta para instalar.',external:'Gerenciada na instalação que você conectou.',compatibility_required:'Esta versão ainda precisa ser validada para o Oracle.',not_configured:'Configure uma fonte aprovada antes de verificar o catálogo.',not_checked:'Use Verificar para consultar novidades.',preserved_edits:'Suas alterações foram mantidas.',offline:'Sem conexão para consultar a fonte. A versão instalada foi preservada.',error:'Não foi possível concluir a consulta; isso não significa ausência de atualizações.'};
 
-    const resultsHTML=results.map(r=>`<section class="update-result ${['available','current','updated'].includes(r.status)?'update-success':['error','offline'].includes(r.status)?'update-failure':''}"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${esc(r.message||descriptions[r.status]||'Consulte o estado desta fonte antes de atualizar.')}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.pendingUpdate?`<p>Atualização conhecida${r.pendingUpdate.version?' · versão '+esc(r.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}</section>`).join('');
+    const resultsHTML=results.map(r=>`<section class="update-result ${r.status==='available'?'update-success':['error','offline'].includes(r.status)?'update-failure':''}"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${esc(r.message||descriptions[r.status]||'Consulte o estado desta fonte antes de atualizar.')}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.pendingUpdate?`<p>Atualização conhecida${r.pendingUpdate.version?' · versão '+esc(r.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}</section>`).join('');
  const resultsHost=$('#update-results');
  if(!(updateBusy&&!status.results?.length&&resultsHost.children.length)&&resultsHost.oracleHTML!==resultsHTML){resultsHost.innerHTML=resultsHTML;resultsHost.oracleHTML=resultsHTML;}
  const recoveryHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar acervo anterior</button>':'');
@@ -888,6 +885,7 @@ window.addEventListener('oracle:onboarding-progress',event=>{
  if(!$('#lock-screen').hidden)return;
  state.onboarding={...state.onboarding,...event.detail};
  if(!replay)renderAtlas();
+ void maybeShowKnowledgeWelcome();
 });
 
 // Includes the onboarding dialog. Opening a modal pauses visual time, never the executor.
@@ -896,7 +894,7 @@ function syncFloatingSurfaces(){
  const installationCard=document.querySelector('.ob-progress-card');
  document.body.classList.toggle('has-installation-progress',!!installationCard&&!installationCard.hidden);
  atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused||anyModal);
- if(!anyModal)maybeShowStartupUpdateNotice();
+ if(!anyModal){void maybeShowKnowledgeWelcome();maybeShowStartupUpdateNotice();}
 }
 document.addEventListener('visibilitychange',maybeShowStartupUpdateNotice);
 document.addEventListener('close',()=>queueMicrotask(maybeShowStartupUpdateNotice),true);
@@ -917,9 +915,62 @@ async function backupSettings(){
  };
 }
 
+let knowledgeWelcomeBusy=false;
+const knowledgeWelcomeShown=new Set();
+function knowledgeWelcomePending(){return OracleKnowledgePrompts.welcomeEligible(state.onboarding,state.config.vault)&&!knowledgeWelcomeShown.has(JSON.stringify([state.onboarding.runID,state.config.vault]));}
+function knowledgeContext(){return OracleKnowledgePrompts.context(state.config.vault,state.entries);}
+function bindKnowledgeCopy(ctx){
+ $$('[data-copy-knowledge]').forEach(button=>button.onclick=safe(async()=>{
+  const id=button.dataset.copyKnowledge;button.disabled=true;
+  try{
+   const latest=await call('snapshot');
+   if(latest.config.vault!==ctx.vault)throw Error('A pasta selecionada mudou. Reabra Knowledge Base para copiar o prompt correto.');
+   const fresh=OracleKnowledgePrompts.context(latest.config.vault,latest.entries);
+   await call('copy',{text:OracleKnowledgePrompts.build(id,fresh)});
+   if($('#knowledge-copy-status'))$('#knowledge-copy-status').textContent=`Prompt de ${OracleKnowledgePrompts.topics[id].name.toLocaleLowerCase('pt-BR')} copiado. Cole no Codex para começar.`;
+  }finally{button.disabled=false}
+ }));
+}
+function openKnowledgePromptPreview(id,ctx){
+ const topic=OracleKnowledgePrompts.topics[id];
+ if(modal(`<h1>${topic.name}</h1><p class="knowledge-preview-intro">Este é o roteiro que você vai enviar ao Codex.</p><pre class="knowledge-prompt-text">${esc(OracleKnowledgePrompts.build(id,ctx))}</pre><p id="knowledge-copy-status" role="status" aria-live="polite"></p>${actions(`<button class="secondary" data-copy-knowledge="${id}">Copiar prompt</button>`)}`,{family:'knowledge-prompt-preview',key:'knowledge-prompt-'+id})===false)return;
+ bindKnowledgeCopy(ctx);
+}
+function openKnowledgePrompts({welcome=false}={}){
+ if(navigationBlocked())return false;
+ let ctx;try{ctx=knowledgeContext()}catch(error){toast(error.message);return false}
+ const topics=OracleKnowledgePrompts.topics;
+ const descriptions={personal:'Valores, rotina, relações e planos.',professional:'Carreira, projetos, responsabilidades e negócio.'};
+ const subjects={personal:['Quem você é e o que importa','Sua rotina e suas relações','Prioridades para os próximos meses'],professional:['Sua atuação e o valor que entrega','Projetos e responsabilidades atuais','Direção para sua carreira ou negócio']};
+ if(modal(`<h1>Knowledge Base</h1><div class="knowledge-start"><h2>${welcome?'Seu segundo cérebro está pronto.':'Dê contexto ao seu segundo cérebro.'}</h2><p>Escolha uma área para organizar com o Codex.</p></div>
+ <div class="knowledge-prompt-list">${Object.entries(topics).map(([id,t])=>`<section class="knowledge-prompt-option"><div class="knowledge-prompt-title">${icon(id==='personal'?'person':'code')}<h2>${t.name}</h2></div><p>${descriptions[id]}</p><ul>${subjects[id].map(text=>`<li>${text}</li>`).join('')}</ul><div class="knowledge-prompt-actions"><button class="quiet-link" data-preview-knowledge="${id}">Ver prompt</button><button class="secondary" data-copy-knowledge="${id}">Copiar prompt</button></div></section>`).join('')}</div>
+ <ol class="knowledge-steps" aria-label="Como começar"><li><span>1</span>Copie um prompt</li><li><span>2</span>Cole no Codex</li><li><span>3</span>Responda no seu ritmo</li></ol>
+ <div class="knowledge-destination">${icon('folder')}<div><span>Obsidian selecionado</span><strong>${esc(ctx.name)}</strong></div><details><summary>Ver caminho</summary><small>${esc(ctx.vault)}</small></details></div>
+ <p id="knowledge-copy-status" role="status" aria-live="polite"></p>
+ ${actions('<p class="knowledge-footer-note">Você pode voltar aqui pelos Ajustes.</p><button class="quiet-link" id="knowledge-view-notes">Ver minhas notas</button>')}`,{family:'knowledge-prompts',key:'knowledge-prompts'})===false)return false;
+ bindKnowledgeCopy(ctx);
+ $$('[data-preview-knowledge]').forEach(button=>button.onclick=()=>openKnowledgePromptPreview(button.dataset.previewKnowledge,ctx));
+ $('#knowledge-view-notes').onclick=safe(openKnowledgeHub);
+ return true;
+}
+async function maybeShowKnowledgeWelcome(){
+ const ob=state.onboarding,vault=state.config.vault;
+ if(knowledgeWelcomeBusy||!OracleKnowledgePrompts.welcomeEligible(ob,vault)||!$('#lock-screen').hidden||document.hidden||window.oracleWindowVisible===false||document.querySelector('dialog[open]')||updateBusy||modalDirty)return;
+ const key=JSON.stringify([ob.runID,vault]);if(knowledgeWelcomeShown.has(key))return;
+ knowledgeWelcomeBusy=true;
+ try{
+  if(openKnowledgePrompts({welcome:true})===false)return;
+  knowledgeWelcomeShown.add(key);
+  await call('onboardingKnowledgeWelcomeSeen',{runID:ob.runID,vault});
+  if(state.config.vault===vault&&state.onboarding.runID===ob.runID)state.onboarding.knowledgeWelcome={runID:ob.runID,vault};
+ }catch(error){toast('Não foi possível registrar a apresentação. Os prompts continuam disponíveis nos Ajustes.','error');}
+ finally{knowledgeWelcomeBusy=false}
+}
+document.addEventListener('visibilitychange',()=>void maybeShowKnowledgeWelcome());
+
 function openKnowledgeHub(){
  if(navigationBlocked())return;
- return window.OracleKnowledgeHub.open({modal,entries:state.entries,call,openNote:safe(openNote),memoryPage:safe(memoryPage),conversations:safe(conversations),esc,icon});
+ return window.OracleKnowledgeHub.open({modal,entries:state.entries,call,openNote:safe(openNote),memoryPage:safe(memoryPage),conversations:safe(conversations),prompts:()=>openKnowledgePrompts(),esc,icon});
 }
 
 $$('.workspace-tabs [data-workspace]').forEach((button,index)=>{

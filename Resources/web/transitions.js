@@ -78,11 +78,11 @@ window.OracleTransitions=(()=>{
   // the next library renders; never clone the SVG graph or its gradient IDs.
   let previous=null;const previousScroll=from.scrollTop;
   if(enabled()&&from.id==='library-page'){
-   previous=from.cloneNode(true);previous.removeAttribute('id');previous.removeAttribute('data-motion');
-   previous.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
+   previous=from.cloneNode(false);previous.append(...from.childNodes);previous.removeAttribute('id');previous.removeAttribute('data-motion');
    previous.classList.add('page-transition-snapshot');previous.setAttribute('aria-hidden','true');previous.inert=true;
   }
-  if(commit()===false)return;
+  if(commit()===false){if(previous)from.append(...previous.childNodes);return;}
+  previous?.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
   if(!enabled())return;
   const finishPage=()=>{if(revision===pageRevision){pageCleanup?.();pageCleanup=null;}};
   if(previous){

@@ -1,0 +1,222 @@
+{
+  "checkedAt": "2026-09-14",
+  "usage": "Publicly identified specialist portraits requested for the Oracle graph. Original photographs; circular framing is rendered by SVG. Copyright remains with the respective owners; this ledger does not grant a license.",
+  "portraits": [
+    {
+      "id": "aaron-ross",
+      "file": "portraits/aaron-ross.jpg",
+      "sourcePage": "https://kendo.ai/blogs/best-salespeople-ever",
+      "sourceImage": "https://framerusercontent.com/images/vqe7S2efbfWkY29YrO4DPZ6HBQ.jpg",
+      "sha256": "2aee0a5f74cd5a1defef5179ddeddf78076bea6b5d3b1911dbb42ab79bda225d",
+      "framing": [
+        85,
+        25,
+        520
+      ]
+    },
+    {
+      "id": "alex-hormozi",
+      "file": "portraits/alex-hormozi.jpg",
+      "sourcePage": "https://www.acquisition.com/bio-alex",
+      "sourceImage": "https://www.acquisition.com/_next/image?url=%2Fimages%2Fpages%2Ffirm%2Fbio-alexhormozi.webp&w=256&q=75",
+      "sha256": "76b0816084548177a5fcb3ef64b2cd653e2cdac26768962b36e5a326b7cdac0c",
+      "framing": [
+        55,
+        10,
+        145
+      ]
+    },
+    {
+      "id": "ann-handley",
+      "file": "portraits/ann-handley.webp",
+      "sourcePage": "https://annhandley.com/about/",
+      "sourceImage": "https://annhandley.com/ah/wp-content/uploads/2025/07/ann_handley_content_marketing_institute_2021.webp",
+      "sha256": "b7a67fb08d2ab12a865eb123803459389f8a2335a998be175ec8f94c10048b75",
+      "framing": [
+        305,
+        35,
+        400
+      ]
+    },
+    {
+      "id": "chris-voss",
+      "file": "portraits/chris-voss.jpg",
+      "sourcePage": "https://www.blackswanltd.com/our-team/chris-voss",
+      "sourceImage": "https://www.blackswanltd.com/hs-fs/hubfs/Copy%20of%20Christopher%20Voss%20Head%20Shot.jpg?width=300&length=300&name=Copy%20of%20Christopher%20Voss%20Head%20Shot.jpg",
+      "sha256": "c6c460cd7ed23f09c3fee62ecf395cb3361bbdbaf41a42b7c9080974fdcfc677",
+      "framing": [
+        15,
+        0,
+        230
+      ]
+    },
+    {
+      "id": "corey-haines",
+      "file": "portraits/corey-haines.jpg",
+      "sourcePage": "https://www.corey.co/about",
+      "sourceImage": "https://www.corey.co/_next/image?url=%2Favatar.jpg&w=256&q=75",
+      "sha256": "db9192e9b49515a6b1d79b2f92105478fc7a0391de421403daefb0f60cefbb48",
+      "framing": [
+        30,
+        0,
+        200
+      ]
+    },
+    {
+      "id": "donna-weber",
+      "file": "portraits/donna-weber.webp",
+      "sourcePage": "https://donnaweber.com/about/",
+      "sourceImage": "https://donnaweber.com/wp-content/uploads/2025/12/DonnaWeber-92-crop-150x150.webp",
+      "sha256": "2a0a9500f0b6b8ce2dd816399c041b4ab15598b4980aaf7a13abb95b5fa0f081",
+      "framing": [
+        15,
+        0,
+        110
+      ]
+    },
+    {
+      "id": "frederick-vallaeys",
+      "file": "portraits/frederick-vallaeys.jpg",
+      "sourcePage": "https://www.optmyzr.com/about/",
+      "sourceImage": "https://www.optmyzr.com/forestry/fred-vallaeys.jpg",
+      "sha256": "a4bc11e3d454066114fb3f69ae19b874d9c6a9270c1e8fe3da546280324c3145",
+      "framing": [
+        35,
+        25,
+        190
+      ]
+    },
+    {
+      "id": "joanna-wiebe",
+      "file": "portraits/joanna-wiebe.png",
+      "sourcePage": "https://copyhackers.com/about-copy-hackers/",
+      "sourceImage": "https://i0.wp.com/copyhackers.com/wp-content/uploads/2020/09/Screen-Shot-2020-09-30-at-1.08.07-PM.png?fit=686%2C686&ssl=1",
+      "sha256": "6f09236242cfe2202988805a69cdb60675d89cc84e47c06d8f4630185d3025ab",
+      "framing": [
+        85,
+        50,
+        530
+      ]
+    },
+    {
+      "id": "laszlo-bock",
+      "file": "portraits/laszlo-bock.jpg",
+      "sourcePage": "https://executive.berkeley.edu/faculty-directory/laszlo-bock",
+      "sourceImage": "https://executive.berkeley.edu/sites/default/files/styles/our_team_single_360_x_270_/public/2025-03/Laszlo%20Bock%20headshot%202025.jpg?itok=L3iMoCkJ",
+      "sha256": "c5e1e8cdad3f47dd13ebd652da87596703880d592482c93e47960e4bd8f9b6a7",
+      "framing": [
+        45,
+        0,
+        270
+      ]
+    },
+    {
+      "id": "lincoln-murphy",
+      "file": "portraits/lincoln-murphy.png",
+      "sourcePage": "https://lincolnmurphy.com/",
+      "sourceImage": "https://lincolnmurphy.com/headshot.png",
+      "sha256": "80d57dd0da806ecb81c04b6a5856586c40a98dde18348604de8a1509b693e9ab",
+      "framing": [
+        98,
+        44,
+        205
+      ]
+    },
+    {
+      "id": "madhavan-ramanujam",
+      "file": "portraits/madhavan-ramanujam.jpg",
+      "sourcePage": "https://www.salesforce.com/blog/author/madhavan-ramanujam/",
+      "sourceImage": "https://www.salesforce.com/blog/wp-content/uploads/sites/2/2020/11/madhavan-ramanujam.jpg?w=450",
+      "sha256": "ef3843f9ff0479aac80f46010cd36b10abccb1db87f2dd4f1282f967af0d42a2",
+      "framing": [
+        35,
+        0,
+        365
+      ]
+    },
+    {
+      "id": "neil-rackham",
+      "file": "portraits/neil-rackham.jpg",
+      "sourcePage": "https://kendo.ai/blogs/best-salespeople-ever",
+      "sourceImage": "https://framerusercontent.com/images/UB2Ev1yxpTIm3GsfkTwiaWKeg.jpg",
+      "sha256": "5dc34237628064026e8b293ed6ff59c39ac363af53212d819b4f9541ebe73664",
+      "framing": [
+        45,
+        0,
+        745
+      ]
+    },
+    {
+      "id": "paulo-caroli",
+      "file": "portraits/paulo-caroli.png",
+      "sourcePage": "https://caroli.org/en/paulo-caroli/",
+      "sourceImage": "https://caroli.org/en/wp-content/uploads/sites/5/2024/06/Paulo-Caroli-Sem-Fundo-100x100.png",
+      "sha256": "28dc4615e01f5cf5686965897ed7d0a06d480d5f23e6fada5836e5495c8c8261",
+      "framing": [
+        15,
+        0,
+        75
+      ]
+    },
+    {
+      "id": "peep-laja",
+      "file": "portraits/peep-laja.jpg",
+      "sourcePage": "https://peeplaja.com/",
+      "sourceImage": "https://peeplaja.com/assets/images/share.jpg?v=6b3874e5",
+      "sha256": "17484d575c9e37fbf2b95f131c13b435cc1b27ea6f1be716b2493119176f1021",
+      "framing": [
+        85,
+        15,
+        920
+      ]
+    },
+    {
+      "id": "ricardo-vargas",
+      "file": "portraits/ricardo-vargas.jpg",
+      "sourcePage": "https://ricardo-vargas.com/",
+      "sourceImage": "https://d3pvly1u1c1g2.cloudfront.net/images/biography/ricardo-mic-2.jpg",
+      "sha256": "2214cb3166cadc1f4ea0b33c226942809c2891ee0493eccc9f17f18db1ddc016",
+      "framing": [
+        180,
+        5,
+        430
+      ]
+    },
+    {
+      "id": "rodrigo-noll",
+      "file": "portraits/rodrigo-noll.jpg",
+      "sourcePage": "https://rodrigonoll.com.br/pagina-inicial-2",
+      "sourceImage": "https://rodrigonoll.com.br/wp-content/uploads/2023/07/Rodrigo-Noll-3.jpg",
+      "sha256": "d7d04107f725c51bbad74e8a665a8b28d62643166d8520f75580100813be2244",
+      "framing": [
+        12,
+        0,
+        345
+      ]
+    },
+    {
+      "id": "rory-vaden",
+      "file": "portraits/rory-vaden.jpg",
+      "sourcePage": "https://roryvaden.com/media/",
+      "sourceImage": "https://roryvaden.com/wp-content/uploads/2023/01/rory.jpg",
+      "sha256": "d5ce7e9ab64a2fbf13f63474d288d1be0b4595b4b1d3bf6d02d4d36442c02c03",
+      "framing": [
+        195,
+        5,
+        295
+      ]
+    },
+    {
+      "id": "tiago-forte",
+      "file": "portraits/tiago-forte.webp",
+      "sourcePage": "https://fortelabs.com/blog/about/",
+      "sourceImage": "https://fortelabs.com/wp-content/uploads/2022/01/tiago-forte-300x300.jpg",
+      "sha256": "7ca47f4b4bd42af99359d6a8d8e3507d15fbd3ead498b6fbcc7180ee60b99f7a",
+      "framing": [
+        0,
+        0,
+        300
+      ]
+    }
+  ]
+}

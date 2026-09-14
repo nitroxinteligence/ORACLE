@@ -63,10 +63,12 @@ function harness(input=data()) {
   }
   document={addEventListener(){},hidden:false,documentElement:{dataset:{inputMode:'pointer'}},activeElement:null,
     createElement:tag=>new Element(tag),createElementNS:(_,tag)=>new Element(tag),querySelector:()=>null};
-  const window={OracleDepartmentManifest:manifest,oracleWindowVisible:true};
+  const window=Object.assign(new Element('window'),{OracleDepartmentManifest:manifest,oracleWindowVisible:true});
   const scope={window,document,OracleDepartments,OracleLayout,OracleKnowledge,OraclePrompts,OracleAtmosphere,OracleMotion,OracleLibrary,
     structuredClone,performance,console,paths:{code:'M0 0',note:'M0 0',folder:'M0 0',tool:'M0 0'},
     requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},setTimeout,clearTimeout,getComputedStyle:()=>({display:'block'})};
+  vm.runInNewContext(fs.readFileSync(new URL('../Resources/web/installation-visual.js',import.meta.url),'utf8'),scope);
+  scope.OracleInstallationVisual=window.OracleInstallationVisual;
   vm.runInNewContext(source,scope,{filename:'Resources/web/atlas.js'});
   const atlas=Object.create(window.OracleAtlas.prototype),events=[];
   const add=(tag,attrs,parent)=>{const element=new Element(tag);for(const [key,value]of Object.entries(attrs||{}))element.setAttribute(key,value);parent?.append(element);return element};
@@ -221,11 +223,11 @@ test('keyboard Enter opens a department and specialist arrows remain inside that
 });
 
 test('pointer clicks enter department, specialist and actual skill without conflating their IDs',()=>{
-  const {atlas}=harness();atlas.bind();
+  const {atlas,window}=harness();atlas.bind();
   const click=target=>{
     const event={target,button:0,pointerId:1,clientX:500,clientY:350,preventDefault(){},stopPropagation(){},altKey:false};
     for(const handler of atlas.el.listeners.get('pointerdown')||[])handler(event);
-    for(const handler of atlas.el.listeners.get('pointerup')||[])handler(event);
+    for(const handler of window.listeners.get('pointerup')||[])handler(event);
   };
   click(atlas.nodes.get('department/code').g);assert.equal(atlas.context.kind,'department');
   click(atlas.nodes.get('code').g);assert.equal(atlas.context.kind,'specialist');

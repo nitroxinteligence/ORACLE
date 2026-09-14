@@ -394,19 +394,13 @@ function departmentSettings(){
   await call('saveDepartments',{assignments});state.config.departmentAssignments=assignments;if(atlasController)atlasController.topologyKey=null;await refresh();toast('Organização salva. Os arquivos permanecem no lugar.');
  });
 }
-async function catalogSettings(){
- if(!state.onboarding?.capabilities?.manageCatalogSource){toast('Esta ação exige a licença administrativa assinada.');return;}
- const epoch=navigationEpoch,status=await call('updateStatus');if(epoch!==navigationEpoch)return;
- modal(`<h1>Fonte oficial de skills</h1><p>Configuração administrativa. Os alunos recebem apenas o catálogo aprovado; este controle não altera os arquivos de origem.</p><label class="field">Repositório GitHub HTTPS<input id="catalog-repository" type="url" value="${esc(status.skills_repository||'')}" placeholder="https://github.com/organizacao/repositorio"></label><p class="muted">Não inclua tokens ou credenciais. O catálogo é validado antes de instalar.</p>${actions('<button class="primary" id="save-catalog-source">Salvar fonte</button>')}`);
- $('#save-catalog-source').onclick=safe(async()=>{await call('configureSkillSource',{repository:$('#catalog-repository').value});toast('Fonte configurada. Use Verificar para consultar uma versão.');});
-}
 
 function settings(){
  if(document.querySelector('.ob-dialog[open]'))return;
  if(modalDirty){requestEditorExit(false,settings);return}
  settingsTrail=true;
  const row=(id,name,description,ic='chevron')=>`<button class="setting-row" id="${id}"><span><strong>${name}</strong><small>${description}</small></span>${icon(ic)}</button>`;
- modal(`<h1>Ajustes do Oracle</h1><p class="settings-intro">Seu conhecimento, suas preferências e o aplicativo.</p>
+ modal(`<h1>Configurações</h1><p class="settings-intro">Seu conhecimento, suas preferências e o aplicativo.</p>
  <section class="settings-section"><h2>Seu espaço</h2><div class="setting-group">
  ${row('knowledge-settings','Knowledge Base','Prompts para organizar sua vida pessoal e profissional','book')}
  ${row('restart-setup','Configurar Oracle','Selecionar a pasta do seu segundo cérebro')}
@@ -417,12 +411,10 @@ function settings(){
  </div></section>
  <section class="settings-section"><h2>Aplicativo</h2><div class="setting-group">
  ${row('updates-settings','Atualizações','Verificar novidades e versões','refresh')}
- ${state.onboarding?.capabilities?.manageCatalogSource?row('catalog-settings','Fonte oficial de skills','Gerenciar o acervo distribuído por esta licença'):''}
  ${row('export-view','Exportar imagem','Salvar uma imagem do seu universo')}
  </div></section>`,{family:'settings',footer:false,root:true});
  $('#knowledge-settings').onclick=safe(()=>openKnowledgePrompts());
  $('#restart-setup').onclick=vaultSettings;
- $('#catalog-settings')?.addEventListener('click',safe(catalogSettings));
  $('#updates-settings').onclick=safe(()=>showUpdates(false));
  $('#export-view').onclick=safe(async()=>{await closeModal();const path=await call('exportSnapshot');if(path)toast('Imagem salva.')});
  $('#protect-settings').onclick=safe(async()=>{await call('protect');await refresh();settings();toast('Bloqueio ativado')});

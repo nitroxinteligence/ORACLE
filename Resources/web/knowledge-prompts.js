@@ -79,7 +79,7 @@
   ]}
  };
  function context(vault,entries=[]){
-  if(typeof vault!=='string'||!vault.startsWith('/')||vault==='/'||/[\r\n\0]/.test(vault))throw Error('Selecione um vault válido nos Ajustes do Oracle.');
+  if(typeof vault!=='string'||!vault.startsWith('/')||vault==='/'||/[\r\n\0]/.test(vault))throw Error('Selecione um vault válido nas Configurações.');
   const path=vault.replace(/\/+$/,'');
   return {vault:path,name:path.split('/').at(-1),areas:window.OracleKnowledge.areas(entries)};
  }

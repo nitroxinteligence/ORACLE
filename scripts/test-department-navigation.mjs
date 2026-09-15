@@ -245,3 +245,21 @@ test('rapid animated department changes settle only the latest navigation',async
   assert.equal(atlas.history.length,1);assert.equal(atlas.sceneError,undefined);
   assert.equal(events.filter(e=>e.selection.kind==='department').length,1);
 });
+
+
+test('snapshot refresh adds Pesquisa and removes missing departments without reopening the graph',()=>{
+ const input=data(),{atlas}=harness(input);
+ assert.equal(atlas.catalog.departmentByID.has('department/content'),false);
+ const research={path:'SISTEMA/skills/pesquisa/deep-research/review/SKILL.md',name:'SKILL.md',directory:false};
+ const added={...input,entries:[...input.entries,research]};
+ atlas.update(added);
+ assert.equal(atlas.catalog.departmentByID.get('department/research').skillCount,1);
+ assert.ok(atlas.nodes.has('department/research'));
+ atlas.select('deep-research');
+ assert.ok(atlas.leaves.has(research.path));
+ atlas.update({...input,selected:'deep-research',selectedDepartment:'department/research'});
+ assert.equal(atlas.catalog.departmentByID.has('department/research'),false);
+ assert.equal(atlas.selected,null);
+ assert.equal(atlas.context.kind,'global');
+ assert.equal(atlas.nodes.has('department/research'),false);
+});

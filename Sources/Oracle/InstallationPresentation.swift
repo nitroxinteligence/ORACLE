@@ -42,10 +42,13 @@ extension Core {
     func discoveredCollections(_ entries: [[String:Any]]) -> [[String:String]] {
         var rows=collections.map{["id":$0.0,"name":$0.1,"icon":$0.2]}
         var known=Set(collections.map{$0.0}),extra=Set<String>()
+        let departmentNames=Set(Self.skillDepartmentFolders.values.map{$0.folding(options:[.diacriticInsensitive,.caseInsensitive],locale:Locale(identifier:"pt_BR"))})
         for entry in entries where entry["directory"] as? Bool != true && entry["name"] as? String == "SKILL.md" {
             let parts=(entry["path"] as? String ?? "").split(separator:"/").map(String.init)
             let library=(config["libraryRoots"] as? [String:String])?["skills"] ?? "SISTEMA/skills"
-            let index=parts.count>3 && Core.skillDepartmentFolders.values.contains(parts[2]) ? 3:2
+            let folder=parts.count>2 ? parts[2].folding(options:[.diacriticInsensitive,.caseInsensitive],locale:Locale(identifier:"pt_BR")) : ""
+            let nested=parts.count>3 && departmentNames.contains(folder) && (parts[2] != folder || parts.count>=6 && parts[3] != "skills")
+            let index=nested ? 3:2
             if parts.count>index+1,parts.prefix(2).joined(separator:"/")==library,!known.contains(parts[index]) {extra.insert(parts[index])}
         }
         for id in extra.sorted() {known.insert(id);rows.append(["id":id,"name":id.replacingOccurrences(of:"-",with:" ").replacingOccurrences(of:"_",with:" ").capitalized,"icon":"tool"])}

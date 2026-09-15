@@ -53,7 +53,7 @@ test('empty source, absent source and empty department are different states', ()
   assert.equal(model.specialistByID.get('contents').skillCount,0);
   assert.equal(model.specialistByID.has('impeccable'),false);
   assert.equal(model.departmentByID.get('department/content').state,'no-skills');
-  assert.equal(model.departmentByID.get('department/code').state,'empty');
+  assert.equal(model.departmentByID.has('department/code'),false);
   assert.equal(model.specialistByID.get('my-new-specialist').department,'department/other');
   assert.equal(model.departmentByID.get('department/other').specialistCount,1);
 });
@@ -256,4 +256,42 @@ test('opening every department specialist retains real skills, groups and all pa
       assert.ok(view.leaves.length>0);assert.ok(view.leaves.every(l=>group.skills.some(s=>s.path===l.id)));
     }
   }
+});
+
+
+test('vault departments appear and disappear with snapshot folders, independent of bundled defaults',()=>{
+  const paths=['codigo/frontend/build','pesquisa/deep-research/search','pesquisa/deep-research/review'];
+  const entries=paths.flatMap(path=>[
+    ...path.split('/').map((_,i)=>directory(path.split('/').slice(0,i+1).join('/'))),
+    {path:`SISTEMA/skills/${path}/SKILL.md`,name:'SKILL.md',directory:false}
+  ]);
+  const model=catalog(entries);
+  assert.deepEqual(model.departments.map(d=>d.id).sort(),['department/code','department/research']);
+  assert.deepEqual(model.specialists.map(s=>s.id),['deep-research','frontend']);
+  const research=model.specialistByID.get('deep-research');
+  assert.equal(research.originPath,'SISTEMA/skills/pesquisa/deep-research');
+  assert.equal(research.skillCount,2);
+  assert.equal(hierarchyPlan(model,{specialist:research.id}).leaves.length,2);
+  const removed=catalog(entries.filter(e=>!e.path.startsWith('SISTEMA/skills/pesquisa')));
+  assert.equal(removed.departmentByID.has('department/research'),false);
+  assert.equal(removed.departmentByID.has('department/content'),false);
+  assert.equal(resolveSelection(removed,{specialist:research.id,department:'department/research'}).kind,'global');
+  const empty=catalog([directory('pesquisa')]);
+  assert.equal(empty.departmentByID.get('department/research').specialistCount,0);
+  assert.equal(empty.specialists.length,0);
+});
+
+test('department spelling variants recognize the same physical hierarchy',()=>{
+  for(const folder of ['pesquisa','Pesquisa','PESQUISA','conteudo','Conteúdo','CONTEÚDO']){
+    const model=catalog([{path:`SISTEMA/skills/${folder}/expert/real/SKILL.md`,name:'SKILL.md'}]);
+    assert.equal(model.specialistByID.get('expert').department,folder.toLowerCase()==='pesquisa'?'department/research':'department/content');
+    assert.equal(model.departments.length,1);
+  }
+});
+
+test('legacy collection subdirectories are not reclassified as specialists',()=>{
+ const entries=[directory('marketing'),directory('marketing/campaign'),skill('marketing','campaign'),directory('marketing/skills'),directory('marketing/skills/emails'),skill('marketing','emails','skills/')];
+ const model=catalog(entries);
+ assert.deepEqual(model.specialists.map(s=>s.id),['marketing']);
+ assert.equal(model.specialistByID.get('marketing').skillCount,2);
 });

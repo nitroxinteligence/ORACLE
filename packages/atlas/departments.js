@@ -56,22 +56,37 @@ export function validateManifest(input) {
   }};
 }
 
-const folderDepartments={codigo:'code',conversao:'conversao',entrega:'entrega',leads:'leads',marketing:'marketing',oferta:'oferta',sistemas:'sistemas',trafego:'trafego',vendas:'sales','Código':'code','Marketing':'marketing','Conteúdo':'content','Vendas':'sales','Design':'design','Pesquisa':'research','Outros':'unassigned'};
+const folderDepartments={codigo:'code',conversao:'conversao',entrega:'entrega',leads:'leads',marketing:'marketing',oferta:'oferta',sistemas:'sistemas',trafego:'trafego',vendas:'sales',conteudo:'content',design:'design',pesquisa:'research',outros:'unassigned'};
 function departmentPath(parts, entry) {
-  return Object.hasOwn(folderDepartments,parts[2]) && (!/^[a-z]+$/.test(parts[2]) || (entry.directory ? parts.length>=4 : parts.length>=6) && parts[3]!=='skills');
+  return Object.hasOwn(folderDepartments,normalize(parts[2])) && (!/^[a-z]+$/.test(parts[2]) || (entry.directory ? parts.length>=4 : parts.length>=6) && parts[3]!=='skills');
 }
-export function departmentForEntry(entry,skillRoot='SISTEMA/skills') {
+export function departmentForEntry(entry,skillRoot='SISTEMA/skills',folders=null) {
   const parts=entry?.path?.split('/')||[];
-  return parts.slice(0,2).join('/')===skillRoot && departmentPath(parts,entry) ? folderDepartments[parts[2]]:null;
+  if(parts.slice(0,2).join('/')!==skillRoot || !parts.every(segment))return null;
+  return (folders ? folders.has(parts[2]) : departmentPath(parts,entry)) ? folderDepartments[normalize(parts[2])]:null;
 }
 /** Canonical local path evidence, including department folders. */
-export function collectionForEntry(entry, skillRoot='SISTEMA/skills') {
+export function collectionForEntry(entry, skillRoot='SISTEMA/skills', folders=null) {
   if (!entry || typeof entry.path !== 'string') return null;
   const parts = entry.path.split('/');
   if (parts.length < 3 || parts.slice(0,2).join('/') !== skillRoot || !parts.every(segment)) return null;
   if (parts.length === 3 && !entry.directory) return null;
-  if (departmentPath(parts,entry)) return parts.length>=5 || (parts.length===4&&entry.directory) ? parts[3]:null;
+  if (departmentForEntry(entry,skillRoot,folders)) return parts.length>=5 || (parts.length===4&&entry.directory) ? parts[3]:null;
   return parts[2];
+}
+
+// Resolve the whole snapshot before reading individual rows: a department's own
+// directory must not be mistaken for another specialist. Legacy flat collections
+// (marketing/skill/SKILL.md or marketing/skills/...) retain their original IDs.
+function physicalDepartmentFolders(entries,skillRoot) {
+  const folders=new Set();
+  for(const entry of entries){
+    const parts=entry?.path?.split('/')||[];
+    if(parts.slice(0,2).join('/')!==skillRoot||!parts.every(segment))continue;
+    if(!entry.directory&&departmentPath(parts,entry))folders.add(parts[2]);
+    else if(entry.directory&&parts.length===3&&Object.hasOwn(folderDepartments,normalize(parts[2]))&&!['marketing','design'].includes(parts[2]))folders.add(parts[2]);
+  }
+  return folders;
 }
 
 /** Alternating real sources keeps a department's first page representative. */
@@ -106,15 +121,22 @@ export function createCatalog(collections = [], entries = [], input = FALLBACK_M
     for (const alias of [...department.collection_ids, ...department.aliases]) aliases.set(normalize(alias), department.id);
   }
   for (const collection of collections) if (collection && segment(collection.id) && !descriptions.has(collection.id)) descriptions.set(collection.id, collection);
+  const folders=physicalDepartmentFolders(entries,skillRoot);
   for (const entry of entries) {
     if(installedOnly&&(entry.directory||entry.name!=='SKILL.md'))continue;
-    const id = collectionForEntry(entry,skillRoot); if (!id) continue;
+    const id = collectionForEntry(entry,skillRoot,folders); if (!id) continue;
     if (!discovered.has(id)) discovered.set(id, new Map());
     if (!entry.directory && entry.name === 'SKILL.md' && entry.path.endsWith('/SKILL.md')) discovered.get(id).set(entry.path, entry);
   }
   const departmentRows = [...manifest.departments], known = new Set(departmentRows.map(d => d.id)), assigned = new Map();
+  const presentDepartments=new Set([...folders].map(folder=>departmentID(folderDepartments[normalize(folder)])));
+  for(const id of presentDepartments){
+    if(known.has(id))continue;
+    const definition=definitions.find(d=>departmentID(d.id)===id);
+    if(definition){departmentRows.push({...definition,id,collection_ids:[],aliases:[]});known.add(id)}
+  }
   const folderAssignments=Object.create(null);
-  for(const entry of entries){const id=collectionForEntry(entry,skillRoot),department=departmentForEntry(entry,skillRoot);if(id&&department)folderAssignments[id]=department;}
+  for(const entry of entries){const id=collectionForEntry(entry,skillRoot,folders),department=departmentForEntry(entry,skillRoot,folders);if(id&&department)folderAssignments[id]=department;}
   const overrides = assignments && typeof assignments === 'object' && !Array.isArray(assignments) ? assignments : {};
   for (const [id, value] of Object.entries({...overrides,...folderAssignments}).sort(([a],[b]) => compare(a,b))) {
     if (!segment(id) || !discovered.has(id)) continue;
@@ -130,8 +152,8 @@ export function createCatalog(collections = [], entries = [], input = FALLBACK_M
   }
   const specialists = [...discovered].sort(([a],[b]) => compare(a,b)).map(([id, docs]) => {
     const description = descriptions.get(id), name = text(description?.name) ? description.name : id.replace(/[-_]/g, ' ');
-    const sample=[...docs.values()][0]||entries.find(e=>collectionForEntry(e,skillRoot)===id);
-    const physicalRoot=departmentForEntry(sample,skillRoot)?`${skillRoot}/${sample.path.split('/')[2]}`:skillRoot;
+    const sample=[...docs.values()][0]||entries.find(e=>collectionForEntry(e,skillRoot,folders)===id);
+    const physicalRoot=departmentForEntry(sample,skillRoot,folders)?`${skillRoot}/${sample.path.split('/')[2]}`:skillRoot;
     const groups = catalogGroups(id, [...docs.values()],physicalRoot);
     const department = assigned.get(id) || exact.get(id) || aliases.get(normalize(id)) || aliases.get(normalize(name)) || manifest.fallback_department;
     const skills = [...docs.values()].sort((a,b) => compare(a.path,b.path));
@@ -146,7 +168,7 @@ export function createCatalog(collections = [], entries = [], input = FALLBACK_M
       specialistCount:members.length, empty:!members.length,
       state:!members.length ? 'empty' : !skills.length ? 'no-skills' : 'ready',
       fallback:row.id === manifest.fallback_department};
-  }).filter(row=>!installedOnly||row.skillCount>0);
+  }).filter(row=>(row.specialistCount>0||presentDepartments.has(row.id))&&(!installedOnly||row.skillCount>0));
   const specialistByID = new Map(specialists.map(s => [s.id,s])), departmentByID = new Map(departments.map(d => [d.id,d]));
   const skillByPath = new Map();
   for (const specialist of specialists) for (const entry of specialist.skills) {

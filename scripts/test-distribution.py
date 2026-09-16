@@ -98,6 +98,103 @@ class DistributionTests(unittest.TestCase):
         with self.assertRaises(InvalidSignature):
             key.public_key().verify(base64.b64decode(envelope['signature_base64']), dist.DOMAIN + payload + b' ')
 
+    def nested_fixture(self):
+        import shutil
+        target = self.source / 'SISTEMA/skills/codigo/example'
+        target.parent.mkdir(parents=True)
+        shutil.move(str(self.source / 'SISTEMA/skills/research'), str(target))
+        path = 'SISTEMA/skills/codigo/matt-pocock/01-getting-started/ask-matt/SKILL.md'
+        data = b'---\nname: ask-matt\ndescription: Synthetic phase entry.\n---\n# Fixture\n'
+        (self.source / path).parent.mkdir(parents=True)
+        (self.source / path).write_bytes(data)
+        review = copy.deepcopy(self.review)
+        review['skills_layout'] = 'department-specialist-skill'
+        review['items'] = {p.replace('skills/research/', 'skills/codigo/example/'): v for p, v in review['items'].items()}
+        review['source_inventory_sha256'] = dist.sha(dist.canonical({r['source_path']: dist.sha((self.source / r['source_path']).read_bytes()) for r in dist.inventory(self.source)['files']}))
+        return path, data, review
+
+    def test_unclassified_phase_entry_cannot_silently_disappear(self):
+        path, _, review = self.nested_fixture()
+        manifest, _, report = self.build(review)
+        self.assertIsNone(manifest)
+        self.assertIn({'path': path, 'code': 'skill_entry_classification_required'}, report['problems'])
+
+    def test_explicit_nested_skill_preserves_path_and_requires_new_runtime(self):
+        path, data, review = self.nested_fixture()
+        review['items'][path] = {'entry_role': 'skill', 'source_sha256': dist.sha(data),
+            'license_reviewed': True, 'dependencies_reviewed': True, 'reason': 'Synthetic standalone skill within a phase'}
+        manifest, _, report = self.build(review)
+        self.assertEqual(report['problems'], [])
+        nested = next(i for i in manifest['items'] if i['entry'] == path)
+        self.assertEqual(nested['entry_layout'], 'reviewed-nested')
+        self.assertEqual(nested['specialist_id'], 'matt-pocock')
+        self.assertEqual(nested['department_id'], 'code')
+        self.assertEqual(manifest['minimum_oracle'], '0.3.14')
+        self.assertEqual((self.source / path).read_bytes(), data)
+        self.assertEqual(nested['required_files'], [path])
+
+    def test_nested_review_requires_exact_hash_and_each_approval(self):
+        path, data, review = self.nested_fixture()
+        valid = {'entry_role': 'skill', 'source_sha256': dist.sha(data),
+            'license_reviewed': True, 'dependencies_reviewed': True, 'reason': 'Synthetic reviewed skill'}
+        for key, value in [('source_sha256', '0' * 64), ('license_reviewed', False), ('dependencies_reviewed', False), ('reason', '')]:
+            review['items'][path] = dict(valid, **{key: value})
+            manifest, _, report = self.build(review)
+            with self.subTest(key=key):
+                self.assertIsNone(manifest)
+                self.assertIn({'path': path, 'code': 'nested_skill_review_required'}, report['problems'])
+
+    def test_nested_entry_cannot_claim_resources_outside_its_directory(self):
+        path, data, review = self.nested_fixture()
+        review['items'][path] = {'entry_role': 'skill', 'source_sha256': dist.sha(data),
+            'license_reviewed': True, 'dependencies_reviewed': True, 'reason': 'Synthetic reviewed skill',
+            'required_files': ['SISTEMA/prompts/Hello.md']}
+        with self.assertRaises(dist.Refused):
+            self.build(review)
+
+    def test_structured_review_draft_classifies_no_nested_candidate_automatically(self):
+        path, _, _ = self.nested_fixture()
+        template = self.source / 'SISTEMA/skills/codigo/example/example/templates/SKILL.md'
+        template.parent.mkdir(parents=True)
+        template.write_text('Synthetic template resource')
+        shared = self.source / 'SISTEMA/recursos-skills/templates/SKILL.md'
+        shared.parent.mkdir(parents=True)
+        shared.write_text('Synthetic shared resource')
+        spec = importlib.util.spec_from_file_location('review_distribution', ROOT / 'scripts/review-distribution.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        report, _ = module.prepare(self.source, 'department-specialist-skill')
+        self.assertEqual(report['skills_layout'], 'department-specialist-skill')
+        self.assertEqual(report['items'][path]['entry_role'], 'unclassified')
+        self.assertFalse(report['items'][path]['license_reviewed'])
+        self.assertFalse(report['items'][path]['dependencies_reviewed'])
+        self.assertFalse(report['content_reviewed'])
+        self.assertNotIn(template.relative_to(self.source).as_posix(), report['items'])
+        self.assertNotIn(shared.relative_to(self.source).as_posix(), report['items'])
+
+    def test_explicit_resource_classification_is_bound_to_reviewed_bytes(self):
+        path, data, review = self.nested_fixture()
+        review['items'][path] = {'entry_role': 'resource', 'source_sha256': dist.sha(data),
+            'license_reviewed': True, 'dependencies_reviewed': True, 'reason': 'Synthetic reference template, not an entry'}
+        manifest, _, report = self.build(review)
+        self.assertEqual(report['problems'], [])
+        self.assertIn(path, [r['path'] for r in manifest['files']])
+        self.assertNotIn(path, [r['entry'] for r in manifest['items']])
+        review['items'][path]['source_sha256'] = '0' * 64
+        self.assertIsNone(self.build(review)[0])
+
+    def test_owned_nested_template_is_not_promoted_to_entry(self):
+        path, data, review = self.nested_fixture()
+        (self.source / path).unlink()
+        template = 'SISTEMA/skills/codigo/example/example/templates/SKILL.md'
+        (self.source / template).parent.mkdir(parents=True)
+        (self.source / template).write_bytes(b'Not a skill; synthetic nested template.\n')
+        review['source_inventory_sha256'] = dist.sha(dist.canonical({r['source_path']: dist.sha((self.source / r['source_path']).read_bytes()) for r in dist.inventory(self.source)['files']}))
+        manifest, _, report = self.build(review)
+        self.assertEqual(report['problems'], [])
+        self.assertEqual(len([r for r in manifest['items'] if r['kind'] == 'skill']), 1)
+        self.assertIn(template, [r['path'] for r in manifest['files']])
+
     def test_empty_library_never_certifies_complete(self):
         (self.source / 'SISTEMA/prompts/Hello.md').unlink()
         manifest, _, report = self.build()

@@ -24,6 +24,9 @@ func fileDigest(_ url: URL) throws -> String {
 }
 
 final class UpdateNetwork: NSObject, URLSessionTaskDelegate {
+    // Native test injection only; production always uses the restricted HTTPS GET.
+    private let transport:((String,Int)throws->Data)?
+    init(transport:((String,Int)throws->Data)?=nil) {self.transport=transport;super.init()}
     static func permitted(_ url: URL) -> Bool {
         guard url.scheme == "https", url.user == nil, url.password == nil, url.port == nil else { return false }
         return ["github.com", "api.github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "raw.githubusercontent.com"].contains(url.host ?? "")
@@ -33,12 +36,18 @@ final class UpdateNetwork: NSObject, URLSessionTaskDelegate {
     }
     func fetch(_ text: String, limit: Int = 2_000_000, progress: ((Int, Int) -> Void)? = nil) throws -> Data {
         guard let url = URL(string: text), Self.permitted(url) else { throw failure("Fonte de atualização não permitida") }
+        if let transport {
+            let data=try transport(text,limit)
+            guard data.count<=limit else{throw failure("Pacote excede o limite autorizado")}
+            progress?(data.count,data.count);return data
+        }
         let settings = URLSessionConfiguration.ephemeral
         settings.httpCookieStorage = nil; settings.urlCredentialStorage = nil
+        settings.urlCache=nil;settings.requestCachePolicy = .reloadIgnoringLocalCacheData
         settings.timeoutIntervalForRequest = 30; settings.timeoutIntervalForResource = 180
         let session = URLSession(configuration: settings, delegate: self, delegateQueue: nil)
         defer { session.invalidateAndCancel() }
-        var request = URLRequest(url: url); request.setValue("OracleCompanion/0.2.0", forHTTPHeaderField: "User-Agent")
+        var request = URLRequest(url: url); request.setValue("OracleCompanion/"+OracleApplicationRelease.installedVersion(fallback:"0.3.14"), forHTTPHeaderField: "User-Agent")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         let done = DispatchSemaphore(value: 0), mutex = NSLock()
         var result: Result<Data, Error>?
@@ -53,20 +62,22 @@ final class UpdateNetwork: NSObject, URLSessionTaskDelegate {
             mutex.lock(); result = value; mutex.unlock(); done.signal()
         }
         // URLSession reports bytes actually transferred, without a simulated timer.
-        let progressLock=NSLock();var lastProgress=Date.distantPast
+        let progressLock=NSLock();var lastProgress=Date.distantPast,acceptsProgress=true
         let observation=task.observe(\.countOfBytesReceived,options:[.new]) { state,_ in
             guard let progress else{return}
             progressLock.lock();defer{progressLock.unlock()}
+            guard acceptsProgress else{return}
             let now=Date()
             guard now.timeIntervalSince(lastProgress)>=0.5 else{return}
             lastProgress=now
             progress(Int(state.countOfBytesReceived),max(0,Int(state.countOfBytesExpectedToReceive)))
         }
-        defer{observation.invalidate()}
+        defer{observation.invalidate();progressLock.lock();acceptsProgress=false;progressLock.unlock()}
         task.resume()
         guard done.wait(timeout: .now() + 190) == .success else { task.cancel(); throw failure("Atualização sem resposta; versão atual preservada") }
         mutex.lock(); let answer = result; mutex.unlock()
         observation.invalidate()
+        progressLock.lock();acceptsProgress=false;progressLock.unlock()
         let data=try answer!.get()
         progress?(data.count,data.count)
         return data
@@ -103,30 +114,60 @@ extension Core {
         guard parts.count == 2, parts.allSatisfy({ $0.range(of: #"^[A-Za-z0-9_.-]+$"#, options: .regularExpression) != nil && $0 != "." && $0 != ".." }) else { throw failure("Endereço esperado: https://github.com/organização/repositório") }
         return parts.joined(separator: "/")
     }
-    private func updateSourceKey() -> String {
+    func updateSourceKey() -> String {
         (updatePreferences()["skills_repository"] as? String ?? "")+"|"+(config["gbrainWorkspace"] as? String ?? "managed")+"|"+(config["vault"] as? String ?? "")
     }
-    func recordUpdate(_ phase: String, _ text: String, completed: Int = 0, total: Int = 0, results: [[String: Any]] = [], progressSource: String? = nil) throws {
-        let path=try updatePath("status.json"),old=(try? readJSON(path)) ?? [:]
-        let key=updateSourceKey(),oldKey=old["availabilitySourceKey"] as? String
+    func recordUpdate(_ phase: String, _ text: String, completed: Int = 0, total: Int = 0, results: [[String: Any]] = [], progressSource: String? = nil, diagnostic:[String:Any]=[:], owner:OracleUpdateExecution?=nil) throws {
+        guard let execution=owner ?? updateExecution else{throw failure("Progresso recusado: nenhum atualizador possui esta operação.")}
+        try execution.write { old in
+        let key=execution.sourceKey,oldKey=old["availabilitySourceKey"] as? String
         let prior=(oldKey == nil || oldKey == key) ? (old["pendingUpdates"] as? [[String:Any]] ?? old["results"] as? [[String:Any]] ?? []) : []
         let pending=OracleUpdateLedger.reconcile(previous:prior,results:results)
+        let errors=results.filter{$0["status"] as? String=="error"}
+        let recordedPhase=phase=="complete" && !errors.isEmpty ? "failed":phase
         let now=ISO8601DateFormatter().string(from:Date())
-        var value:[String:Any]=["phase":phase,"message":text,"completed":completed,"total":total,
-            "results":results,"at":now,"pendingUpdates":pending,"availabilitySourceKey":key]
+        var value:[String:Any]=["phase":recordedPhase,"message":text,"completed":completed,"total":total,
+            "results":results,"at":now,"pendingUpdates":pending,"availabilitySourceKey":key,
+            "available":OracleUpdateLedger.installable(pending),"knownUpdate":OracleUpdateLedger.hasNews(pending),
+            "applicationUpdateAvailable":pending.contains{$0["id"] as? String=="oracle" && $0["status"] as? String=="download_available"}]
+        if recordedPhase=="failed",!errors.isEmpty {value["error"]=errors.compactMap{$0["message"] as? String}.joined(separator:"\n")}
         if let progressSource {value["progressSource"]=progressSource}
+        for (field,item) in diagnostic {value[field]=item}
         if phase=="complete" {value["checkedAt"]=now}
         else if let checked=old["checkedAt"] {value["checkedAt"]=checked}
-        try writeJSON(value,path)
+        return value
+        }
     }
-    func updateStatus() throws -> [String: Any] {
-        var value = (try? readJSON(updatePath("status.json"))) ?? ["phase": "idle", "message": "Pronto para verificar as fontes"]
+    func updateStatus(requestID:String?=nil) throws -> [String: Any] {
+        if let requestID,UUID(uuidString:requestID)==nil {throw failure("Pedido de atualização inválido.")}
+        let path=requestID.map{"requests/"+$0+".json"} ?? "status.json"
+        var value = (try? readJSON(updatePath(path))) ?? ["phase": "idle", "message": "Pronto para verificar as fontes"]
+        if let requestID,value["requestID"] as? String != requestID {
+            return OracleUpdateCoordinator.missing(requestID)
+        }
+        if let target=value["vaultIdentity"] as? String,try updateTargetIdentity(includeSettings:false) != target {
+            if let requestID {
+                var missing=OracleUpdateCoordinator.missing(requestID);missing["scopeChanged"]=true
+                missing["operation"]=value["operation"] ?? NSNull();return missing
+            }
+            value=["phase":"idle","message":"A pasta mudou. Verifique as atualizações para a seleção atual."]
+        }
+        value["requestID"]=value["requestID"] ?? NSNull();value["operation"]=value["operation"] ?? NSNull()
+        let owner=liveUpdateIdentity()
+        let ownsStatus=owner?["executorID"] as? String != nil && owner?["executorID"] as? String==value["executorID"] as? String
+        value["busy"]=ownsStatus && !OracleUpdateCoordinator.terminalPhases.contains(value["phase"] as? String ?? "")
+        value["canCancelWait"]=false
+        value["revision"]=value["revision"] as? Int ?? 0
+        if !ownsStatus,OracleUpdateCoordinator.activePhases.contains(value["phase"] as? String ?? "") {
+            value["phase"]="interrupted";value["message"]="Operação interrompida. Verifique novamente para recuperar com segurança."
+        }
         let key=updateSourceKey(),storedKey=value["availabilitySourceKey"] as? String
         let sameSource=storedKey == nil || storedKey == key
         let pending=OracleUpdateLedger.reconcile(previous:sameSource ? (value["pendingUpdates"] as? [[String:Any]] ?? value["results"] as? [[String:Any]] ?? []) : [],results:[])
         value["pendingUpdates"]=pending
         value["available"]=OracleUpdateLedger.installable(pending)
         value["knownUpdate"]=OracleUpdateLedger.hasNews(pending)
+        value["applicationUpdateAvailable"]=pending.contains{$0["id"] as? String=="oracle" && $0["status"] as? String=="download_available"}
         value["skills_repository"] = updatePreferences()["skills_repository"] ?? NSNull()
         value["gbrain_version"] = ((try? readJSON(updatePath("runtime/current.json")))?["version"] ?? ((try? updateManifest())?["gbrain"] as? [String: Any])?["bundled_version"]) ?? "desconhecida"
         value["gbrain_rollback"] = (try? readJSON(updatePath("runtime/current.json")))?["previous"] != nil
@@ -312,7 +353,7 @@ extension Core {
                 }
                 operations[index]["applied"] = true; verified[path] = op["new_hash"] as? String
                 transaction["operations"] = operations; try writeJSON(transaction, transactionURL)
-                try recordUpdate("applying", "Atualizando skills", completed: index + 1, total: operations.count)
+                if updateExecution != nil {try recordUpdate("applying", "Atualizando skills", completed: index + 1, total: operations.count)}
             }
             // Retain ownership of omitted files; release omissions never delete a user's files.
             var nextOwned = owned; for (path, hash) in verified { nextOwned[path] = hash }
@@ -356,12 +397,12 @@ extension Core {
         return ["id": "skills", "status": "rolled_back", "message": "\(restored) arquivos restaurados; \(retained.count) edições posteriores preservadas.", "preserved": retained]
     }
     func performUpdates(operation: String = "check-apply") throws -> [String: Any] {
-        if (try? updateManifest()["skills"] as? [String:Any])?["schema_version"] as? Int==3,operation != "rollback-gbrain" {
-            return try performDistributionUpdates(operation:operation)
-        }
-        let lock = try acquireOperationLock("updates"); defer { releaseOperationLock(lock) }
-        let setup = try acquireOperationLock("setup"); defer { releaseOperationLock(setup) }
-        let engine = try acquireOperationLock("gbrain"); defer { releaseOperationLock(engine) }
+        let execution=try acquireUpdateExecution(operation:operation)
+        defer{execution.close()}
+        return try performAdmittedUpdates(execution)
+    }
+    func performLegacyUpdatesLocked(operation:String) throws -> [String:Any] {
+        guard updateExecution?.distribution==false else{throw failure("Atualização sem admissão exclusiva.")}
         refreshConfig()
         if operation == "rollback-gbrain" || operation == "rollback-skills" {
             let result = try operation == "rollback-gbrain" ? rollbackRuntime() : rollbackSkills()
@@ -374,6 +415,7 @@ extension Core {
         let network = UpdateNetwork()
         var results = [[String: Any]]()
         try recordUpdate("checking", "Consultando releases oficiais")
+        if let application=checkOracleApplication(network:network) {results.append(application)}
         do {
             if config["gbrainWorkspace"] != nil {
                 results.append(["id": "gbrain", "status": "external", "message": "Instalação externa preservada. Atualização deve ser validada pelo operador dessa fonte."])

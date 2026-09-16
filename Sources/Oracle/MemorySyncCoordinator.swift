@@ -141,8 +141,8 @@ final class MemorySyncCoordinator {
                 } else {
                     let due=Date().timeIntervalSince(lastDeepCheck)>=300
                     if due && !blocked && !indexing { generation+=1;attempts=0;currentState=snapshot.complete ? "stale" : "partial";lastDeepCheck=Date() }
-                    shouldIndex = !indexing && !blocked && attempts<8 && (indexedGeneration != generation || due)
-                    if shouldIndex { indexing=true;attempts+=1;reason="Verificando memória em tarefa local separada" }
+                    shouldIndex = !indexing && !blocked && attempts<8 && !OracleUpdatePriority.hasPending(home:home) && (indexedGeneration != generation || due)
+                    if shouldIndex { indexing=true;reason="Verificando memória em tarefa local separada" }
                 }
                 targetGeneration=generation
             }
@@ -155,17 +155,26 @@ final class MemorySyncCoordinator {
     private func queueIndex(_ snapshot:VaultScanSnapshot,generation target:Int) {
         indexQueue.async { [weak self] in
             guard let self else { return }
-            var resume=false
+            var resume=false,attemptStarted=false
             do {
                 guard self.locked({self.active && self.generation == target}) else { self.locked { self.indexing=false };self.requestScan();return }
+                guard !OracleUpdatePriority.hasPending(home:self.home) else {
+                    self.locked{self.indexing=false;self.reason="Memória aguardando a atualização solicitada"};return
+                }
                 let core=try Core(home:self.home)
+                let updates=try core.acquireOperationLock("updates");defer{core.releaseOperationLock(updates)}
+                guard !OracleUpdatePriority.hasPending(home:self.home) else {
+                    self.locked{self.indexing=false;self.reason="Memória aguardando a atualização solicitada"};return
+                }
+                let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
+                let operation=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(operation)}
+                core.refreshConfig()
                 let onboarding=core.onboardingRecord()
                 guard onboarding["profileMode"] as? String != "memory-only" || onboarding["status"] as? String == "completed" else { throw failure("A instalação controla a indexação até ser concluída.") }
-                let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
-                let updates=try core.acquireOperationLock("updates");defer{core.releaseOperationLock(updates)}
-                let operation=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(operation)}
                 // Another state or a changed selection must not borrow this snapshot.
                 guard try core.vault().resolvingSymlinksInPath() == snapshot.root,core.config["gbrainWorkspace"] == nil else { throw failure("A seleção da memória mudou") }
+                guard self.locked({self.active && self.generation==target}) else {self.locked{self.indexing=false};self.requestScan();return}
+                self.locked{self.attempts+=1};attemptStarted=true
                 let result=try core.indexVaultSnapshot(snapshot,generation:target,cancellation:self.cancellationURL)
                 self.locked {
                     self.indexing=false
@@ -180,6 +189,13 @@ final class MemorySyncCoordinator {
                         self.blocked = !resume
                     }
                 }
+            } catch let error as OracleOperationLockError where error.isBusy {
+                self.locked {
+                    self.indexing=false
+                    if attemptStarted && self.generation==target {self.attempts=max(0,self.attempts-1)}
+                    self.reason="Memória aguardando outra operação local"
+                }
+                // Admission is deferred, not an indexing failure or resume attempt.
             } catch {
                 self.locked { self.indexing=false;self.currentState="partial";self.lastError=error.localizedDescription;self.reason="Memória aguardando nova verificação" }
                 // Lock conflicts are retried by the bounded periodic scan, not a busy loop.

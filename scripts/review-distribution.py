@@ -25,7 +25,8 @@ def license_label(data):
     return 'custom-or-unidentified'
 
 
-def prepare(source):
+def prepare(source, skills_layout=None):
+    dist.require(skills_layout in (None, 'department-specialist-skill'), 'Unknown skills layout')
     initial = dist.inventory(source)
     dist.require(initial['complete'], 'Materialize and resolve inventory problems before preparing a review')
     rows = {row['path']: row for row in initial['files']}
@@ -66,10 +67,13 @@ def prepare(source):
 
     items = {}
     for path, row in rows.items():
-        kind = ('skill' if row['kind'] == 'specialists' and PurePosixPath(path).name == 'SKILL.md'
+        kind = ('skill' if row['kind'] == 'specialists' and path.startswith('SISTEMA/skills/') and PurePosixPath(path).name == 'SKILL.md'
                 else {'prompts': 'prompt', 'tutorials': 'tutorial'}.get(row['kind']) if path.lower().endswith('.md') else None)
         if not kind:
             continue
+        nested_candidate = kind == 'skill' and skills_layout == 'department-specialist-skill' and len(PurePosixPath(path).parts) != 6
+        if nested_candidate and len(PurePosixPath(path).parts) > 6 and '/'.join(PurePosixPath(path).parts[:5]) + '/SKILL.md' in rows:
+            continue  # An existing entry owns this template/subskill resource.
         directory = str(PurePosixPath(path).parent)
         resource_files = sorted(p for p in rows if within(p, directory)) if kind == 'skill' else [path]
         resource_licenses = {p: license_candidates(p) for p in resource_files}
@@ -85,6 +89,9 @@ def prepare(source):
                        'dependency_manifests': sorted(manifest_evidence, key=lambda entry: entry['path']),
                        'prerequisite_sections': sorted(section_evidence, key=lambda entry: entry['path']),
                        'dependency_review_status': 'manual-review-required-even-if-no-evidence-found'}
+        if nested_candidate:
+            items[path].update(entry_role='unclassified', reason='',
+                               entry_review_status='classify-exact-bytes-as-phase-skill-or-resource')
     dist.require(dist.inventory(source) == initial, 'Source inventory changed while preparing review')
     report = {'schema_version': dist.SCHEMA, 'content_reviewed': False,
               'source_inventory_sha256': dist.sha(dist.canonical(hashes)), 'licenses': [], 'items': items,
@@ -92,6 +99,8 @@ def prepare(source):
               'file_license_candidates': {path: license_candidates(path) for path in rows},
               'file_adaptations': [], 'published': False,
               'warning': 'Candidate evidence only. Preserve nested notices, review scope and dependencies; do not approve in bulk.'}
+    if skills_layout:
+        report['skills_layout'] = skills_layout
     summary = {'files': len(rows), 'items': len(items), 'license_files': len(license_files), 'unique_license_bytes': len(groups),
                'license_labels': dict(collections.Counter(group['label'] for group in groups.values())),
                'items_without_license_candidate': [path for path, item in items.items() if not item['license_candidates']],
@@ -104,10 +113,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--source', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True, help='New private directory outside source')
+    parser.add_argument('--skills-layout', choices=['department-specialist-skill'], help='Keep canonical entries separate from unclassified phase skills and owned templates')
     args = parser.parse_args()
     source, output = args.source.absolute(), args.output.absolute()
     dist.require(not output.is_relative_to(source) and not output.exists() and not output.is_symlink(), 'Output must be new and outside source')
-    report, summary = prepare(source)
+    report, summary = prepare(source, args.skills_layout)
     output.parent.mkdir(parents=True, exist_ok=True)
     fd = dist.directory_fd(output.parent)
     import os

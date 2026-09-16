@@ -81,14 +81,18 @@ func runImplementationPolicyTests() throws {
         try expect(result["status"] as? String=="blocked" && result["executed"] as? Bool==false,"incomplete \(status) is not maintenance success")
     }
     let held=try c.acquireOperationLock("setup")
-    try rejects("maintenance excludes concurrent setup"){_=try c.performMaintenance(force:true){throw failure("must not start")}}
+    let maintenanceReceipt=c.home.appendingPathComponent("maintenance/last-run.json"),beforeDeferred=try Data(contentsOf:c.home.appendingPathComponent("maintenance/last-run.json"))
+    var ranDeferredSync=false
+    let deferredMaintenance=try c.performMaintenance(force:true){ranDeferredSync=true;throw failure("must not start")}
+    try expect(deferredMaintenance["status"] as? String=="deferred" && deferredMaintenance["executed"] as? Bool==false && !ranDeferredSync,"maintenance defers concurrent setup before any sync effects")
+    try expect(try Data(contentsOf:maintenanceReceipt)==beforeDeferred,"deferred maintenance preserves the previous receipt")
     var bridgeLockRejected=false
-    do{_=try c.prepareBridge()}catch{bridgeLockRejected=error.localizedDescription.contains("Outra operação está em andamento")}
+    do{_=try c.prepareBridge()}catch let error as OracleOperationLockError {bridgeLockRejected=error.isBusy && error.name=="setup"}
     try expect(bridgeLockRejected,"bridge preparation owns setup lock before reading or writing method files")
     c.releaseOperationLock(held)
     let heldBrain=try c.acquireOperationLock("gbrain")
     bridgeLockRejected=false
-    do{_=try c.prepareBridge()}catch{bridgeLockRejected=error.localizedDescription.contains("Outra operação está em andamento")}
+    do{_=try c.prepareBridge()}catch let error as OracleOperationLockError {bridgeLockRejected=error.isBusy && error.name=="gbrain"}
     c.releaseOperationLock(heldBrain)
     try expect(bridgeLockRejected,"bridge preparation excludes a concurrent memory writer")
     let success=try c.performMaintenance(force:true,backup:{throw failure("unconsented backup must not run")}){["status":"verified","complete":true]}

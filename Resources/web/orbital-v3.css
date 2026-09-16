@@ -900,6 +900,12 @@ body:has(#modal[open][data-family=update-installing]) .ob2-installation {display
 #modal .update-result.update-failure {--floating-edge:linear-gradient(145deg,#ffb4b4 0%,#854040 14%,#311717 36%,#613030 66%,#ffd0d0 91%,#a65353 100%);}
 #modal .update-result.update-success .status-badge {background:#50c87820;color:#b9f0cd;border:1px solid #6cda9730;}
 #modal .update-result.update-failure .status-badge {background:#ed555524;color:#ffb4b4;border:1px solid #ed555530;}
+#modal[data-family=updates] .update-status {display:block;margin:12px 0 18px;}
+#modal[data-family=updates] .update-result {padding:14px 16px;margin:10px 0;}
+#modal[data-family=updates] .update-result p {margin:8px 0 0;}
+#modal[data-family=updates] .update-result small {display:block;margin-top:6px;}
+#modal[data-family=updates] .update-result details {margin-top:8px;}
+#modal[data-family=updates] .update-result>button {margin-top:12px;}
 
 /* Installation uses the same animated border as onboarding, around the full modal. */
 #modal[data-family=update-installing] {isolation:isolate}

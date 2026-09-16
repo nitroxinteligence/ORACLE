@@ -1,6 +1,10 @@
 {
   "schema_version": 1,
-  "oracle_version": "0.3.3",
+  "oracle_version": "0.3.14",
+  "oracle": {
+    "repository": "https://github.com/nitroxinteligence/ORACLE",
+    "release_api": "https://api.github.com/repos/nitroxinteligence/ORACLE/releases/latest"
+  },
   "gbrain": {
     "repository": "https://github.com/garrytan/gbrain",
     "bundled_version": "0.48.4.0",

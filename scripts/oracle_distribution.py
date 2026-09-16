@@ -319,7 +319,36 @@ def audit_portability(rows, blobs, review):
                     matches = [p for p in known if p == target or p.endswith('/' + target)]
                     if len(matches) != 1:
                         problems.append({'path': path, 'code': 'ambiguous_or_missing_wikilink', 'reference': ref})
-        kind = 'skill' if PurePosixPath(path).name == 'SKILL.md' and path.startswith('SISTEMA/skills/') and row['kind'] == 'specialists' and (not structured or len(PurePosixPath(path).parts) == 6) else {'prompts': 'prompt', 'tutorials': 'tutorial'}.get(row['kind']) if path.lower().endswith('.md') else None
+        skill_document = PurePosixPath(path).name == 'SKILL.md' and path.startswith('SISTEMA/skills/') and row['kind'] == 'specialists'
+        parts = PurePosixPath(path).parts
+        reviewed_nested = False
+        if skill_document and structured and len(parts) != 6:
+            # Nested templates/resources already owned by a canonical skill stay
+            # resources. A new phase/skill hierarchy has no such owner: silently
+            # packaging it without discoverable items would misreport delivery.
+            owner = '/'.join(parts[:5]) + '/SKILL.md'
+            classification = mapping.get(path, {})
+            classified = (classification.get('source_sha256') == sha(data)
+                and classification.get('license_reviewed') is True
+                and classification.get('dependencies_reviewed') is True
+                and isinstance(classification.get('reason'), str)
+                and 0 < len(classification['reason'].strip()) <= 1000)
+            if classification.get('entry_role') == 'skill':
+                # The phase/skill contract is explicit in the signed item. Older
+                # apps are excluded by minimum_oracle; arbitrary deeper trees
+                # remain unsupported until separately qualified.
+                if len(parts) != 7 or not classified:
+                    problems.append({'path': path, 'code': 'nested_skill_review_required'})
+                    continue
+                reviewed_nested = True
+            elif len(parts) > 6 and owner in known:
+                continue
+            elif classification.get('entry_role') == 'resource' and classified:
+                continue
+            else:
+                problems.append({'path': path, 'code': 'skill_entry_classification_required'})
+                continue
+        kind = 'skill' if skill_document else {'prompts': 'prompt', 'tutorials': 'tutorial'}.get(row['kind']) if path.lower().endswith('.md') else None
         if not kind:
             continue
         info = mapping.get(path, {})
@@ -329,11 +358,15 @@ def audit_portability(rows, blobs, review):
         if kind == 'skill':
             for dependency in info.get('required_files', []):
                 require(dependency in known, 'Missing declared skill resource: ' + dependency)
+                require(not reviewed_nested or dependency.startswith(str(PurePosixPath(path).parent) + '/'),
+                        'Reviewed nested skill resources must stay inside its entry directory')
                 required.append(dependency)
         item = {'id': item_id, 'kind': kind, 'name': info.get('name', PurePosixPath(path).parent.name if kind == 'skill' else PurePosixPath(path).stem),
                 'entry': path, 'required_files': sorted(set(required)), 'department_id': info.get('department_id', defaults.get(PurePosixPath(path).parts[2], 'unassigned') if kind == 'skill' else 'unassigned'),
                 'dependencies': info.get('dependencies', [])}
         if kind == 'skill':
+            if reviewed_nested:
+                item['entry_layout'] = 'reviewed-nested'
             item['specialist_id'] = PurePosixPath(path).parts[3 if structured else 2]
             if structured:
                 require(PurePosixPath(path).parts[2] in DEPARTMENTS, 'Unknown structured department')
@@ -508,7 +541,8 @@ def build(source, release_id, sequence, review, gbrain_source, base_url):
     require(len(rows) <= MAX_FILES and sum(r['size'] for r in rows) <= MAX_BYTES, 'Complete distribution exceeds supported budget')
     packages, payloads = make_packages(rows, blobs, release_id, base_url)
     counts = {kind: {'files': sum(r['kind'] == kind for r in rows), 'bytes': sum(r['size'] for r in rows if r['kind'] == kind), 'items': sum(i['kind'] == {'specialists': 'skill', 'prompts': 'prompt', 'tutorials': 'tutorial'}.get(kind) for i in items)} for kind in sorted({r['kind'] for r in rows})}
-    manifest = {'schema_version': SCHEMA, 'release_id': release_id, 'sequence': sequence, 'minimum_oracle': '0.3.3' if review.get('skills_layout') == 'department-specialist-skill' else '0.3.0',
+    minimum_oracle = '0.3.14' if any(i.get('entry_layout') == 'reviewed-nested' for i in items) else '0.3.3' if review.get('skills_layout') == 'department-specialist-skill' else '0.3.0'
+    manifest = {'schema_version': SCHEMA, 'release_id': release_id, 'sequence': sequence, 'minimum_oracle': minimum_oracle,
                 'adapter_commit': PIN, 'gbrain_version': VERSION, 'gbrain_commit': PIN, 'packages': packages, 'files': rows, 'items': items,
                 'counts': counts, 'inventory_sha256': sha(canonical(rows)), 'source_inventory_sha256': report['source_inventory_sha256'],
                 'licenses': review.get('licenses', []), 'adaptations': adaptations, 'supplemental_files': additions, 'renames': review.get('renames', []),

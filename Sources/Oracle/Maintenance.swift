@@ -116,11 +116,25 @@ extension Core {
     func performMaintenance(force:Bool=false,backup:(() throws -> [String:Any])?=nil,
                             synthesis:((String,()->Bool)throws->[String:Any])?=nil,
                             cancelled:@escaping ()->Bool={false},sync:() throws -> [String:Any]) throws -> [String:Any] {
-        let lock=try acquireOperationLock("maintenance");defer{releaseOperationLock(lock)}
-        // Hold the same setup/update locks as all other writers for the whole
-        // run. Checking a lock then releasing it would leave a race window.
-        let setup=try acquireOperationLock("setup");defer{releaseOperationLock(setup)}
-        let updates=try acquireOperationLock("updates");defer{releaseOperationLock(updates)}
+        if !force && OracleUpdatePriority.hasPending(home:home) {return ["status":"deferred","reason":"manual_update_pending","executed":false]}
+        var admission=[Int32]()
+        do {
+            // Updates is the outer admission gate, before any setup ownership.
+            for name in ["updates","maintenance","setup"] {
+                admission.append(try acquireOperationLock(name))
+                if name=="updates",!force,OracleUpdatePriority.hasPending(home:home) {
+                    for fd in admission.reversed(){releaseOperationLock(fd)}
+                    return ["status":"deferred","reason":"manual_update_pending","executed":false]
+                }
+            }
+        } catch {
+            for fd in admission.reversed() {releaseOperationLock(fd)}
+            if let lockError=error as? OracleOperationLockError,lockError.isBusy {
+                return ["status":"deferred","reason":"operation_in_progress","executed":false,"blockedOn":lockError.name]
+            }
+            throw error
+        }
+        defer{for fd in admission.reversed(){releaseOperationLock(fd)}}
         refreshConfig()
         let settings=(try? readJSON(maintenanceRoot.appendingPathComponent("config.json"))) ?? [:]
         guard settings["enabled"] as? Bool==true else{return ["status":"disabled","executed":false]}

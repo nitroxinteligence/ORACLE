@@ -24,6 +24,8 @@ final class Core {
     deinit {scopedVaultURL?.stopAccessingSecurityScopedResource()}
     var lastSequence:Int64 = 0
     var configBaseline:[String:Any] = [:]
+    // Set only by the admitted updater; download callbacks share its serial writer.
+    var updateExecution:OracleUpdateExecution?
     init(home: URL? = nil, licenseDevice: OracleLicenseDeviceProviding = OracleMacLicenseDevice(), licenseTrust: LicenseKeys? = nil) throws {
         self.licenseDevice = licenseDevice
         self.licenseTrust = licenseTrust

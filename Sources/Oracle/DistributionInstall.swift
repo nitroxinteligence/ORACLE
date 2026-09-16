@@ -64,33 +64,47 @@ extension Core {
     }
     /// A network failure may reuse a previously authenticated selection; a bad
     /// signature never triggers a cache fallback. No GitHub account is required.
-    func downloadDistribution(_ url:String,limit:Int,fetch:(String,Int)throws->Data) throws -> Data {
+    func downloadDistribution(_ url:String,limit:Int,respectOnboardingCancellation:Bool=true,fetch:(String,Int)throws->Data) throws -> Data {
         var last:Error?
         for attempt in 0..<3 {
-            try checkOnboardingCancellation()
-            do{return try fetch(url,limit)}catch{last=error}
+            if respectOnboardingCancellation {try checkOnboardingCancellation()}
+            do {
+                let data=try fetch(url,limit)
+                if respectOnboardingCancellation {try checkOnboardingCancellation()}
+                return data
+            } catch {last=error}
+            if respectOnboardingCancellation {try checkOnboardingCancellation()}
             if attempt<2{Thread.sleep(forTimeInterval:attempt==0 ? 0.25:0.75)}
         }
         throw last ?? failure("Download indisponível; tente novamente.")
     }
-    func resolveDistribution(fetch:((String,Int)throws->Data)?=nil) throws -> DistributionManifest {
+    func resolveDistribution(fetch:((String,Int)throws->Data)?=nil,allowCacheFallback:Bool=true,
+                             respectOnboardingCancellation:Bool=true,
+                             decode:((Data)throws->DistributionManifest)?=nil) throws -> DistributionManifest {
         let network=UpdateNetwork(),download=fetch ?? {try network.fetch($0,limit:$1)}
         let selected=home.appendingPathComponent("distribution/selected.json")
-        let data:Data
-        do {
-            let response=try downloadDistribution("https://api.github.com/repos/nitroxinteligence/ORACLE-SKILLS/releases/latest",limit:2_000_000,fetch:download)
-            guard let release=try JSONSerialization.jsonObject(with:response) as? [String:Any],release["draft"] as? Bool != true,
-                  let assets=release["assets"] as? [[String:Any]],
-                  let asset=assets.first(where:{$0["name"] as? String=="oracle-distribution.json"}),
-                  let tag=release["tag_name"] as? String,let url=asset["browser_download_url"] as? String,
-                  url=="https://github.com/nitroxinteligence/ORACLE-SKILLS/releases/download/"+tag+"/oracle-distribution.json" else{throw failure("Ainda não existe uma release completa do acervo Oracle. O mantenedor precisa publicá-la.")}
-            data=try downloadDistribution(url,limit:24_000_000,fetch:download)
-        } catch {
+        let verify=decode ?? {try self.decodeDistribution($0)}
+        func cachedAfterNetworkFailure(_ error:Error)throws->DistributionManifest {
+            if respectOnboardingCancellation {try checkOnboardingCancellation()}
+            // A failed live update check must not report an old cached catalog as
+            // the newest release. Offline onboarding keeps its authenticated fallback.
+            guard allowCacheFallback else{throw error}
             guard let prior=try? readJSON(selected),let hash=prior["manifest_sha256"] as? String,DistributionManifest.validHash(hash),
                   let cached=try? Data(contentsOf:scoped("cache/distributions/"+hash+"/oracle-distribution.json",root:home)),digest(cached)==hash else{throw error}
-            data=cached
+            return try verify(cached)
         }
-        let manifest=try decodeDistribution(data)
+        let response:Data
+        do {response=try downloadDistribution(OracleCatalogRelease.api,limit:2_000_000,respectOnboardingCancellation:respectOnboardingCancellation,fetch:download)}
+        catch {return try cachedAfterNetworkFailure(error)}
+        guard let document=try JSONSerialization.jsonObject(with:response) as? [String:Any] else{throw failure("A fonte do acervo retornou uma release inválida.")}
+        let release=try OracleCatalogRelease.resolve(document)
+        let data:Data
+        do {data=try downloadDistribution(release.url,limit:24_000_000,respectOnboardingCancellation:respectOnboardingCancellation,fetch:download)}
+        catch {return try cachedAfterNetworkFailure(error)}
+        // Metadata, digest, signature and tag errors never select cached content.
+        try release.verify(data)
+        let manifest=try verify(data)
+        guard manifest.releaseID==release.tag else{throw failure("O manifesto assinado não pertence à release consultada.")}
         let cached=try scoped("cache/distributions/"+manifest.hash+"/oracle-distribution.json",root:home)
         try fm.createDirectory(at:cached.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         if fm.fileExists(atPath:cached.path) {guard try fileDigest(cached)==manifest.hash else{throw failure("Cache alterado; escolha uma nova cópia íntegra.")}}

@@ -2,9 +2,9 @@ import Foundation
 import Darwin
 
 extension Core {
-    func performDistributionUpdates(operation:String="check-apply") throws -> [String:Any] {
-        let updates=try acquireOperationLock("updates");defer{releaseOperationLock(updates)}
-        let installation=try acquireOperationLock("installation");defer{releaseOperationLock(installation)}
+    func performDistributionUpdatesLocked(operation:String,network:UpdateNetwork=UpdateNetwork(),
+                                          decode:((Data)throws->DistributionManifest)?=nil) throws -> [String:Any] {
+        guard updateExecution?.distribution==true else{throw failure("Atualização do acervo sem admissão exclusiva.")}
         refreshConfig()
         if ["rollback-distribution","rollback-skills"].contains(operation) {
             let result=try rollbackDistribution()
@@ -12,19 +12,24 @@ extension Core {
         }
         guard ["check-apply","check-only"].contains(operation) else{throw failure("Operação de atualização inválida.")}
         try requireCapability(.configure)
-        let checkOnly=operation=="check-only",network=UpdateNetwork()
+        let checkOnly=operation=="check-only"
         var results=[[String:Any]]()
         try recordUpdate("checking","Consultando o acervo e o Second Brain")
+        if let application=checkOracleApplication(network:network) {results.append(application)}
         do {
             if config["gbrainWorkspace"] != nil {results.append(["id":"gbrain","status":"external","message":"Perfil externo preservado."])}
-            else if onboardingRecord()["profileMode"] as? String=="memory-only", !["completed","not_started"].contains(onboardingRecord()["status"] as? String ?? "not_started") {results.append(["id":"gbrain","status":"recovery_required","message":"Conclua a instalação atual antes de mudar o motor."])}
+            else if !checkOnly,onboardingRecord()["profileMode"] as? String=="memory-only", !["completed","not_started"].contains(onboardingRecord()["status"] as? String ?? "not_started") {results.append(["id":"gbrain","status":"recovery_required","message":"Conclua a instalação atual antes de mudar o motor."])}
             else {
                 results.append(try updateOfficialRuntime(network:network,checkOnly:checkOnly))
             }
         } catch {results.append(["id":"gbrain","status":"error","message":error.localizedDescription])}
         do {
             try recordUpdate("verifying","Conferindo o acervo local",results:results)
-            let manifest=try resolveDistribution(),ledger=(try? readJSON(distributionLedgerURL)) ?? [:]
+            // Discovery is separate from the paused installer. Do not clear its
+            // cancellation marker or let it cancel a read-only release query.
+            let manifest=try resolveDistribution(fetch:{try network.fetch($0,limit:$1)},allowCacheFallback:false,
+                                                 respectOnboardingCancellation:false,decode:decode),ledger=(try? readJSON(distributionLedgerURL)) ?? [:]
+            let publication=catalogPublication(manifest:manifest,network:network)
             let saved=try? readJSON(home.appendingPathComponent("setup/plan.json"))
             if let saved,isMemoryOnly(saved),let id=saved["id"] as? String,
                let pending=try? readJSON(home.appendingPathComponent("staging/"+id+"/transaction.json")),pending["status"] as? String=="applying",saved["distribution_sha256"] as? String != manifest.hash {
@@ -35,12 +40,12 @@ extension Core {
                 let validPlan=try? validatedPlan()
                 let contentValid=same && validPlan.map{(try? verifyDistribution(manifest,plan:$0)) != nil}==true
                 let linksValid=same && validPlan.map{(try? verifyDistributionSkills(manifest,plan:$0)) != nil}==true
-                results.append(["id":"skills","status":contentValid ? "current":"available","version":manifest.releaseID,"message":contentValid ? "Acervo local conferido.":same ? "Há arquivos locais que precisam ser recuperados.":"Novo acervo completo disponível: skills, prompts e tutoriais."])
-                results.append(["id":"codex","status":linksValid ? "current":"available","message":linksValid ? "Skills locais conferidas; descoberta no host tem recibo próprio.":"Skills locais precisam ser instaladas ou recuperadas."])
+                results.append(catalogUpdateRow(status:contentValid ? "current":"available",message:contentValid ? "Os arquivos da última release publicada estão conferidos neste Mac.":same ? "Há arquivos locais que precisam ser recuperados.":"Novo acervo completo disponível: skills, prompts e tutoriais.",manifest:manifest,publication:publication))
+                results.append(["id":"codex","status":linksValid ? "current":"available","message":linksValid ? "Atalhos locais das skills conferidos. O reconhecimento dentro do Codex é verificado separadamente em Integrações.":"Os atalhos locais das skills precisam ser instalados ou recuperados."])
             } else if ledger["manifest_sha256"] as? String==manifest.hash,let plan=try? validatedPlan(),isMemoryOnly(plan),
                       (try? verifyDistribution(manifest,plan:plan)) != nil,(try? verifyDistributionSkills(manifest,plan:plan)) != nil {
-                results.append(["id":"skills","status":"current","version":manifest.releaseID,"message":"Acervo e arquivos locais atualizados."])
-                results.append(["id":"codex","status":"current","message":"Skills locais atualizadas; descoberta no host tem verificação própria."])
+                results.append(catalogUpdateRow(status:"current",message:"Os arquivos da última release publicada estão conferidos neste Mac.",manifest:manifest,publication:publication))
+                results.append(["id":"codex","status":"current","message":"Atalhos locais das skills conferidos. O reconhecimento dentro do Codex é verificado separadamente em Integrações."])
             } else {
                 try prepareVaultDownloads { done,total in
                     try recordUpdate("downloading","Baixando arquivos do vault no macOS: \(done) de \(total).",results:results)
@@ -55,15 +60,16 @@ extension Core {
                     try writeJSON(record,onboardingURL)
                     try recordUpdate(phase,message,results:results)
                 }
+                // Resume a previous pause before exposing this new installation
+                // as running; a cancellation of the new run must never be erased.
+                let cancel=home.appendingPathComponent("onboarding/cancel");if fm.fileExists(atPath:cancel.path){try fm.removeItem(at:cancel)}
                 try state("running","downloading","Baixando a atualização do acervo.")
                 do {
-                    // A prior user pause is resumed by this explicit Update action.
-                    let cancel=home.appendingPathComponent("onboarding/cancel");if fm.fileExists(atPath:cancel.path){try fm.removeItem(at:cancel)}
                     try stageDistribution(manifest,plan:plan)
                     _=try initializeMemoryOnly(plan:plan);_=try applyPlan()
                     try state("running","installing","Atualizando skills, prompts e tutoriais.")
                     _=try applyDistribution(manifest,plan:plan)
-                    results.append(["id":"skills","status":"updated","version":manifest.releaseID,"message":"Os arquivos das três bibliotecas foram verificados."])
+                    results.append(catalogUpdateRow(status:"updated",message:"Skills, prompts e tutoriais da release foram instalados e verificados.",manifest:manifest,publication:publication))
                     do {_=try installDistributionSkills(manifest,plan:plan);results.append(["id":"codex","status":"updated","message":"Skills locais atualizadas; verificação no Codex pendente."])}
                     catch {results.append(["id":"codex","status":"error","message":error.localizedDescription]);throw error}
                     try state("running","indexing","Atualizando a busca e os links.")
@@ -74,12 +80,12 @@ extension Core {
                     var record=onboardingRecord();record["verification"]=verification;record["confirmedAt"]=ISO8601DateFormatter().string(from:Date());record["formation"]=try onboardingProgress();try writeJSON(record,onboardingURL)
                 } catch {
                     try? state("failed",onboardingRecord()["phase"] as? String ?? "installing",error.localizedDescription)
-                    let contentApplied=results.contains(where:{$0["id"] as? String=="skills" && $0["status"] as? String=="updated"})
+                    let contentApplied=results.contains(where:{$0["id"] as? String=="skills" && ($0["status"] as? String=="updated" || $0["publishedStatus"] as? String=="updated")})
                     results.append(["id":contentApplied ? "memory":"skills","status":"error","message":error.localizedDescription])
                 }
             }
         } catch {results.append(["id":"skills","status":"error","message":error.localizedDescription])}
-        let current=results.allSatisfy{["current","external"].contains($0["status"] as? String ?? "")}
+        let current=results.allSatisfy{["current","external"].contains($0["status"] as? String ?? "") && $0["publicationChecked"] as? Bool != false}
         let failed=results.contains{$0["status"] as? String=="error"}
         try recordUpdate(failed ? "failed":"complete",failed ? "A atualização não foi concluída. Confira o erro abaixo.":current ? "Tudo atualizado":"Verificação concluída; confira o resultado de cada componente.",results:results)
         return try updateStatus()

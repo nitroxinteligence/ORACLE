@@ -3,7 +3,7 @@ import Foundation
 /// Pure policy. A transient network failure must not erase a known update.
 enum OracleUpdateLedger {
     static let terminal = Set(["current", "updated", "external", "not_adopted", "not_configured", "rolled_back"])
-    static let pending = Set(["available", "compatibility_required", "upstream_available"])
+    static let pending = Set(["available", "compatibility_required", "upstream_available", "download_available", "publication_pending"])
     static func reconcile(previous: [[String: Any]], results: [[String: Any]]) -> [[String: Any]] {
         var known = [String: [String: Any]]()
         for row in previous {

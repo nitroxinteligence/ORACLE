@@ -10,7 +10,7 @@
  window.__oracleFixtureReceive=async request=>{
   const {id,method,params={}}=request;
   if(method==='updateStatus'){await sleep(delay);window.oracleReply(id,{value:structuredClone(status)});return}
-  if(method==='updateStart'){f.calls.push({method,params});status={...status,busy:true,phase:params.operation==='check-only'?'checking':'installing',message:params.operation==='check-only'?'Verificando e preparando…':'Atualizando skills, prompts e tutoriais.',total:10,completed:2};window.oracleReply(id,{value:true});return}
+  if(method==='updateStart'){f.calls.push({method,params});status={...status,requestID:params.requestID,operation:params.operation,revision:1,busy:true,canCancelWait:false,phase:params.operation==='check-only'?'checking':'installing',message:params.operation==='check-only'?'Verificando e preparando…':'Atualizando skills, prompts e tutoriais.',total:10,completed:2};window.oracleReply(id,{value:{accepted:true,requestID:params.requestID,operation:params.operation,status:structuredClone(status)}});return}
   return baseReceive(request);
  };
  window.__oracleFixtureRun=async()=>{
@@ -31,7 +31,7 @@
     assert(f.calls.filter(c=>c.method==='updateStart').at(-1).params.operation==='check-only','Check started an install');
     await sleep(900);assert(q('#check-updates')===button,'poll replaced button');assert(!q('#modal .update-status .ob2-beam'),'status beam was not removed');
     assert(getComputedStyle(button).backgroundColor==='rgba(0, 0, 0, 0)'&&getComputedStyle(button).borderTopWidth==='0px','Check is not text-only');
-    status={...status,busy:false,phase:'complete'};await pollUpdateStatus();await wait(()=>!button.disabled,'check completion');assert(q('#update-message').classList.contains('update-ready-badge'),'success badge missing');assert(q('.update-result').classList.contains('update-success'),'green card border missing');window.__fixtureSnapshotSaved=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot',name:'options'});await wait(()=>window.__fixtureSnapshotSaved,'green updates screenshot');
+    status={...status,busy:false,phase:'complete'};await pollUpdateStatus();await wait(()=>!button.disabled,'check completion');assert(q('#update-message').classList.contains('update-ready-badge'),'success badge missing');assert(q('[data-update-channel="skills"]').classList.contains('update-success'),'green card border missing');window.__fixtureSnapshotSaved=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot',name:'options'});await wait(()=>window.__fixtureSnapshotSaved,'green updates screenshot');
    });
    await check('Install has its own progress dialog and reopening never disables the icon',async()=>{
     const metal=q('#apply-update-metal button');assert(metal.getBoundingClientRect().height<=38,'install action too tall');assert(getComputedStyle(metal).backgroundImage.includes('gradient'),'metal fallback missing');

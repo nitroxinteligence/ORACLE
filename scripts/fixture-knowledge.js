@@ -76,7 +76,7 @@
    });
    await check('Update cards are green only when an update is available',async()=>{
     await closeModal(true);await showUpdates(false);await pollUpdateStatus();await wait(()=>qa('.update-result').length===4,'update results');
-    const rows=qa('.update-result');assert(rows.filter(r=>r.classList.contains('update-success')).length===1,'current cards remain green');assert(rows.filter(r=>r.classList.contains('update-failure')).length===1,'error card missing');
+    const rows=qa('.update-result');assert(rows.filter(r=>r.classList.contains('update-success')).length===0,'current cards remain green');assert(q('[data-update-channel="skills"] details'),'Codex detail missing');assert(rows.filter(r=>r.classList.contains('update-failure')).length===1,'error card missing');
    });
    await check('A new installation only presents after completion',async()=>{
     await closeModal(true);f.ob.status='running';f.ob.runID='knowledge-2';await refresh();await sleep(100);assert(!q('#modal').open,'welcome before completion');

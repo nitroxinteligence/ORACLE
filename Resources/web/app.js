@@ -144,7 +144,7 @@ async function refresh(){
   state=next;applyVisualPreferences(false);render();
   if(librariesChanged){promptBrowser.render();tutorialBrowser.render();window.OracleKnowledgeHub.refresh?.(state.entries);}
   void maybeShowKnowledgeWelcome();
-  if(!updateBusy)call('updateStatus').then(status=>{if(sequence!==refreshSequence||!$('#lock-screen').hidden)return;reflectUpdateStatus(status);maybeAutomaticUpdateCheck(status)}).catch(()=>{});if(state.scanError&&scanErrorChanged)toast(state.scanError);
+  if(!updateBusy){const generation=updateGeneration;void pollUpdateStatus().then(status=>{if(!status||generation!==updateGeneration||sequence!==refreshSequence||!$('#lock-screen').hidden)return;maybeAutomaticUpdateCheck(status)});}if(state.scanError&&scanErrorChanged)toast(state.scanError);
   clearTimeout(initialScanTimer);if(state.scan?.pending&&initialScanRetries++<20)initialScanTimer=setTimeout(()=>safe(refresh)(),750);else if(!state.scan?.pending)initialScanRetries=0;
  })();
  refreshTask=task;try{return await task}finally{if(refreshTask===task)refreshTask=null}
@@ -508,7 +508,7 @@ $('.wordmark').onclick=e=>{e.preventDefault();setView('map',()=>{renderAtlas();a
 $('#updates').onclick=()=>{showUpdates(false).catch(e=>toast(e.message,'error'))};
 function setZoom(factor){atlasController?.zoomAt(factor)}$('#zoom-in').onclick=()=>setZoom(1.2);$('#zoom-out').onclick=()=>setZoom(1/1.2);$('#zoom-reset').onclick=()=>atlasController?.fit();$('#context-back').onclick=()=>atlasController?.back();$('#reset-layout').onclick=()=>{atlasController?.reset();toast('Posições restauradas. Nenhum arquivo foi movido.')};$('#economy').onchange=safe(()=>saveVisualPreference('economy',$('#economy').checked));
 window.oracleLock=()=>{
- startupUpdateReady=false;latestUpdateStatus=null;
+ startupUpdateReady=false;resetUpdateTracking();
  clearTimeout(toast.timer);toast.revision=(toast.revision||0)+1;const notice=$('#toast');if(typeof notice.hidePopover==='function'&&notice.matches(':popover-open'))notice.hidePopover();notice.hidden=true;notice.replaceChildren();document.body.append(notice);hideTooltip();
  OracleTransitions.reset();
  $('#app').dataset.startup='pending';
@@ -589,7 +589,7 @@ function renderSkillInspector(){const path=selectedSkill,name=path.split('/').sl
 
 function graphicsDiagnostics(){modal(`<h1>Diagnóstico do atlas</h1><p>Medidas desta janela, sem estimar tempo de GPU. O movimento ambiental é separado de execução real do Codex.</p><pre>${esc(JSON.stringify(atlasController?.diagnostics()||{renderer:'SVG fallback',reason:atlasController?.renderError},null,2))}</pre>${actions()}`)}
 
-window.oracleVisibility=visible=>{window.oracleWindowVisible=visible;atlasController?.setPaused(!visible||view!=='map'||visualPaused||$('#modal').open);document.body.classList.toggle('window-hidden',!visible);if(visible)maybeShowStartupUpdateNotice()};
+window.oracleVisibility=visible=>{window.oracleWindowVisible=visible;atlasController?.setPaused(!visible||view!=='map'||visualPaused||$('#modal').open);document.body.classList.toggle('window-hidden',!visible);if(visible){maybeShowStartupUpdateNotice();refreshVisibleUpdateStatus()}};
 
 $('#ambient-toggle').onclick=()=>{visualPaused=!visualPaused;$('#ambient-toggle').textContent=visualPaused?'Retomar atmosfera':'Pausar atmosfera';atlasController?.setPaused(visualPaused||document.hidden||view!=='map')};
 
@@ -692,8 +692,10 @@ document.addEventListener('keydown',e=>{
 });
 
 let updatePolling=null,updateBusy=false;
-const updateNames={gbrain:'Second Brain',cognee:'Integração não adotada',skills:'Skills'};
-const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',external:'Instalação existente',compatibility_required:'Aguardando validação',not_adopted:'Não adotado',not_configured:'Fonte não configurada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
+let updateOperation=null,updatePollPending=null,updatePollGeneration=-1;
+let updateGeneration=0,updateRequestID=null,updateStarting=false,updatePollAgain=false,updateAutomatic=false;
+const updateNames={oracle:'Oracle',gbrain:'Second Brain · GBrain',cognee:'Integração não adotada',skills:'Acervo',memory:'Índice do acervo'};
+const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',download_available:'Nova versão disponível',publication_pending:'Publicação pendente',external:'Instalação existente',compatibility_required:'Aguardando validação',recovery_required:'Retomada necessária',not_adopted:'Não adotado',not_configured:'Fonte não configurada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
 let startupUpdateReady=false,startupUpdateNoticeShown=false,latestUpdateStatus=null;
 function onboardingBlocksUpdates(){
  const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
@@ -701,7 +703,7 @@ function onboardingBlocksUpdates(){
 }
 function maybeShowStartupUpdateNotice(){
  if(onboardingBlocksUpdates()||knowledgeWelcomePending())return;
- if(!startupUpdateReady||startupUpdateNoticeShown||!latestUpdateStatus?.available||latestUpdateStatus.busy||updateBusy||document.hidden||window.oracleWindowVisible===false||$('#app').inert||navigationBlocked()||$('#modal').open)return;
+ if(!startupUpdateReady||startupUpdateNoticeShown||!(latestUpdateStatus?.available||latestUpdateStatus?.applicationUpdateAvailable)||latestUpdateStatus.busy||updateBusy||document.hidden||window.oracleWindowVisible===false||$('#app').inert||navigationBlocked()||$('#modal').open)return;
  const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
  if(!onboarding.hasVault||(!onboarding.licensed&&!onboarding.legacyAccess)||(!onboarding.legacyAccess&&onboarding.status!=='completed')||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
  if(!modal(`<h1>Atualização disponível</h1>${actions('<div id="update-notice-metal" data-update-effect></div>')}`,{family:'update-notice',root:true}))return;
@@ -710,54 +712,92 @@ function maybeShowStartupUpdateNotice(){
 }
 function finishUpdateStartup(){
  startupUpdateReady=true;
+ scheduleAutomaticUpdateCheck();
  // Start the read-only check before the notice opens its dialog.
  if(latestUpdateStatus)maybeAutomaticUpdateCheck(latestUpdateStatus);
  maybeShowStartupUpdateNotice();
 }
-function reflectUpdateStatus(status){
+function reflectUpdateStatus(status,{authoritative=false}={}){
+ if(!status||typeof status!=='object')return false;
+ // A start acknowledgement is the only operation allowed to switch the request
+ // being followed while it is busy. Older reads cannot terminate a newer run.
+ if(!authoritative&&(updateStarting||(updateBusy&&updateRequestID&&status.requestID!==updateRequestID)))return false;
+ if(!status.requestNotFound&&status.requestID&&status.requestID===latestUpdateStatus?.requestID&&Number.isFinite(status.revision)&&Number.isFinite(latestUpdateStatus.revision)&&status.revision<latestUpdateStatus.revision)return false;
+ updateRequestID=status.requestID||null;
+ if(status.operation)updateOperation=status.operation;
  latestUpdateStatus=status;updateBusy=!!status.busy;$('#updates').classList.toggle('busy',updateBusy);
  const onboardingBusy=onboardingBlocksUpdates();
- $('#updates').classList.toggle('update-ready',!onboardingBusy&&!!status.available);
- const pending=!onboardingBusy&&(!!status.knownUpdate||!!status.available);
+ $('#updates').classList.toggle('update-ready',!onboardingBusy&&(!!status.available||!!status.applicationUpdateAvailable));
+ const pending=!onboardingBusy&&(!!status.knownUpdate||!!status.available||!!status.applicationUpdateAvailable);
  const age=Date.now()-Date.parse(status.checkedAt||status.at||'');
  const recent=Number.isFinite(age)&&age>=-300000&&age<86400000;
  $('#updates').classList.toggle('available',pending);
  $('#updates').classList.toggle('stale',pending&&!recent);
  const label=updateBusy?(pending?'Atualizações — verificando; atualização conhecida':'Atualizações — verificando'):
-  pending?(status.available?(recent?'Atualizações — atualização disponível':'Atualizações — atualização conhecida; verificar novamente'):'Atualizações — nova versão aguardando compatibilidade'):'Atualizações';
+  pending?(status.available||status.applicationUpdateAvailable?(recent?'Atualizações — atualização disponível':'Atualizações — atualização conhecida; verificar novamente'):updateNewsMessage(status)):'Atualizações';
  $('#updates').setAttribute('aria-label',label);$('#updates').dataset.tooltip='Atualizações';
  maybeShowStartupUpdateNotice();
+ return true;
 }
-let automaticUpdateAttempt=0,automaticUpdateFailures=0;
-function maybeAutomaticUpdateCheck(status){
- if(onboardingBlocksUpdates()||knowledgeWelcomePending())return;
- if(window.ORACLE_PREVIEW||state.config?.fixture||document.hidden||window.oracleWindowVisible===false||!$('#lock-screen').hidden||$('#modal').open||updateBusy||status.busy)return;
- const onboarding=window.OracleOnboarding?.getState?.();
- if(!onboarding||!onboarding.hasVault||(!onboarding.legacyAccess&&onboarding.status!=='completed')||(!onboarding.licensed&&!onboarding.legacyAccess)||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
+let automaticUpdateAttempt=0,automaticUpdateFailures=0,automaticUpdateTimer=null;
+function scheduleAutomaticUpdateCheck(){
+ clearTimeout(automaticUpdateTimer);
+ automaticUpdateTimer=setTimeout(()=>{
+  automaticUpdateTimer=null;
+  if(startupUpdateReady&&latestUpdateStatus)maybeAutomaticUpdateCheck(latestUpdateStatus,{allowUpdateDialog:true});
+  scheduleAutomaticUpdateCheck();
+ },60000);
+}
+function maybeAutomaticUpdateCheck(status,{allowUpdateDialog=false}={}){
+ if(!status||window.ORACLE_PREVIEW||state.config?.fixture||document.hidden||window.oracleWindowVisible===false||!$('#lock-screen').hidden||updateBusy||status.busy)return;
+ if($('#modal').open&&!(allowUpdateDialog&&$('#modal').dataset.family==='updates'))return;
+ const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
+ // Discovery does not depend on Codex hooks being trusted or on resuming a
+ // paused installation. Only an active installation retains exclusive priority.
+ if(!onboarding.hasVault||(!onboarding.licensed&&!onboarding.legacyAccess)||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
  const now=Date.now(),checked=Date.parse(status.checkedAt||(status.phase==='complete'?status.at:'')||'');
  const hasError=status.phase==='failed'||status.results?.some(r=>['error','offline'].includes(r.status));
- if(automaticUpdateAttempt&&!hasError&&Number.isFinite(checked)&&now-checked>=0&&now-checked<6*3600000)return;
+ if(automaticUpdateAttempt&&!hasError&&status.phase!=='deferred'&&Number.isFinite(checked)&&now-checked>=0&&now-checked<3600000)return;
  const delay=Math.min(3600000,300000*2**Math.min(automaticUpdateFailures,4));
  if(automaticUpdateAttempt&&now-automaticUpdateAttempt<delay)return;
- automaticUpdateAttempt=now;updateBusy=true;
- call('updateStart',{operation:'check-only'}).then(()=>pollAutomaticUpdateStatus(0)).catch(()=>{automaticUpdateFailures++;updateBusy=false});
-}
-async function pollAutomaticUpdateStatus(attempt){
- try{
-  const status=await call('updateStatus');reflectUpdateStatus(status);
-  if(status.busy){if(attempt<600)setTimeout(()=>pollAutomaticUpdateStatus(attempt+1),1000);else{automaticUpdateFailures++;updateBusy=false}return}
-  automaticUpdateFailures=(status.phase==='failed'||status.results?.some(r=>['error','offline'].includes(r.status)))?automaticUpdateFailures+1:0;
- }catch(error){automaticUpdateFailures++;updateBusy=false;$('#updates').classList.remove('busy')}
+ automaticUpdateAttempt=now;
+ void startUpdateRequest('check-only',true);
 }
 function updateResultRows(status){
- const displayed=new Map((status.pendingUpdates||[]).map(row=>[row.id,row]));
+ const displayed=new Map([{id:'oracle',status:'not_checked'},{id:'skills',status:'not_checked'},{id:'gbrain',status:'not_checked',version:status.gbrain_version},...(status.pendingUpdates||[])].map(row=>[row.id,row]));
  for(const row of status.results||[]){
   const known=displayed.get(row.id);
   displayed.set(row.id,known&&['offline','error','not_checked'].includes(row.status)?{...known,...row,pendingUpdate:known}:row);
  }
- return (displayed.size?[...displayed.values()]:[{id:'gbrain',status:'not_checked',version:status.gbrain_version},{id:'skills',status:'not_checked'}]).filter(row=>row.status!=='not_adopted');
+ const integration=displayed.get('codex'),catalog=displayed.get('skills');
+ if(integration&&catalog)displayed.set('skills',{...catalog,localIntegration:integration});
+ return [...displayed.values()].filter(row=>row.id!=='codex'&&row.status!=='not_adopted');
 }
-let updateOperation=null,updatePollPending=null;
+function updateNewsMessage(status){
+ if(status.applicationUpdateAvailable)return 'Uma nova versão do Oracle está disponível para baixar.';
+ const rows=[...(status.results||[]),...(status.pendingUpdates||[])];
+ if(rows.some(row=>row.publicationPending||row.status==='publication_pending'))return 'Há alterações no GitHub aguardando publicação para os usuários.';
+ if(status.knownUpdate)return 'Há uma versão nova aguardando compatibilidade.';
+ return 'Verificação concluída.';
+}
+function oracleInstallerURL(row){
+ if(row?.id!=='oracle'||row.status!=='download_available'||!/^sha256:[a-f0-9]{64}$/.test(row.downloadSHA256||''))return null;
+ if(!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(row.version||''))return null;
+ try{
+  const url=new URL(row.downloadURL),prefix='/nitroxinteligence/ORACLE/releases/download/v'+row.version+'/';
+  if(url.protocol!=='https:'||url.hostname!=='github.com'||url.port||url.username||url.password||url.search||url.hash||!url.pathname.startsWith(prefix))return null;
+  const name=url.pathname.slice(prefix.length),version=row.version.replaceAll('.','\\.');
+  return new RegExp('^Oracle-'+version+'-(?:macos-arm64\\.(?:zip|dmg)|(?:[A-Za-z0-9][A-Za-z0-9._-]{0,95}-)?release-arm64\\.dmg)$').test(name)?url.href:null;
+ }catch{return null;}
+}
+function updateRowMarkup(row){
+ const pendingPublication=row.status==='publication_pending',integration=row.localIntegration;
+ const message=pendingPublication&&row.publicationPending?(row.id==='oracle'?'Há alterações no GitHub aguardando um novo instalador.':'Há novos arquivos no GitHub aguardando publicação no acervo.'):pendingPublication?(row.publicationMessage||row.message):row.message;
+ const counts=row.counts;
+ const countText=counts&&['skills','prompts','tutorials'].every(key=>Number.isSafeInteger(counts[key])&&counts[key]>=0)?`${counts.skills} skills · ${counts.prompts} prompts · ${counts.tutorials} tutoriais`:'';
+ const version=row.id==='oracle'?`Neste Mac: ${row.installedVersion||'não informado'} · Publicada: ${row.version||'não consultada'}`:row.version?'Versão '+row.version:'';
+ return `<section class="update-result ${['available','download_available'].includes(row.status)?'update-success':['error','offline'].includes(row.status)?'update-failure':''}" data-update-channel="${esc(row.id)}"><div>${icon(row.id==='oracle'?'refresh':row.id==='skills'?'folder':'brain')}<h2>${updateNames[row.id]||esc(row.id)}</h2>${statusBadge(row.status,updateStates[row.status]||'Não verificado')}</div>${row.id==='skills'?'<small>Skills, prompts e tutoriais</small>':''}<p>${esc(message||'Use Verificar para consultar esta fonte.')}</p>${version?`<small>${esc(version)}</small>`:''}${countText?`<small>${esc(countText)}</small>`:''}${row.publicationMessage&&!pendingPublication?`<p>${esc(row.publicationMessage)}</p>`:''}${pendingPublication&&row.publishedStatus?'<small>Pacote publicado conferido; novidades ainda não incluídas.</small>':''}${integration?`<details${['error','offline'].includes(integration.status)?' open':''}><summary>Integração com o Codex</summary><p>${esc(integration.message||'O reconhecimento das skills no Codex tem uma verificação própria.')}</p></details>`:''}${row.pendingUpdate?`<p>Atualização conhecida${row.pendingUpdate.version?' · versão '+esc(row.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}${oracleInstallerURL(row)?'<button class="secondary" id="download-oracle-update">Baixar Oracle</button>':''}</section>`;
+}
 const updateEffectHosts=new Set();
 function cleanUpdateEffects(){for(const host of updateEffectHosts)if(!host.isConnected||!host.closest('dialog')?.open){OracleOnboardingEffects.destroy(host);updateEffectHosts.delete(host)}}
 function mountUpdateMetal(host,label,action){
@@ -766,65 +806,127 @@ function mountUpdateMetal(host,label,action){
 }
 function mountUpdateBeam(host){if(host){updateEffectHosts.add(host);OracleOnboardingEffects.beam(host)}}
 function updateStatusMarkup(){return '<div class="update-status" role="status" aria-live="polite"><div class="ob2-status-body"><span id="update-message">Consultando atualizações…</span><progress id="update-progress" aria-label="Progresso da atualização"></progress></div></div>'}
-function renderUpdateStatus(status){
- reflectUpdateStatus(status);cleanUpdateEffects();
+function renderUpdateStatus(status,options){
+ if(!reflectUpdateStatus(status,options))return false;cleanUpdateEffects();
  const family=$('#modal').dataset.family;
  if(!$('#modal').open||!['updates','update-installing'].includes(family))return;
  const failed=status.phase==='failed'||status.phase==='interrupted'||status.results?.some(r=>['error','offline'].includes(r.status));
+ const succeeded=!updateBusy&&!failed&&status.phase==='complete';
+ const installationResults=(status.results||[]).filter(row=>row.id!=='oracle');
+ const installComplete=succeeded&&status.operation!=='check-only'&&installationResults.length>0&&installationResults.every(r=>['current','updated','external','rolled_back','preserved_edits','not_adopted','not_configured'].includes(r.publishedStatus||r.status));
  const message=$('#update-message'),progress=$('#update-progress');if(!message||!progress)return;
- message.textContent=updateBusy?(status.message||'Verificando e preparando…'):failed?(status.error||status.results?.find(r=>['error','offline'].includes(r.status))?.message||status.message||'Não foi possível concluir a atualização.'):family==='update-installing'?'Atualização concluída.':status.available?'Há uma atualização pronta para instalar.':status.knownUpdate?'Há uma versão nova aguardando compatibilidade.':'Verificação concluída.';
- message.classList.toggle('update-ready-badge',!updateBusy&&!failed);message.classList.toggle('update-error',!!failed&&!updateBusy);
+ message.textContent=updateBusy?(status.message||'Verificando e preparando…'):failed?(status.error||status.results?.find(r=>['error','offline'].includes(r.status))?.message||status.message||'Não foi possível concluir a atualização.'):!succeeded?(status.message||'Use Verificar para consultar as atualizações.'):family==='update-installing'?(installComplete?'Acervo e motor conferidos. Veja os resultados por componente.':status.message||'Verificação concluída; confira os componentes.'):status.available?'Há uma atualização pronta para instalar.':updateNewsMessage(status);
+ message.classList.toggle('update-ready-badge',!!succeeded&&(family!=='update-installing'||!!installComplete));message.classList.toggle('update-error',!!failed&&!updateBusy);
  progress.hidden=!updateBusy;
  const total=Number(status.total)||Number(status.bytes_total),done=Number(status.total)?Number(status.completed):Number(status.bytes_downloaded);
  if(total>0&&Number.isFinite(done)){progress.max=total;progress.value=Math.max(0,Math.min(total,done));progress.setAttribute('aria-valuetext',Math.floor(progress.value/total*100)+'% da etapa atual');}else {progress.removeAttribute('value');progress.removeAttribute('aria-valuetext');}
+ let cancel=$('#update-cancel-wait');
+ if(updateBusy&&status.canCancelWait&&!cancel){cancel=document.createElement('button');cancel.id='update-cancel-wait';cancel.className='secondary';cancel.textContent='Cancelar espera';cancel.onclick=()=>{void cancelUpdateWait()};message.parentElement.append(cancel);}
+ if(cancel){cancel.hidden=!(updateBusy&&status.canCancelWait);cancel.disabled=false;}
  if(family==='update-installing'){
-  $('#modal-title').textContent=updateBusy?'Atualizando seu segundo cérebro…':failed?'Atualização não concluída':'Atualização concluída';
+  $('#modal-title').textContent=updateBusy?(status.phase==='waiting'?'Aguardando para atualizar…':status.operation==='check-only'?'Verificando atualizações…':'Atualizando acervo e Second Brain…'):installComplete?'Atualização concluída':status.operation==='check-only'&&succeeded?'Verificação concluída':'Atualização não concluída';
   let finish=$('#update-finish');if(!updateBusy&&!finish){finish=document.createElement('button');finish.id='update-finish';finish.className='secondary';finish.textContent='Voltar às atualizações';finish.onclick=()=>{void showUpdates()};message.parentElement.append(finish)}if(finish)finish.hidden=updateBusy;return;
  }
  $('#check-updates').disabled=updateBusy;
  const applyHost=$('#apply-update-metal'),apply=applyHost?.querySelector('button');applyHost.hidden=!status.available;if(apply)apply.disabled=updateBusy;
  const results=updateResultRows(status);
-    const descriptions={current:'Você já está usando a versão aprovada disponível.',updated:'A atualização foi instalada.',available:'Pronta para instalar.',external:'Gerenciada na instalação que você conectou.',compatibility_required:'Esta versão ainda precisa ser validada para o Oracle.',not_configured:'Configure uma fonte aprovada antes de verificar o catálogo.',not_checked:'Use Verificar para consultar novidades.',preserved_edits:'Suas alterações foram mantidas.',offline:'Sem conexão para consultar a fonte. A versão instalada foi preservada.',error:'Não foi possível concluir a consulta; isso não significa ausência de atualizações.'};
-
-    const resultsHTML=results.map(r=>`<section class="update-result ${r.status==='available'?'update-success':['error','offline'].includes(r.status)?'update-failure':''}"><div>${icon(r.id==='skills'?'folder':'brain')}<h2>${updateNames[r.id]||esc(r.id)}</h2>${statusBadge(r.status,updateStates[r.status]||'Não verificado')}</div><p>${esc(r.message||descriptions[r.status]||'Consulte o estado desta fonte antes de atualizar.')}</p>${r.version?`<small>Versão ${esc(r.version)}</small>`:''}${r.pendingUpdate?`<p>Atualização conhecida${r.pendingUpdate.version?' · versão '+esc(r.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}</section>`).join('');
+ const resultsHTML=results.map(updateRowMarkup).join('');
  const resultsHost=$('#update-results');
  if(!(updateBusy&&!status.results?.length&&resultsHost.children.length)&&resultsHost.oracleHTML!==resultsHTML){resultsHost.innerHTML=resultsHTML;resultsHost.oracleHTML=resultsHTML;}
+ const download=$('#download-oracle-update');
+ if(download){download.disabled=updateBusy;download.onclick=safe(async()=>{const row=updateResultRows(latestUpdateStatus).find(item=>item.id==='oracle'),url=oracleInstallerURL(row);if(!url)throw Error('Verifique novamente para obter o instalador publicado.');await call('openExternal',{url})});}
  const recoveryHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar acervo anterior</button>':'');
  const recovery=$('#update-recovery');if(recovery.oracleHTML!==recoveryHTML){recovery.innerHTML=recoveryHTML;recovery.oracleHTML=recoveryHTML;}
  $$('[data-rollback]').forEach(b=>{b.disabled=updateBusy;b.onclick=()=>showUpdates(b.dataset.rollback).catch(e=>toast(e.message,'error'))});
 }
-async function pollUpdateStatus(){
- if(updatePollPending)return updatePollPending;
- const epoch=navigationEpoch;
- updatePollPending=(async()=>{
+function resetUpdateTracking(){
+ updateGeneration++;clearTimeout(updatePolling);updatePolling=null;
+ updatePollPending=null;updatePollGeneration=-1;updatePollAgain=false;
+ updateRequestID=null;updateOperation=null;updateStarting=false;updateBusy=false;updateAutomatic=false;latestUpdateStatus=null;
+}
+function refreshVisibleUpdateStatus(){
+ if(document.hidden||window.oracleWindowVisible===false||!$('#lock-screen').hidden)return;
+ if(updateBusy||($('#modal').open&&['updates','update-installing'].includes($('#modal').dataset.family)))void pollUpdateStatus({fresh:true});
+ else if(startupUpdateReady&&latestUpdateStatus)maybeAutomaticUpdateCheck(latestUpdateStatus);
+}
+async function pollUpdateStatus({fresh=false}={}){
+ if(!$('#lock-screen').hidden)return null;
+ // Polling follows an operation, not a modal/navigation epoch. Reopening asks for
+ // one fresh read after a pending read; a new click need not wait for an old one.
+ if(updatePollPending&&updatePollGeneration===updateGeneration){if(fresh)updatePollAgain=true;return updatePollPending;}
+ const generation=updateGeneration,requestID=(updateBusy||updateStarting)?updateRequestID:null;
+ let retryDelay=800;
+ const task=(async()=>{
   try{
-   const status=await call('updateStatus');if(epoch!==navigationEpoch)return;
+   let status=await call('updateStatus',requestID?{requestID}:{});
+   if(generation!==updateGeneration||!$('#lock-screen').hidden)return null;
+   if(status?.requestNotFound&&requestID)status={...status,requestID,busy:false,phase:'interrupted',message:'O pedido não foi encontrado. Verifique novamente antes de instalar.',results:[]};
    renderUpdateStatus(status);
-   if(status.busy){clearTimeout(updatePolling);updatePolling=setTimeout(()=>{void pollUpdateStatus()},800);}
+   if(updateAutomatic&&!updateBusy){automaticUpdateFailures=(status.phase==='failed'||status.results?.some(r=>['error','offline'].includes(r.status)))?automaticUpdateFailures+1:0;updateAutomatic=false;}
+   return status;
   }catch(e){
-   if(epoch!==navigationEpoch)return;
-   const message=$('#update-message');if(message)message.textContent='Não foi possível consultar o progresso. Tentando novamente…';
-   if(updateBusy){clearTimeout(updatePolling);updatePolling=setTimeout(()=>{void pollUpdateStatus()},1800)}else toast(e.message,'error');
-  }finally{updatePollPending=null;}
- })();return updatePollPending;
+   if(generation!==updateGeneration||!$('#lock-screen').hidden)return null;
+   retryDelay=1800;
+   const message=$('#update-message');if(message&&$('#modal').open)message.textContent='Não foi possível consultar o progresso. Tentando novamente…';
+   if(!updateBusy&&$('#modal').open)toast(e.message,'error');
+   return null;
+  }finally{
+   if(updatePollPending===task){updatePollPending=null;updatePollGeneration=-1;}
+   if(generation===updateGeneration&&$('#lock-screen').hidden){
+    const again=updatePollAgain;updatePollAgain=false;
+    if(updateBusy||again){clearTimeout(updatePolling);updatePolling=setTimeout(()=>{void pollUpdateStatus()},again?0:retryDelay);}
+   }
+  }
+ })();updatePollPending=task;updatePollGeneration=generation;return task;
+}
+async function startUpdateRequest(operation,automatic=false){
+ if(updateBusy||updateStarting)return pollUpdateStatus({fresh:true});
+ if(!automatic)automaticUpdateAttempt=Date.now();
+ const generation=++updateGeneration,requestID=window.crypto.randomUUID();
+ clearTimeout(updatePolling);updatePollAgain=false;updateStarting=true;updateAutomatic=automatic;updateOperation=operation;
+ updateRequestID=requestID;
+ renderUpdateStatus({...latestUpdateStatus,requestID,operation,revision:-1,busy:true,phase:operation==='check-only'?'checking':'preparing',message:operation==='check-only'?'Verificando atualizações…':'Preparando a atualização…',error:null,results:[],canCancelWait:false,completed:0,total:0,bytes_downloaded:0,bytes_total:0},{authoritative:true});
+ try{
+  const response=await call('updateStart',{operation,requestID,automatic});
+  if(generation!==updateGeneration||!$('#lock-screen').hidden)return null;
+  updateStarting=false;
+  if(!response||typeof response.requestID!=='string'||!response.status||response.status.requestID!==response.requestID)throw Error('Não foi possível confirmar o início. Conferindo o pedido antes de tentar novamente.');
+  updateRequestID=response.requestID;updateOperation=response.operation||response.status.operation;
+  renderUpdateStatus(response.status,{authoritative:true});
+ }catch(e){
+  if(generation!==updateGeneration||!$('#lock-screen').hidden)return null;
+  updateStarting=false;
+  // A lost acknowledgement is not permission to resend an installation. Read
+  // this exact request first; the native side deduplicates by request ID too.
+  renderUpdateStatus({...latestUpdateStatus,busy:true,phase:'checking',message:e.message,canCancelWait:false},{authoritative:true});
+ }
+ return pollUpdateStatus({fresh:true});
+}
+async function cancelUpdateWait(){
+ if(!latestUpdateStatus?.canCancelWait||!updateRequestID)return;
+ const generation=updateGeneration,requestID=updateRequestID,button=$('#update-cancel-wait');if(button)button.disabled=true;
+ try{
+  const response=await call('updateCancel',{requestID});
+  if(generation!==updateGeneration||requestID!==updateRequestID||!$('#lock-screen').hidden)return;
+  if(response?.status)renderUpdateStatus(response.status);else if(response?.requestID)renderUpdateStatus(response);
+ }catch(e){if(generation===updateGeneration)toast(e.message,'error');}
+ finally{if(generation===updateGeneration){if(button?.isConnected)button.disabled=false;void pollUpdateStatus({fresh:true});}}
 }
 async function showUpdates(operation=null){
  startupUpdateNoticeShown=true;
  if(operation===false)operation=null;if(operation===true)operation='check-apply';
  const starting=!!operation&&!updateBusy,installing=starting?operation!=='check-only':updateBusy&&updateOperation&&updateOperation!=='check-only';
- if(starting){updateOperation=operation;updateBusy=true;latestUpdateStatus={...latestUpdateStatus,busy:true,phase:installing?'preparing':'checking',message:installing?'Preparando a atualização…':'Verificando e preparando…',error:null,completed:0,total:0,bytes_downloaded:0,bytes_total:0};}
  const family=installing?'update-installing':'updates';
  if(!$('#modal').open||$('#modal').dataset.family!==family){
-  const content=installing?`<h1>Atualizando seu segundo cérebro…</h1>${updateStatusMarkup()}`:`<h1>Atualizações</h1><p>Verifica as fontes e instala atualizações compatíveis, preservando suas personalizações.</p>${updateStatusMarkup()}<div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="update-check-text" id="check-updates">Verificar</button><div id="apply-update-metal" data-update-effect></div>')}`;
+  const content=installing?`<h1>Atualizando acervo e Second Brain…</h1>${updateStatusMarkup()}`:`<h1>Atualizações</h1><p>Oracle, acervo e Second Brain têm atualizações independentes. A consulta é automática ao abrir e a cada hora de uso; a instalação depende da sua escolha.</p>${updateStatusMarkup()}<div id="update-results" class="update-results"></div><div id="update-recovery" class="recovery-actions"></div>${actions('<button class="update-check-text" id="check-updates">Verificar</button><div id="apply-update-metal" data-update-effect></div>')}`;
   if(!modal(content,{family,root:true}))return;
   cleanUpdateEffects();if(installing){const beam=document.createElement('div');beam.className='ob2-beam update-modal-beam';beam.setAttribute('aria-hidden','true');$('#modal').prepend(beam);mountUpdateBeam(beam);}
-  if(!installing){$('#check-updates').onclick=()=>{void showUpdates('check-only')};mountUpdateMetal($('#apply-update-metal'),'Instalar atualização',()=>showUpdates('check-apply'));}
+  if(!installing){$('#check-updates').onclick=()=>{showUpdates('check-only').catch(e=>toast(e.message,'error'))};mountUpdateMetal($('#apply-update-metal'),'Instalar atualização',()=>showUpdates('check-apply'));}
  }
  renderUpdateStatus(latestUpdateStatus||{busy:false,phase:'idle',results:[]});
- if(starting){
-  try{await call('updateStart',{operation})}catch(e){renderUpdateStatus({...latestUpdateStatus,busy:false,phase:'failed',error:e.message});return;}
- }
- clearTimeout(updatePolling);await pollUpdateStatus();
+ if(starting)return startUpdateRequest(operation);
+ clearTimeout(updatePolling);const status=await pollUpdateStatus({fresh:true});
+ if(status)maybeAutomaticUpdateCheck(status,{allowUpdateDialog:true});
 }
 new MutationObserver(cleanUpdateEffects).observe($('#modal-content'),{childList:true,subtree:true});
 document.addEventListener('close',e=>{if(e.target===$('#modal'))cleanUpdateEffects()},true);
@@ -898,7 +1000,7 @@ function syncFloatingSurfaces(){
  atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused||anyModal);
  if(!anyModal){void maybeShowKnowledgeWelcome();maybeShowStartupUpdateNotice();}
 }
-document.addEventListener('visibilitychange',maybeShowStartupUpdateNotice);
+document.addEventListener('visibilitychange',()=>{maybeShowStartupUpdateNotice();refreshVisibleUpdateStatus()});
 document.addEventListener('close',()=>queueMicrotask(maybeShowStartupUpdateNotice),true);
 const floatingSurfaceObserver=new MutationObserver(records=>{if(records.some(r=>r.target instanceof Element&&(r.target.matches('dialog,.ob-progress-card')||r.type==='childList'&&[...r.addedNodes].some(n=>n instanceof Element&&n.matches('.oracle-onboarding')))))syncFloatingSurfaces()});
 floatingSurfaceObserver.observe(document.body,{subtree:true,attributes:true,attributeFilter:['open','hidden'],childList:true});

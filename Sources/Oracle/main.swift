@@ -18,7 +18,7 @@ let validationState = Bundle.main.bundleIdentifier?.hasSuffix(".validation") == 
 let core = try Core(home: (argument("--state") ?? validationState).map { URL(fileURLWithPath:$0) })
 // A CLI is another entrypoint, not an authorization bypass. Test switches only
 // run their own synthetic suites, never a second mutating command in the same invocation.
-let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-backup","--self-test-maintenance","--self-test-maintenance-live","--self-test-distribution"]
+let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-update-admission","--self-test-update-channels","--self-test-backup","--self-test-maintenance","--self-test-maintenance-live","--self-test-distribution"]
 let mutatingSwitches:Set<String>=["--install-oracle-skill","--install-vault-skill","--prepare-bridge","--gbrain","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update","--sync-gbrain","--backup","--maintenance"]
 if arguments.contains("--self-test-distribution") {
     do {guard !arguments.contains(where:{mutatingSwitches.contains($0)}) else{throw failure("Testes e operações de produto precisam de invocações separadas.")};try runDistributionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
@@ -41,7 +41,7 @@ if let operation = argument("--gbrain") {
     do {guard ["prepare","finish"].contains(operation) else{throw failure("Operação GBrain inválida.")};let lock=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(lock)};let value = try operation == "prepare" ? core.prepareGBrain() : core.finishGBrain(); print(String(decoding:try jsonData(value),as:UTF8.self)); exit(0) } catch { fputs(error.localizedDescription + "\n",stderr); exit(1) }
 }
 if arguments.contains("--sync-gbrain") {
-    do {let lock=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(lock)};print(String(decoding:try jsonData(core.syncGBrainVault()),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
+    do {print(String(decoding:try jsonData(core.syncGBrainVaultWithAdmission()),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
 }
 if let operation=argument("--backup") {
     do {
@@ -99,10 +99,27 @@ if arguments.contains("--codex-inventory") { do {let bridge=CodexBridge();defer{
 if arguments.contains("--onboarding-verify") { do { print(String(decoding:try jsonData(core.onboardingFinalVerification()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-onboarding") { do { try runOnboardingTests();try runOnboardingLifecycleTests();try runImplementationPolicyTests();try runLicenseDeviceTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-updates") { do { try runUpdateTests(releasePath:argument("--test-release"),officialReleasePath:argument("--test-official-release"));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
+if arguments.contains("--self-test-update-admission") {do {try runUpdateAdmissionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-update-channels") {do {try runUpdateChannelTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
 if arguments.contains("--self-test") { do { try runTests(); exit(0) } catch { fputs("FAIL: \(error)\n",stderr); exit(1) } }
 
 if let operation = argument("--update") {
-    do { print(String(decoding:try jsonData(core.performUpdates(operation:operation)),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) }
+    do {
+        // CLI has no UI thread to keep responsive; it uses the same asynchronous
+        // admission as the app and waits only for this explicit command's result.
+        let done=DispatchSemaphore(value:0),mutex=NSLock()
+        var completed=[String:Any]()
+        let coordinator=OracleUpdateCoordinator(home:core.home,makeCore:{core},didFinish:{value in
+            mutex.lock();completed=value;mutex.unlock();done.signal()
+        })
+        let response=try coordinator.start(operation:operation)
+        let result:[String:Any]
+        if response["accepted"] as? Bool==true {done.wait();mutex.lock();result=completed;mutex.unlock()}
+        else {result=response["status"] as? [String:Any] ?? [:]}
+        withExtendedLifetime(coordinator) {print(String(decoding:(try? jsonData(result)) ?? Data(),as:UTF8.self))}
+        let complete=result["phase"] as? String=="complete" && result["busy"] as? Bool != true
+        exit(complete ? 0:result["phase"] as? String=="failed" ? 1:2)
+    } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) }
 }
 
 final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSWindowDelegate {
@@ -116,10 +133,11 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var terminationPending=false
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
     let queue = DispatchQueue(label:"oracle.core",autoreleaseFrequency:.workItem)
-    let updateQueue = DispatchQueue(label:"oracle.updates",autoreleaseFrequency:.workItem)
     let updateStatusQueue = DispatchQueue(label:"oracle.updates.status",qos:.userInitiated,autoreleaseFrequency:.workItem)
     let memoryQueue = DispatchQueue(label:"oracle.memory.reads",qos:.userInitiated,autoreleaseFrequency:.workItem)
-    var updating = false
+    lazy var updateCoordinator=OracleUpdateCoordinator(home:core.home,didFinish:{[weak self] _ in
+        DispatchQueue.main.async {self?.localServices?.request()}
+    })
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         onboardingController=try? OnboardingController(home:core.home)
@@ -136,6 +154,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         window.setFrameAutosaveName("OracleUniverse"); window.center(); window.makeKeyAndOrderFront(nil)
         buildMenu()
         locked = core.config["protected"] as? Bool == true
+        updateCoordinator.setAllowed(!locked)
         let canRun = !locked && core.activeLicense() != nil
         let recovering=fm.fileExists(atPath:core.home.appendingPathComponent("updates/runtime/transition.json").path)
         localServices=OracleLocalServices(home:core.home);localServices?.start(paused:!canRun || recovering)
@@ -183,7 +202,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         return .terminateLater
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {NSApp.terminate(nil);return false}
-    func applicationWillTerminate(_ notification:Notification) {localServices?.stop();core.memorySync.stop();onboardingController?.shutdown()}
+    func applicationWillTerminate(_ notification:Notification) {updateCoordinator.setAllowed(false);localServices?.stop();core.memorySync.stop();onboardingController?.shutdown()}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication) -> Bool { true }
     func buildMenu() {
         let bar = NSMenu()
@@ -206,6 +225,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     }
     @objc func about() { let a = NSAlert(); a.messageText = "Oracle"; a.informativeText = OracleBuildIdentity.description(); addAlertBreadcrumb(a,"Oracle › Sobre o Oracle");a.addButton(withTitle:"Voltar");a.runModal() }
     @objc func lockApp() {
+        updateCoordinator.setAllowed(false)
         lockGeneration += 1;locked=true;core.memorySync.stop()
         localServices?.setPaused(true)
         web?.evaluateJavaScript("window.oracleTakeDraftAndLock?.()") {value,_ in
@@ -240,14 +260,23 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         if method == "boot" { reply(id,["locked":locked,"accessibility":["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]]); return }
         if method == "unlock" { authenticate { ok,error in if ok {
             self.locked = false
+            self.updateCoordinator.setAllowed(true)
             let canRun = core.activeLicense() != nil
             self.localServices?.setPaused(!canRun)
             if canRun {core.memorySync.start();self.localServices?.request()}
         }; self.reply(id,ok,error) }; return }
         guard !locked else { reply(id,nil,"Oracle bloqueado"); return }
+        if ["chooseVault","chooseGBrain","onboardingChooseVault","onboardingChooseBrain","onboardingClearVault","revoke"].contains(method) {
+            updateCoordinator.cancelWaiting(message:"A seleção está sendo alterada. Solicite uma nova verificação após escolher a pasta.")
+        }
+        if method=="updateCancel" {
+            do {reply(id,try updateCoordinator.cancel(requestID:p["requestID"] as? String ?? ""))}
+            catch {reply(id,nil,error.localizedDescription)}
+            return
+        }
         if handleOnboarding(id,method:method,params:p) { return }
         let hasAccess=core.activeLicense() != nil
-        if !hasAccess {core.memorySync.stop();self.localServices?.setPaused(true)}
+        if !hasAccess {updateCoordinator.cancelWaiting(message:"A autorização mudou durante a espera. Ative sua licença antes de verificar novamente.");core.memorySync.stop();self.localServices?.setPaused(true)}
         if method=="snapshot" && !hasAccess {
             queue.async {do{let onboarding=try self.onboardingController?.snapshot() ?? core.onboardingSnapshot();DispatchQueue.main.async{self.reply(id,["config":[:],"entries":[],"events":[],"collections":[],"catalog":[],"onboarding":onboarding,"build":OracleBuildIdentity.metadata()])}}catch{DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}};return
         }
@@ -276,15 +305,11 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             }; return
         }
         if method == "updateStart" {
-            guard !updating else { reply(id,true);return }
             let operation=p["operation"] as? String ?? "check-apply"
             guard ["check-apply","check-only","rollback-gbrain","rollback-skills"].contains(operation) else { reply(id,nil,"Operação inválida");return }
-            updating=true; reply(id,true)
-            updateQueue.async {
-                do { let updater=try Core(home:core.home);_ = try updater.performUpdates(operation:operation) }
-                catch { try? core.recordUpdate("failed",error.localizedDescription) }
-                DispatchQueue.main.async { self.updating=false;self.localServices?.request() }
-            };return
+            do {reply(id,try updateCoordinator.start(operation:operation,requestID:p["requestID"] as? String ?? UUID().uuidString,automatic:p["automatic"] as? Bool==true))}
+            catch {reply(id,nil,error.localizedDescription)}
+            return
         }
         if method == "protect" { authenticate { ok,error in if ok { self.queue.async { core.config["protected"] = true; try? core.persist(); DispatchQueue.main.async { self.reply(id,true) } } } else { self.reply(id,nil,error) } }; return }
         if method == "openCodex" {openCodexApplication(id);return}
@@ -317,11 +342,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             // Status reads must not wait behind a vault scan or editor operation.
             updateStatusQueue.async {
                 do {
-                    let service=try Core(home:core.home)
-                    var status=try service.updateStatus()
+                    let status=try self.updateCoordinator.status(requestID:p["requestID"] as? String)
                     DispatchQueue.main.async {
-                        status["busy"]=self.updating
-                        if !self.updating,["checking","preparing","downloading","verifying","applying","installing","indexing"].contains(status["phase"] as? String ?? "") {status["phase"]="interrupted";status["message"]="Operação interrompida. Verifique novamente para recuperar com segurança."}
                         self.reply(id,status)
                     }
                 } catch {DispatchQueue.main.async {self.reply(id,nil,error.localizedDescription)}}

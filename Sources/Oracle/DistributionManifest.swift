@@ -146,8 +146,22 @@ struct DistributionManifest {
                   row["dependencies"] is [Any] else{throw failure("Item visual sem documento, recursos ou dependências declaradas.")}
             let specialist=row["specialist_id"] as? String,hostName=row["host_name"] as? String
             if kind=="skill" {
-                guard entry.hasSuffix("/SKILL.md"),entryFile.kind=="specialists",let specialist,validSpecialistID(specialist),(manifest["skills_layout"] as? String=="department-specialist-skill" ? entry.split(separator:"/").count==6 && entry.split(separator:"/")[3]==Substring(specialist) && Core.structuredSkillDepartments[String(entry.split(separator:"/")[2])]==department : entry.hasPrefix("SISTEMA/skills/"+specialist+"/")),
+                let parts=entry.split(separator:"/"),structured=manifest["skills_layout"] as? String=="department-specialist-skill"
+                guard entry.hasSuffix("/SKILL.md"),entryFile.kind=="specialists",let specialist,validSpecialistID(specialist),
+                      (structured ? [6,7].contains(parts.count) && parts[0]=="SISTEMA" && parts[1]=="skills" && parts[3]==Substring(specialist) && Core.structuredSkillDepartments[String(parts[2])]==department : entry.hasPrefix("SISTEMA/skills/"+specialist+"/")),
                       let hostName,hostName=="oracle-"+id,hostName.utf8.count<=64,hostNames.insert(hostName).inserted else{throw failure("Identidade de skill inválida ou duplicada no Codex.")}
+                // Only explicit items from the authenticated inventory become
+                // skills. Nested SKILL.md resources are never auto-discovered.
+                // Older readers require six parts, so a nested release must not
+                // advertise compatibility with them. No file is moved or renamed.
+                if structured,parts.count==7 {
+                    let folder=parts.dropLast().joined(separator:"/")+"/"
+                    guard row["entry_layout"] as? String=="reviewed-nested",
+                          minimum.compare("0.3.14",options:.numeric) != .orderedAscending,
+                          required.allSatisfy({$0.hasPrefix(folder)}) else {
+                        throw failure("A skill em subpasta exige revisão declarada, recursos dentro de sua pasta e Oracle 0.3.14 ou posterior.")
+                    }
+                } else {guard row["entry_layout"]==nil else{throw failure("Layout de skill incompatível com o caminho declarado.")}}
             } else {guard entryFile.kind==(kind=="prompt" ? "prompts":"tutorials") else{throw failure("Documento da biblioteca incorreta.")}}
             if let specialist {
                 guard specialistDepartments[specialist]==nil || specialistDepartments[specialist]==department else{throw failure("Especialista com departamentos contraditórios no manifesto.")}

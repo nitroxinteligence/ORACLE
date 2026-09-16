@@ -295,3 +295,15 @@ test('legacy collection subdirectories are not reclassified as specialists',()=>
  assert.deepEqual(model.specialists.map(s=>s.id),['marketing']);
  assert.equal(model.specialistByID.get('marketing').skillCount,2);
 });
+
+test('reviewed phase skills stay reachable under their actual specialist without moving paths',()=>{
+ const entries=['01-getting-started/ask-matt','02-main-flow/implement','06-reference/tdd'].map(relative=>({path:`SISTEMA/skills/codigo/matt-pocock/${relative}/SKILL.md`,name:'SKILL.md',directory:false}));
+ const before=clone(entries),model=catalog(entries),specialist=model.specialistByID.get('matt-pocock');
+ assert.equal(specialist.department,'department/code');assert.equal(specialist.skillCount,3);
+ assert.deepEqual(entries,before);
+ for(const entry of entries){
+  assert.equal(collectionForEntry(entry),'matt-pocock');
+  const selection=selectionForSkill(model,entry.path),view=hierarchyPlan(model,selection);
+  assert.equal(selection.specialist,'matt-pocock');assert(view.leaves.some(leaf=>leaf.id===entry.path));
+ }
+});

@@ -1,6 +1,19 @@
 import Foundation
 import Darwin
 
+struct OracleOperationLockError: LocalizedError {
+    let name:String
+    let code:Int32
+    let opening:Bool
+    var isBusy:Bool { !opening && (code==EWOULDBLOCK || code==EAGAIN) }
+    var errorDescription:String? {
+        if isBusy && name=="vault" {return "Outra operação está alterando esta pasta. Sua edição foi preservada; tente novamente após a operação terminar."}
+        if isBusy {return "Outra operação está usando \(name). Aguarde sua conclusão para continuar."}
+        return "Não foi possível \(opening ? "abrir" : "adquirir") o bloqueio \(name) (erro \(code)): \(String(cString:strerror(code)))."
+    }
+    var diagnostic:[String:Any] {["blockedOn":name,"errno":Int(code)]}
+}
+
 extension Core {
     /// One kernel lock on the selected directory inode, shared even by different
     /// Oracle state directories. No lock file or other metadata is put in the vault.
@@ -14,7 +27,7 @@ extension Core {
         guard descriptor >= 0 else { throw failure("A pasta do Obsidian está indisponível para gravação.") }
         defer { Darwin.close(descriptor) }
         guard flock(descriptor, LOCK_EX | LOCK_NB) == 0 else {
-            throw failure("Outra operação está alterando esta pasta. Sua edição foi preservada; tente novamente após a operação terminar.")
+            throw OracleOperationLockError(name:"vault",code:errno,opening:false)
         }
         dictionary[key] = descriptor
         defer { dictionary.removeObject(forKey:key); flock(descriptor, LOCK_UN) }
@@ -84,14 +97,18 @@ extension Core {
         try fm.createDirectory(at:directory,withIntermediateDirectories:true)
         let url=directory.appendingPathComponent(name+".lock")
         let fd=Darwin.open(url.path,O_CREAT|O_RDWR|O_CLOEXEC|O_NOFOLLOW,S_IRUSR|S_IWUSR)
-        guard fd>=0 else { throw failure("Não foi possível abrir o bloqueio de operação") }
-        guard flock(fd,LOCK_EX|LOCK_NB)==0 else { Darwin.close(fd);throw failure("Outra operação está em andamento. Os arquivos foram preservados; tente novamente após a conclusão.") }
+        guard fd>=0 else { throw OracleOperationLockError(name:name,code:errno,opening:true) }
+        guard flock(fd,LOCK_EX|LOCK_NB)==0 else {
+            let code=errno
+            Darwin.close(fd)
+            throw OracleOperationLockError(name:name,code:code,opening:false)
+        }
         return fd
     }
     func releaseOperationLock(_ fd:Int32) { flock(fd,LOCK_UN);Darwin.close(fd) }
     func operationIsRunning(_ name:String) -> Bool {
         let url=home.appendingPathComponent("setup/locks/"+name+".lock")
-        let fd=Darwin.open(url.path,O_RDONLY)
+        let fd=Darwin.open(url.path,O_RDONLY|O_CLOEXEC|O_NOFOLLOW)
         guard fd>=0 else { return false }
         defer { Darwin.close(fd) }
         if flock(fd,LOCK_EX|LOCK_NB)==0 { flock(fd,LOCK_UN);return false }

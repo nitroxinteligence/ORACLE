@@ -12,8 +12,10 @@ O comportamento padrão é **dry-run**: somente um novo manifesto `--plan` é es
 O programa não publica, não cria release, não faz stage/commit/fetch/push, não
 executa arquivos de skills e não solicita download/hydration de iCloud. Não há
 serviço, agendador, integração com GitHub ou ação de exclusão de arquivo original.
-Os arquivos `build-skills-release.py` e `catalog_safety.py` não foram modificados;
-o segundo fornece o preflight de padrões de credenciais, importado diretamente.
+`catalog_safety.py` fornece o preflight de padrões de credenciais, importado
+diretamente. A entrega aos usuários exige a etapa separada de
+[publicação de release assinada](catalog-release-publication.md); um espelho
+aplicado ou um push das fontes não equivale a uma release entregue.
 
 **Pré-requisito de privacidade:** `.oracle-source-mirror/` deve estar integralmente
 ignorado por uma regra local do checkout (por exemplo, `/.oracle-source-mirror/`

@@ -15,7 +15,7 @@ func runUpdateTests(releasePath: String?, officialReleasePath:String?=nil) throw
     let originalEngine=c.bundledEngineResources(),oldOverride=ProcessInfo.processInfo.environment["ORACLE_ENGINE_RESOURCES"]
     let fixtureResources=base.appendingPathComponent("resources"),fixtureEngine=fixtureResources.appendingPathComponent("engine")
     try fm.createDirectory(at:fixtureEngine,withIntermediateDirectories:true)
-    var fixtureManifest=try c.updateManifest();fixtureManifest.removeValue(forKey:"skills")
+    var fixtureManifest=try c.updateManifest();fixtureManifest.removeValue(forKey:"skills");fixtureManifest.removeValue(forKey:"oracle")
     try writeJSON(fixtureManifest,fixtureResources.appendingPathComponent("updates/sources.json"))
     for name in ["gbrain","oracle-gbrain-read"] {try fm.linkItem(at:originalEngine.appendingPathComponent(name),to:fixtureEngine.appendingPathComponent(name))}
     setenv("ORACLE_ENGINE_RESOURCES",fixtureEngine.path,1)
@@ -139,6 +139,10 @@ func runUpdateTests(releasePath: String?, officialReleasePath:String?=nil) throw
     let deleted=try c.previewSkillFiles([file(skill,"version three")],version:"5")
     try expect(deleted["changes"] as? Int==0,"deleted owned skills do not produce false availability")
     try rejects("availability rejects invalid checksum") {_ = try c.previewSkillFiles([invalid],version:"5")}
+    do {
+    let statusExecution=try c.acquireUpdateExecution(operation:"check-only")
+    try statusExecution.claim();c.updateExecution=statusExecution
+    defer{c.updateExecution=nil;statusExecution.close()}
     try c.recordUpdate("complete","Verificado",results:[availability])
     try expect(try c.updateStatus()["available"] as? Bool==true,"status exposes verified availability")
     try c.recordUpdate("complete","Em dia",results:[["id":"skills","status":"current"]])
@@ -158,6 +162,7 @@ func runUpdateTests(releasePath: String?, officialReleasePath:String?=nil) throw
     try c.recordUpdate("verifying","Verificando",progressSource:"runtime")
     try expect(try c.updateStatus()["total"] as? Int==0,"verification does not retain a completed download percentage")
     try writeJSON(priorOnboarding,c.onboardingURL)
+    }
 
     let held = try c.acquireOperationLock("updates")
     try rejects("concurrent update excluded") { _ = try c.performUpdates() }

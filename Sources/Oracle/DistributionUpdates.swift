@@ -14,15 +14,36 @@ extension Core {
         try requireCapability(.configure)
         let checkOnly=operation=="check-only"
         var results=[[String:Any]]()
+        func finishRateLimitIfNeeded() throws -> [String:Any]? {
+            guard let rate=network.rateLimit else{return nil}
+            if !results.contains(where:{$0["id"] as? String=="gbrain"}) {
+                if config["gbrainWorkspace"] != nil {results.append(["id":"gbrain","status":"external","message":"Perfil externo preservado."])}
+                else {
+                    let version=(try? readJSON(updatePath("runtime/current.json")))?["version"] as? String ?? oracleGBrainPinnedVersion
+                    results.append(["id":"gbrain","status":"rate_limited","version":version,"message":rate.localizedDescription,"retryAt":rate.timestamp])
+                }
+            }
+            if !results.contains(where:{$0["id"] as? String=="skills"}) {
+                let ledger=(try? readJSON(distributionLedgerURL)) ?? [:]
+                var row:[String:Any]=["id":"skills","status":"rate_limited","message":rate.localizedDescription,"retryAt":rate.timestamp]
+                if let version=ledger["release_id"] as? String {row["version"]=version}
+                results.append(row)
+            }
+            try recordUpdate("deferred",rate.localizedDescription,results:results,diagnostic:["rateLimitResetAt":rate.timestamp])
+            return try updateStatus()
+        }
         try recordUpdate("checking","Consultando o acervo e o Second Brain")
         if let application=checkOracleApplication(network:network) {results.append(application)}
+        if let deferred=try finishRateLimitIfNeeded(){return deferred}
         do {
             if config["gbrainWorkspace"] != nil {results.append(["id":"gbrain","status":"external","message":"Perfil externo preservado."])}
             else if !checkOnly,onboardingRecord()["profileMode"] as? String=="memory-only", !["completed","not_started"].contains(onboardingRecord()["status"] as? String ?? "not_started") {results.append(["id":"gbrain","status":"recovery_required","message":"Conclua a instalação atual antes de mudar o motor."])}
             else {
                 results.append(try updateOfficialRuntime(network:network,checkOnly:checkOnly))
             }
-        } catch {results.append(["id":"gbrain","status":"error","message":error.localizedDescription])}
+        } catch let rate as OracleUpdateRateLimitError {results.append(["id":"gbrain","status":"rate_limited","message":rate.localizedDescription,"retryAt":rate.timestamp])}
+          catch {results.append(["id":"gbrain","status":"error","message":error.localizedDescription])}
+        if let deferred=try finishRateLimitIfNeeded(){return deferred}
         do {
             try recordUpdate("verifying","Conferindo o acervo local",results:results)
             // Discovery is separate from the paused installer. Do not clear its
@@ -84,7 +105,9 @@ extension Core {
                     results.append(["id":contentApplied ? "memory":"skills","status":"error","message":error.localizedDescription])
                 }
             }
-        } catch {results.append(["id":"skills","status":"error","message":error.localizedDescription])}
+        } catch let rate as OracleUpdateRateLimitError {results.append(["id":"skills","status":"rate_limited","message":rate.localizedDescription,"retryAt":rate.timestamp])}
+          catch {results.append(["id":"skills","status":"error","message":error.localizedDescription])}
+        if let deferred=try finishRateLimitIfNeeded(){return deferred}
         let current=results.allSatisfy{["current","external"].contains($0["status"] as? String ?? "") && $0["publicationChecked"] as? Bool != false}
         let failed=results.contains{$0["status"] as? String=="error"}
         try recordUpdate(failed ? "failed":"complete",failed ? "A atualização não foi concluída. Confira o erro abaixo.":current ? "Tudo atualizado":"Verificação concluída; confira o resultado de cada componente.",results:results)

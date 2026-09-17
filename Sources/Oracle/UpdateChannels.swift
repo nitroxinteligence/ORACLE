@@ -134,23 +134,32 @@ extension Core {
     /// only; application replacement still requires an explicit user action.
     func checkOracleApplication(network:UpdateNetwork)->[String:Any]? {
         guard (try? updateManifest()["oracle"] as? [String:Any])?["repository"] as? String==OracleApplicationRelease.repository else{return nil}
+        let fallback=(try? updateManifest()["oracle_version"] as? String) ?? ""
+        let installed=OracleApplicationRelease.installedVersion(fallback:fallback)
         do {
             let release=try network.json(OracleApplicationRelease.api)
-            let fallback=(try? updateManifest()["oracle_version"] as? String) ?? ""
-            let installed=OracleApplicationRelease.installedVersion(fallback:fallback)
             var row=try OracleApplicationRelease.resolve(release,installed:installed)
-            if row["status"] as? String=="current",let tag=release["tag_name"] as? String {
+            if row["status"] as? String=="current",let tag=release["tag_name"] as? String,
+               network.canSpendOptionalRequests(2,reserving:2) {
                 do {
                     let pending=try OracleSourcePublication.pending(repository:"ORACLE",tag:tag,
                         paths:["Sources","Resources","packages","scripts","skills","Package.swift","package.json"],fetch:network.json)
                     row=OracleSourcePublication.annotate(row,pending:pending,
                         message:"Há alterações no código do GitHub que ainda não fazem parte de um novo instalador publicado para os usuários.")
                 } catch {row["publicationChecked"]=false;row["publicationMessage"]="O instalador publicado foi consultado, mas não foi possível comparar as alterações da branch."}
+            } else if row["status"] as? String=="current" {
+                row["publicationChecked"]=false
+                row["publicationMessage"]="A comparação opcional com a branch foi adiada para preservar as consultas essenciais."
             }
             return row
-        } catch {return ["id":"oracle","status":"error","message":"Não foi possível consultar o aplicativo Oracle: "+error.localizedDescription]}
+        } catch let rate as OracleUpdateRateLimitError {
+            return ["id":"oracle","status":"rate_limited","installedVersion":installed,"message":rate.localizedDescription,"retryAt":rate.timestamp]
+        } catch {return ["id":"oracle","status":"error","installedVersion":installed,"message":"Não foi possível consultar o aplicativo Oracle: "+error.localizedDescription]}
     }
     func catalogPublication(manifest:DistributionManifest,network:UpdateNetwork)->[String:Any] {
+        guard network.canSpendOptionalRequests(2) else {
+            return ["publicationChecked":false,"publicationMessage":"A release assinada foi conferida; a comparação opcional com a branch foi adiada para preservar o limite do GitHub."]
+        }
         do {
             let pending=try OracleSourcePublication.pending(repository:"ORACLE-SKILLS",tag:manifest.releaseID,paths:["SISTEMA"],fetch:network.json)
             return ["publicationChecked":true,"publicationPending":pending,

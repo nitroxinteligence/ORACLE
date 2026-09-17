@@ -72,7 +72,8 @@ extension Core {
                 let data=try fetch(url,limit)
                 if respectOnboardingCancellation {try checkOnboardingCancellation()}
                 return data
-            } catch {last=error}
+            } catch let rate as OracleUpdateRateLimitError {throw rate}
+              catch {last=error}
             if respectOnboardingCancellation {try checkOnboardingCancellation()}
             if attempt<2{Thread.sleep(forTimeInterval:attempt==0 ? 0.25:0.75)}
         }

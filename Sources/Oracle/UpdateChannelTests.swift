@@ -61,6 +61,16 @@ func runUpdateChannelTests()throws {
     func appRelease(_ assets:[[String:Any]])->[String:Any] {
         ["draft":false,"prerelease":false,"tag_name":appTag,"html_url":OracleApplicationRelease.repository+"/releases/tag/"+appTag,"assets":assets]
     }
+    let resetEpoch:TimeInterval=1_800_000_000
+    let limitedResponse=HTTPURLResponse(url:URL(string:OracleApplicationRelease.api)!,statusCode:403,httpVersion:nil,
+        headerFields:["x-ratelimit-remaining":"0","x-ratelimit-reset":String(Int(resetEpoch))])!
+    let parsedLimit=OracleUpdateRateLimitError.response(limitedResponse,now:Date(timeIntervalSince1970:resetEpoch-60))
+    try expect(parsedLimit?.retryAt==Date(timeIntervalSince1970:resetEpoch),"GitHub primary-limit headers produce an exact retry boundary")
+    UpdateNetwork.resetRateLimitForTests();var limitedTransportCalls=0
+    let limitedTransport=UpdateNetwork(transport:{_,_ in limitedTransportCalls+=1;throw OracleUpdateRateLimitError(statusCode:403,retryAt:Date(timeIntervalSince1970:resetEpoch))})
+    for _ in 0..<2 {do{_=try limitedTransport.fetch(OracleApplicationRelease.api)}catch{}}
+    try expect(limitedTransportCalls==1,"a known GitHub reset boundary suppresses repeated API requests")
+    UpdateNetwork.resetRateLimitForTests()
     let app=appRelease([appAsset()]),available=try OracleApplicationRelease.resolve(app,installed:"0.3.14")
     try expect(available["status"] as? String=="install_available" && available["downloadURL"] as? String==appAsset()["browser_download_url"] as? String,"new stable app exposes only its validated updater ZIP")
     try expect(available["downloadSHA256"] as? String==appAsset()["digest"] as? String && available["downloadBytes"] as? Int==1024,"app download metadata preserves official digest and byte count")
@@ -268,6 +278,16 @@ func runUpdateChannelTests()throws {
     let apply=try check(network(failing:OracleCatalogRelease.api),operation:"check-apply")
     try expect(status("gbrain",apply["results"] as? [[String:Any]] ?? [])=="recovery_required","paused installation still prevents an actual runtime replacement")
     try expect(!queried.contains(where:{$0.contains("/garrytan/gbrain/releases/download/")}),"check-only never downloads the engine binary")
+    UpdateNetwork.resetRateLimitForTests();var rateCalls=0
+    let retry=Date().addingTimeInterval(3600),rateNetwork=UpdateNetwork(transport:{_,_ in
+        rateCalls+=1;throw OracleUpdateRateLimitError(statusCode:403,retryAt:retry)
+    })
+    let deferred=try check(rateNetwork),deferredRows=deferred["results"] as? [[String:Any]] ?? []
+    try expect(deferred["phase"] as? String=="deferred" && rateCalls==1,"rate-limited channel check stops after the first refused API request")
+    try expect(["oracle","gbrain","skills"].allSatisfy{status($0,deferredRows)=="rate_limited"},"all remote channels report one neutral deferred state")
+    try expect((deferred["lastVerifiedResults"] as? [[String:Any]] ?? []).contains{$0["id"] as? String=="skills"},"rate limiting preserves the last verified channel receipts")
+    UpdateNetwork.resetRateLimitForTests()
+    var cleared=try readJSON(core.updatePath("status.json"));cleared.removeValue(forKey:"rateLimitResetAt");try writeJSON(cleared,core.updatePath("status.json"))
     let finalMarker=try Data(contentsOf:cancellation),finalConfig=try Data(contentsOf:core.home.appendingPathComponent("config.json"))
     try expect(finalMarker==marker && finalConfig==originalConfig,"channel queries preserve installation pause and profile configuration")
     for path in ["setup/plan.json","updates/runtime/current.json","distribution/ledger.json"] {

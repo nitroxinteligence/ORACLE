@@ -71,6 +71,28 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(manifest['minimum_oracle'],'0.3.3')
         self.assertTrue(any(r['path'].startswith('SISTEMA/recursos-skills/') for r in manifest['files']))
 
+    def test_structured_content_department_is_publishable(self):
+        import shutil
+        old = self.source / 'SISTEMA/skills/research'
+        new = self.source / 'SISTEMA/skills/conteudo/example'
+        new.parent.mkdir(parents=True)
+        shutil.move(str(old), str(new))
+        inv = dist.inventory(self.source)
+        review = {**self.review, 'skills_layout': 'department-specialist-skill'}
+        review['source_inventory_sha256'] = dist.sha(dist.canonical({
+            row['source_path']: dist.sha((self.source / row['source_path']).read_bytes())
+            for row in inv['files']
+        }))
+        review['items'] = {
+            key.replace('skills/research/', 'skills/conteudo/example/'): value
+            for key, value in review['items'].items()
+        }
+        manifest, _, report = self.build(review)
+        self.assertEqual(report['problems'], [])
+        skill = next(item for item in manifest['items'] if item['kind'] == 'skill')
+        self.assertEqual(skill['specialist_id'], 'example')
+        self.assertEqual(skill['department_id'], 'content')
+
     def test_complete_signed_snapshot_preserves_resources_and_source(self):
         manifest, packages, report = self.build()
         self.assertEqual(report['problems'], [])

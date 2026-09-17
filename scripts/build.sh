@@ -73,6 +73,11 @@ python3 scripts/build-manifest.py snapshot --output "$STAGE/sources.json"
 swift build ${SWIFT_SANDBOX_FLAG:+--disable-sandbox} -c release --arch arm64 --scratch-path "$ROOT/.work/distribution-swift-$CHANNEL" -j "${ORACLE_BUILD_JOBS:-2}"
 BIN=$(swift build ${SWIFT_SANDBOX_FLAG:+--disable-sandbox} -c release --arch arm64 --scratch-path "$ROOT/.work/distribution-swift-$CHANNEL" --show-bin-path)
 python3 scripts/build-manifest.py assemble --channel "$CHANNEL" --app "$APP" --source-record "$STAGE/sources.json" --executable "$BIN/Oracle"
+# Git worktrees and file-provider folders can attach Finder/resource-fork metadata
+# that is not part of the reviewed file bytes and that codesign rejects. Strip
+# extended attributes from the private staging bundle before any signature is
+# created; manifest hashes remain bound to the unchanged file contents.
+xattr -cr "$APP"
 for binary in "$APP/Contents/MacOS/Oracle" "$APP/Contents/Resources/engine/gbrain" "$APP/Contents/Resources/engine/oracle-gbrain-read"; do
   [ "$(lipo -archs "$binary")" = arm64 ] || { echo 'Bundle contains a non-arm64 executable.' >&2; exit 1; }
 done

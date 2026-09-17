@@ -18,7 +18,7 @@ function setup(){
  vm.runInContext(updateCode+';globalThis.api={ready:finishUpdateStartup,reflect:reflectUpdateStatus,notify:maybeShowStartupUpdateNotice,check:maybeAutomaticUpdateCheck,rows:updateResultRows,installable:oracleInstallable};',context);
  return {context,elements,classes,notices,opened,calls,onboarding,clock,timers,api:context.api};
 }
-const available={available:true,busy:false,checkedAt:new Date().toISOString()};
+const available={available:true,installableNow:true,busy:false,phase:'complete',checkedAt:new Date().toISOString(),results:[{id:'skills',status:'available'}]};
 test('avisa uma vez por abertura e reaparece em uma nova inicialização',()=>{
  for(let i=0;i<2;i++){const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();h.api.reflect(available);assert.equal(h.notices.length,1);h.elements['#modal'].open=false;h.api.reflect(available);h.api.notify();assert.equal(h.notices.length,1);assert(h.classes.has('update-ready'));}
 });
@@ -29,7 +29,7 @@ test('aguarda outro modal ou rascunho sem descartar a notificação',()=>{
  const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();h.elements['#modal'].open=true;h.api.reflect(available);assert.equal(h.notices.length,0);h.elements['#modal'].open=false;h.context.dirty=true;h.api.notify();assert.equal(h.notices.length,0);h.context.dirty=false;h.api.notify();assert.equal(h.notices.length,1);
 });
 test('não anuncia estado atual, erro ou versão ainda incompatível; remove o pulso quando atualiza',()=>{
- const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();for(const status of [{available:false},{available:false,phase:'failed'},{knownUpdate:true,available:false}])h.api.reflect(status);assert.equal(h.notices.length,0);assert(!h.classes.has('update-ready'));assert.match(h.elements['#updates']['aria-label'],/compatibilidade/);h.api.reflect(available);assert(h.classes.has('update-ready'));h.api.reflect({available:false});assert(!h.classes.has('update-ready'));
+ const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();for(const status of [{available:false,installableNow:false},{available:false,installableNow:false,phase:'failed'},{knownUpdate:true,available:false,installableNow:false}])h.api.reflect(status);assert.equal(h.notices.length,0);assert(!h.classes.has('update-ready'));assert.match(h.elements['#updates']['aria-label'],/compatibilidade/);h.api.reflect(available);assert(h.classes.has('update-ready'));h.api.reflect({available:false,installableNow:false});assert(!h.classes.has('update-ready'));
 });
 test('espera a verificação e a conclusão do onboarding, inclusive com acesso legado',()=>{
  const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();h.api.reflect({...available,busy:true});assert.equal(h.notices.length,0);h.onboarding.legacyAccess=true;h.onboarding.status='running';h.api.reflect(available);assert.equal(h.notices.length,0);h.onboarding.status='completed';h.api.notify();assert.equal(h.notices.length,1);
@@ -41,11 +41,11 @@ test('inicialização verifica novidades mesmo com consulta recente e mantém ch
  const h=setup();const current={available:false,phase:'complete',checkedAt:new Date().toISOString()};h.api.reflect(current);h.api.ready();assert.equal(h.calls.length,1);assert.equal(h.calls[0].method,'updateStart');assert.equal(h.calls[0].params.operation,'check-only');assert.equal(h.calls[0].params.automatic,true);vm.runInContext('updateBusy=false',h.context);h.api.check(current);assert.equal(h.calls.length,1);
 });
 test('nova versão do Oracle avisa mesmo sem atualização do acervo ou motor',()=>{
- const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();h.api.reflect({...available,available:false,applicationUpdateAvailable:true,knownUpdate:true});
+ const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();h.api.reflect({...available,available:false,installableNow:false,applicationUpdateAvailable:true,applicationUpdateAvailableNow:true,knownUpdate:true,results:[{id:'oracle',status:'install_available'}]});
  assert.equal(h.notices.length,1);assert(h.classes.has('update-ready'));
 });
 test('pendência de publicação é distinta de atualização instalável',()=>{
- const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();h.api.reflect({available:false,knownUpdate:true,results:[{id:'skills',status:'publication_pending'}]});
+ const h=setup();h.context.window.ORACLE_PREVIEW=true;h.api.ready();h.api.reflect({available:false,installableNow:false,knownUpdate:true,results:[{id:'skills',status:'publication_pending'}]});
  assert.equal(h.notices.length,0);assert.match(h.elements['#updates']['aria-label'],/publicação/);assert(!h.classes.has('update-ready'));
 });
 test('a consulta agendada se repete depois de uma hora sem refresh do vault',()=>{

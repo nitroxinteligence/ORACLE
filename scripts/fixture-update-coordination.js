@@ -183,9 +183,27 @@
     assert(q('#update-message').textContent.includes('publicação'),'source-only changes mislabeled as compatibility');
    });
    await check('A new published catalog is actionable even if the engine is already current',async()=>{
-    status={...status,available:true,results:[{id:'oracle',status:'current'},{id:'skills',status:'available',version:'fixture-new',counts:{skills:204,prompts:17,tutorials:30},message:'Novo acervo publicado disponível.'},{id:'gbrain',status:'current'}]};
+   status={...status,available:true,results:[{id:'oracle',status:'current'},{id:'skills',status:'available',version:'fixture-new',counts:{skills:204,prompts:17,tutorials:30},message:'Novo acervo publicado disponível.'},{id:'gbrain',status:'current'}]};
     await pollUpdateStatus({fresh:true});assert(!q('#apply-update-metal').hidden,'catalog release omitted');
     assert(q('[data-update-channel="skills"]').classList.contains('update-success'),'new catalog is not marked available');
+   });
+   await check('GitHub rate limiting preserves verified details without exposing a stale install action',async()=>{
+    const retryAt=new Date(Date.now()+3600000).toISOString(),message='O GitHub limitou temporariamente as consultas. O Oracle tentará novamente mais tarde.';
+    const verified=[{id:'oracle',status:'current',version:'0.3.18',installedVersion:'0.3.18',message:'Oracle conferido.'},
+     {id:'skills',status:'current',version:'acervo-2026.09.17',counts:{skills:260,prompts:17,tutorials:30},message:'Acervo conferido.'},
+     {id:'codex',status:'current',message:'Atalhos conferidos.'},{id:'gbrain',status:'available',version:'0.51.0.0',message:'Atualização conhecida.'}];
+    status={...status,busy:false,phase:'deferred',message,available:true,installableNow:false,applicationUpdateAvailable:false,applicationUpdateAvailableNow:false,
+     rateLimitResetAt:retryAt,lastVerifiedResults:verified,pendingUpdates:[verified[3]],results:[
+      {id:'oracle',status:'rate_limited',installedVersion:'0.3.18',message,retryAt},
+      {id:'gbrain',status:'rate_limited',version:'0.50.5.0',message,retryAt},
+      {id:'skills',status:'rate_limited',version:'acervo-2026.09.17',message,retryAt}
+     ]};
+    await pollUpdateStatus({fresh:true});
+    assert(q('#apply-update-metal').hidden&&!q('#install-oracle-update'),'stale verification exposed an install action');
+    assert(q('#check-updates').disabled&&q('#check-updates').textContent.includes('Verificar após'),'rate-limit reset was not respected');
+    assert(document.querySelectorAll('.update-failure').length===0,'temporary rate limit rendered as a hard failure');
+    assert(q('[data-update-channel="skills"]').textContent.includes('260 skills · 17 prompts · 30 tutoriais'),'last verified catalog details were discarded');
+    assert(q('[data-status="rate_limited"]'),'neutral deferred badge missing');
    });
    await check('App locking invalidates delayed replies and clears update tracking',async()=>{
     holdNext=true;const reading=pollUpdateStatus({fresh:true});await wait(()=>held,'final reply held');

@@ -80,7 +80,7 @@ final class OracleUpdateCoordinator {
                 return reply(previous,accepted:false)
             }
             let old=try service.updateStatus()
-            let fields:Set<String>=["pendingUpdates","available","applicationUpdateAvailable","knownUpdate","checkedAt","skills_repository","gbrain_version","gbrain_rollback","skills_rollback","catalog_origins","availabilitySourceKey"]
+            let fields:Set<String>=["pendingUpdates","lastVerifiedResults","available","installableNow","applicationUpdateAvailable","applicationUpdateAvailableNow","knownUpdate","checkedAt","rateLimitResetAt","skills_repository","gbrain_version","gbrain_rollback","skills_rollback","catalog_origins","availabilitySourceKey"]
             var value=old.filter{fields.contains($0.key)}
             value["requestID"]=requestID;value["operation"]=operation;value["revision"]=1
             value["phase"]=automatic ? "preparing":"waiting";value["busy"]=true;value["canCancelWait"] = !automatic
@@ -91,6 +91,12 @@ final class OracleUpdateCoordinator {
                                 deadline:now()+waitLimit,previousGlobalID:old["requestID"] as? String,value:value)
             requests[requestID]=request;lastID=requestID
             if !allowed {end(request,phase:"cancelled",message:"A solicitação foi cancelada porque o Oracle está bloqueado.");return reply(request.value,accepted:false)}
+            if ["check-only","check-apply"].contains(operation),let retry=OracleUpdateRateLimitError.date(old["rateLimitResetAt"]),retry>Date() {
+                let rate=OracleUpdateRateLimitError(statusCode:429,retryAt:retry)
+                request.value["rateLimitResetAt"]=rate.timestamp
+                end(request,phase:"deferred",message:rate.localizedDescription)
+                return reply(request.value,accepted:false)
+            }
             if automatic && (OracleUpdatePriority.hasPending(home:home) || service.operationIsRunning("updates") || service.operationIsRunning("installation")) {
                 end(request,phase:"deferred",message:"Verificação adiada enquanto outra operação termina.")
                 return reply(request.value,accepted:false)
@@ -108,6 +114,7 @@ final class OracleUpdateCoordinator {
     private func end(_ request:Request,phase:String,message:String) {
         request.value["phase"]=phase;request.value["message"]=message
         request.value["busy"]=false;request.value["canCancelWait"]=false
+        if phase != "complete" {request.value["installableNow"]=false;request.value["applicationUpdateAvailableNow"]=false}
         request.value["revision"]=(request.value["revision"] as? Int ?? 0)+1
         if activeID==request.id {activeID=nil}
         OracleUpdatePriority.setPending(false,home:home,requestID:request.id)

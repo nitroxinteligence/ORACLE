@@ -695,15 +695,18 @@ let updatePolling=null,updateBusy=false;
 let updateOperation=null,updatePollPending=null,updatePollGeneration=-1;
 let updateGeneration=0,updateRequestID=null,updateStarting=false,updatePollAgain=false,updateAutomatic=false;
 const updateNames={oracle:'Oracle',gbrain:'Second Brain · GBrain',cognee:'Integração não adotada',skills:'Acervo',memory:'Índice do acervo'};
-const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',install_available:'Atualização disponível',download_available:'Nova versão disponível',publication_pending:'Publicação pendente',external:'Instalação existente',compatibility_required:'Aguardando validação',recovery_required:'Retomada necessária',not_adopted:'Não adotado',not_configured:'Fonte não configurada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
+const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',install_available:'Atualização disponível',download_available:'Nova versão disponível',publication_pending:'Publicação pendente',external:'Instalação existente',compatibility_required:'Aguardando validação',recovery_required:'Retomada necessária',not_adopted:'Não adotado',not_configured:'Fonte não configurada',rate_limited:'Consulta adiada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
 let startupUpdateReady=false,startupUpdateNoticeShown=false,latestUpdateStatus=null;
+function updateRateLimitDate(status){const date=Date.parse(status?.rateLimitResetAt||'');return Number.isFinite(date)&&date>Date.now()?date:null;}
+function updateCatalogInstallableNow(status){return status?.installableNow===true||(status?.installableNow==null&&status?.phase==='complete'&&status.results?.some(row=>row.status==='available'));}
+function updateAppInstallableNow(status){return status?.applicationUpdateAvailableNow===true||(status?.applicationUpdateAvailableNow==null&&status?.phase==='complete'&&status.results?.some(row=>row.id==='oracle'&&row.status==='install_available'));}
 function onboardingBlocksUpdates(){
  const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
  return document.body.classList.contains('ob2-configuring')||!!document.querySelector('.ob2-screen[open],.ob2-activation[open]')||!!onboarding.integrationPending||!!(onboarding.runID&&onboarding.status!=='completed');
 }
 function maybeShowStartupUpdateNotice(){
  if(onboardingBlocksUpdates()||knowledgeWelcomePending())return;
- if(!startupUpdateReady||startupUpdateNoticeShown||!(latestUpdateStatus?.available||latestUpdateStatus?.applicationUpdateAvailable)||latestUpdateStatus.busy||updateBusy||document.hidden||window.oracleWindowVisible===false||$('#app').inert||navigationBlocked()||$('#modal').open)return;
+ if(!startupUpdateReady||startupUpdateNoticeShown||!(updateCatalogInstallableNow(latestUpdateStatus)||updateAppInstallableNow(latestUpdateStatus))||latestUpdateStatus.busy||updateBusy||document.hidden||window.oracleWindowVisible===false||$('#app').inert||navigationBlocked()||$('#modal').open)return;
  const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
  if(!onboarding.hasVault||(!onboarding.licensed&&!onboarding.legacyAccess)||(!onboarding.legacyAccess&&onboarding.status!=='completed')||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
  if(!modal(`<h1>Atualização disponível</h1>${actions('<div id="update-notice-metal" data-update-effect></div>')}`,{family:'update-notice',root:true}))return;
@@ -727,7 +730,7 @@ function reflectUpdateStatus(status,{authoritative=false}={}){
  if(status.operation)updateOperation=status.operation;
  latestUpdateStatus=status;updateBusy=!!status.busy;$('#updates').classList.toggle('busy',updateBusy);
  const onboardingBusy=onboardingBlocksUpdates();
- $('#updates').classList.toggle('update-ready',!onboardingBusy&&(!!status.available||!!status.applicationUpdateAvailable));
+ $('#updates').classList.toggle('update-ready',!onboardingBusy&&(updateCatalogInstallableNow(status)||updateAppInstallableNow(status)));
  const pending=!onboardingBusy&&(!!status.knownUpdate||!!status.available||!!status.applicationUpdateAvailable);
  const age=Date.now()-Date.parse(status.checkedAt||status.at||'');
  const recent=Number.isFinite(age)&&age>=-300000&&age<86400000;
@@ -755,6 +758,7 @@ function maybeAutomaticUpdateCheck(status,{allowUpdateDialog=false}={}){
  // Discovery does not depend on Codex hooks being trusted or on resuming a
  // paused installation. Only an active installation retains exclusive priority.
  if(!onboarding.hasVault||(!onboarding.licensed&&!onboarding.legacyAccess)||['starting','running','cancelling','waiting_user'].includes(onboarding.status))return;
+ if(updateRateLimitDate(status))return;
  const now=Date.now(),checked=Date.parse(status.checkedAt||(status.phase==='complete'?status.at:'')||'');
  const hasError=status.phase==='failed'||status.results?.some(r=>['error','offline'].includes(r.status));
  if(automaticUpdateAttempt&&!hasError&&status.phase!=='deferred'&&Number.isFinite(checked)&&now-checked>=0&&now-checked<3600000)return;
@@ -764,10 +768,10 @@ function maybeAutomaticUpdateCheck(status,{allowUpdateDialog=false}={}){
  void startUpdateRequest('check-only',true);
 }
 function updateResultRows(status){
- const displayed=new Map([{id:'oracle',status:'not_checked'},{id:'skills',status:'not_checked'},{id:'gbrain',status:'not_checked',version:status.gbrain_version},...(status.pendingUpdates||[])].map(row=>[row.id,row]));
+ const displayed=new Map([{id:'oracle',status:'not_checked'},{id:'skills',status:'not_checked'},{id:'gbrain',status:'not_checked',version:status.gbrain_version},...(status.lastVerifiedResults||[]),...(status.pendingUpdates||[])].map(row=>[row.id,row]));
  for(const row of status.results||[]){
   const known=displayed.get(row.id);
-  displayed.set(row.id,known&&['offline','error','not_checked'].includes(row.status)?{...known,...row,pendingUpdate:known}:row);
+  displayed.set(row.id,known&&['offline','error','rate_limited','not_checked'].includes(row.status)?{...known,...row,lastVerified:known}:row);
  }
  const integration=displayed.get('codex'),catalog=displayed.get('skills');
  if(integration&&catalog)displayed.set('skills',{...catalog,localIntegration:integration});
@@ -794,7 +798,9 @@ function updateRowMarkup(row){
  const counts=row.counts;
  const countText=counts&&['skills','prompts','tutorials'].every(key=>Number.isSafeInteger(counts[key])&&counts[key]>=0)?`${counts.skills} skills · ${counts.prompts} prompts · ${counts.tutorials} tutoriais`:'';
  const version=row.id==='oracle'?`Neste Mac: ${row.installedVersion||'não informado'} · Publicada: ${row.version||'não consultada'}`:row.version?'Versão '+row.version:'';
- return `<section class="update-result ${['available','install_available','download_available'].includes(row.status)?'update-success':['error','offline'].includes(row.status)?'update-failure':''}" data-update-channel="${esc(row.id)}"><div>${icon(row.id==='oracle'?'refresh':row.id==='skills'?'folder':'brain')}<h2>${updateNames[row.id]||esc(row.id)}</h2>${statusBadge(row.status,updateStates[row.status]||'Não verificado')}</div>${row.id==='skills'?'<small>Skills, prompts e tutoriais</small>':''}<p>${esc(message||'Use Verificar para consultar esta fonte.')}</p>${version?`<small>${esc(version)}</small>`:''}${countText?`<small>${esc(countText)}</small>`:''}${row.publicationMessage&&!pendingPublication?`<p>${esc(row.publicationMessage)}</p>`:''}${pendingPublication&&row.publishedStatus?'<small>Pacote publicado conferido; novidades ainda não incluídas.</small>':''}${integration?`<details${['error','offline'].includes(integration.status)?' open':''}><summary>Integração com o Codex</summary><p>${esc(integration.message||'O reconhecimento das skills no Codex tem uma verificação própria.')}</p></details>`:''}${row.pendingUpdate?`<p>Atualização conhecida${row.pendingUpdate.version?' · versão '+esc(row.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}${oracleInstallable(row)?'<button class="secondary" id="install-oracle-update">Atualizar e reiniciar</button>':''}</section>`;
+ const last=row.lastVerified,known=last&&['available','install_available','download_available','compatibility_required','publication_pending'].includes(last.status);
+ const retained=last?`<p>${known?'Atualização conhecida':'Última verificação válida preservada'}${last.version?' · versão '+esc(last.version):''}. Nenhuma instalação será iniciada até uma nova consulta válida.</p>`:'';
+ return `<section class="update-result ${['available','install_available','download_available'].includes(row.status)?'update-success':['error','offline'].includes(row.status)?'update-failure':''}" data-update-channel="${esc(row.id)}"><div>${icon(row.id==='oracle'?'refresh':row.id==='skills'?'folder':'brain')}<h2>${updateNames[row.id]||esc(row.id)}</h2>${statusBadge(row.status,updateStates[row.status]||'Não verificado')}</div>${row.id==='skills'?'<small>Skills, prompts e tutoriais</small>':''}<p>${esc(message||'Use Verificar para consultar esta fonte.')}</p>${version?`<small>${esc(version)}</small>`:''}${countText?`<small>${esc(countText)}</small>`:''}${row.publicationMessage&&!pendingPublication?`<p>${esc(row.publicationMessage)}</p>`:''}${pendingPublication&&row.publishedStatus?'<small>Pacote publicado conferido; novidades ainda não incluídas.</small>':''}${integration?`<details${['error','offline'].includes(integration.status)?' open':''}><summary>Integração com o Codex</summary><p>${esc(integration.message||'O reconhecimento das skills no Codex tem uma verificação própria.')}</p></details>`:''}${retained}${oracleInstallable(row)&&!last?'<button class="secondary" id="install-oracle-update">Atualizar e reiniciar</button>':''}</section>`;
 }
 const updateEffectHosts=new Set();
 function cleanUpdateEffects(){for(const host of updateEffectHosts)if(!host.isConnected||!host.closest('dialog')?.open){OracleOnboardingEffects.destroy(host);updateEffectHosts.delete(host)}}
@@ -825,8 +831,8 @@ function renderUpdateStatus(status,options){
   $('#modal-title').textContent=updateBusy?(status.phase==='waiting'?'Aguardando para atualizar…':status.operation==='check-only'?'Verificando atualizações…':'Atualizando acervo e Second Brain…'):installComplete?'Atualização concluída':status.operation==='check-only'&&succeeded?'Verificação concluída':'Atualização não concluída';
   let finish=$('#update-finish');if(!updateBusy&&!finish){finish=document.createElement('button');finish.id='update-finish';finish.className='secondary';finish.textContent='Voltar às atualizações';finish.onclick=()=>{void showUpdates()};message.parentElement.append(finish)}if(finish)finish.hidden=updateBusy;return;
  }
- $('#check-updates').disabled=updateBusy;
- const applyHost=$('#apply-update-metal'),apply=applyHost?.querySelector('button');applyHost.hidden=!status.available;if(apply)apply.disabled=updateBusy;
+ const limitedUntil=updateRateLimitDate(status),check=$('#check-updates');check.disabled=updateBusy||!!limitedUntil;check.textContent=limitedUntil?'Verificar após '+new Date(limitedUntil).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'Verificar';
+ const applyHost=$('#apply-update-metal'),apply=applyHost?.querySelector('button');applyHost.hidden=!updateCatalogInstallableNow(status);if(apply)apply.disabled=updateBusy||!!limitedUntil;
  const results=updateResultRows(status);
  const resultsHTML=results.map(updateRowMarkup).join('');
  const resultsHost=$('#update-results');

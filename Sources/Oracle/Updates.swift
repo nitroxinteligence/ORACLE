@@ -23,10 +23,61 @@ func fileDigest(_ url: URL) throws -> String {
     return hash.finalize().map { String(format: "%02x", $0) }.joined()
 }
 
+struct OracleUpdateRateLimitError: LocalizedError {
+    let statusCode:Int
+    let retryAt:Date
+
+    var errorDescription:String? {
+        let formatter=DateFormatter();formatter.dateStyle = .none;formatter.timeStyle = .short
+        return "O GitHub limitou temporariamente as consultas. O Oracle tentará novamente após \(formatter.string(from:retryAt))."
+    }
+    var timestamp:String {ISO8601DateFormatter().string(from:retryAt)}
+    static func date(_ value:Any?)->Date? {
+        guard let text=value as? String else{return nil}
+        return ISO8601DateFormatter().date(from:text)
+    }
+    static func response(_ response:HTTPURLResponse,now:Date=Date())->OracleUpdateRateLimitError? {
+        let remaining=response.value(forHTTPHeaderField:"x-ratelimit-remaining")
+        let reset=response.value(forHTTPHeaderField:"x-ratelimit-reset").flatMap(TimeInterval.init).map{Date(timeIntervalSince1970:$0)}
+        let retry=response.value(forHTTPHeaderField:"retry-after").flatMap(TimeInterval.init).map{now.addingTimeInterval(max(1,$0))}
+        guard [403,429].contains(response.statusCode),(remaining=="0" || retry != nil) else{return nil}
+        return OracleUpdateRateLimitError(statusCode:response.statusCode,retryAt:max(reset ?? now.addingTimeInterval(60),retry ?? now))
+    }
+}
+
 final class UpdateNetwork: NSObject, URLSessionTaskDelegate {
     // Native test injection only; production always uses the restricted HTTPS GET.
     private let transport:((String,Int)throws->Data)?
+    private static let rateMutex=NSLock()
+    private static var blockedUntil:Date?
+    private(set) var rateLimit:OracleUpdateRateLimitError?
+    private(set) var githubRemaining:Int?
     init(transport:((String,Int)throws->Data)?=nil) {self.transport=transport;super.init()}
+    static func resetRateLimitForTests() {rateMutex.lock();blockedUntil=nil;rateMutex.unlock()}
+    private static func activeRateLimit(now:Date=Date())->OracleUpdateRateLimitError? {
+        rateMutex.lock();defer{rateMutex.unlock()}
+        guard let until=blockedUntil else{return nil}
+        if until<=now {blockedUntil=nil;return nil}
+        return OracleUpdateRateLimitError(statusCode:429,retryAt:until)
+    }
+    private func register(_ error:OracleUpdateRateLimitError) {
+        Self.rateMutex.lock()
+        if Self.blockedUntil.map({$0<error.retryAt}) != false {Self.blockedUntil=error.retryAt}
+        Self.rateMutex.unlock();rateLimit=error
+    }
+    private func observe(_ response:HTTPURLResponse) {
+        guard response.url?.host=="api.github.com" else{return}
+        if let remaining=response.value(forHTTPHeaderField:"x-ratelimit-remaining").flatMap(Int.init) {githubRemaining=remaining}
+        if let error=OracleUpdateRateLimitError.response(response) {register(error)}
+        else if githubRemaining==0,
+                let reset=response.value(forHTTPHeaderField:"x-ratelimit-reset").flatMap(TimeInterval.init) {
+            register(OracleUpdateRateLimitError(statusCode:response.statusCode,retryAt:Date(timeIntervalSince1970:reset)))
+        }
+    }
+    func canSpendOptionalRequests(_ count:Int,reserving:Int=0)->Bool {
+        guard rateLimit==nil else{return false}
+        return githubRemaining.map{$0>=count+reserving} ?? true
+    }
     static func permitted(_ url: URL) -> Bool {
         guard url.scheme == "https", url.user == nil, url.password == nil, url.port == nil else { return false }
         return ["github.com", "api.github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com", "raw.githubusercontent.com"].contains(url.host ?? "")
@@ -36,8 +87,11 @@ final class UpdateNetwork: NSObject, URLSessionTaskDelegate {
     }
     func fetch(_ text: String, limit: Int = 2_000_000, progress: ((Int, Int) -> Void)? = nil) throws -> Data {
         guard let url = URL(string: text), Self.permitted(url) else { throw failure("Fonte de atualização não permitida") }
+        if url.host=="api.github.com",let blocked=Self.activeRateLimit(){rateLimit=blocked;throw blocked}
         if let transport {
-            let data=try transport(text,limit)
+            let data:Data
+            do {data=try transport(text,limit)}
+            catch let error as OracleUpdateRateLimitError {register(error);throw error}
             guard data.count<=limit else{throw failure("Pacote excede o limite autorizado")}
             progress?(data.count,data.count);return data
         }
@@ -55,7 +109,10 @@ final class UpdateNetwork: NSObject, URLSessionTaskDelegate {
             let value: Result<Data, Error>
             do {
                 if let error { throw error }
-                guard let response = response as? HTTPURLResponse, response.statusCode == 200, let local else { throw failure("Fonte indisponível (HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)). Tente novamente.") }
+                guard let response = response as? HTTPURLResponse else{throw failure("Fonte de atualização sem resposta HTTP válida.")}
+                self.observe(response)
+                if let rate=OracleUpdateRateLimitError.response(response) {throw rate}
+                guard response.statusCode == 200, let local else { throw failure("Fonte indisponível (HTTP \(response.statusCode)). Tente novamente.") }
                 guard (try local.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? Int.max) <= limit else { throw failure("Pacote excede o limite autorizado") }
                 value = .success(try Data(contentsOf: local))
             } catch { value = .failure(error) }
@@ -121,15 +178,20 @@ extension Core {
         guard let execution=owner ?? updateExecution else{throw failure("Progresso recusado: nenhum atualizador possui esta operação.")}
         try execution.write { old in
         let key=execution.sourceKey,oldKey=old["availabilitySourceKey"] as? String
-        let prior=(oldKey == nil || oldKey == key) ? (old["pendingUpdates"] as? [[String:Any]] ?? old["results"] as? [[String:Any]] ?? []) : []
+        let sameSource=oldKey == nil || oldKey == key
+        let prior=sameSource ? (old["pendingUpdates"] as? [[String:Any]] ?? old["results"] as? [[String:Any]] ?? []) : []
         let pending=OracleUpdateLedger.reconcile(previous:prior,results:results)
+        let verified=OracleUpdateLedger.verified(previous:sameSource ? (old["lastVerifiedResults"] as? [[String:Any]] ?? []) : [],results:results)
         let errors=results.filter{$0["status"] as? String=="error"}
         let recordedPhase=phase=="complete" && !errors.isEmpty ? "failed":phase
         let now=ISO8601DateFormatter().string(from:Date())
+        let fresh=recordedPhase=="complete"
         var value:[String:Any]=["phase":recordedPhase,"message":text,"completed":completed,"total":total,
-            "results":results,"at":now,"pendingUpdates":pending,"availabilitySourceKey":key,
+            "results":results,"at":now,"pendingUpdates":pending,"lastVerifiedResults":verified,"availabilitySourceKey":key,
             "available":OracleUpdateLedger.installable(pending),"knownUpdate":OracleUpdateLedger.hasNews(pending),
-            "applicationUpdateAvailable":pending.contains{$0["id"] as? String=="oracle" && ["install_available","download_available"].contains($0["status"] as? String ?? "")}]
+            "installableNow":fresh && results.contains{$0["status"] as? String=="available"},
+            "applicationUpdateAvailable":pending.contains{$0["id"] as? String=="oracle" && ["install_available","download_available"].contains($0["status"] as? String ?? "")},
+            "applicationUpdateAvailableNow":fresh && results.contains{$0["id"] as? String=="oracle" && $0["status"] as? String=="install_available"}]
         if recordedPhase=="failed",!errors.isEmpty {value["error"]=errors.compactMap{$0["message"] as? String}.joined(separator:"\n")}
         if let progressSource {value["progressSource"]=progressSource}
         for (field,item) in diagnostic {value[field]=item}
@@ -164,10 +226,15 @@ extension Core {
         let key=updateSourceKey(),storedKey=value["availabilitySourceKey"] as? String
         let sameSource=storedKey == nil || storedKey == key
         let pending=OracleUpdateLedger.reconcile(previous:sameSource ? (value["pendingUpdates"] as? [[String:Any]] ?? value["results"] as? [[String:Any]] ?? []) : [],results:[])
+        if !sameSource {value["lastVerifiedResults"]=[[String:Any]]()}
+        let results=value["results"] as? [[String:Any]] ?? []
         value["pendingUpdates"]=pending
         value["available"]=OracleUpdateLedger.installable(pending)
         value["knownUpdate"]=OracleUpdateLedger.hasNews(pending)
         value["applicationUpdateAvailable"]=pending.contains{$0["id"] as? String=="oracle" && ["install_available","download_available"].contains($0["status"] as? String ?? "")}
+        let fresh=value["phase"] as? String=="complete"
+        value["installableNow"]=fresh && results.contains{$0["status"] as? String=="available"}
+        value["applicationUpdateAvailableNow"]=fresh && results.contains{$0["id"] as? String=="oracle" && $0["status"] as? String=="install_available"}
         value["skills_repository"] = updatePreferences()["skills_repository"] ?? NSNull()
         value["gbrain_version"] = ((try? readJSON(updatePath("runtime/current.json")))?["version"] ?? ((try? updateManifest())?["gbrain"] as? [String: Any])?["bundled_version"]) ?? "desconhecida"
         value["gbrain_rollback"] = (try? readJSON(updatePath("runtime/current.json")))?["previous"] != nil
@@ -182,7 +249,7 @@ extension Core {
            let progress=try? readJSON(home.appendingPathComponent("onboarding/installations/"+id+"/progress.json")) {
             for field in ["completed","total","bytes_downloaded","bytes_total"] {if let number=progress[field] {value[field]=number}}
         }
-        let errors=(value["results"] as? [[String:Any]] ?? []).filter{$0["status"] as? String=="error"}
+        let errors=results.filter{$0["status"] as? String=="error"}
         if value["phase"] as? String=="complete",!errors.isEmpty {value["phase"]="failed"}
         if !errors.isEmpty {value["error"]=errors.compactMap{$0["message"] as? String}.joined(separator:"\n")}
         value["catalog_origins"] = catalogSummary().filter { $0["repo"] as? String != nil }.map { ["id":$0["id"] ?? "", "repo":$0["repo"] ?? "", "commit":$0["commit"] ?? ""] }

@@ -127,6 +127,8 @@ func runDistributionTests() throws {
     try rejects("partial or empty inventory rejected even with valid signature"){_=try decode(signed(bad))}
     let firstPackage=manifest.packages[0],packageData=payloads[firstPackage["url"] as! String]!
     try rejects("corrupt package is rejected"){_=try manifest.decodePackage(packageData+Data([0]),metadata:firstPackage)}
+    let sharedResource=vault.appendingPathComponent("SISTEMA/recursos-skills/research-lab/reference.txt")
+    try check(try core.distributionOwnedDestination(sharedResource.path,root:vault)==sharedResource,"shared skill resources remain valid managed update destinations")
     try rejects("distribution cannot overwrite or delete personal notes via a ledger destination"){_=try core.distributionOwnedDestination(vault.appendingPathComponent("AREAS/pessoal/nota.md").path,root:vault)}
     try cache(manifest)
     let plan=try core.makeMemoryOnlyPlan(manifest:manifest,id:UUID().uuidString)

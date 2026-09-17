@@ -414,7 +414,7 @@ extension Core {
     func distributionOwnedDestination(_ path:String,root:URL) throws -> URL {
         if path.hasPrefix(root.path+"/"){
             let relative=String(path.dropFirst(root.path.count+1)),key=portablePathKey(relative)
-            guard ["sistema/skills/","sistema/prompts/","sistema/tutoriais/"].contains(where:{key.hasPrefix($0)}) else{throw failure("Atualizações só podem modificar o acervo gerenciado de skills, prompts e tutoriais.")}
+            guard ["sistema/skills/","sistema/recursos-skills/","sistema/prompts/","sistema/tutoriais/"].contains(where:{key.hasPrefix($0)}) else{throw failure("Atualizações só podem modificar o acervo gerenciado de skills e seus recursos, prompts e tutoriais.")}
             return try scoped(relative,root:root)
         }
         let source=home.appendingPathComponent("sources/gbrain").path

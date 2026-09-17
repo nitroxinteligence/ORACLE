@@ -9,7 +9,8 @@ private struct UpdateChannelDevice:OracleLicenseDeviceProviding {
 /// production signing key nor a real engine executable is needed by this suite.
 private func updateChannelDistribution(skillEntry:String="SISTEMA/skills/fixture/example/SKILL.md",structured:Bool=false,
                                        minimumOracle:String="0.3.0",oracleVersion:String="0.3.14",
-                                       skillResources:[String]=[],entryLayout:String?=nil)throws->(Data,(Data)throws->DistributionManifest) {
+                                       skillResources:[String]=[],entryLayout:String?=nil,
+                                       departmentID:String="code")throws->(Data,(Data)throws->DistributionManifest) {
     let key=Curve25519.Signing.PrivateKey(),release="fixture-channels-1"
     let trust:[String:Any]=["schema_version":1,"algorithm":"Ed25519","keys":[["id":"fixture","public_key_base64":key.publicKey.rawRepresentation.base64EncodedString()]]]
     let inputs=[("specialists",skillEntry),("prompts","SISTEMA/prompts/Example.md"),
@@ -28,7 +29,7 @@ private func updateChannelDistribution(skillEntry:String="SISTEMA/skills/fixture
                          "asset":id+".json","url":OracleCatalogRelease.repository+"/releases/download/"+release+"/"+id+".json","dependencies":[]])
         counts[kind]=["files":rows.count,"bytes":total,"items":kind=="gbrain-source" ? 0:1]
         if let itemKind=["specialists":"skill","prompts":"prompt","tutorials":"tutorial"][kind] {
-            var item:[String:Any]=["id":itemKind+"-fixture","kind":itemKind,"name":"Fixture","entry":path,"required_files":paths,"department_id":structured && itemKind=="skill" ? "code":"research","dependencies":[]]
+            var item:[String:Any]=["id":itemKind+"-fixture","kind":itemKind,"name":"Fixture","entry":path,"required_files":paths,"department_id":structured && itemKind=="skill" ? departmentID:"research","dependencies":[]]
             if itemKind=="skill" {
                 item["specialist_id"]="fixture";item["host_name"]="oracle-skill-fixture"
                 if let entryLayout {item["entry_layout"]=entryLayout}
@@ -134,6 +135,10 @@ func runUpdateChannelTests()throws {
     let template="SISTEMA/skills/codigo/fixture/01-getting-started/ask-matt/references/SKILL.md"
     let (directBytes,directDecode)=try updateChannelDistribution(skillEntry:directEntry,structured:true,minimumOracle:"0.3.3")
     try expect(try directDecode(directBytes).items.first?.entry==directEntry,"six-part structured skill remains compatible with the previous contract")
+    let contentEntry="SISTEMA/skills/conteudo/fixture/example/SKILL.md"
+    let (contentBytes,contentDecode)=try updateChannelDistribution(skillEntry:contentEntry,structured:true,minimumOracle:"0.3.14",departmentID:"content")
+    let contentSkill=try contentDecode(contentBytes).items.first{$0.kind=="skill"}
+    try expect(contentSkill?.entry==contentEntry && contentSkill?.department=="content","structured content department remains aligned with the signed catalog generator")
     let (nestedBytes,nestedDecode)=try updateChannelDistribution(skillEntry:nestedEntry,structured:true,minimumOracle:"0.3.14",skillResources:[template],entryLayout:"reviewed-nested")
     let nested=try nestedDecode(nestedBytes)
     try expect(nested.items.filter{$0.kind=="skill"}.count==1 && nested.items.first?.entry==nestedEntry,"signed reviewed nested skill preserves phase and leaf paths")

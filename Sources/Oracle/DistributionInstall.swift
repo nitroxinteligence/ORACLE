@@ -138,7 +138,7 @@ extension Core {
         return result
     }
     static let skillDepartmentFolders=["conversao":"conversao","entrega":"entrega","leads":"leads","oferta":"oferta","sistemas":"sistemas","trafego":"trafego","code":"Código","marketing":"Marketing","content":"Conteúdo","sales":"Vendas","design":"Design","research":"Pesquisa","unassigned":"Outros"]
-    static let structuredSkillDepartments=["codigo":"code","conversao":"conversao","entrega":"entrega","leads":"leads","marketing":"marketing","oferta":"oferta","sistemas":"sistemas","trafego":"trafego","vendas":"sales"]
+    static let structuredSkillDepartments=["codigo":"code","conteudo":"content","conversao":"conversao","entrega":"entrega","leads":"leads","marketing":"marketing","oferta":"oferta","sistemas":"sistemas","trafego":"trafego","vendas":"sales"]
     func distributionSkillFolders(_ manifest:DistributionManifest) -> [String:String] {
         if manifest.document["skills_layout"] as? String=="department-specialist-skill" {return [:]}
         // Existing immutable installations retain their mapping on update. New

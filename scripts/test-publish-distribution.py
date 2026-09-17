@@ -160,6 +160,18 @@ class PublisherTests(unittest.TestCase):
             self.publish(execute=True)
         self.assert_no_publication()
 
+    def test_draft_asset_accepts_github_untagged_url_but_published_requires_final_tag(self):
+        name = next(iter(self.bundle['assets']))
+        expected = self.bundle['assets'][name]
+        draft = {'name': name, 'state': 'uploaded', 'size': expected['bytes'],
+                 'digest': 'sha256:' + expected['sha256'],
+                 'browser_download_url': pub.DOWNLOAD + 'untagged-4ae5635f82f6876a0c04/' + name}
+        self.assertEqual(pub.verify_remote_assets([draft], {name: expected}, self.bundle['manifest']['release_id'], published=False)[name], draft)
+        with self.assertRaises(dist.Refused):
+            pub.verify_remote_assets([draft], {name: expected}, self.bundle['manifest']['release_id'])
+        draft['browser_download_url'] = pub.DOWNLOAD + self.bundle['manifest']['release_id'] + '/' + name
+        self.assertEqual(pub.verify_remote_assets([draft], {name: expected}, self.bundle['manifest']['release_id'])[name], draft)
+
     def test_source_push_alone_or_truncated_tree_is_not_release_delivery(self):
         original = copy.deepcopy(self.github.tree)
         for change in ('digest', 'extra', 'truncated'):

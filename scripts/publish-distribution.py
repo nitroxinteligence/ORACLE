@@ -238,14 +238,20 @@ def verify_source_tree(tree, expected):
     require(actual == expected, 'Signed final snapshot differs from the remote libraries; mirror/review/commit the exact snapshot before release')
 
 
-def verify_remote_assets(rows, assets, tag, complete=True):
+def verify_remote_assets(rows, assets, tag, complete=True, published=True):
     require(len({r['name'] for r in rows}) == len(rows), 'Duplicate remote assets')
     actual = {r['name']: r for r in rows}
     require(set(actual) == set(assets) if complete else set(actual) <= set(assets), 'Unexpected or missing remote assets')
     for name, row in actual.items():
+        url = row.get('browser_download_url', '')
+        final_url = DOWNLOAD + tag + '/' + name
+        draft_prefix = DOWNLOAD + 'untagged-'
+        draft_url = (isinstance(url, str) and url.startswith(draft_prefix) and url.endswith('/' + name)
+                     and re.fullmatch(r'untagged-[A-Za-z0-9._-]{1,128}', url[len(DOWNLOAD):-(len(name) + 1)]) is not None)
         require(row.get('state') == 'uploaded' and row.get('size') == assets[name]['bytes']
                 and row.get('digest') == 'sha256:' + assets[name]['sha256']
-                and row.get('browser_download_url') == DOWNLOAD + tag + '/' + name, 'Remote asset digest, state or official URL differs')
+                and (url == final_url or (not published and draft_url)),
+                'Remote asset digest, state or official URL differs')
     return actual
 
 
@@ -295,7 +301,7 @@ def publish(bundle, staging, commit, notes, trust, github, execute=False, resume
     else:
         require(resume_draft is None, 'Requested draft no longer exists')
     existing = github.pages('releases/' + str(draft['id']) + '/assets') if draft else []
-    verified = verify_remote_assets(existing, bundle['assets'], tag, complete=False)
+    verified = verify_remote_assets(existing, bundle['assets'], tag, complete=False, published=False)
     result = {'ready': True, 'published': False, 'repository': REPOSITORY, 'release_id': tag,
               'sequence': bundle['manifest']['sequence'], 'source_commit': commit,
               'assets': len(bundle['assets']), 'baseline_release_id': baseline}
@@ -312,7 +318,7 @@ def publish(bundle, staging, commit, notes, trust, github, execute=False, resume
     missing = [staging / name for name in bundle['assets'] if name not in verified]
     if missing:
         github.upload(tag, missing)
-    verify_remote_assets(github.pages('releases/' + str(draft['id']) + '/assets'), bundle['assets'], tag)
+    verify_remote_assets(github.pages('releases/' + str(draft['id']) + '/assets'), bundle['assets'], tag, published=False)
     require(github.request('git/ref/heads/main')['object']['sha'] == commit and check_latest(github, bundle, trust) == baseline,
             'Source or stable release advanced during upload; draft retained')
     require(tag_commit(github, tag) in (None, commit), 'Release tag moved during upload; draft retained')

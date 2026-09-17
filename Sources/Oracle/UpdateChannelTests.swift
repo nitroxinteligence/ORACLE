@@ -61,16 +61,14 @@ func runUpdateChannelTests()throws {
         ["draft":false,"prerelease":false,"tag_name":appTag,"html_url":OracleApplicationRelease.repository+"/releases/tag/"+appTag,"assets":assets]
     }
     let app=appRelease([appAsset()]),available=try OracleApplicationRelease.resolve(app,installed:"0.3.14")
-    try expect(available["status"] as? String=="download_available" && available["downloadURL"] as? String==appAsset()["browser_download_url"] as? String,"new stable app exposes only its validated installer URL")
+    try expect(available["status"] as? String=="install_available" && available["downloadURL"] as? String==appAsset()["browser_download_url"] as? String,"new stable app exposes only its validated updater ZIP")
     try expect(available["downloadSHA256"] as? String==appAsset()["digest"] as? String && available["downloadBytes"] as? Int==1024,"app download metadata preserves official digest and byte count")
-    try expect(!OracleUpdateLedger.installable([available]) && OracleUpdateLedger.hasNews([available]),"app download is news, never an in-app catalog or engine installation")
+    try expect(!OracleUpdateLedger.installable([available]) && OracleUpdateLedger.hasNews([available]),"app update is tracked separately from catalog or engine installation")
     for installed in [appVersion,"100.0.0"] {
         let row=try OracleApplicationRelease.resolve(app,installed:installed)
         try expect(row["status"] as? String=="current" && row["downloadURL"]==nil,"equal or newer local app never offers downgrade: "+installed)
     }
-    let pipelineName="Oracle-99.0.0-20260916T220000Z-310b98f12345-a1b2c3d4-release-arm64.dmg"
-    try expect(try OracleApplicationRelease.resolve(appRelease([appAsset(pipelineName)]),installed:"0.3.14")["status"] as? String=="download_available","app recognizes the actual package.sh buildID release filename")
-    for name in ["Oracle-99.0.0-macos-x64.zip","Oracle-99.0.0-developer-arm64.dmg","Source-code.zip","Oracle-98.0.0-macos-arm64.zip"] {
+    for name in ["Oracle-99.0.0-macos-arm64.dmg","Oracle-99.0.0-20260916T220000Z-310b98f12345-a1b2c3d4-release-arm64.dmg","Oracle-99.0.0-macos-x64.zip","Oracle-99.0.0-developer-arm64.dmg","Source-code.zip","Oracle-98.0.0-macos-arm64.zip"] {
         let row=try OracleApplicationRelease.resolve(appRelease([appAsset(name)]),installed:"0.3.14")
         try expect(row["status"] as? String=="publication_pending" && row["downloadURL"]==nil,"unsupported or mismatched installer is not actionable: "+name)
     }
@@ -237,7 +235,7 @@ func runUpdateChannelTests()throws {
     }
     let checked=try check(network()),rows=checked["results"] as? [[String:Any]] ?? []
     func status(_ id:String,_ rows:[[String:Any]])->String? {rows.first{$0["id"] as? String==id}?["status"] as? String}
-    try expect(checked["phase"] as? String=="complete" && status("oracle",rows)=="download_available" && status("gbrain",rows)=="available" && status("skills",rows)=="available","all three channels detect independently in a paused-onboarding profile")
+    try expect(checked["phase"] as? String=="complete" && status("oracle",rows)=="install_available" && status("gbrain",rows)=="available" && status("skills",rows)=="available","all three channels detect independently in a paused-onboarding profile")
     try expect(checked["applicationUpdateAvailable"] as? Bool==true && checked["available"] as? Bool==true,"snapshot separates app download from in-app installation availability")
     let catalogRow=rows.first{$0["id"] as? String=="skills"} ?? [:]
     try expect(catalogRow["publicationPending"] as? Bool==true && (catalogRow["counts"] as? [String:Int])==["skills":1,"prompts":1,"tutorials":1],"catalog reports unpublished source and counts the three signed libraries")
@@ -260,7 +258,7 @@ func runUpdateChannelTests()throws {
     for (id,url) in [("oracle",OracleApplicationRelease.api),("gbrain",OfficialRuntimeRelease.api),("skills",OracleCatalogRelease.api)] {
         let failed=try check(network(failing:url)),results=failed["results"] as? [[String:Any]] ?? []
         try expect(failed["phase"] as? String=="failed" && status(id,results)=="error","failed channel is reported explicitly: "+id)
-        try expect(["oracle","gbrain","skills"].filter{$0 != id}.allSatisfy{["available","download_available"].contains(status($0,results) ?? "")},"failed source does not skip the other two channels: "+id)
+        try expect(["oracle","gbrain","skills"].filter{$0 != id}.allSatisfy{["available","install_available"].contains(status($0,results) ?? "")},"failed source does not skip the other two channels: "+id)
     }
     let apply=try check(network(failing:OracleCatalogRelease.api),operation:"check-apply")
     try expect(status("gbrain",apply["results"] as? [[String:Any]] ?? [])=="recovery_required","paused installation still prevents an actual runtime replacement")
@@ -281,7 +279,7 @@ func runUpdateChannelTests()throws {
         let capturedCatalog=try readJSON(folder.appendingPathComponent("catalog-release.json"))
         let capturedRuntime=try readJSON(folder.appendingPathComponent("gbrain-release.json"))
         let appRow=try OracleApplicationRelease.resolve(capturedApp,installed:"0.0.0")
-        try expect(appRow["status"] as? String=="download_available","captured real app asset passes the same native URL and digest contract")
+        try expect(appRow["status"] as? String=="install_available","captured real app asset passes the same native URL and digest contract")
         let catalogReference=try OracleCatalogRelease.resolve(capturedCatalog)
         try expect(!catalogReference.tag.isEmpty,"captured catalog release passes stable asset validation")
         let runtimeReference=try OfficialRuntimeRelease.resolve(capturedRuntime,adapterCommit:oracleGBrainPinnedCommit)

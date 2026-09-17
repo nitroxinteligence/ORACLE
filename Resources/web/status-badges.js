@@ -6,7 +6,7 @@
     inactive:['inactive','inativo','inativa','disabled','desativado','desativada','not_started','not_adopted','not_configured','cancelled','canceled'],
     paused:['paused','pausado','pausada','interrupted','interrompido','cancelling','cancelando','suspended','suspenso'],
     pending:['pending','pendente','waiting','aguardando','needs_auth','authorizing','awaiting_approval','awaiting_identity','compatibility_required','publication_pending','recovery_required','unverified','not_checked','nao_verificado','conexao_nao_verificada'],
-    info:['installed','instalado','configured','available','download_available','disponivel','external','starting','running','em_execucao','preserved_edits','rolled_back','selected','recent_activity']
+    info:['installed','instalado','configured','available','install_available','download_available','disponivel','external','starting','running','em_execucao','preserved_edits','rolled_back','selected','recent_activity']
   };
   const tones=Object.create(null);
   for(const [tone,states] of Object.entries(groups))for(const state of states)tones[state]=tone;

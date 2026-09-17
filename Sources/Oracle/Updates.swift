@@ -129,7 +129,7 @@ extension Core {
         var value:[String:Any]=["phase":recordedPhase,"message":text,"completed":completed,"total":total,
             "results":results,"at":now,"pendingUpdates":pending,"availabilitySourceKey":key,
             "available":OracleUpdateLedger.installable(pending),"knownUpdate":OracleUpdateLedger.hasNews(pending),
-            "applicationUpdateAvailable":pending.contains{$0["id"] as? String=="oracle" && $0["status"] as? String=="download_available"}]
+            "applicationUpdateAvailable":pending.contains{$0["id"] as? String=="oracle" && ["install_available","download_available"].contains($0["status"] as? String ?? "")}]
         if recordedPhase=="failed",!errors.isEmpty {value["error"]=errors.compactMap{$0["message"] as? String}.joined(separator:"\n")}
         if let progressSource {value["progressSource"]=progressSource}
         for (field,item) in diagnostic {value[field]=item}
@@ -167,7 +167,7 @@ extension Core {
         value["pendingUpdates"]=pending
         value["available"]=OracleUpdateLedger.installable(pending)
         value["knownUpdate"]=OracleUpdateLedger.hasNews(pending)
-        value["applicationUpdateAvailable"]=pending.contains{$0["id"] as? String=="oracle" && $0["status"] as? String=="download_available"}
+        value["applicationUpdateAvailable"]=pending.contains{$0["id"] as? String=="oracle" && ["install_available","download_available"].contains($0["status"] as? String ?? "")}
         value["skills_repository"] = updatePreferences()["skills_repository"] ?? NSNull()
         value["gbrain_version"] = ((try? readJSON(updatePath("runtime/current.json")))?["version"] ?? ((try? updateManifest())?["gbrain"] as? [String: Any])?["bundled_version"]) ?? "desconhecida"
         value["gbrain_rollback"] = (try? readJSON(updatePath("runtime/current.json")))?["previous"] != nil

@@ -15,7 +15,7 @@ function setup(){
  const clock={now:Date.now()},timers=new Map();let timerID=0;
  class ClockDate extends Date {static now(){return clock.now}}
  const context=vm.createContext({Date:ClockDate,URL,document:{hidden:false,body:{classList:{contains:()=>false}},querySelector:()=>null},window:{oracleWindowVisible:true,OracleOnboarding:{getState:()=>onboarding}},state:{config:{},onboarding},$:selector=>elements[selector],knowledgeWelcomePending:()=>false,navigationBlocked:()=>!elements['#lock-screen'].hidden||context.dirty,modal:html=>{notices.push(html);elements['#modal'].open=true;return true},actions:html=>html,mountUpdateMetal:(host,label,action)=>{host.onclick=action},safe:fn=>fn,closeModal:()=>{elements['#modal'].open=false},showUpdates:operation=>opened.push(operation),startUpdateRequest:(operation,automatic)=>{calls.push({method:'updateStart',params:{operation,automatic}});vm.runInContext('updateBusy=true',context);return new Promise(()=>{})},setTimeout:(fn,ms)=>{timers.set(++timerID,{fn,ms});return timerID},clearTimeout:id=>timers.delete(id)});
- vm.runInContext(updateCode+';globalThis.api={ready:finishUpdateStartup,reflect:reflectUpdateStatus,notify:maybeShowStartupUpdateNotice,check:maybeAutomaticUpdateCheck,rows:updateResultRows,installer:oracleInstallerURL};',context);
+ vm.runInContext(updateCode+';globalThis.api={ready:finishUpdateStartup,reflect:reflectUpdateStatus,notify:maybeShowStartupUpdateNotice,check:maybeAutomaticUpdateCheck,rows:updateResultRows,installable:oracleInstallable};',context);
  return {context,elements,classes,notices,opened,calls,onboarding,clock,timers,api:context.api};
 }
 const available={available:true,busy:false,checkedAt:new Date().toISOString()};
@@ -65,9 +65,9 @@ test('modal Atualizações permite consulta vencida mas editor aberto não',()=>
 test('três canais permanecem visíveis e Codex fica dentro do acervo',()=>{
  const h=setup(),rows=h.api.rows({results:[{id:'skills',status:'current'},{id:'codex',status:'available'}]});assert.equal(rows.length,3);assert.deepEqual(Array.from(rows,r=>r.id),['oracle','skills','gbrain']);assert.equal(rows[1].localIntegration.status,'available');
 });
-test('download só aceita instalador da release Oracle esperada',()=>{
- const h=setup(),row={id:'oracle',status:'download_available',version:'0.3.14',downloadSHA256:'sha256:'+'a'.repeat(64),downloadURL:'https://github.com/nitroxinteligence/ORACLE/releases/download/v0.3.14/Oracle-0.3.14-macos-arm64.zip'};
- assert.equal(h.api.installer(row),row.downloadURL);
- for(const downloadURL of [row.downloadURL+'?redirect=elsewhere',row.downloadURL.replace('nitroxinteligence','foreign'),row.downloadURL.replace('arm64','x64'),row.downloadURL.replace('v0.3.14','v0.3.13')])assert.equal(h.api.installer({...row,downloadURL}),null);
- assert.equal(h.api.installer({...row,status:'error'}),null);
+test('autoatualização só aceita o ZIP oficial da release Oracle esperada',()=>{
+ const h=setup(),row={id:'oracle',status:'install_available',version:'0.3.14',downloadSHA256:'sha256:'+'a'.repeat(64),downloadURL:'https://github.com/nitroxinteligence/ORACLE/releases/download/v0.3.14/Oracle-0.3.14-macos-arm64.zip'};
+ assert.equal(h.api.installable(row),true);
+ for(const downloadURL of [row.downloadURL+'?redirect=elsewhere',row.downloadURL.replace('nitroxinteligence','foreign'),row.downloadURL.replace('arm64','x64'),row.downloadURL.replace('v0.3.14','v0.3.13')])assert.equal(h.api.installable({...row,downloadURL}),false);
+ assert.equal(h.api.installable({...row,status:'error'}),false);
 });

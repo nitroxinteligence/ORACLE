@@ -10,7 +10,7 @@
  const known=[{id:'gbrain',status:'available',version:'0.99.0.0'}];
  const old=()=>({busy:false,phase:'failed',message:oldError,available:true,knownUpdate:true,results:[],pendingUpdates:copy(known)});
  let status=old(),mode='normal',holdNext=false,held=null,requestMissing=false,starts=0,executions=0,statusReads=0,cancelCalls=0;
- const cases=[],trace=[],openedInstallers=[];
+ const cases=[],trace=[];let appInstalls=0;
  f.ob={...f.ob,status:'completed',licensed:true,legacyAccess:true,hasVault:true,runID:'synthetic-update-coordination'};
  f.config.vault='/__synthetic_oracle__/vault';f.ob.knowledgeWelcome={runID:f.ob.runID,vault:f.config.vault};
  const publish=(phase,extra={})=>{status={...status,phase,revision:(status.revision||0)+1,...extra}};
@@ -18,7 +18,7 @@
  const flush=()=>{assert(held,'No delayed response');const reply=held;held=null;window.oracleReply(reply.id,{value:reply.value})};
  const click=id=>{const el=q(id);assert(el&&!el.disabled,'Missing/disabled '+id);el.click()};
  window.__oracleFixtureReceive=async ({id,method,params={}})=>{
-  if(method==='openExternal'){openedInstallers.push(params.url);window.oracleReply(id,{value:true});return;}
+  if(method==='installOracleUpdate'){appInstalls++;window.oracleReply(id,{value:{restarting:true,version:status.results?.find(row=>row.id==='oracle')?.version||'synthetic'}});return;}
   if(method==='updateStatus'){
    statusReads++;const value=copy(status);
    trace.push({method,requestID:params.requestID,phase:value.phase,revision:value.revision});
@@ -157,29 +157,29 @@
     assert(q('[data-update-channel="skills"]').textContent.includes('179 skills · 17 prompts · 24 tutoriais'),'three-library counts absent');
     assert(q('[data-update-channel="skills"] details')&&!q('[data-update-channel="codex"]'),'Codex is incorrectly a release channel');
     assert(q('[data-status="publication_pending"]').dataset.tone==='pending','publication pending is not recognized');
-    assert(!q('#download-oracle-update'),'offered a downgrade to published app');
+    assert(!q('#install-oracle-update'),'offered an app replacement for a non-installable release');
     assert(q('.modal-body').scrollWidth<=q('.modal-body').clientWidth+1,'horizontal modal overflow');
     window.__updateChannelScreenshot=false;window.webkit.messageHandlers.fixture.postMessage({type:'snapshot'});
     await wait(()=>window.__updateChannelScreenshot,'channel screenshot');
    });
-   await check('An app-only update offers an explicit official download without invoking catalog installation',async()=>{
+   await check('An app-only update offers one-click replacement without invoking catalog installation',async()=>{
     const before=starts;
-    const row={id:'oracle',status:'download_available',version:'0.3.15',installedVersion:'0.3.14',message:'Nova versão do aplicativo disponível.',downloadSHA256:'sha256:'+'a'.repeat(64),downloadURL:'https://github.com/nitroxinteligence/ORACLE/releases/download/v0.3.15/Oracle-0.3.15-macos-arm64.zip'};
+    const row={id:'oracle',status:'install_available',version:'0.3.15',installedVersion:'0.3.14',message:'Nova versão do aplicativo disponível.',downloadSHA256:'sha256:'+'a'.repeat(64),downloadURL:'https://github.com/nitroxinteligence/ORACLE/releases/download/v0.3.15/Oracle-0.3.15-macos-arm64.zip'};
     status={...status,available:false,applicationUpdateAvailable:true,results:[row,{id:'skills',status:'current'},{id:'gbrain',status:'current'}]};
     await pollUpdateStatus({fresh:true});assert(q('#apply-update-metal').hidden,'app-only update enables catalog installation');
-    assert(q('#download-oracle-update')&&!q('#download-oracle-update').disabled,'official download missing');
-    click('#download-oracle-update');await wait(()=>openedInstallers.length===1,'download action');
-    assert(openedInstallers[0]===row.downloadURL&&starts===before,'download invoked updateStart or wrong URL');
+    assert(q('#install-oracle-update')&&!q('#install-oracle-update').disabled,'one-click app update missing');
+    click('#install-oracle-update');await wait(()=>appInstalls===1,'app update action');
+    assert(starts===before,'app replacement incorrectly invoked catalog updateStart');
     assert(q('#update-message').textContent.includes('Oracle'),'app update mislabeled as compatibility');
    });
-   await check('An untrusted installer URL cannot create a download action',async()=>{
+   await check('An untrusted installer URL cannot create an app update action',async()=>{
     status.results[0].downloadURL='https://github.com/foreign/ORACLE/releases/download/v0.3.15/Oracle-0.3.15-macos-arm64.zip';
-    await pollUpdateStatus({fresh:true});assert(!q('#download-oracle-update'),'foreign installer exposed');
+    await pollUpdateStatus({fresh:true});assert(!q('#install-oracle-update'),'foreign installer exposed');
    });
    await check('Source-only changes remain pending publication rather than being offered for installation',async()=>{
     status={...status,available:false,applicationUpdateAvailable:false,knownUpdate:true,results:[{id:'oracle',status:'current'},
      {id:'skills',status:'publication_pending',publishedStatus:'current',publicationMessage:'Novos arquivos aguardam publicação.',publicationPending:true},{id:'gbrain',status:'current'}]};
-    await pollUpdateStatus({fresh:true});assert(q('#apply-update-metal').hidden&&!q('#download-oracle-update'),'unpublished code offered to install');
+    await pollUpdateStatus({fresh:true});assert(q('#apply-update-metal').hidden&&!q('#install-oracle-update'),'unpublished code offered to install');
     assert(q('#update-message').textContent.includes('publicação'),'source-only changes mislabeled as compatibility');
    });
    await check('A new published catalog is actionable even if the engine is already current',async()=>{

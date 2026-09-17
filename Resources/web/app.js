@@ -695,7 +695,7 @@ let updatePolling=null,updateBusy=false;
 let updateOperation=null,updatePollPending=null,updatePollGeneration=-1;
 let updateGeneration=0,updateRequestID=null,updateStarting=false,updatePollAgain=false,updateAutomatic=false;
 const updateNames={oracle:'Oracle',gbrain:'Second Brain · GBrain',cognee:'Integração não adotada',skills:'Acervo',memory:'Índice do acervo'};
-const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',download_available:'Nova versão disponível',publication_pending:'Publicação pendente',external:'Instalação existente',compatibility_required:'Aguardando validação',recovery_required:'Retomada necessária',not_adopted:'Não adotado',not_configured:'Fonte não configurada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
+const updateStates={not_checked:'Não verificado',configured:'Disponível',current:'Em dia',updated:'Atualizado',available:'Atualização disponível',install_available:'Atualização disponível',download_available:'Nova versão disponível',publication_pending:'Publicação pendente',external:'Instalação existente',compatibility_required:'Aguardando validação',recovery_required:'Retomada necessária',not_adopted:'Não adotado',not_configured:'Fonte não configurada',offline:'Sem conexão',error:'Consulta não concluída',preserved_edits:'Personalizações preservadas',rolled_back:'Restaurado'};
 let startupUpdateReady=false,startupUpdateNoticeShown=false,latestUpdateStatus=null;
 function onboardingBlocksUpdates(){
  const onboarding={...state.onboarding,...window.OracleOnboarding?.getState?.()};
@@ -774,21 +774,19 @@ function updateResultRows(status){
  return [...displayed.values()].filter(row=>row.id!=='codex'&&row.status!=='not_adopted');
 }
 function updateNewsMessage(status){
- if(status.applicationUpdateAvailable)return 'Uma nova versão do Oracle está disponível para baixar.';
+ if(status.applicationUpdateAvailable)return 'Uma nova versão do Oracle está disponível para instalar.';
  const rows=[...(status.results||[]),...(status.pendingUpdates||[])];
  if(rows.some(row=>row.publicationPending||row.status==='publication_pending'))return 'Há alterações no GitHub aguardando publicação para os usuários.';
  if(status.knownUpdate)return 'Há uma versão nova aguardando compatibilidade.';
  return 'Verificação concluída.';
 }
-function oracleInstallerURL(row){
- if(row?.id!=='oracle'||row.status!=='download_available'||!/^sha256:[a-f0-9]{64}$/.test(row.downloadSHA256||''))return null;
- if(!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(row.version||''))return null;
+function oracleInstallable(row){
+ if(row?.id!=='oracle'||row.status!=='install_available'||!/^sha256:[a-f0-9]{64}$/.test(row.downloadSHA256||''))return false;
+ if(!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(row.version||''))return false;
  try{
-  const url=new URL(row.downloadURL),prefix='/nitroxinteligence/ORACLE/releases/download/v'+row.version+'/';
-  if(url.protocol!=='https:'||url.hostname!=='github.com'||url.port||url.username||url.password||url.search||url.hash||!url.pathname.startsWith(prefix))return null;
-  const name=url.pathname.slice(prefix.length),version=row.version.replaceAll('.','\\.');
-  return new RegExp('^Oracle-'+version+'-(?:macos-arm64\\.(?:zip|dmg)|(?:[A-Za-z0-9][A-Za-z0-9._-]{0,95}-)?release-arm64\\.dmg)$').test(name)?url.href:null;
- }catch{return null;}
+  const url=new URL(row.downloadURL),prefix='/nitroxinteligence/ORACLE/releases/download/v'+row.version+'/',name='Oracle-'+row.version+'-macos-arm64.zip';
+  return url.protocol==='https:'&&url.hostname==='github.com'&&!url.port&&!url.username&&!url.password&&!url.search&&!url.hash&&url.pathname===prefix+name;
+ }catch{return false;}
 }
 function updateRowMarkup(row){
  const pendingPublication=row.status==='publication_pending',integration=row.localIntegration;
@@ -796,7 +794,7 @@ function updateRowMarkup(row){
  const counts=row.counts;
  const countText=counts&&['skills','prompts','tutorials'].every(key=>Number.isSafeInteger(counts[key])&&counts[key]>=0)?`${counts.skills} skills · ${counts.prompts} prompts · ${counts.tutorials} tutoriais`:'';
  const version=row.id==='oracle'?`Neste Mac: ${row.installedVersion||'não informado'} · Publicada: ${row.version||'não consultada'}`:row.version?'Versão '+row.version:'';
- return `<section class="update-result ${['available','download_available'].includes(row.status)?'update-success':['error','offline'].includes(row.status)?'update-failure':''}" data-update-channel="${esc(row.id)}"><div>${icon(row.id==='oracle'?'refresh':row.id==='skills'?'folder':'brain')}<h2>${updateNames[row.id]||esc(row.id)}</h2>${statusBadge(row.status,updateStates[row.status]||'Não verificado')}</div>${row.id==='skills'?'<small>Skills, prompts e tutoriais</small>':''}<p>${esc(message||'Use Verificar para consultar esta fonte.')}</p>${version?`<small>${esc(version)}</small>`:''}${countText?`<small>${esc(countText)}</small>`:''}${row.publicationMessage&&!pendingPublication?`<p>${esc(row.publicationMessage)}</p>`:''}${pendingPublication&&row.publishedStatus?'<small>Pacote publicado conferido; novidades ainda não incluídas.</small>':''}${integration?`<details${['error','offline'].includes(integration.status)?' open':''}><summary>Integração com o Codex</summary><p>${esc(integration.message||'O reconhecimento das skills no Codex tem uma verificação própria.')}</p></details>`:''}${row.pendingUpdate?`<p>Atualização conhecida${row.pendingUpdate.version?' · versão '+esc(row.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}${oracleInstallerURL(row)?'<button class="secondary" id="download-oracle-update">Baixar Oracle</button>':''}</section>`;
+ return `<section class="update-result ${['available','install_available','download_available'].includes(row.status)?'update-success':['error','offline'].includes(row.status)?'update-failure':''}" data-update-channel="${esc(row.id)}"><div>${icon(row.id==='oracle'?'refresh':row.id==='skills'?'folder':'brain')}<h2>${updateNames[row.id]||esc(row.id)}</h2>${statusBadge(row.status,updateStates[row.status]||'Não verificado')}</div>${row.id==='skills'?'<small>Skills, prompts e tutoriais</small>':''}<p>${esc(message||'Use Verificar para consultar esta fonte.')}</p>${version?`<small>${esc(version)}</small>`:''}${countText?`<small>${esc(countText)}</small>`:''}${row.publicationMessage&&!pendingPublication?`<p>${esc(row.publicationMessage)}</p>`:''}${pendingPublication&&row.publishedStatus?'<small>Pacote publicado conferido; novidades ainda não incluídas.</small>':''}${integration?`<details${['error','offline'].includes(integration.status)?' open':''}><summary>Integração com o Codex</summary><p>${esc(integration.message||'O reconhecimento das skills no Codex tem uma verificação própria.')}</p></details>`:''}${row.pendingUpdate?`<p>Atualização conhecida${row.pendingUpdate.version?' · versão '+esc(row.pendingUpdate.version):''}. Aguardando nova verificação.</p>`:''}${oracleInstallable(row)?'<button class="secondary" id="install-oracle-update">Atualizar e reiniciar</button>':''}</section>`;
 }
 const updateEffectHosts=new Set();
 function cleanUpdateEffects(){for(const host of updateEffectHosts)if(!host.isConnected||!host.closest('dialog')?.open){OracleOnboardingEffects.destroy(host);updateEffectHosts.delete(host)}}
@@ -833,8 +831,8 @@ function renderUpdateStatus(status,options){
  const resultsHTML=results.map(updateRowMarkup).join('');
  const resultsHost=$('#update-results');
  if(!(updateBusy&&!status.results?.length&&resultsHost.children.length)&&resultsHost.oracleHTML!==resultsHTML){resultsHost.innerHTML=resultsHTML;resultsHost.oracleHTML=resultsHTML;}
- const download=$('#download-oracle-update');
- if(download){download.disabled=updateBusy;download.onclick=safe(async()=>{const row=updateResultRows(latestUpdateStatus).find(item=>item.id==='oracle'),url=oracleInstallerURL(row);if(!url)throw Error('Verifique novamente para obter o instalador publicado.');await call('openExternal',{url})});}
+ const appUpdate=$('#install-oracle-update');
+ if(appUpdate){appUpdate.disabled=updateBusy;appUpdate.onclick=safe(async()=>{const row=updateResultRows(latestUpdateStatus).find(item=>item.id==='oracle');if(!oracleInstallable(row))throw Error('Verifique novamente para obter a atualização publicada.');appUpdate.disabled=true;appUpdate.textContent='Preparando atualização…';const result=await call('installOracleUpdate');if(!result?.restarting)throw Error('O Oracle não confirmou o reinício da atualização.');appUpdate.textContent='Reiniciando…';});}
  const recoveryHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar acervo anterior</button>':'');
  const recovery=$('#update-recovery');if(recovery.oracleHTML!==recoveryHTML){recovery.innerHTML=recoveryHTML;recovery.oracleHTML=recoveryHTML;}
  $$('[data-rollback]').forEach(b=>{b.disabled=updateBusy;b.onclick=()=>showUpdates(b.dataset.rollback).catch(e=>toast(e.message,'error'))});

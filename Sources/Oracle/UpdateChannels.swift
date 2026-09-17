@@ -26,14 +26,13 @@ enum OracleApplicationRelease {
                 ? "Este Mac usa uma versão mais recente que o último instalador publicado."
                 : "Você já usa a última versão publicada do aplicativo Oracle."]
         guard newer else{return value}
-        // Accept only release assets, not source-code archives or instructions in
-        // release notes. Opening the installer is an explicit user action.
-        let expected=Set(["Oracle-"+version+"-macos-arm64.zip","Oracle-"+version+"-macos-arm64.dmg",
-                          "Oracle-"+version+"-release-arm64.dmg"])
-        let pipelinePattern="^Oracle-"+NSRegularExpression.escapedPattern(for:version)+"-[A-Za-z0-9][A-Za-z0-9._-]{0,95}-release-arm64\\.dmg$"
+        // Automatic replacement uses the canonical ZIP only. DMGs remain useful
+        // for first install, but are intentionally not mounted or executed by the
+        // running application.
+        let expected=Set(["Oracle-"+version+"-macos-arm64.zip"])
         let named=assets.filter{asset in
             guard let name=asset["name"] as? String else{return false}
-            return expected.contains(name) || name.range(of:pipelinePattern,options:.regularExpression) != nil
+            return expected.contains(name)
         }
         let names=named.compactMap{$0["name"] as? String}
         guard Set(names).count==names.count else{throw failure("A release do Oracle contém instaladores duplicados; download não autorizado.")}
@@ -45,17 +44,14 @@ enum OracleApplicationRelease {
                   let hash=asset["digest"] as? String,hash.hasPrefix("sha256:"),DistributionManifest.validHash(String(hash.dropFirst(7))) else{return false}
             return true
         }.sorted{($0["name"] as? String ?? "")<($1["name"] as? String ?? "")}
-        guard candidates.filter({($0["name"] as? String ?? "").hasSuffix(".dmg")}).count<=1 else {
-            throw failure("A release do Oracle contém mais de um instalador para este Mac. Confira a publicação antes de baixar.")
-        }
         guard let asset=candidates.first else {
             value["status"]="publication_pending"
-            value["message"]="A nova versão foi anunciada, mas falta publicar um instalador verificável para este Mac."
+            value["message"]="A nova versão foi anunciada, mas falta publicar o ZIP verificável usado pela atualização automática."
             return value
         }
-        value["status"]="download_available";value["downloadURL"]=asset["browser_download_url"]
+        value["status"]="install_available";value["downloadURL"]=asset["browser_download_url"]
         value["downloadSHA256"]=asset["digest"];value["downloadBytes"]=asset["size"]
-        value["message"]="Nova versão do aplicativo Oracle disponível. Baixe o instalador; atualizar o acervo ou o GBrain não substitui o aplicativo."
+        value["message"]="Nova versão do aplicativo Oracle pronta para atualizar. O Oracle valida o pacote, substitui o aplicativo e reinicia preservando seu perfil."
         return value
     }
 }
@@ -134,8 +130,8 @@ enum OracleSourcePublication {
 }
 
 extension Core {
-    /// Runs independently of the engine and catalog result. No self-install,
-    /// shell command, release-body execution or application replacement here.
+    /// Runs independently of the engine and catalog result. This is discovery
+    /// only; application replacement still requires an explicit user action.
     func checkOracleApplication(network:UpdateNetwork)->[String:Any]? {
         guard (try? updateManifest()["oracle"] as? [String:Any])?["repository"] as? String==OracleApplicationRelease.repository else{return nil}
         do {

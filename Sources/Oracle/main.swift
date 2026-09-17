@@ -100,7 +100,7 @@ if arguments.contains("--onboarding-verify") { do { print(String(decoding:try js
 if arguments.contains("--self-test-onboarding") { do { try runOnboardingTests();try runOnboardingLifecycleTests();try runImplementationPolicyTests();try runLicenseDeviceTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-updates") { do { try runUpdateTests(releasePath:argument("--test-release"),officialReleasePath:argument("--test-official-release"));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--self-test-update-admission") {do {try runUpdateAdmissionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
-if arguments.contains("--self-test-update-channels") {do {try runUpdateChannelTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-update-channels") {do {try runUpdateChannelTests();try runApplicationUpdateTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
 if arguments.contains("--self-test") { do { try runTests(); exit(0) } catch { fputs("FAIL: \(error)\n",stderr); exit(1) } }
 
 if let operation = argument("--update") {
@@ -131,6 +131,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var requestMethods=[String:String]()
     var lockGeneration=0
     var terminationPending=false
+    var pendingApplicationUpdate:OraclePreparedApplicationUpdate?
+    var applicationUpdateHelperLaunched=false
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
     let queue = DispatchQueue(label:"oracle.core",autoreleaseFrequency:.workItem)
     let updateStatusQueue = DispatchQueue(label:"oracle.updates.status",qos:.userInitiated,autoreleaseFrequency:.workItem)
@@ -140,6 +142,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     })
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
+        core.finalizeApplicationUpdateIfNeeded()
         onboardingController=try? OnboardingController(home:core.home)
         onboardingController?.openLogin={ url in DispatchQueue.main.async { NSWorkspace.shared.open(url) } }
         let content = WKUserContentController(); content.add(self,name:"oracle")
@@ -194,7 +197,14 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         web.callAsyncJavaScript("return await window.oraclePrepareToClose?.() ?? true",arguments:[:],in:nil,in:.page) { result in
             self.terminationPending=false
             switch result {
-            case .success: sender.reply(toApplicationShouldTerminate:true)
+            case .success:
+                do {
+                    if let prepared=self.pendingApplicationUpdate {try self.launchApplicationUpdateHelper(prepared)}
+                    sender.reply(toApplicationShouldTerminate:true)
+                } catch {
+                    self.pendingApplicationUpdate=nil;self.applicationUpdateHelperLaunched=false
+                    let alert=NSAlert();alert.messageText="Não foi possível preparar o reinício";alert.informativeText=error.localizedDescription;alert.addButton(withTitle:"Voltar ao Oracle");self.addAlertBreadcrumb(alert,"Oracle › Atualizações › Oracle");alert.beginSheetModal(for:self.window){_ in sender.reply(toApplicationShouldTerminate:false)}
+                }
             case .failure:
                 let alert=NSAlert();alert.messageText="Não foi possível guardar seu rascunho";alert.informativeText="Volte ao editor e salve o documento ou descarte as alterações antes de sair.";alert.addButton(withTitle:"Voltar ao editor");self.addAlertBreadcrumb(alert,"Oracle › Editor › Rascunho");alert.beginSheetModal(for:self.window){_ in sender.reply(toApplicationShouldTerminate:false)}
             }
@@ -204,6 +214,38 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     func windowShouldClose(_ sender:NSWindow)->Bool {NSApp.terminate(nil);return false}
     func applicationWillTerminate(_ notification:Notification) {updateCoordinator.setAllowed(false);localServices?.stop();core.memorySync.stop();onboardingController?.shutdown()}
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication) -> Bool { true }
+    func launchApplicationUpdateHelper(_ prepared:OraclePreparedApplicationUpdate)throws {
+        guard !applicationUpdateHelperLaunched else{return}
+        guard prepared.current.deletingLastPathComponent().path==prepared.replacement.deletingLastPathComponent().path,
+              prepared.current.deletingLastPathComponent().path==prepared.backup.deletingLastPathComponent().path,
+              prepared.replacement.lastPathComponent.hasPrefix(".Oracle.update-"),prepared.backup.lastPathComponent.hasPrefix(".Oracle.backup-") else{throw failure("A preparação da atualização perdeu o escopo seguro.")}
+        let script="""
+        pid="$1"; current="$2"; replacement="$3"; backup="$4"
+        count=0
+        while /bin/kill -0 "$pid" 2>/dev/null && [ "$count" -lt 600 ]; do /bin/sleep 0.1; count=$((count+1)); done
+        if /bin/kill -0 "$pid" 2>/dev/null; then exit 20; fi
+        [ -d "$current" ] || exit 21
+        [ -d "$replacement" ] || exit 22
+        [ ! -e "$backup" ] || exit 23
+        /bin/mv "$current" "$backup" || exit 24
+        if ! /bin/mv "$replacement" "$current"; then
+          /bin/mv "$backup" "$current" 2>/dev/null || true
+          exit 25
+        fi
+        if ! /usr/bin/open "$current"; then
+          /bin/mv "$current" "${replacement}.failed" 2>/dev/null || true
+          /bin/mv "$backup" "$current" 2>/dev/null || true
+          /usr/bin/open "$current" 2>/dev/null || true
+          exit 26
+        fi
+        exit 0
+        """
+        let process=Process();process.executableURL=URL(fileURLWithPath:"/bin/sh")
+        process.arguments=["-c",script,"oracle-updater",String(ProcessInfo.processInfo.processIdentifier),prepared.current.path,prepared.replacement.path,prepared.backup.path]
+        process.environment=["PATH":"/usr/bin:/bin:/usr/sbin:/sbin","HOME":core.home.path]
+        process.standardOutput=FileHandle.nullDevice;process.standardError=FileHandle.nullDevice
+        try process.run();applicationUpdateHelperLaunched=true
+    }
     func buildMenu() {
         let bar = NSMenu()
         let appItem = NSMenuItem(); bar.addItem(appItem); let appMenu = NSMenu(); appItem.submenu = appMenu
@@ -309,6 +351,19 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             guard ["check-apply","check-only","rollback-gbrain","rollback-skills"].contains(operation) else { reply(id,nil,"Operação inválida");return }
             do {reply(id,try updateCoordinator.start(operation:operation,requestID:p["requestID"] as? String ?? UUID().uuidString,automatic:p["automatic"] as? Bool==true))}
             catch {reply(id,nil,error.localizedDescription)}
+            return
+        }
+        if method == "installOracleUpdate" {
+            queue.async {
+                do {
+                    let service=try Core(home:core.home),prepared=try service.prepareApplicationUpdate()
+                    DispatchQueue.main.async {
+                        self.pendingApplicationUpdate=prepared
+                        self.reply(id,["restarting":true,"version":prepared.version])
+                        DispatchQueue.main.asyncAfter(deadline:.now()+0.25){NSApp.terminate(nil)}
+                    }
+                } catch {DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}
+            }
             return
         }
         if method == "protect" { authenticate { ok,error in if ok { self.queue.async { core.config["protected"] = true; try? core.persist(); DispatchQueue.main.async { self.reply(id,true) } } } else { self.reply(id,nil,error) } }; return }

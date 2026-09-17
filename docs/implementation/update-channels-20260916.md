@@ -1,4 +1,4 @@
-# Atualizações: Oracle, acervo e Second Brain — 0.3.14
+# Atualizações: Oracle, acervo e Second Brain — 0.3.16
 
 ## Comportamento
 
@@ -22,9 +22,13 @@ progresso compartilhado; bloqueios reais, cancelamento da espera e recibos são 
 ## Fontes e limites
 
 - Oracle: `nitroxinteligence/ORACLE/releases/latest`. Compara a versão instalada
-  com a release estável. Valida metadados, nome, arquitetura, tamanho, digest e URL
-  do instalador. **Baixar Oracle** abre o download oficial por ação explícita; não
-  substitui o app nem declara que o arquivo baixado foi instalado ou notarizado.
+  com a release estável e aceita para autoatualização somente o ZIP canônico
+  `Oracle-<versão>-macos-arm64.zip`, com URL oficial, tamanho e SHA-256 publicados.
+  **Atualizar e reiniciar** baixa o ZIP por ação explícita, valida o bundle, versão,
+  proveniência, assinatura interna e arquitetura, prepara um `.app` irmão sem tocar
+  no aplicativo atual, encerra pelo guard normal de rascunhos, troca o bundle e abre
+  novamente o Oracle. O perfil continua em `~/Library/Application Support/OracleCompanion`
+  e o vault permanece fora do bundle; uma atualização do app não refaz onboarding.
 - Acervo: `nitroxinteligence/ORACLE-SKILLS/releases/latest`. O arquivo
   `oracle-distribution.json` precisa coincidir com o digest/tamanho/tag da release
   e passar pela assinatura Ed25519 e pelo contrato nativo existentes. Skills,
@@ -36,6 +40,21 @@ Uma comparação limitada de árvores da branch main com a tag publicada identif
 **Publicação pendente**. Código na branch não é convertido em atualização instalável.
 Consulta online com falha não usa silenciosamente o cache como se fosse a release
 mais recente. O fallback autenticado de instalação offline permanece separado.
+
+## Atualização do próprio aplicativo
+
+A `0.3.16` é a versão-ponte que adiciona a substituição do aplicativo pelo próprio
+Oracle. Instalações anteriores não possuem esse código e, portanto, precisam ser
+levadas uma última vez manualmente à `0.3.16`. Depois disso, uma release futura que
+publique o ZIP canônico aparece no modal como **Atualização disponível** e pode ser
+aplicada por **Atualizar e reiniciar**, sem baixar/abrir instalador manualmente.
+
+O updater não monta DMG nem executa conteúdo das notas da release. Ele não remove
+quarentena, não contorna Gatekeeper e não modifica o perfil. Se a pasta que contém
+`Oracle.app` não for gravável, a troca é recusada e o aplicativo atual é preservado.
+Se a preparação for abandonada antes do encerramento, o próximo launch limpa apenas
+seu staging oculto. Durante a troca existe um backup irmão; o novo app o remove após
+confirmar que iniciou na versão esperada.
 
 ## Causa de novas bibliotecas não chegarem
 
@@ -80,7 +99,8 @@ python3 scripts/test-distribution.py
 python3 scripts/test-publish-distribution.py
 ```
 
-As suítes nativas `--self-test-update-channels` e `--self-test-update-admission`
+As suítes nativas `--self-test-update-channels` (incluindo o staging do aplicativo)
+e `--self-test-update-admission`
 exigem `--state` em `.work` e `ORACLE_TEST_ROOT` explícito. As fixtures WebKit usam
 interface real com ponte simulada; testes de canais usam transportes sintéticos e
 respostas públicas previamente capturadas. Nenhuma dessas provas, isoladamente,

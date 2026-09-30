@@ -1,4 +1,5 @@
 import {canonicalizeLocalLinks,hasKnownEndpoints} from './link-resolution.ts';
+import {LinkDiagnostics,prepareLinkContent,LINK_DIAGNOSTICS_VERSION} from './link-diagnostics.ts';
 import {importFromContent} from '../../vendor/gbrain/src/core/import-file.ts';
 import {extractPageLinks,makeResolver} from '../../vendor/gbrain/src/core/link-extraction.ts';
 import type {BrainEngine} from '../../vendor/gbrain/src/core/engine.ts';
@@ -198,20 +199,22 @@ export async function indexVault(engine:BrainEngine,input:any){
     const desiredPaths=new Set(records.map(row=>row.path)),desiredSlugs=new Set(records.map(row=>row.slug));
     // An interrupted verification alone does not invalidate verified relations.
     // Imported changes and obsolete managed slugs still require reconciliation.
-    noOp=upserts===0&&!pending&&unchangedSnapshot&&previous?.complete===true&&
+    noOp=upserts===0&&!pending&&unchangedSnapshot&&previous?.complete===true&&previous?.link_diagnostics_version===LINK_DIAGNOSTICS_VERSION&&
       ![...managed.values()].some(row=>!desiredSlugs.has(row.slug));
     // Build every relation first. A parse/cancellation failure cannot remove any
     // previously good relation or page. Reconciliation below is one official tx.
     const resolver=makeResolver(engine,{mode:'batch',sourceId:'oracle-vault'});
     const byPath=new Map(records.map(row=>[row.path,row.slug])),known=new Set(records.map(row=>row.slug));
-    const relations:any[]=[],unresolved:any[]=[];let relationBytes=0,relationPages=0;
+    const relations:any[]=[],diagnostics=new LinkDiagnostics(known);let relationBytes=0,relationPages=0;
     Bun.gc(true);
     for(const row of noOp?[]:records){
       check();if(++relationPages%25===0)Bun.gc(true);const page=await engine.getPage(row.slug,{sourceId:'oracle-vault'});
       if(!page||page.content_hash!==row.indexed_content_hash)throw Error('Index changed during relation preparation');
-      const extracted=await extractPageLinks(page.slug,canonicalizeLocalLinks(page.compiled_truth,row.path,byPath),page.frontmatter,page.type,resolver,{globalBasename:false});
+      const prepared=prepareLinkContent(page.compiled_truth);diagnostics.externalReferences(row.path,prepared.external);
+      const extracted=await extractPageLinks(page.slug,canonicalizeLocalLinks(prepared.content,row.path,byPath),page.frontmatter,page.type,resolver,{globalBasename:false});
+      for(const ref of extracted.unresolved)diagnostics.unresolved(row.path,ref.name,ref.field);
       for(const relation of extracted.candidates){
-        if(!hasKnownEndpoints(relation,page.slug,known)){if(unresolved.length<200)unresolved.push({path:row.path,target:relation.targetSlug});continue}
+        if(!hasKnownEndpoints(relation,page.slug,known)){diagnostics.unresolved(row.path,relation.targetSlug);continue}
         relations.push({...relation,from:relation.fromSlug||page.slug});
         relationBytes+=Buffer.byteLength(JSON.stringify(relations[relations.length-1]));
         if(relations.length>100_000||relationBytes>64_000_000)throw Error('Explicit relation budget exceeded');
@@ -257,14 +260,15 @@ export async function indexVault(engine:BrainEngine,input:any){
     });
     reconciled=true;
     if(noOp)links=previous?.explicit_links||0;
+    const linkDiagnostics=noOp?Object.fromEntries(Object.keys(diagnostics.snapshot()).map(key=>[key,previous[key]])):diagnostics.snapshot();
     const payload={schema_version:2,run_id:run,root,records:records.map(row=>({...row,page_hash:row.indexed_content_hash})),complete:true,at:now(),generation:input.generation??null,
       snapshot_signature:input.snapshot_signature??null,removed_from_derived_index:removed,explicit_links:links,
-      unresolved_link_count:noOp?previous?.unresolved_link_count||0:unresolved.length,unresolved_links:noOp?previous?.unresolved_links||[]:unresolved,source:'oracle-vault',excluded_sources:['INBOX/oracle-memory'],changed:upserts,unchanged:records.length-upserts,no_op:noOp};
+      ...linkDiagnostics,source:'oracle-vault',excluded_sources:['INBOX/oracle-memory'],changed:upserts,unchanged:records.length-upserts,no_op:noOp};
     const manifest={...payload,receipt_sha256:sha(canonical(payload))};
     // Last complete manifest is immutable until the full tx has committed.
     atomicJSON(manifestPath,manifest);unlinkSync(checkpointPath);if(existsSync(pendingPath))unlinkSync(pendingPath);
     event('gbrain.index_verified',`${records.length} documentos e ${links} relações verificados`);
-    return {total:files.length,verified:records.length,complete:true,failures:[],explicit_links:links,removed_from_derived_index:removed,changed:upserts,unchanged:records.length-upserts,no_op:noOp,receipt_sha256:manifest.receipt_sha256,manifest_file_sha256:sha(readFileSync(manifestPath))};
+    return {total:files.length,verified:records.length,complete:true,failures:[],explicit_links:links,...linkDiagnostics,removed_from_derived_index:removed,changed:upserts,unchanged:records.length-upserts,no_op:noOp,receipt_sha256:manifest.receipt_sha256,manifest_file_sha256:sha(readFileSync(manifestPath))};
   }catch(error){
     problem('',error);phase='partial';save();event('gbrain.index_failed','Índice parcial; manifesto completo anterior e notas canônicas preservados');
     return {total:files.length,verified:records.length,upserts,complete:false,failures,needs_resume:needsResume,reconciliation_committed:reconciled,removed_from_derived_index:reconciled?removed:0};

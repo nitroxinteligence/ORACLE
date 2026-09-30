@@ -2,6 +2,15 @@ import Foundation
 
 /// model/list is the host-owned capability contract; no hardcoded model fallback.
 struct OracleCodexModel {
+    static let maintenanceModelID = "gpt-6.1-sol"
+    static let maintenanceEffort = "medium"
+    /// Recognition of host receipts is independent of the default chosen for new tasks.
+    /// Unknown models stay pending; model/list remains authoritative for actual execution.
+    static func isCompatibleMaintenance(model: String?, effort: String?) -> Bool {
+        let supported: Set<String> = ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna",
+                                      "gpt-6-sol", "gpt-6-astra", "gpt-6-luna", "gpt-6.1-sol"]
+        return model.map { supported.contains($0) } == true && effort == maintenanceEffort
+    }
     let id: String
     let label: String
     let effort: String

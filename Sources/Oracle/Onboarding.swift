@@ -56,6 +56,8 @@ extension Core {
             value["distributionConflicts"]=(conflicts["conflicts"] as? [[String:String]] ?? []).map{["path":$0["path"] ?? "","code":$0["code"] ?? ""]}
         }
         value["codexConnected"]=(try? readJSON(home.appendingPathComponent("onboarding/connection.json")))?["connected"] as? Bool ?? false
+        let runtime=codexRuntimeBindingStatus()
+        value["codexRuntime"]=runtime
         let progress=try onboardingProgress();value["confirmed"]=progress
         value["completed"]=progress.count;value["total"]=NSNull()
         if value["profileMode"] as? String=="memory-only",let id=value["runID"] as? String,UUID(uuidString:id) != nil {
@@ -67,8 +69,11 @@ extension Core {
             let integration=(try? readJSON(home.appendingPathComponent("setup/codex-integration.json"))) ?? [:]
             let bridge=(try? readJSON(home.appendingPathComponent("setup/bridge.json"))) ?? [:]
             let trusted=integration["hooksTrusted"] as? Bool==true && integration["hooks_sha256"] as? String==bridge["hooks_sha256"] as? String
-            value["integrationPending"]=value["status"] as? String=="completed" && maintenance["enabled"] as? Bool==true && (maintenance["registered"] as? Bool != true || !trusted)
+            let runtimeReady=runtime["runtimeReady"] as? Bool==true
+            value["integrationPending"]=value["status"] as? String=="completed" && maintenance["enabled"] as? Bool==true && (maintenance["registered"] as? Bool != true || !trusted || !runtimeReady)
             value["hooksTrusted"]=trusted
+            value["captureReady"]=trusted && runtimeReady
+            if !runtimeReady {value["integrationMessage"]=runtime["message"] ?? "Prepare novamente a conexão com o Codex."}
             value["capabilitySummary"]="Arquivos, memória estruturada, busca textual, links e edição local."
             value["codexSkills"]=(try? readJSON(home.appendingPathComponent("setup/codex-distribution.json")))?.filter{["files_installed","host_discovered","execution_verified","status"].contains($0.key)} ?? [:]
         }
@@ -151,12 +156,15 @@ final class OnboardingController {
     private var completedTurn=false,localInFlight=false
     private let localDriver:OfflineInstallationDriver
     private let accessCheck:(()throws->Void)?
+    private let coreFactory:(URL)throws->Core
     private let distributionResolver:(Core)throws->DistributionManifest
     var openLogin:((URL)->Void)?
-    init(home:URL,bridge:CodexConnection=CodexBridge(),automaticallyReconnect:Bool=false,localDriver:OfflineInstallationDriver=NativeOfflineInstallation(),accessCheck:(()throws->Void)?=nil,distributionResolver:@escaping(Core)throws->DistributionManifest={try $0.resolveDistribution()}) throws {
+    init(home:URL,bridge:CodexConnection=CodexBridge(),automaticallyReconnect:Bool=false,localDriver:OfflineInstallationDriver=NativeOfflineInstallation(),accessCheck:(()throws->Void)?=nil,distributionResolver:@escaping(Core)throws->DistributionManifest={try $0.resolveDistribution()},coreFactory:@escaping(URL)throws->Core={try Core(home:$0)}) throws {
         self.bridge=bridge
         self.localDriver=localDriver;self.accessCheck=accessCheck;self.distributionResolver=distributionResolver
-        core=try Core(home:home)
+        self.coreFactory=coreFactory
+        core=try coreFactory(home)
+        guard core.home.standardizedFileURL.path==home.standardizedFileURL.path else {throw failure("O perfil do onboarding precisa corresponder ao estado solicitado.")}
         _=try core.onboardingSnapshot()
         let installationActive=core.operationIsRunning("installation")
         // A second window must not rewrite the active installation owned by this process.
@@ -192,7 +200,7 @@ final class OnboardingController {
     func snapshot() throws -> [String:Any] {
         stateLock.lock();defer{stateLock.unlock()}
         // Avoid sharing mutable Core.config with a long-running local phase.
-        var value=try Core(home:core.home).onboardingSnapshot()
+        var value=try coreFactory(core.home).onboardingSnapshot()
         value["pendingRequestCount"]=consents.pending.count
         if let request=consents.pending.first {value["request"]=request.projection}
         return value
@@ -268,21 +276,24 @@ final class OnboardingController {
         let installation=try core.acquireOperationLock("installation");defer{core.releaseOperationLock(installation)}
         let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
         let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)}
+        try core.withMemoryPortabilitySelection {
         guard (try? url.resourceValues(forKeys:[.isSymbolicLinkKey]).isSymbolicLink) != true,!root.path.contains("Library/Application Support/OracleGBrain/obsidian"),!root.path.contains("/gbrain/profile/") else{throw failure("Escolha a pasta original do Obsidian, sem links ou espelhos de indexação.")}
         let access=root.startAccessingSecurityScopedResource();defer{if access{root.stopAccessingSecurityScopedResource()}}
         _=try fm.contentsOfDirectory(at:root,includingPropertiesForKeys:[],options:[.skipsHiddenFiles])
         core.refreshConfig()
         if core.config["vault"] as? String == root.path{return}
+        try core.revokeMemoryPortabilityConsents()
         let bookmark=(try? root.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil))?.base64EncodedString()
         if let old=core.config["vault"] as? String,old != root.path,
            fm.fileExists(atPath:core.home.appendingPathComponent("gbrain/profile/oracle-owned.json").path) || fm.fileExists(atPath:core.home.appendingPathComponent("vault-profiles/index.json").path) {
             _=try core.runRuntimeGeneration(["operation":"runtime-generation","action":"switch-vault","id":UUID().uuidString,"vault":root.path,"bookmark":bookmark as Any? ?? NSNull()])
             core.refreshConfig();bridge.stop()
         }
-        core.config["vault"]=root.path;core.config.removeValue(forKey:"vaultBookmark")
+        core.config["vault"]=root.path;core.config["vaultSelectionRevision"]=UUID().uuidString.lowercased();core.config.removeValue(forKey:"vaultBookmark")
         if let bookmark{core.config["vaultBookmark"]=bookmark}
         try core.persist();try update(["status":"configuring","runID":NSNull(),"threadID":NSNull(),"turnID":NSNull(),"localStarted":false,"codexStarted":false])
         core.notifyVaultChanged(reason:"vault-selected")
+        }
     }
     /// Clears only the selection before installation; never deletes files in the vault.
     func clearSelectedVault() throws {
@@ -292,9 +303,12 @@ final class OnboardingController {
         let installation=try core.acquireOperationLock("installation");defer{core.releaseOperationLock(installation)}
         let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
         let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)}
-        core.refreshConfig();core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark")
+        try core.withMemoryPortabilitySelection {
+        core.refreshConfig();try core.revokeMemoryPortabilityConsents();core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark")
+        core.config["vaultSelectionRevision"]=UUID().uuidString.lowercased()
         try core.persist();try update(["status":"configuring","ui":["step":"vault"]])
         core.notifyVaultChanged(reason:"vault-selection-cleared")
+        }
     }
     func selectBrain(workspace:URL,profile:URL) throws {
         stateLock.lock();defer{stateLock.unlock()}
@@ -458,6 +472,13 @@ final class OnboardingController {
             let memoryMode=try core.memoryOnlyInstallationMode()
             try localPhase("memory",memoryMode=="update" ? "GBrain existente encontrado. Atualizando a instalação local.":"Inicializando a memória local.",generation)
             _=try core.initializeMemoryOnly(plan:plan)
+            if try OracleAIMemoryOnboarding.required(plan) {
+                try localPhase("memory","Preparando os componentes locais do segundo cérebro.",generation)
+                _=try core.prepareAIMemoryRuntime(plan:plan)
+                try core.checkOnboardingCancellation()
+                _=try core.prepareAIMemoryService(plan:plan)
+                try core.checkOnboardingCancellation()
+            }
             try localPhase("installing","Criando as pastas e instalando o acervo.",generation)
             _=try core.applyPlan();_=try core.applyDistribution(manifest,plan:plan)
             _=try core.installVaultSkill()
@@ -641,12 +662,14 @@ final class OnboardingController {
         try verifier.start(cwd:URL(fileURLWithPath:workspace))
         let response=try verifier.request("hooks/list",["cwds":[workspace]],timeout:15)
         let verification=OracleHookVerification.check(response,path:path,workspace:workspace)
-        let status:[String:Any]=["hooksTrusted":verification.trusted,"message":verification.message,"hooks_sha256":receipt["hooks_sha256"] ?? "","checkedAt":ISO8601DateFormatter().string(from:Date())]
+        let runtime=core.codexRuntimeBindingStatus()
+        guard runtime["runtimeReady"] as? Bool==true else{throw failure(runtime["message"] as? String ?? "Os executáveis da conexão Oracle estão indisponíveis.")}
+        let status:[String:Any]=["hooksTrusted":verification.trusted,"message":verification.message,"hooks_sha256":receipt["hooks_sha256"] ?? "","runtime_binding_sha256":runtime["binding_sha256"] ?? "","runtimeReady":true,"captureExecutionVerified":false,"checkedAt":ISO8601DateFormatter().string(from:Date())]
         try writeJSON(status,core.home.appendingPathComponent("setup/codex-integration.json"))
         var value=try snapshot()
         let maintenance=value["maintenance"] as? [String:Any] ?? [:]
         let scheduleReady=maintenance["enabled"] as? Bool != true || maintenance["registered"] as? Bool==true
-        value["integrationMessage"] = !verification.trusted ? verification.message : !scheduleReady ? "Hooks confirmados. O agendamento diário ainda não corresponde ao perfil e horário escolhidos; envie as instruções no Codex e verifique novamente." : "Integração confirmada. Seu Oracle está pronto."
+        value["integrationMessage"] = !verification.trusted ? verification.message : !scheduleReady ? "Hooks confirmados. O agendamento diário ainda não corresponde ao perfil e horário escolhidos; envie as instruções no Codex e verifique novamente." : "Executáveis e confiança dos hooks confirmados. Uma mensagem nova no espaço Oracle ainda deve comprovar a captura."
         return value
     }
 

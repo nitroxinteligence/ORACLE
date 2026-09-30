@@ -4,7 +4,7 @@ import LocalAuthentication
 
 let arguments = CommandLine.arguments
 func argument(_ key: String) -> String? { guard let i = arguments.firstIndex(of:key), arguments.count > i+1 else { return nil }; return arguments[i+1] }
-for key in ["--state","--gbrain","--backup","--backup-id","--maintenance","--maintenance-config","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update"] where arguments.contains(key) {
+for key in ["--state","--gbrain","--backup","--backup-id","--maintenance","--maintenance-config","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update","--memory","--memory-input"] where arguments.contains(key) {
     guard let value=argument(key),!value.hasPrefix("--") else{fputs("Argumento obrigatório ausente: \(key)\n",stderr);exit(2)}
 }
 if arguments.contains(where:{$0.hasPrefix("--self-test")}) {
@@ -12,13 +12,17 @@ if arguments.contains(where:{$0.hasPrefix("--self-test")}) {
         fputs("Testes exigem --state descartável dentro de .work e ORACLE_TEST_ROOT explícito.\n",stderr);exit(2)
     }
 }
+if arguments.contains("--memory") || arguments.contains("--memory-input") {
+    do {_ = try OracleMemoryCommand.request(arguments:arguments)}catch{fputs(error.localizedDescription+"\n",stderr);exit(2)}
+}
 // A validation bundle may pin its disposable profile, including relaunches from Finder.
 // The distributed application has neither this identifier nor this Info.plist key.
 let validationState = Bundle.main.bundleIdentifier?.hasSuffix(".validation") == true ? Bundle.main.object(forInfoDictionaryKey:"OracleQAState") as? String : nil
 let core = try Core(home: (argument("--state") ?? validationState).map { URL(fileURLWithPath:$0) })
 // A CLI is another entrypoint, not an authorization bypass. Test switches only
 // run their own synthetic suites, never a second mutating command in the same invocation.
-let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-update-admission","--self-test-update-channels","--self-test-backup","--self-test-maintenance","--self-test-maintenance-live","--self-test-distribution"]
+let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-update-admission","--self-test-update-channels","--self-test-backup","--self-test-maintenance","--self-test-maintenance-live","--self-test-distribution","--self-test-knowledge-interviews","--self-test-vault-backup","--self-test-ai-memory-export","--self-test-runtime-binding","--self-test-cache-retention","--self-test-oracle-router","--self-test-memory-command","--self-test-ai-memory-onboarding","--self-test-ai-memory-provisioning"]
+if arguments.contains(where:{$0.hasPrefix("--self-test") && !testSwitches.contains($0)}) {fputs("Teste solicitado desconhecido.\n",stderr);exit(2)}
 let mutatingSwitches:Set<String>=["--install-oracle-skill","--install-vault-skill","--prepare-bridge","--gbrain","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update","--sync-gbrain","--backup","--maintenance"]
 if arguments.contains("--self-test-distribution") {
     do {guard !arguments.contains(where:{mutatingSwitches.contains($0)}) else{throw failure("Testes e operações de produto precisam de invocações separadas.")};try runDistributionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
@@ -29,6 +33,9 @@ if arguments.contains(where:{mutatingSwitches.contains($0)}) {
         let recoveryOnly=arguments.filter{mutatingSwitches.contains($0)}==["--update"] && ["rollback-gbrain","rollback-skills"].contains(argument("--update") ?? "")
         if !recoveryOnly{try core.requireCapability(.configure)}
     } catch {fputs(error.localizedDescription+"\n",stderr);exit(1)}
+}
+if arguments.contains("--memory") {
+    do {let request=try OracleMemoryCommand.request(arguments:arguments);let input=try OracleMemoryCommand.input(file:request.input);let value=try OracleMemoryCommand.run(core:core,operation:request.operation,input:input);print(String(decoding:try jsonData(value),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
 }
 if arguments.contains("--hook") {
     do { let data = FileHandle.standardInput.readDataToEndOfFile(); guard data.count < 4_000_000, let value = try JSONSerialization.jsonObject(with:data) as? [String: Any] else { exit(0) }; try core.ingestHook(value);print(String(decoding:try jsonData(core.maintenanceHookContext(value)),as:UTF8.self));exit(0) } catch { /* Observability must not block Codex. */ }
@@ -89,11 +96,20 @@ if arguments.contains("--self-test-maintenance-live") {
         let root=try oracleTestDirectory("maintenance-live"),workspace=root.appendingPathComponent("model")
         defer{try? fm.removeItem(at:root)}
         try fm.createDirectory(at:workspace,withIntermediateDirectories:true)
-        let value=try OracleMaintenanceSynthesis.run(bridge:CodexBridge.maintenanceConnection(),workspace:workspace,input:"{\"previousWiki\":\"\",\"messages\":[{\"role\":\"user\",\"text\":\"Decidi chamar o projeto de teste de Aurora. Este dado é sintético.\"}]}",preferredModel:"gpt-5.6-sol",preferredEffort:"medium",cancelled:{false})
+        let value=try OracleMaintenanceSynthesis.run(bridge:CodexBridge.maintenanceConnection(),workspace:workspace,input:"{\"previousWiki\":\"\",\"messages\":[{\"role\":\"user\",\"text\":\"Decidi chamar o projeto de teste de Aurora. Este dado é sintético.\"}]}",preferredModel:OracleCodexModel.maintenanceModelID,preferredEffort:OracleCodexModel.maintenanceEffort,cancelled:{false})
         print(String(decoding:try jsonData(value),as:UTF8.self));exit(0)
     } catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}
 }
 if arguments.contains("--self-test-maintenance") { do { try runMaintenanceScheduleTests();try runMaintenanceCaptureTests();try runMaintenanceSynthesisTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
+if arguments.contains("--self-test-knowledge-interviews") {do{try runKnowledgeInterviewTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-vault-backup") {do{try runVaultBackupTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-memory-command") {do{try runMemoryCommandTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-ai-memory-export") {do{let root=try oracleTestDirectory("ai-memory-export-tests");defer{try? fm.removeItem(at:root)};try runAIMemoryVaultExportTests(root:root);try runAIMemoryVaultExportCoreTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-ai-memory-onboarding") {do{let root=try oracleTestDirectory("ai-memory-onboarding-tests");defer{try? fm.removeItem(at:root)};try runAIMemoryOnboardingTests(root:root);exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-ai-memory-provisioning") {do{let root=try oracleTestDirectory("ai-memory-provisioning-tests");defer{try? fm.removeItem(at:root)};try runAIMemoryProvisioningTests(root:root);exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-runtime-binding") {do{let root=try oracleTestDirectory("runtime-binding-tests");defer{try? fm.removeItem(at:root)};try runCodexRuntimeBindingTests(root:root);exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-cache-retention") {do{try runUpdateCacheRetentionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-oracle-router") {do{try runOracleSkillPreflightTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
 if arguments.contains("--self-test-editor") { do { try runEditorTests();exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
 if arguments.contains("--codex-inventory") { do {let bridge=CodexBridge();defer{bridge.stop()};try bridge.start(cwd:core.home);let account=try bridge.account();guard account["connected"] as? Bool==true else{throw failure("Conecte sua conta no Codex primeiro.")};print(String(decoding:try jsonData(bridge.inventory()),as:UTF8.self));exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)} }
 if arguments.contains("--onboarding-verify") { do { print(String(decoding:try jsonData(core.onboardingFinalVerification()),as:UTF8.self));exit(0) } catch { fputs(error.localizedDescription+"\n",stderr);exit(1) } }
@@ -133,6 +149,10 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     var terminationPending=false
     var pendingApplicationUpdate:OraclePreparedApplicationUpdate?
     var applicationUpdateHelperLaunched=false
+    var applicationUpdateHealthToken:String?
+    var interfaceNavigationFinished=false
+    var interfaceStartupReady=false
+    var applicationUpdateHealthChecking=false
     var resourceRoot: URL { Bundle.main.resourceURL!.appendingPathComponent("web") }
     let queue = DispatchQueue(label:"oracle.core",autoreleaseFrequency:.workItem)
     let updateStatusQueue = DispatchQueue(label:"oracle.updates.status",qos:.userInitiated,autoreleaseFrequency:.workItem)
@@ -142,7 +162,30 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     })
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
-        core.finalizeApplicationUpdateIfNeeded()
+        do {
+            if let launch=try core.beginApplicationUpdateLaunch() {
+                if launch.rolledBack {
+                    // The current process still runs the replaced version in
+                    // memory. Launch Services must start the restored bundle,
+                    // rather than activate this process with the same bundle ID.
+                    let options=NSWorkspace.OpenConfiguration()
+                    options.createsNewApplicationInstance=true
+                    options.activates=true
+                    NSWorkspace.shared.openApplication(at:launch.bundle,configuration:options) { application,error in
+                        DispatchQueue.main.async {
+                            if application == nil || error != nil {
+                                let alert=NSAlert();alert.messageText="O Oracle restaurou a versão anterior."
+                                alert.informativeText="Não foi possível reabri-la automaticamente. Abra o Oracle novamente. "+(error?.localizedDescription ?? "")
+                                alert.addButton(withTitle:"Fechar");alert.runModal()
+                            }
+                            NSApp.terminate(nil)
+                        }
+                    }
+                    return
+                }
+                if launch.phase == .launched {applicationUpdateHealthToken=launch.token}
+            }
+        } catch {try? writeJSON(["status":"recovery_required","message":error.localizedDescription],core.home.appendingPathComponent("updates/application/recovery-error.json"))}
         onboardingController=try? OnboardingController(home:core.home)
         onboardingController?.openLogin={ url in DispatchQueue.main.async { NSWorkspace.shared.open(url) } }
         let content = WKUserContentController(); content.add(self,name:"oracle")
@@ -216,32 +259,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     func applicationShouldTerminateAfterLastWindowClosed(_ sender:NSApplication) -> Bool { true }
     func launchApplicationUpdateHelper(_ prepared:OraclePreparedApplicationUpdate)throws {
         guard !applicationUpdateHelperLaunched else{return}
-        guard prepared.current.deletingLastPathComponent().path==prepared.replacement.deletingLastPathComponent().path,
-              prepared.current.deletingLastPathComponent().path==prepared.backup.deletingLastPathComponent().path,
-              prepared.replacement.lastPathComponent.hasPrefix(".Oracle.update-"),prepared.backup.lastPathComponent.hasPrefix(".Oracle.backup-") else{throw failure("A preparação da atualização perdeu o escopo seguro.")}
-        let script="""
-        pid="$1"; current="$2"; replacement="$3"; backup="$4"
-        count=0
-        while /bin/kill -0 "$pid" 2>/dev/null && [ "$count" -lt 600 ]; do /bin/sleep 0.1; count=$((count+1)); done
-        if /bin/kill -0 "$pid" 2>/dev/null; then exit 20; fi
-        [ -d "$current" ] || exit 21
-        [ -d "$replacement" ] || exit 22
-        [ ! -e "$backup" ] || exit 23
-        /bin/mv "$current" "$backup" || exit 24
-        if ! /bin/mv "$replacement" "$current"; then
-          /bin/mv "$backup" "$current" 2>/dev/null || true
-          exit 25
-        fi
-        if ! /usr/bin/open "$current"; then
-          /bin/mv "$current" "${replacement}.failed" 2>/dev/null || true
-          /bin/mv "$backup" "$current" 2>/dev/null || true
-          /usr/bin/open "$current" 2>/dev/null || true
-          exit 26
-        fi
-        exit 0
-        """
         let process=Process();process.executableURL=URL(fileURLWithPath:"/bin/sh")
-        process.arguments=["-c",script,"oracle-updater",String(ProcessInfo.processInfo.processIdentifier),prepared.current.path,prepared.replacement.path,prepared.backup.path]
+        process.arguments=try prepared.helperArguments(processID:ProcessInfo.processInfo.processIdentifier)
         process.environment=["PATH":"/usr/bin:/bin:/usr/sbin:/sbin","HOME":core.home.path]
         process.standardOutput=FileHandle.nullDevice;process.standardError=FileHandle.nullDevice
         try process.run();applicationUpdateHelperLaunched=true
@@ -288,7 +307,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     }
     func reply(_ id: String,_ value: Any? = nil,_ error: String? = nil) {
         let method=requestMethods.removeValue(forKey:id) ?? ""
-        let finalError = locked && !["boot","unlock","lock"].contains(method) ? "Oracle bloqueado" : error
+        let finalError = locked && !["boot","unlock","lock","interfaceReady"].contains(method) ? "Oracle bloqueado" : error
         let result:[String:Any] = finalError.map { ["error":$0] } ?? ["value":value ?? NSNull()]
         guard let data = try? jsonData(result), let idData = try? JSONSerialization.data(withJSONObject:[id]) else { return }
         let safeID = String(decoding:idData,as:UTF8.self)
@@ -300,6 +319,10 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         let p = body["params"] as? [String:Any] ?? [:]
         if method == "lock" { lockApp(); reply(id,true); return }
         if method == "boot" { reply(id,["locked":locked,"accessibility":["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]]); return }
+        if method == "interfaceReady" {
+            guard p["schema_version"] as? Int==1 else{reply(id,nil,"Confirmação da interface inválida.");return}
+            interfaceStartupReady=true;confirmApplicationUpdateInterfaceHealth();reply(id,true);return
+        }
         if method == "unlock" { authenticate { ok,error in if ok {
             self.locked = false
             self.updateCoordinator.setAllowed(true)
@@ -354,15 +377,18 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             return
         }
         if method == "installOracleUpdate" {
-            queue.async {
-                do {
-                    let service=try Core(home:core.home),prepared=try service.prepareApplicationUpdate()
-                    DispatchQueue.main.async {
-                        self.pendingApplicationUpdate=prepared
-                        self.reply(id,["restarting":true,"version":prepared.version])
-                        DispatchQueue.main.asyncAfter(deadline:.now()+0.25){NSApp.terminate(nil)}
-                    }
-                } catch {DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}
+            let options=core.applicationUpdateInstallationOptions()
+            if options["writable"] as? Bool != true {
+                let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.canCreateDirectories=true
+                panel.message=options["message"] as? String
+                if let suggested=options["suggestedDirectory"] as? String{panel.directoryURL=URL(fileURLWithPath:suggested)}
+                panel.prompt="Atualizar nesta pasta"
+                panel.beginSheetModal(for:window){response in
+                    guard response == .OK,let destination=panel.url else{self.reply(id,["cancelled":true]);return}
+                    self.prepareOracleApplicationUpdate(id,destination:destination)
+                }
+            } else {
+                prepareOracleApplicationUpdate(id,destination:nil)
             }
             return
         }
@@ -427,6 +453,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                 case "snapshot":var snapshot=try core.snapshot();snapshot["build"]=OracleBuildIdentity.metadata();result=snapshot
                 case "gbrainRead": result = try core.gbrainRead(p)
                 case "gbrainReadback": result = (try? readJSON(core.home.appendingPathComponent("setup/gbrain-readback.json"))) ?? [:]
+                case "knowledgeInterviewStatus":result=try core.latestKnowledgeInterview(topic:p["topic"] as? String ?? "")
                 case "readLibraryImage": result = try core.readLibraryImage(p)
                 case "read": result = try core.readEditableNote(p["path"] as? String ?? "")
                 case "saveNote": result = try core.saveNote(path:p["path"] as? String ?? "",original:p["hash"] as? String ?? "",text:p["text"] as? String ?? "")
@@ -446,7 +473,9 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                     self.localServices?.setPaused(true);core.memorySync.stop()
                     let setup=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(setup)}
                     let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)}
-                    core.refreshConfig();core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark");core.config.removeValue(forKey:"projects");core.config.removeValue(forKey:"gbrainWorkspace");core.config.removeValue(forKey:"gbrainProfile");core.config["gbrainAccess"]=false;try core.persist();core.memorySync.invalidate(reason:"access-revoked");result=true
+                    try core.withMemoryPortabilitySelection {
+                        core.refreshConfig();try core.revokeMemoryPortabilityConsents();core.config.removeValue(forKey:"vault");core.config.removeValue(forKey:"vaultBookmark");core.config.removeValue(forKey:"projects");core.config.removeValue(forKey:"gbrainWorkspace");core.config.removeValue(forKey:"gbrainProfile");core.config["gbrainAccess"]=false;core.config["vaultSelectionRevision"]=UUID().uuidString.lowercased();try core.persist();core.memorySync.invalidate(reason:"access-revoked")
+                    };result=true
                 default: throw failure("Operação não suportada")
                 }
                 DispatchQueue.main.async { self.reply(id,result);if ["saveNote","saveVersion","configureMaintenance"].contains(method){self.localServices?.request()} }
@@ -460,6 +489,38 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         return "Configure o Oracle usando a skill em \(skill). Leia o plano confirmado em \(core.home.path)/setup/plan.json e confira a confirmação. Execute os scripts determinísticos: \(quote(executable)) --state \(quote(core.home.path)) --setup apply. Continue o bootstrap GBrain oficial conforme a skill, com recibos e sem outro executor IA. Preserve instalações existentes. Hooks exigem confiança oficial no Codex. Não considere apenas a estrutura de pastas como setup completo."
     }
     func webView(_ webView:WKWebView,decidePolicyFor navigationAction:WKNavigationAction,decisionHandler:@escaping(WKNavigationActionPolicy)->Void) { guard let url = navigationAction.request.url, url.isFileURL, url.standardizedFileURL.path.hasPrefix(resourceRoot.path + "/") else { decisionHandler(.cancel); return }; decisionHandler(.allow) }
+    func webView(_ webView:WKWebView,didFinish navigation:WKNavigation!) {
+        interfaceNavigationFinished=true;confirmApplicationUpdateInterfaceHealth()
+    }
+    func confirmApplicationUpdateInterfaceHealth() {
+        guard interfaceNavigationFinished,interfaceStartupReady,!applicationUpdateHealthChecking,let token=applicationUpdateHealthToken else{return}
+        applicationUpdateHealthChecking=true
+        web.evaluateJavaScript("window.oracleStartupRendered===true && document.readyState!=='loading' && !!document.querySelector('#app') && !!document.querySelector('#lock-screen')") {value,error in
+            guard error==nil,value as? Bool==true else{self.applicationUpdateHealthChecking=false;return}
+            self.queue.async {
+                do {
+                    let healthy=try core.confirmApplicationUpdateHealthy(token:token,interfaceReady:true)
+                    DispatchQueue.main.async{if healthy{self.applicationUpdateHealthToken=nil};self.applicationUpdateHealthChecking=false}
+                } catch {
+                    try? writeJSON(["status":"recovery_required","message":error.localizedDescription],core.home.appendingPathComponent("updates/application/recovery-error.json"))
+                    DispatchQueue.main.async{self.applicationUpdateHealthChecking=false}
+                }
+            }
+        }
+    }
+    func prepareOracleApplicationUpdate(_ id:String,destination:URL?) {
+        queue.async {
+            do {
+                let service=try Core(home:core.home),prepared=try service.prepareApplicationUpdate(destinationDirectory:destination)
+                DispatchQueue.main.async {
+                    guard !self.locked else{self.reply(id,nil,"O Oracle foi bloqueado. Reabra e confira a atualização preparada antes de reiniciar.");return}
+                    self.pendingApplicationUpdate=prepared
+                    self.reply(id,["restarting":true,"version":prepared.version])
+                    DispatchQueue.main.asyncAfter(deadline:.now()+0.25){NSApp.terminate(nil)}
+                }
+            } catch {DispatchQueue.main.async{self.reply(id,nil,error.localizedDescription)}}
+        }
+    }
 }
 let app = App()
 NSApplication.shared.delegate = app

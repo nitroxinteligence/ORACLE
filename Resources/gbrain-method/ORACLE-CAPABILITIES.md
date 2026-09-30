@@ -1,7 +1,9 @@
 # Oracle execution boundary
 
-GBrain 0.48.4.0 is the only memory engine. Codex performs reasoning. Obsidian
-Markdown remains canonical. Upstream bytes are preserved under upstream/ with
+GBrain 0.48.4.0 indexes canonical vault knowledge. Codex performs reasoning.
+When available, AI Memory keeps separate operational state and uses the server
+and scopes verified in the Oracle workspace AGENTS.md. Obsidian Markdown
+remains canonical. Upstream bytes are preserved under upstream/ with
 the upstream MIT license. They are reference documentation, not permission to
 execute every upstream command or install anything.
 

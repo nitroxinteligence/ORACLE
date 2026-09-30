@@ -6,6 +6,17 @@ struct OraclePreparedApplicationUpdate {
     let replacement:URL
     let backup:URL
     let receipt:URL
+    let original:URL
+    let token:String
+
+    func helperArguments(processID:Int32,launcher:URL=URL(fileURLWithPath:"/usr/bin/open")) throws -> [String] {
+        guard let record=try OracleApplicationUpdateRecovery.read(receipt),record.token==token,
+              record.phase == .prepared,record.current==current.path,record.original==original.path,
+              record.replacement==replacement.path,record.backup==backup.path else{throw failure("A preparação da atualização perdeu o escopo seguro.")}
+        guard OracleApplicationUpdateRecovery.version(at:replacement)==record.version,
+              (!fm.fileExists(atPath:backup.path) || OracleApplicationUpdateRecovery.version(at:backup)==record.previousVersion) else{throw failure("A atualização ou sua versão de recuperação mudou desde a preparação.")}
+        return ["-c",OracleApplicationUpdateRecovery.helperScript,"oracle-updater",String(processID),current.path,replacement.path,backup.path,receipt.path,token,original.path,launcher.path]
+    }
 }
 
 extension Core {
@@ -45,40 +56,64 @@ extension Core {
 
     private func recoverPreparedApplicationUpdate(currentBundle:URL) throws {
         let receipt=try applicationUpdateStateRoot().appendingPathComponent("pending.json")
-        guard fm.fileExists(atPath:receipt.path),let pending=try? readJSON(receipt),
-              let expected=pending["version"] as? String,OracleApplicationRelease.validVersion(expected),
-              let targetPath=pending["current"] as? String,let replacementPath=pending["replacement"] as? String,
-              let backupPath=pending["backup"] as? String else{return}
-        let target=URL(fileURLWithPath:targetPath).standardizedFileURL,replacement=URL(fileURLWithPath:replacementPath).standardizedFileURL,backup=URL(fileURLWithPath:backupPath).standardizedFileURL
-        let parent=target.deletingLastPathComponent()
-        guard target.path==currentBundle.standardizedFileURL.path,
-              replacement.deletingLastPathComponent().path==parent.path,backup.deletingLastPathComponent().path==parent.path,
-              replacement.lastPathComponent.hasPrefix(".Oracle.update-"),backup.lastPathComponent.hasPrefix(".Oracle.backup-") else{return}
-        let installed=OracleApplicationRelease.installedVersion(fallback:"")
-        if installed==expected {
-            if fm.fileExists(atPath:backup.path){try? fm.removeItem(at:backup)}
-            if fm.fileExists(atPath:replacement.path){try? fm.removeItem(at:replacement)}
-            try? fm.removeItem(at:receipt)
-        } else if !fm.fileExists(atPath:backup.path) {
-            // Preparation was abandoned before the running app exited. It is safe
-            // to discard only the hidden sibling created by this updater.
-            if fm.fileExists(atPath:replacement.path){try? fm.removeItem(at:replacement)}
-            try? fm.removeItem(at:receipt)
-        }
+        try OracleApplicationUpdateRecovery.recoverAbandoned(receipt:receipt,currentBundle:currentBundle)
     }
 
     func finalizeApplicationUpdateIfNeeded(currentBundle:URL=Bundle.main.bundleURL) {
         try? recoverPreparedApplicationUpdate(currentBundle:currentBundle)
     }
 
-    func prepareApplicationUpdate(currentBundle:URL=Bundle.main.bundleURL,network:UpdateNetwork=UpdateNetwork()) throws -> OraclePreparedApplicationUpdate {
+    func beginApplicationUpdateLaunch(currentBundle:URL=Bundle.main.bundleURL) throws -> OracleApplicationUpdateLaunch? {
+        try OracleApplicationUpdateRecovery.beginLaunch(receipt:applicationUpdateStateRoot().appendingPathComponent("pending.json"),currentBundle:currentBundle)
+    }
+
+    func applicationUpdateLocalStateHealthy() -> Bool {
+        let file=home.appendingPathComponent("config.json")
+        guard home.resolvingSymlinksInPath().path==home.path,fm.isWritableFile(atPath:home.path) else{return false}
+        if fm.fileExists(atPath:file.path) {
+            guard file.resolvingSymlinksInPath().path==file.path,
+                  let size=try? file.resourceValues(forKeys:[.fileSizeKey]).fileSize,size<=5_000_000,
+                  (try? readJSON(file)) != nil else{return false}
+        }
+        return true
+    }
+
+    func confirmApplicationUpdateHealthy(token:String,currentBundle:URL=Bundle.main.bundleURL,interfaceReady:Bool) throws -> Bool {
+        try OracleApplicationUpdateRecovery.confirmHealthy(receipt:applicationUpdateStateRoot().appendingPathComponent("pending.json"),currentBundle:currentBundle,
+            token:token,interfaceReady:interfaceReady,localStateReady:applicationUpdateLocalStateHealthy())
+    }
+
+    func applicationUpdateInstallationOptions(currentBundle:URL=Bundle.main.bundleURL) -> [String:Any] {
+        let parent=currentBundle.deletingLastPathComponent().standardizedFileURL
+        let writable=fm.isWritableFile(atPath:parent.path) && parent.resolvingSymlinksInPath().path==parent.path
+        return ["writable":writable,"currentDirectory":parent.path,
+                "suggestedDirectory":fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path,
+                "message":writable ? "Atualizar o Oracle nesta pasta." : "Esta conta não pode atualizar o Oracle em \(parent.path). Escolha Aplicativos na sua pasta pessoal (~/Applications) ou outra pasta gravável. O aplicativo original será preservado. Para substituir a cópia em /Applications, peça a um administrador."]
+    }
+
+    func prepareApplicationUpdate(currentBundle:URL=Bundle.main.bundleURL,destinationDirectory:URL?=nil,network:UpdateNetwork=UpdateNetwork()) throws -> OraclePreparedApplicationUpdate {
         let updates=try acquireOperationLock("updates");defer{releaseOperationLock(updates)}
         let installation=try acquireOperationLock("installation");defer{releaseOperationLock(installation)}
         refreshConfig();try requireCapability(.configure)
         try recoverPreparedApplicationUpdate(currentBundle:currentBundle)
         guard currentBundle.pathExtension=="app",currentBundle.lastPathComponent.hasSuffix(".app") else{throw failure("Abra o Oracle a partir de um aplicativo instalado para atualizar automaticamente.")}
-        let parent=currentBundle.deletingLastPathComponent().standardizedFileURL
-        guard fm.isWritableFile(atPath:parent.path) else{throw failure("O Oracle está em uma pasta sem permissão de atualização. Mova-o para Aplicativos uma vez e tente novamente.")}
+        let original=currentBundle.standardizedFileURL
+        guard let previousVersion=OracleApplicationUpdateRecovery.version(at:original) else{throw failure("A identidade do Oracle instalado precisa de revisão antes de atualizar.")}
+        let parent=(destinationDirectory ?? original.deletingLastPathComponent()).standardizedFileURL
+        if destinationDirectory != nil && !fm.fileExists(atPath:parent.path) {
+            try fm.createDirectory(at:parent,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        }
+        guard parent.resolvingSymlinksInPath().path==parent.path,
+              (try? parent.resourceValues(forKeys:[.isDirectoryKey]).isDirectory)==true,fm.isWritableFile(atPath:parent.path) else {
+            throw failure("Esta conta não pode atualizar o Oracle em \(parent.path). Escolha Aplicativos na sua pasta pessoal (~/Applications) ou outra pasta gravável. O aplicativo original será preservado. Para substituir a cópia em /Applications, peça a um administrador.")
+        }
+        let target=parent==original.deletingLastPathComponent() ? original : parent.appendingPathComponent("Oracle.app")
+        guard target==original || !fm.fileExists(atPath:target.path) else{throw failure("Já existe um aplicativo nesta pasta. Escolha uma pasta sem Oracle.app; a atualização preservará essa cópia e o Oracle original.")}
+        let pendingReceipt=try applicationUpdateStateRoot().appendingPathComponent("pending.json")
+        if let pending=try OracleApplicationUpdateRecovery.read(pendingReceipt) {
+            guard pending.phase == .healthy || pending.phase == .rolledBack else{throw failure("A atualização anterior ainda aguarda saúde ou recuperação. Reabra o Oracle antes de preparar outra.")}
+            try fm.removeItem(at:pendingReceipt)
+        }
         guard let row=checkOracleApplication(network:network),row["status"] as? String=="install_available",
               let version=row["version"] as? String,OracleApplicationRelease.validVersion(version),
               let text=row["downloadURL"] as? String,let expected=row["downloadSHA256"] as? String,
@@ -103,8 +138,13 @@ extension Core {
         catch {try? fm.removeItem(at:replacement);throw error}
         let receipt=state.appendingPathComponent("pending.json")
         guard !fm.fileExists(atPath:receipt.path) else{try? fm.removeItem(at:replacement);throw failure("Há uma atualização preparada anteriormente. Reabra o Oracle e tente novamente.")}
-        try writeJSON(["schema_version":1,"version":version,"current":currentBundle.standardizedFileURL.path,
-                       "replacement":replacement.path,"backup":backup.path,"prepared_at":ISO8601DateFormatter().string(from:Date())],receipt)
-        return OraclePreparedApplicationUpdate(version:version,current:currentBundle.standardizedFileURL,replacement:replacement,backup:backup,receipt:receipt)
+        do {
+            if target != original {try fm.copyItem(at:original,to:backup)}
+            let journal=OracleApplicationUpdateJournal(schemaVersion:2,token:token,version:version,previousVersion:previousVersion,
+                current:target.path,original:original.path,replacement:replacement.path,backup:backup.path,phase:.prepared,launchPID:nil,
+                changedAt:ISO8601DateFormatter().string(from:Date()))
+            try OracleApplicationUpdateRecovery.write(journal,to:receipt)
+        } catch {try? fm.removeItem(at:replacement);if target != original {try? fm.removeItem(at:backup)};throw error}
+        return OraclePreparedApplicationUpdate(version:version,current:target,replacement:replacement,backup:backup,receipt:receipt,original:original,token:token)
     }
 }

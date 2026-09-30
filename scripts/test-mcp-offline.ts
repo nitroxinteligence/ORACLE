@@ -11,8 +11,11 @@ if(!fixture.startsWith(join(root,'.work/mcp-protocol')+'/')||realpathSync(fixtur
    readFileSync(join(fixture,'fixture-marker'),'utf8')!=='oracle-mcp-protocol\n')throw Error('Explicit isolated fixture required');
 const adapter=join(fixture,'engine/oracle-gbrain-read'),profile=join(fixture,'state/gbrain/profile'),vault=join(fixture,'vault');
 const sandbox=['-p','(version 1)(allow default)(deny network*)'];
+const fixtureOwner=JSON.parse(readFileSync(join(profile,'oracle-owned.json'),'utf8'));
+if(fixtureOwner.owner!=='OracleCompanion'||fixtureOwner.schema_version!==2||fixtureOwner.vault_root!==vault)throw Error('Fixture owner differs from the explicit synthetic vault');
 const env={PATH:'/usr/bin:/bin:/usr/sbin:/sbin',HOME:join(fixture,'home'),TMPDIR:join(fixture,'tmp'),
  GBRAIN_HOME:profile,GBRAIN_HOOKS:'0',GBRAIN_SKIP_UPDATE_CHECK:'1',DATABASE_URL:'',GBRAIN_DATABASE_URL:'',
+ ORACLE_MCP_VAULT:fixtureOwner.vault_root,ORACLE_MCP_EPOCH_SHA256:createHash('sha256').update(existsSync(join(fixture,'state/gbrain/vault-epoch.json'))?readFileSync(join(fixture,'state/gbrain/vault-epoch.json')):Buffer.alloc(0)).digest('hex'),
  ORACLE_RECEIPT_DIR:join(fixture,'state/events'),DO_NOT_TRACK:'1'};
 const checks:Array<{name:string,pass:boolean,details?:unknown}>=[];
 const completedSections:string[]=[],protocolErrors:string[]=[],calls:unknown[]=[],pids:number[]=[];

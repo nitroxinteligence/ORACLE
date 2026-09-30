@@ -23,7 +23,7 @@ func runMaintenanceScheduleTests() throws {
     let automation=core.distributionHostHome().appendingPathComponent(".codex/automations/fixture-task/automation.toml")
     try fm.createDirectory(at:automation.deletingLastPathComponent(),withIntermediateDirectories:true)
     try atomicWriteData(Data(try encoded(fields).utf8),to:automation)
-    try check(core.maintenanceHostSchedule(config)["registered"] as? Bool==true,"readback confirms matching active host schedule with exact model effort and hour")
+    try check(core.maintenanceHostSchedule(config)["registered"] as? Bool==true,"readback confirms matching active host schedule with compatible model effort and exact hour")
     fields["rrule"]="RRULE:FREQ=DAILY;BYHOUR=15;BYMINUTE=0"
     try atomicWriteData(Data(try encoded(fields).utf8),to:automation)
     try check(core.maintenanceHostSchedule(config)["registered"] as? Bool==true,"official Codex rule without BYSECOND confirms the existing task")
@@ -33,14 +33,30 @@ func runMaintenanceScheduleTests() throws {
     }
     fields["status"]="PAUSED";try atomicWriteData(Data(try encoded(fields).utf8),to:automation)
     try check(core.maintenanceHostSchedule(config)["registered"] as? Bool==false,"paused task is never advertised as active")
-    fields["status"]="ACTIVE";fields["model"]="other-model"
-    try check(!OracleScheduleRecord.matches(fields,marker:marker,hour:15),"wrong model cannot satisfy registration")
+    fields["status"]="ACTIVE"
+    for model in ["gpt-5.6-sol","gpt-6-sol","gpt-6-astra","gpt-6.1-sol"] {
+        fields["model"]=model
+        try atomicWriteData(Data(try encoded(fields).utf8),to:automation)
+        let readback=core.maintenanceHostSchedule(config)
+        try check(readback["registered"] as? Bool==true && readback["model"] as? String==model && readback["effort"] as? String=="medium","compatible host receipt returns actual model: "+model)
+    }
+    fields["model"]="other-model"
+    try atomicWriteData(Data(try encoded(fields).utf8),to:automation)
+    try check(!OracleScheduleRecord.matches(fields,marker:marker,hour:15),"unknown model cannot satisfy registration")
+    try check(core.maintenanceHostSchedule(config)["status"] as? String=="incompatible_host_model","owned task with unsupported model has actionable pending status")
+    fields["model"]="gpt-6.1-sol";fields["reasoning_effort"]="high"
+    try check(!OracleScheduleRecord.matches(fields,marker:marker,hour:15),"receipt preserves required maintenance effort")
+    fields["reasoning_effort"]="medium"
+    var unrelated=fields;unrelated["prompt"]="Oracle manutenção diária"
+    try check(!OracleScheduleRecord.matches(unrelated,marker:marker,hour:15),"task title or prose cannot replace profile marker")
+    var missing=fields;missing.removeValue(forKey:"model")
+    try check(!OracleScheduleRecord.matches(missing,marker:marker,hour:15),"missing model remains pending")
     fields["model"]="gpt-5.6-sol";fields["rrule"]="FREQ=DAILY;BYHOUR=3;BYMINUTE=0;BYSECOND=0"
     try check(!OracleScheduleRecord.matches(fields,marker:marker,hour:15),"wrong hour cannot satisfy registration")
     fields["rrule"]="FREQ=DAILY;BYHOUR=15;BYMINUTE=0;BYSECOND=0"
     try check(!OracleScheduleRecord.matches(fields,marker:marker+"changed",hour:15),"changed consent invalidates stale task receipt")
     let request=try core.maintenanceScheduleRequest()
-    try check(request.contains(marker)&&request.contains("gpt-5.6-sol")&&request.contains("reasoningEffort medium"),"host handoff carries consent marker and exact execution settings")
+    try check(request.contains(marker)&&request.contains(OracleCodexModel.maintenanceModelID)&&request.contains("reasoningEffort "+OracleCodexModel.maintenanceEffort),"host handoff carries consent marker and maintenance policy settings")
     try check(request.contains("oracle-workspace") && request.contains("hostSchedule.registered") && request.contains("Vault autorizado:"),"concise handoff binds project vault and registration readback")
     let rows:[[String:Any]]=[["model":"gpt-5.6-sol","defaultReasoningEffort":"low","supportedReasoningEfforts":[["reasoningEffort":"low"],["reasoningEffort":"medium"]]]]
     try check(try OracleCodexModel.choose(rows,preferred:"gpt-5.6-sol",preferredEffort:"medium").effort=="medium","maintenance overrides host default effort only when medium is supported")

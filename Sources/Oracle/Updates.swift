@@ -396,7 +396,7 @@ extension Core {
             operations.append(["path": file.path, "index": index, "old_hash": old.map(digest) ?? NSNull(), "new_hash": file.hash, "applied": false])
         }
         if operations.isEmpty { return ["id":"skills", "status":preserved.isEmpty ? "current" : "preserved_edits", "version":version, "message":preserved.isEmpty ? "Arquivos já verificados. Nenhuma alteração necessária." : "\(preserved.count) personalizações ou remoções preservadas.", "preserved":preserved] }
-        var transaction: [String: Any] = ["id": id, "vault": root.path, "repository": repository, "version": version, "operations": operations, "previous": prior, "status": "applying", "preserved": preserved]
+        var transaction: [String: Any] = ["id": id, "vault": root.path, "repository": repository, "version": version, "operations": operations, "previous": prior, "status": "applying", "preserved": preserved, "cache_retention_owner": "oracle-skills-update-v1"]
         let transactionURL = try updatePath("skills/transaction.json")
         // Keep older recovery receipts before starting another transaction.
         if fm.fileExists(atPath: transactionURL.path) { try fm.createDirectory(at: updatePath("skills/history"), withIntermediateDirectories: true); try fm.copyItem(at: transactionURL, to: updatePath("skills/history/\(UUID().uuidString).json")) }

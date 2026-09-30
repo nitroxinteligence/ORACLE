@@ -129,6 +129,10 @@ def main():
         if '0.48.4.0' not in (fixture / 'official-0.log').read_text():
             raise RuntimeError('Unexpected official engine version')
         (fixture / 'state/gbrain/profile/oracle-owned.json').write_text(json.dumps({'owner': 'OracleCompanion', 'schema_version': 2, 'vault_root': str(fixture / 'vault')}))
+        fixture_owner = json.loads((fixture / 'state/gbrain/profile/oracle-owned.json').read_text())
+        epoch_file = fixture / 'state/gbrain/vault-epoch.json'
+        env['ORACLE_MCP_VAULT'] = fixture_owner['vault_root']
+        env['ORACLE_MCP_EPOCH_SHA256'] = hashlib.sha256(epoch_file.read_bytes() if epoch_file.exists() else b'').hexdigest()
         for slug in ('outside-sentinel', 'protocol-note'):
             content = '---\ntitle: Synthetic ungranted sentinel\ntype: note\n---\n# Synthetic fixture\n\nUNGRANTED_SENTINEL_' + slug + '\n'
             run(SANDBOX + [fixture / 'engine/gbrain', 'call', '--source', 'fixture-other', 'put_page',

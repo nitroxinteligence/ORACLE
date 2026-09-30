@@ -18,6 +18,18 @@ are installed from authenticated packages. The complete source snapshot stays
 outside the vault. The official runtime and adapter stay in the app-approved
 version set. Do not replace a missing release with an empty/example catalog.
 
+New v3 plans include a pinned `ai_memory` component. Native installation also
+prepares the verified AI Memory runtime, its separate local data profile, a
+shared local service and the Codex connection in Oracle's own workspace.
+The final verification requires receipts for this component. Preserve plans
+created before the component was introduced instead of adding it to a
+previously confirmed plan. Existing compatible Codex AI Memory installations
+are verified and preserved; Hermes and unrelated host configuration remain
+outside this installer. File installation, local service readiness, host
+availability, hook trust and conversation capture are separate states.
+Installing AI Memory does not authorize export to the vault, GitHub upload,
+paid providers or global capture. Memory details remain in the backend.
+
 For v3 report identity as `not_applicable`. Verify `setup/memory-only.json`, the
 complete distribution ledger, canonical files, index, method and Codex link
 receipt. Locally installed links in `~/.agents/skills` do not prove discovery
@@ -124,7 +136,8 @@ wait for the user's normal task instead of manufacturing a first task.
 
 When the reviewed plan enables maintenance, read `<state>/maintenance/schedule-request.md`
 and use the desktop app's official automation tool to create or update the dedicated
-local daily task. Use GPT-5.6 Sol with medium reasoning, the selected hour/timezone,
+local daily task. Use the compatible model and reasoning specified in that
+request, defaulting to GPT-6.1 Sol with medium reasoning, the selected hour/timezone,
 and the exact profile marker and command supplied by Oracle. Do not create duplicates,
 write automation.toml, bypass hook trust, or change unrelated tasks. Read back
 `Oracle --state <state> --maintenance status`; only `hostSchedule.registered: true`

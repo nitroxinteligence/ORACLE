@@ -11,7 +11,15 @@ For `schema_version: 3` and `profile_mode: memory-only`, use the native Oracle
 Install / Continue installation action. It resolves the signed complete
 distribution, stages every package, initializes the pinned engine, installs
 skills/prompts/tutorials and local Codex entries, indexes in resumable batches,
-and verifies all receipts. Do not run interview, render, identity confirmation,
+and verifies all receipts. Do not omit the pinned `ai_memory` component when
+the new plan requires it. Its
+runtime and shared local service stay outside the vault; Codex configuration
+is prepared in the Oracle workspace. Existing compatible AI Memory Codex
+installations are preserved, with no incidental upgrade or global hook trust.
+Component readiness is verified before completion. A prior confirmed plan
+without this component remains unchanged. Do not enable conversation capture,
+wiki export, GitHub upload or model providers merely because it was installed.
+Do not run interview, render, identity confirmation,
 or invent `answers` for this plan. Identity is **not applicable**, never true.
 The native Install click binds the immutable plan; a separate review is absent.
 The shell opens during installation, before completion. Only verified file

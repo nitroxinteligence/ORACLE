@@ -15,12 +15,15 @@ enum OracleScheduleRecord {
         return result
     }
     static func matches(_ fields:[String:String],marker:String,hour:Int) -> Bool {
+        matchesIdentityAndRecurrence(fields,marker:marker,hour:hour) &&
+            OracleCodexModel.isCompatibleMaintenance(model:fields["model"],effort:fields["reasoning_effort"])
+    }
+    static func matchesIdentityAndRecurrence(_ fields:[String:String],marker:String,hour:Int) -> Bool {
         let rule=fields["rrule",default:""].replacingOccurrences(of:"RRULE:",with:"")
         let components=Set(rule.split(separator:";").map(String.init))
         // Codex emits minute-resolution rules without BYSECOND; explicit zero is also valid.
         let daily=Set(["FREQ=DAILY","BYHOUR=\(hour)","BYMINUTE=0"])
         return fields["kind"]=="cron" && fields["status"]=="ACTIVE" &&
-            fields["model"]=="gpt-5.6-sol" && fields["reasoning_effort"]=="medium" &&
             fields["prompt",default:""].contains(marker) &&
             (components==daily || components==daily.union(["BYSECOND=0"]))
     }
@@ -39,18 +42,27 @@ extension Core {
             return ["registered":false,"status":"pending_host_registration"]
         }
         let marker=maintenanceMarker(settings),hour=settings["hour"] as? Int ?? 15
-        var matching=[[String:Any]]()
+        var matching=[[String:Any]](),incompatible=false
         for entry in entries {
             let file=entry.appendingPathComponent("automation.toml")
             guard file.resolvingSymlinksInPath().path==file.path,
                   let size=try? file.resourceValues(forKeys:[.fileSizeKey]).fileSize,size<=128_000,
                   let data=try? Data(contentsOf:file),let text=String(data:data,encoding:.utf8) else{continue}
             let fields=OracleScheduleRecord.fields(text)
-            guard OracleScheduleRecord.matches(fields,marker:marker,hour:hour),fields["id"]==entry.lastPathComponent else{continue}
-            matching.append(["id":entry.lastPathComponent,"sha256":digest(data),"path":file.path])
+            guard fields["id"]==entry.lastPathComponent,
+                  OracleScheduleRecord.matchesIdentityAndRecurrence(fields,marker:marker,hour:hour) else{continue}
+            guard OracleScheduleRecord.matches(fields,marker:marker,hour:hour) else{incompatible=true;continue}
+            matching.append(["id":entry.lastPathComponent,"sha256":digest(data),"path":file.path,
+                             "model":fields["model"]!,"effort":fields["reasoning_effort"]!])
         }
-        guard matching.count==1 else{return ["registered":false,"status":matching.isEmpty ? "pending_host_registration":"duplicate_host_schedules"]}
-        return ["registered":true,"status":"registered","receipt":matching[0],"model":"gpt-5.6-sol","effort":"medium"]
+        guard matching.count==1 && !incompatible else {
+            if incompatible && matching.isEmpty {
+                return ["registered":false,"status":"incompatible_host_model",
+                        "message":"A tarefa deste perfil usa um modelo ou esforço que precisa de revisão no Codex. Use um modelo compatível com esforço medium e verifique novamente."]
+            }
+            return ["registered":false,"status":matching.isEmpty ? "pending_host_registration":"duplicate_host_schedules"]
+        }
+        return ["registered":true,"status":"registered","receipt":matching[0],"model":matching[0]["model"]!,"effort":matching[0]["effort"]!]
     }
     func maintenanceHookContext(_ input:[String:Any]) throws -> [String:Any] {
         guard let event=input["hook_event_name"] as? String,["UserPromptSubmit","SessionStart"].contains(event),

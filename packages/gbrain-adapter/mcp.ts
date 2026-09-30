@@ -19,6 +19,7 @@ import {assertFreshPage} from './freshness.ts';
 import {ownedConfig,verifyMemorySource} from './owned-runtime.ts';
 import {toEngineConfig} from '../../vendor/gbrain/src/core/config.ts';
 import {assertRuntimeAvailable,acquireRuntimeAccess,releaseRuntimeAccess} from './runtime-gate.ts';
+import {captureMcpVaultBinding} from './mcp-vault-binding.ts';
 const allowed=['remember','recall','entity','context_pack','delta','forget','search','get_page','list_pages','get_links','get_backlinks','traverse_graph','put_page'];
 const ops=operations.filter(op=>allowed.includes(op.name));
 const memorySource='oracle-memory',readSources=[memorySource,'oracle-vault'];
@@ -42,13 +43,7 @@ async function refreshMemoryPage(engine:BrainEngine,slug:string){
 export async function startMemoryMcp(){
  // Dependencies may log; stdout is exclusively the MCP protocol stream.
  console.log=(...args)=>console.error(...args);
- const boundProfile=realpathSync(process.env.GBRAIN_HOME!);
- const boundOwner=JSON.parse(readFileSync(join(boundProfile,'oracle-owned.json'),'utf8'));
- const boundVault=boundOwner.vault_root;
- const epochFile=join(dirname(boundProfile),'vault-epoch.json');
- const epoch=()=>existsSync(epochFile)?readFileSync(epochFile,'utf8'):'';
- const boundEpoch=epoch();
- if(typeof boundVault!=='string')throw Error('MCP requires a verified vault binding');
+ const assertVaultBinding=captureMcpVaultBinding(process.env.GBRAIN_HOME!,process.env.ORACLE_MCP_VAULT,process.env.ORACLE_MCP_EPOCH_SHA256);
  const server=new Server({name:'oracle-gbrain',version:'0.1.0'},{capabilities:{tools:{}}});
  server.setRequestHandler(ListToolsRequestSchema,async()=>({tools:buildToolDefs(ops,{strictParams:true})}));
  let queue:Promise<any>=Promise.resolve(),pending=0;
@@ -65,10 +60,10 @@ export async function startMemoryMcp(){
    // advertises closed schemas, so never silently ignore a source override.
    // Keep upstream required/type validation ahead of unknown-key validation.
    if(!invalid&&findUnknownParams(op,params).length)return rejected(JSON.stringify(new OperationError('invalid_params','Unknown parameters are not allowed by the Oracle tool schema.').toJSON()));
+   assertVaultBinding(); // Refuse stale workspace grants before access/DB open.
    const access=await acquireRuntimeAccess(process.env.GBRAIN_HOME!);
    try {
-   const currentOwner=JSON.parse(readFileSync(join(boundProfile,'oracle-owned.json'),'utf8'));
-   if(currentOwner.vault_root!==boundVault||epoch()!==boundEpoch)return rejected('The selected vault changed. Reconnect Oracle before using memory.');
+   assertVaultBinding(); // A switch may have completed while waiting for the lease.
    const config=ownedConfig(),engineConfig=toEngineConfig(config);
    if(config.engine!=='pglite')return rejected('Offline memory requires an explicit local PGLite profile.');
    const engine=await createEngine(engineConfig);

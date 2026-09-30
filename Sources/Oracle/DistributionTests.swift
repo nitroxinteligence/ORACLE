@@ -1,12 +1,28 @@
 import Foundation
 import CryptoKit
 
+private struct DistributionAIMemoryFixtureDevice:OracleLicenseDeviceProviding {
+    func identifier(create:Bool)throws->String {"ORACLE-MAC2-"+String(repeating:"d",count:64)}
+}
+
+/// Resource injection is available only to this explicit, isolated native
+/// distribution suite. Normal app and CLI invocations keep publisher resources.
+func oracleDistributionResourceTestContext(home:URL,override:String?,arguments:[String]=ProcessInfo.processInfo.arguments,environment:[String:String]=ProcessInfo.processInfo.environment)->Bool {
+    guard arguments.contains("--self-test-distribution"),let rootPath=environment["ORACLE_TEST_ROOT"],let override else{return false}
+    let root=URL(fileURLWithPath:rootPath).standardizedFileURL,resources=URL(fileURLWithPath:override).standardizedFileURL
+    guard root.pathComponents.contains(".work"),root.path==root.resolvingSymlinksInPath().path,
+          home.path==home.standardizedFileURL.path,home.path==home.resolvingSymlinksInPath().path,
+          resources.path==resources.resolvingSymlinksInPath().path,
+          home.path.hasPrefix(root.path+"/"),resources.path.hasPrefix(root.path+"/"),resources.lastPathComponent=="engine" else{return false}
+    return true
+}
+
 func runDistributionTests() throws {
     if let release=ProcessInfo.processInfo.environment["ORACLE_DISTRIBUTION_RELEASE"] {
         try runReviewedDistributionInstallation(URL(fileURLWithPath:release));return
     }
     let base=try oracleTestFixture("distribution-v3"),state=base.appendingPathComponent("state"),vault=base.appendingPathComponent("vault"),resources=base.appendingPathComponent("resources")
-    defer{if ProcessInfo.processInfo.environment["ORACLE_TEST_KEEP_FIXTURE"] != "1"{try? fm.removeItem(at:base)}else{print("FIXTURE_PRESERVED "+base.path)}}
+    defer{OracleAIMemoryServiceTestDriver.cleanup(profile:state);if ProcessInfo.processInfo.environment["ORACLE_TEST_KEEP_FIXTURE"] != "1"{try? fm.removeItem(at:base)}else{print("FIXTURE_PRESERVED "+base.path)}}
     try fm.createDirectory(at:vault,withIntermediateDirectories:true)
     let prior=ProcessInfo.processInfo.environment["ORACLE_ENGINE_RESOURCES"]
     defer{if let prior{setenv("ORACLE_ENGINE_RESOURCES",prior,1)}else{unsetenv("ORACLE_ENGINE_RESOURCES")}}
@@ -23,10 +39,32 @@ func runDistributionTests() throws {
     try fm.createDirectory(at:resources.appendingPathComponent("engine"),withIntermediateDirectories:true)
     if realEngine==nil {for name in ["gbrain","oracle-gbrain-read"]{try Data("synthetic executable bytes, never run".utf8).write(to:resources.appendingPathComponent("engine/"+name))}}
     setenv("ORACLE_ENGINE_RESOURCES",resources.appendingPathComponent("engine").path,1)
-    let core=try Core(home:state);core.config["vault"]=vault.path;try core.persist()
+    let device=DistributionAIMemoryFixtureDevice()
+    let core=try Core(home:state,licenseDevice:device,licenseTrust:LicenseKeys(version:1,keys:["synthetic":key.publicKey.rawRepresentation.base64EncodedString()]))
+    core.config["vault"]=vault.path;try core.persist()
     var checks=[String]()
+    var installedGlobalAuth=[String:Data]()
+    func globalAuthPreserved()throws->Bool {
+        guard installedGlobalAuth["onboarding/license"] != nil else{return false}
+        for (path,bytes) in installedGlobalAuth {
+            let file=state.appendingPathComponent(path)
+            guard fm.fileExists(atPath:file.path),try Data(contentsOf:file)==bytes else{return false}
+        }
+        return true
+    }
     func check(_ ok:Bool,_ name:String)throws{guard ok else{throw failure(name)};checks.append(name);print("PASS "+name)}
     func rejects(_ name:String,_ action:()throws->Void)throws{do{try action()}catch{checks.append(name);print("PASS "+name);return};throw failure("Did not reject: "+name)}
+    let fixtureEngine=resources.appendingPathComponent("engine").path
+    try check(!oracleDistributionResourceTestContext(home:state,override:fixtureEngine,arguments:["oracle"]),"normal CLI ignores synthetic publisher resource override")
+    let outside=URL(fileURLWithPath:ProcessInfo.processInfo.environment["ORACLE_TEST_ROOT"] ?? base.path).standardizedFileURL.deletingLastPathComponent().appendingPathComponent("outside-distribution-"+UUID().uuidString.lowercased())
+    try check(!oracleDistributionResourceTestContext(home:outside,override:fixtureEngine,arguments:["oracle","--self-test-distribution"]),"distribution fixture refuses state outside explicit test root")
+    try check(!oracleDistributionResourceTestContext(home:state,override:outside.appendingPathComponent("engine").path,arguments:["oracle","--self-test-distribution"]),"distribution fixture refuses resources outside explicit test root")
+    try check(oracleDistributionResourceTestContext(home:state,override:fixtureEngine,arguments:["oracle","--self-test-distribution"]),"explicit isolated distribution suite admits synthetic resource fixture")
+    let linkedEngine=base.appendingPathComponent("linked/engine")
+    try fm.createDirectory(at:linkedEngine.deletingLastPathComponent(),withIntermediateDirectories:true)
+    try fm.createSymbolicLink(at:linkedEngine,withDestinationURL:resources.appendingPathComponent("engine"))
+    try check(!oracleDistributionResourceTestContext(home:state,override:linkedEngine.path,arguments:["oracle","--self-test-distribution"]),"distribution fixture refuses symlink resource override")
+    try check(core.bundledEngineResources().path==fixtureEngine,"native Core resolves isolated synthetic publisher resources")
     let skillCore=try Core(home:base.appendingPathComponent("skill-state")),skillVault=base.appendingPathComponent("ATLAS")
     try fm.createDirectory(at:skillVault,withIntermediateDirectories:true)
     skillCore.config["vault"]=skillVault.path;try skillCore.persist()
@@ -132,6 +170,9 @@ func runDistributionTests() throws {
     try rejects("distribution cannot overwrite or delete personal notes via a ledger destination"){_=try core.distributionOwnedDestination(vault.appendingPathComponent("AREAS/pessoal/nota.md").path,root:vault)}
     try cache(manifest)
     let plan=try core.makeMemoryOnlyPlan(manifest:manifest,id:UUID().uuidString)
+    try check(try OracleAIMemoryOnboarding.required(plan),"new Second Brain plan requires pinned AI Memory")
+    var withoutAIMemory=plan;withoutAIMemory.removeValue(forKey:"ai_memory")
+    try check(try core.planDigest(withoutAIMemory) != plan["plan_hash"] as? String,"AI Memory requirement is bound before plan confirmation")
     try check(try core.distributionRelativePath(skill,plan:plan)=="SISTEMA/skills/Pesquisa/research-lab/example/SKILL.md","fresh installation groups complete skills by department")
     try check(try core.distributionRelativePath(resource,plan:plan)=="SISTEMA/skills/Pesquisa/research-lab/example/references/reference.txt","relative skill resources remain together")
     try check(try core.memoryOnlyInstallationMode()=="install","absent GBrain selects fresh installation")
@@ -167,7 +208,28 @@ func runDistributionTests() throws {
     try check(try fileDigest(cachedFile)==cachedPackage["sha256"] as? String,"retry replaces corrupted owned cache only after a verified download")
     try check(!fm.fileExists(atPath:vault.appendingPathComponent("SISTEMA/skills/Pesquisa/research-lab/example/SKILL.md").path),"staging all packages never applies a partial distribution")
     if realEngine != nil {
+        guard ProcessInfo.processInfo.environment["ORACLE_AI_MEMORY_SERVICE_TEST"]=="1" else {
+            throw failure("A integração real isolada exige ORACLE_AI_MEMORY_SERVICE_TEST=1; testes nunca registram LaunchAgents reais.")
+        }
+        _=try core.licenseDeviceRequest()
+        let grant=OracleLicense(version:2,product:"oracle-macos",keyID:"synthetic",licenseID:UUID().uuidString,subject:"Synthetic integrated AI Memory onboarding",issuedAt:1,expiresAt:nil,deviceID:try device.identifier(create:false))
+        let payload=try JSONEncoder().encode(grant)
+        _=try core.activateLicense("ORACLE2."+base64URL(payload)+"."+base64URL(try key.signature(for:Data("ORACLE2.".utf8)+payload)))
+        try Data("synthetic global data preserved across vaults".utf8).write(to:state.appendingPathComponent("onboarding/global-test-sentinel.bin"))
+        for path in ["onboarding/license","onboarding/device-request-v2.json","onboarding/global-test-sentinel.bin"] {
+            let file=state.appendingPathComponent(path)
+            if fm.fileExists(atPath:file.path) {installedGlobalAuth[path]=try Data(contentsOf:file)}
+        }
+        guard let archivePath=ProcessInfo.processInfo.environment["ORACLE_AI_MEMORY_TEST_ARCHIVE"],URL(fileURLWithPath:archivePath).standardizedFileURL.pathComponents.contains(".work") else{throw failure("Real integrated AI Memory test requires a verified archive staged in .work through ORACLE_AI_MEMORY_TEST_ARCHIVE; tests never download it.")}
         _=try core.initializeMemoryOnly(plan:plan)
+        let ai=try core.prepareAIMemoryRuntime(plan:plan,bundledArchive:URL(fileURLWithPath:archivePath))
+        try check(ai["runtimePrepared"] as? Bool==true && ai["captureEnabled"] as? Bool==false,"real pinned AI Memory is prepared without enabling capture")
+        let repeatedAI=try core.prepareAIMemoryRuntime(plan:plan,bundledArchive:URL(fileURLWithPath:archivePath))
+        try check(try jsonData(ai)==jsonData(repeatedAI),"repeated AI Memory installation reuses verified owned runtime and profile")
+        let service=try core.prepareAIMemoryService(plan:plan)
+        try check(service["serviceAvailable"] as? Bool==true && (service["protocol"] as? [String:Any])?["twoClientsVerified"] as? Bool==true,"Core prepares a shared real HTTP service for two isolated MCP clients")
+        let descriptor=try core.aiMemoryCodexDescriptor(plan:plan)
+        try check((descriptor["mcp"] as? [String:Any])?["url"] as? String==service["url"] as? String,"Core exposes only the verified HTTP endpoint to Codex")
         let config=try readJSON(state.appendingPathComponent("gbrain/profile/.gbrain/config.json")),database=URL(fileURLWithPath:config["database_path"] as! String)
         let identity=try fm.attributesOfItem(atPath:database.path)[.systemFileNumber] as? NSNumber
         let repeated=try core.initializeMemoryOnly(plan:plan)
@@ -182,8 +244,14 @@ func runDistributionTests() throws {
     try check((try core.verifyDistributionSkills(manifest,plan:plan))["count"] as? Int==1,"resume is idempotent with no duplicate Codex skills")
     try rejects("files alone cannot satisfy final onboarding verification"){_=try core.completeMemoryOnly(plan:plan)}
     if realEngine != nil {
-        _=try core.indexMemoryOnly(plan:plan);_=try core.prepareBridge()
+        _=try core.indexMemoryOnly(plan:plan);try prepareOracleRuntimeBindingTestFixture(home:core.home);_=try core.prepareBridge()
+        let agents=try String(contentsOf:core.oracleWorkspace().appendingPathComponent("AGENTS.md"),encoding:.utf8)
+        let descriptor=try core.aiMemoryCodexDescriptor(plan:plan)
+        try check(agents.contains("oracle_ai_memory.memory_query") && agents.contains("answer:false") && agents.contains(descriptor["workspace"] as! String) && agents.contains(descriptor["project"] as! String),"generated Codex instructions require relevant recall in exact verified memory scopes")
         let result=try core.completeMemoryOnly(plan:plan)
+        let aiVerified=result["ai_memory"] as? [String:Any]
+        try check(aiVerified?["codexPrepared"] as? Bool==true && aiVerified?["executionVerified"] as? Bool==false,"completion requires real AI Memory and Codex configuration without claiming host execution")
+        try check((aiVerified?["service"] as? [String:Any])?["httpProtocolVerified"] as? Bool==true,"completion includes verified shared HTTP service readiness")
         try check(result["identity_status"] as? String=="not_applicable","real engine completes memory-only installation without identity")
         try check(!fm.fileExists(atPath:state.appendingPathComponent("setup/identity-render.json").path) && !fm.fileExists(atPath:state.appendingPathComponent("gbrain/workspace/SOUL.md").path),"real official initialization never renders personal identity")
         let reopened=try Core(home:state)
@@ -225,28 +293,41 @@ func runDistributionTests() throws {
         _=try core.runRuntimeGeneration(["operation":"runtime-generation","action":"switch-vault","id":UUID().uuidString,"vault":secondVault.path])
         core.refreshConfig()
         try check(core.config["vault"] as? String==secondVault.path && fm.fileExists(atPath:vault.appendingPathComponent("SISTEMA/skills/Pesquisa/research-lab/example/SKILL.md").path),"selecting another vault preserves original canonical files")
+        try check(try globalAuthPreserved(),"vault switch preserves signed Mac license device request and unrelated global state bytes")
         try check(!fm.fileExists(atPath:state.appendingPathComponent("setup/plan.json").path),"new vault receives a separate plan and preserved prior profile")
         let secondPlan=try core.makeMemoryOnlyPlan(manifest:manifest,id:UUID().uuidString)
+        guard let archivePath=ProcessInfo.processInfo.environment["ORACLE_AI_MEMORY_TEST_ARCHIVE"] else{throw failure("The staged AI Memory test archive is missing.")}
+        _=try core.prepareAIMemoryRuntime(plan:secondPlan,bundledArchive:URL(fileURLWithPath:archivePath))
+        _=try core.prepareAIMemoryService(plan:secondPlan)
         try core.stageDistribution(manifest,plan:secondPlan,fetch:{url,_ in payloads[url]!})
         _=try core.initializeMemoryOnly(plan:secondPlan);_=try core.applyPlan();_=try core.applyDistribution(manifest,plan:secondPlan)
-        _=try core.indexMemoryOnly(plan:secondPlan);_=try core.installDistributionSkills(manifest,plan:secondPlan);_=try core.prepareBridge()
+        _=try core.indexMemoryOnly(plan:secondPlan);_=try core.installDistributionSkills(manifest,plan:secondPlan);try prepareOracleRuntimeBindingTestFixture(home:core.home);_=try core.prepareBridge()
         try check((try core.completeMemoryOnly(plan:secondPlan))["identity_status"] as? String=="not_applicable","second vault completes without altering the first profile")
         let switchedBack=try core.runRuntimeGeneration(["operation":"runtime-generation","action":"switch-vault","id":UUID().uuidString,"vault":vault.path])
         core.refreshConfig()
         try check(switchedBack["restored"] as? Bool==true && (try core.verifyMemoryOnly(plan:plan))["memory"] as? Bool==true,"returning to a vault restores its original database sources and plan")
+        try check(try globalAuthPreserved(),"returning to a vault preserves the current global authorization bytes")
+        try rejects("returning to a vault cannot reuse the other vault AI Memory receipt"){_=try core.verifyOnboardingAIMemory(plan:plan)}
+        _=try core.prepareAIMemoryRuntime(plan:plan,bundledArchive:URL(fileURLWithPath:archivePath))
+        _=try core.prepareAIMemoryService(plan:plan)
+        _=try core.prepareBridge()
+        try check((try core.verifyOnboardingAIMemory(plan:plan))["codexPrepared"] as? Bool==true,"returning to a vault rebinds AI Memory and Codex to the restored plan")
         _=try core.installDistributionSkills(manifest,plan:plan)
         try check((try core.verifyDistributionSkills(manifest,plan:plan))["count"] as? Int==1,"vault switch keeps one active global skill destination")
         let request:[String:Any]=["operation":"runtime-generation","action":"switch-vault","id":UUID().uuidString,"vault":secondVault.path,"crash_at":"after-vault-archive"]
         var environment=core.engineEnvironment();environment.removeValue(forKey:"ORACLE_CANCEL_FILE")
         let crashed=try runProcess(resources.appendingPathComponent("engine/oracle-gbrain-read"),[],cwd:state,environment:environment,input:jsonData(request),timeout:120)
         try check(crashed.code==86,"actual process interruption reaches vault archive boundary")
+        try check(try globalAuthPreserved(),"interrupted vault switch does not archive global authorization")
         _=try core.recoverRuntimeGenerationIfNeeded();core.refreshConfig()
         try check(core.config["vault"] as? String==vault.path && (try core.verifyMemoryOnly(plan:plan))["memory"] as? Bool==true,"interrupted vault switch restores original profile and preferences")
-        let controller=try OnboardingController(home:state,accessCheck:{},distributionResolver:{try $0.decodeDistribution(bytes)})
+        try check(try globalAuthPreserved(),"vault recovery keeps original global authorization bytes")
+        let fixtureCore:(URL)throws->Core={try Core(home:$0,licenseDevice:device,licenseTrust:LicenseKeys(version:1,keys:["synthetic":key.publicKey.rawRepresentation.base64EncodedString()]))}
+        let controller=try OnboardingController(home:state,accessCheck:{},distributionResolver:{try $0.decodeDistribution(bytes)},coreFactory:fixtureCore)
         defer{controller.shutdown()}
         let started=try controller.installMemoryOnly(),duplicate=try controller.installMemoryOnly()
         try check(started["runID"] as? String==duplicate["runID"] as? String,"duplicate native install resolves to the active immutable install ID")
-        let secondWindow=try OnboardingController(home:state,accessCheck:{},distributionResolver:{try $0.decodeDistribution(bytes)})
+        let secondWindow=try OnboardingController(home:state,accessCheck:{},distributionResolver:{try $0.decodeDistribution(bytes)},coreFactory:fixtureCore)
         let concurrent=try secondWindow.installMemoryOnly()
         try check(concurrent["runID"] as? String==started["runID"] as? String && onboardingActiveStatuses.contains(concurrent["status"] as? String ?? ""),"second window preserves and reuses the active native installation")
         let deadline=Date().addingTimeInterval(180)

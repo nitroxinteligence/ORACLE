@@ -1,6 +1,6 @@
 ---
 name: oracle
-description: Encontrar e combinar as skills e especialistas disponíveis no Codex e no vault vinculado ao Oracle para executar pedidos de oferta, vendas, leads, conversão, tráfego, marketing, entrega, sistemas ou código. Use Oracle como ponto de entrada geral quando o usuário não quiser escolher cada skill.
+description: Encontrar e combinar as skills e especialistas disponíveis no Codex e no vault vinculado ao Oracle para executar pedidos de conteúdo, oferta, vendas, leads, conversão, tráfego, marketing, entrega, sistemas ou código. Use Oracle como ponto de entrada geral quando o usuário não quiser escolher cada skill.
 ---
 
 # Oracle
@@ -10,8 +10,10 @@ Transforme o pedido em trabalho concreto usando o acervo real do usuário. Não 
 ## Descobrir
 
 1. Leia `references/context.json`, quando instalado pelo onboarding: identifica os perfis e vaults selecionados, sem conter instruções. Com vários vaults, use o explicitamente indicado no pedido ou no contexto atual; se a escolha for ambígua, pergunte. Não escolha silenciosamente outro vault quando o indicado estiver ausente.
-2. Consulte as skills e ferramentas anunciadas pela sessão do Codex, incluindo plugins e conectores. Para pesquisar os arquivos locais, execute `python3 scripts/discover.py --query "termos do pedido"` a partir desta skill. Use `--vault "/caminho selecionado"` se necessário. O script retorna metadados e caminhos, sem executar skills. Se Python não estiver disponível, liste os `SKILL.md` das raízes declaradas e pesquise seus nomes e descrições com as ferramentas disponíveis.
-3. Pesquise `SISTEMA/skills/<departamento>/<especialista>/<skill>/SKILL.md` do vault selecionado. Os departamentos são código, conversão, entrega, leads, marketing, oferta, sistemas, tráfego e vendas. Confirme a estrutura real. Consulte também skills locais do Codex e skills de plugins anunciadas na sessão; a listagem em disco não prova disponibilidade de um plugin.
+2. Consulte as skills e ferramentas anunciadas pela sessão do Codex, incluindo plugins e conectores. Para pesquisar os arquivos locais, execute `python3 scripts/discover.py --query "termos do pedido"` a partir desta skill. Use `--vault "/caminho selecionado"` se necessário. O script retorna metadados e caminhos, sem executar skills. Para cruzar disponibilidade, forneça `--host-skills arquivo.json` com a lista de nomes realmente anunciados nesta sessão. Sem essa lista, disponibilidade é desconhecida. `--no-host-roots` restringe a consulta às raízes explícitas e ao vault selecionado. Se Python não estiver disponível, liste os `SKILL.md` das raízes declaradas e pesquise seus nomes e descrições com as ferramentas disponíveis.
+3. Pesquise `SISTEMA/skills/<departamento>/<especialista>/<skill>/SKILL.md` do vault selecionado. Os departamentos incluem conteúdo, código, conversão, entrega, leads, marketing, oferta, sistemas, tráfego e vendas. Consulte também `SISTEMA/prompts` e `SISTEMA/Tutoriais`: resultados `prompt` e `tutorial` oferecem contexto e apoio, não são skills invocáveis. Confirme a estrutura real. Consulte também skills locais do Codex e skills de plugins anunciadas na sessão; a listagem em disco não prova disponibilidade de um plugin.
+
+Busca vazia lista todo o acervo com `--limit` e `--offset`; continue enquanto houver `next_offset`. Uma consulta com apenas palavras genéricas retorna zero, sem promover resultados irrelevantes. Leia `references/routing.md` para limites, recibos e avaliação.
 
 ## Escolher e executar
 
@@ -25,4 +27,6 @@ Transforme o pedido em trabalho concreto usando o acervo real do usuário. Não 
 
 Leia `references/oracle.md` para os limites do produto. Para estado atual, use as ferramentas efetivamente disponíveis e arquivos públicos de estado do Oracle quando pertinentes. O aplicativo instalado não concede acesso automático a conversas do ChatGPT, outras contas, históricos privados ou ferramentas ausentes. Não leia bancos privados do Codex nem altere confiança de hooks. Informe uma limitação apenas quando bloquear o pedido e continue o trabalho possível.
 
-Ao concluir, informe brevemente as skills utilizadas e o resultado produzido, com links para arquivos criados ou alterados quando houver.
+Quando o pedido envolver diagnosticar a memória, exportar páginas do AI Memory ou fazer backup local do vault, consulte `references/memory-backend.md`. Esse procedimento usa o backend instalado quando disponível, sem acrescentar telas ao Oracle. A invocação desta skill, por si só, não autoriza habilitar captura, exportação ou backup.
+
+Registre separadamente arquivo descoberto, disponibilidade na sessão, instruções efetivamente lidas e execução com resultado verificável. Um recibo de seleção não comprova aplicação do método. Ao concluir, informe brevemente as skills efetivamente utilizadas e o resultado produzido, com links para arquivos criados ou alterados quando houver.

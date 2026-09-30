@@ -21,7 +21,7 @@ enum OracleMaintenancePolicy {
                 "remoteProcessing":enabled && raw["remoteProcessing"] as? Bool==true,"timezone":zone,"hour":hour,
                 "captureSource":raw["captureSource"] as? String ?? NSNull(),
                 "synthesisScope":raw["synthesisScope"] as? String ?? NSNull(),
-                "graphIndexes":enabled && raw["graphIndexes"] as? Bool==true,"model":"gpt-5.6-sol","effort":"medium","consolidateWiki":enabled && raw["consolidateWiki"] as? Bool==true]
+                "graphIndexes":enabled && raw["graphIndexes"] as? Bool==true,"model":OracleCodexModel.maintenanceModelID,"effort":OracleCodexModel.maintenanceEffort,"consolidateWiki":enabled && raw["consolidateWiki"] as? Bool==true]
     }
 }
 
@@ -73,16 +73,19 @@ extension Core {
         let zone=TimeZone(identifier:config["timezone"] as? String ?? "") ?? .current
         let host=maintenanceHostSchedule(config)
         let capture=(try? readJSON(maintenanceRoot.appendingPathComponent("last-capture.json"))) ?? [:]
-        let captured=capture["vault"] as? String==config["vault"] as? String && capture["epoch"] as? String==config["captureEpoch"] as? String && capture["status"] as? String=="captured"
+        let captured=targetMatches && capture["vault"] as? String==config["vault"] as? String && capture["epoch"] as? String==config["captureEpoch"] as? String && capture["status"] as? String=="captured"
+        let captureRuntime=config["autoCapture"] as? Bool==true ? codexRuntimeBindingStatus() : [:]
+        let captureRuntimeReady=captureRuntime["runtimeReady"] as? Bool==true
         let due=enabled && OracleMaintenancePolicy.due(now:now,lastSuccess:last,createdAt:created,timeZone:zone,hour:config["hour"] as? Int ?? 15)
-        return ["enabled":enabled,"scheduleState":host["status"]!,"registered":host["registered"]!,"hostSchedule":host,"model":"gpt-5.6-sol","effort":"medium","consolidateWiki":config["consolidateWiki"] as? Bool==true,"autoCapture":config["autoCapture"] ?? false,
+        return ["enabled":enabled,"scheduleState":host["status"]!,"registered":host["registered"]!,"hostSchedule":host,"model":host["model"] ?? config["model"] ?? OracleCodexModel.maintenanceModelID,"effort":host["effort"] ?? config["effort"] ?? OracleCodexModel.maintenanceEffort,"consolidateWiki":config["consolidateWiki"] as? Bool==true,"autoCapture":config["autoCapture"] ?? false,
                 "remoteProcessing":config["remoteProcessing"] ?? false,"due":due,"external":external,"hour":config["hour"] ?? 15,
                 "timezone":zone.identifier,"lastRun":receipt,"id":config["id"] ?? NSNull(),"targetMatches":targetMatches,"localExecutor":"oracle_while_open",
                 "captureObserved":captured,"lastCapture":captured ? capture : [:],"backup":gbrainBackupStatus(),"capabilities":["localSync":true,"privateDatabaseBackup":true,"autoCapture":true,"modelSynthesis":true],
+                "captureRuntime":captureRuntime,"captureRuntimeReady":captureRuntimeReady,
                 "captureSource":config["captureSource"] ?? NSNull(),"synthesisScope":config["synthesisScope"] ?? NSNull(),
                 "captureConfigured":maintenanceContentConsent(config),"synthesisConfigured":maintenanceContentConsent(config,remote:true),
                 "captureCoverage":"Somente prompts e últimas respostas entregues pelos hooks do workspace Oracle; sem histórico privado.",
-                "message":!enabled ? "Manutenção automática desativada ou aguardando revisão do vault." : external ? "Instalação externa preservada; manutenção gerenciada pelo seu operador." : (host["registered"] as? Bool==true ? "Agendamento confirmado no Codex. O computador e o Codex precisam estar disponíveis." : "Manutenção local preparada. Abra o espaço Oracle no Codex para registrar a tarefa diária.")]
+                "message":!enabled ? "Manutenção automática desativada ou aguardando revisão do vault." : external ? "Instalação externa preservada; manutenção gerenciada pelo seu operador." : config["autoCapture"] as? Bool==true && !captureRuntimeReady ? "A conexão de captura precisa de reparo. Abra Memória e sincronização e prepare novamente a conexão. A indexação das notas existentes continua independente." : (host["registered"] as? Bool==true ? "Agendamento confirmado no Codex. O computador e o Codex precisam estar disponíveis." : host["message"] as? String ?? "Manutenção local preparada. Abra o espaço Oracle no Codex para registrar a tarefa diária.")]
     }
 
     func maintenanceScheduleRequest() throws -> String {
@@ -100,7 +103,7 @@ extension Core {
         Perfil: \(settings["id"]!). Workspace: \(try oracleWorkspace().path).
         Vault autorizado: \(settings["vault"]!). Horário: \(settings["hour"]!)h, todos os dias, fuso \(settings["timezone"]!).
 
-        1. Use a ferramenta oficial de automações. Localize pelo identificador do perfil uma tarefa existente e atualize-a, sem duplicar nem alterar outras tarefas. Registre uma tarefa independente (cron), local, no projeto deste workspace, com model gpt-5.6-sol e reasoningEffort medium. Confira o horário no fuso indicado.
+        1. Use a ferramenta oficial de automações. Localize pelo identificador do perfil uma tarefa existente e atualize-a, sem duplicar nem alterar outras tarefas. Registre uma tarefa independente (cron), local, no projeto deste workspace, com model \(OracleCodexModel.maintenanceModelID) e reasoningEffort \(OracleCodexModel.maintenanceEffort). Se esse modelo não estiver disponível, escolha um modelo compatível anunciado pelo host e informe a configuração real. Confira o horário no fuso indicado.
         2. No prompt recorrente, inclua o marcador \(maintenanceMarker(settings)) e a execução deste comando como lista de argumentos:
         \(command)
         A tarefa deve conferir o recibo, respeitar os consentimentos atuais e retomar pendências na próxima execução. Não execute durante instalação, atualização ou outra manutenção. blocked, skipped e failed não significam sucesso. Fique em silêncio quando não houver erro ou mudança que exija ação.
@@ -160,7 +163,7 @@ extension Core {
                     let execute=synthesis ?? {input,stopped in
                         let workspace=try self.scoped("maintenance/model-workspace",root:self.home)
                         try fm.createDirectory(at:workspace,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
-                        let preferred=settings["model"] as? String ?? "gpt-5.6-sol"
+                        let preferred=settings["model"] as? String ?? OracleCodexModel.maintenanceModelID
                         return try OracleMaintenanceSynthesis.run(bridge:CodexBridge.maintenanceConnection(),workspace:workspace,input:input,preferredModel:preferred,preferredEffort:"medium",cancelled:stopped)
                     }
                     let value=try synthesizeMaintenanceCaptures(settings,cancelled:cancelled,run:execute)

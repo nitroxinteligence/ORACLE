@@ -154,22 +154,78 @@ async function runLocked(input:any,c:ReturnType<typeof context>){
 }
 
 const vaultKeys=['vault','vaultBookmark','gbrainWorkspace','gbrainProfile','gbrainAccess','gbrainVaultSource','libraryRoots'];
+// Everything else under onboarding is profile-global, including unknown future
+// access records. Account/plugin projections are not vault-owned installation state.
+const vaultOnboarding=['state.json','installations','cancel','workspace'];
 function vaultPath(path:string){
- if(['gbrain/profile','gbrain/workspace','codex-workspace','distribution','updates/runtime/current.json'].includes(path))return path;
+ if(['gbrain/profile','gbrain/workspace','oracle-workspace','codex-workspace','distribution','updates/runtime/current.json'].includes(path))return path;
  if(/^setup\/[^/]+$/.test(path)&&path!=='setup/locks')return path;
- if(path==='onboarding')return path;
+ if(vaultOnboarding.some(name=>path==='onboarding/'+name))return path;
  throw Error('Path is outside the vault profile archive');
+}
+function legacyFiles(inventory:any):Record<string,{sha256:string;size:number}> {
+ if(inventory?.kind!=='directory'||!inventory.files||typeof inventory.files!=='object'||Array.isArray(inventory.files)||Object.keys(inventory.files).length>100_000)throw Error('Invalid legacy onboarding inventory');
+ for(const [path,row] of Object.entries(inventory.files) as [string,any][]){
+  if(!path||path.startsWith('/')||path.split('/').some(part=>!part||part==='.'||part==='..')||!row||!/^[0-9a-f]{64}$/.test(row.sha256)||!Number.isSafeInteger(row.size)||row.size<0||row.size>512_000_000)throw Error('Unsafe legacy onboarding inventory');
+ }
+ return inventory.files;
+}
+function legacyInventory(source:string,inventory:any,vaultOnly=false){
+ const expected=legacyFiles(inventory);
+ if(existsSync(source)){
+  if(lstatSync(source).isSymbolicLink()||!lstatSync(source).isDirectory()||realpathSync(source)!==source)throw Error('Unsafe legacy onboarding directory');
+  for(const [path,row] of Object.entries(tree(source)))if((!vaultOnly||vaultOnboarding.includes(path.split('/')[0]))&&stable(row)!==stable(expected[path]))throw Error('Legacy onboarding preimage changed; originals preserved');
+ }
+ return expected;
+}
+function legacyChildInventory(name:string,expected:Record<string,{sha256:string;size:number}>,source:string){
+ if(expected[name])return {kind:'file',sha256:expected[name].sha256};
+ const files=Object.fromEntries(Object.entries(expected).filter(([path])=>path.startsWith(name+'/')).map(([path,row])=>[path.slice(name.length+1),row]));
+ if(Object.keys(files).length||existsSync(source)&&lstatSync(source).isDirectory())return {kind:'directory',files};
+ throw Error('Legacy onboarding member has no verified preimage');
+}
+function recoverLegacyGlobal(source:string,destination:string,inventory:any){
+ const expected=legacyInventory(source,inventory),pending:string[]=[];
+ for(const [path,row] of Object.entries(expected)){
+  if(vaultOnboarding.includes(path.split('/')[0]))continue;
+  // Do not reactivate unsigned consent/hook/unknown state from an old archive.
+  // These access records retain their normal native signature/device gates.
+  const from=join(source,path),to=join(destination,path);
+  if(path!=='license'&&!/^access-grants\/[^/]+\.license$/.test(path)){if(existsSync(from)&&!existsSync(to))pending.push(path);continue}
+  // Existing access records always win. No archive can replace or validate them.
+  if(existsSync(to)||!existsSync(from))continue;
+  const bytes=checked(from,512_000_000);if(bytes.length!==row.size||sha(bytes)!==row.sha256)throw Error('Archived global onboarding record changed');
+  directory(dirname(to));copyFileSync(from,to,constants.COPYFILE_EXCL);
+  if(sha(checked(to,512_000_000))!==row.sha256)throw Error('Global onboarding recovery readback failed');
+ }
+ return pending;
+}
+function moveLegacyVault(source:string,destination:string,inventory:any){
+ const expected=legacyInventory(source,inventory,true);
+ for(const name of vaultOnboarding){
+  const from=join(source,name),to=join(destination,name);
+  if(!existsSync(from))continue;
+  const proof=legacyChildInventory(name,expected,from);
+  if(existsSync(to)||stable(pathInventory(from))!==stable(proof))throw Error('Legacy vault onboarding conflict; both originals preserved');
+  directory(dirname(to));renameSync(from,to);
+ }
 }
 function pathInventory(path:string):any {
  const info=lstatSync(path);if(info.isSymbolicLink())throw Error('Linked profile archive refused');
  return info.isDirectory()?{kind:'directory',files:tree(path)}:{kind:'file',sha256:sha(checked(path,64_000_000))};
 }
 function restoreVault(c:ReturnType<typeof context>,journal:any,folder:string){
- if(journal.state!==c.state||journal.kind!=='vault'||journal.id!==folder.split('/').at(-1))throw Error('Vault recovery belongs to another profile');
+ if(realpathSync(folder)!==folder||journal.state!==c.state||journal.profile!==c.profile||journal.kind!=='vault'||journal.id!==folder.split('/').at(-1)||!Array.isArray(journal.moves))throw Error('Vault recovery belongs to another profile');
+ const legacyPending:string[]=[];
  for(const operation of [...journal.moves].reverse()){
-  const path=vaultPath(operation.path),active=join(c.state,path);
+  if(!['archive','activate'].includes(operation.direction)||operation.direction==='activate'&&!uuid.test(journal.target_id))throw Error('Invalid vault recovery operation');
+  const path=operation.path==='onboarding'?'onboarding':vaultPath(operation.path),active=join(c.state,path);
   const archive=operation.direction==='archive'?join(folder,'before',path):join(c.root,'generations',journal.target_id,'before',path);
   const source=operation.direction==='archive'?archive:active,destination=operation.direction==='archive'?active:archive;
+  if(path==='onboarding'){
+   if(operation.direction==='archive')legacyPending.push(...recoverLegacyGlobal(source,destination,operation.inventory));
+   moveLegacyVault(source,destination,operation.inventory);continue;
+  }
   if(!existsSync(source))continue;
   if(existsSync(destination)||stable(pathInventory(source))!==stable(operation.inventory))throw Error('Vault recovery file changed; both profiles are preserved and access remains paused');
   directory(dirname(destination));renameSync(source,destination);
@@ -178,7 +234,7 @@ function restoreVault(c:ReturnType<typeof context>,journal:any,folder:string){
  for(const key of vaultKeys){delete config[key];if(key in journal.previous_fields)config[key]=journal.previous_fields[key]}
  atomic(join(c.state,'config.json'),config);atomic(join(c.state,'vault-profiles/index.json'),journal.previous_index);
  journal.status='rolled_back';atomic(join(folder,'journal.json'),journal);unlinkSync(c.gate);
- return {complete:true,status:'rolled_back',canonical_files_changed:false};
+ return {complete:true,status:'rolled_back',canonical_files_changed:false,legacy_global_recovery_pending:legacyPending};
 }
 async function switchVault(input:any,c:ReturnType<typeof context>){
  if(!uuid.test(input.id)||typeof input.vault!=='string'||realpathSync(input.vault)!==input.vault||!lstatSync(input.vault).isDirectory()||input.vault===c.state||input.vault.startsWith(c.state+'/')||c.state.startsWith(input.vault+'/'))throw Error('New vault must be a separate canonical directory');
@@ -204,7 +260,7 @@ async function switchVault(input:any,c:ReturnType<typeof context>){
  atomic(join(c.state,'gbrain/vault-epoch.json'),{id:input.id});
  try{
   if(engineConfig){const engine=await createEngine(toEngineConfig(engineConfig));try{await engine.connect(toEngineConfig(engineConfig))}finally{await engine.disconnect()}}
-  const paths=['gbrain/profile','gbrain/workspace','codex-workspace','distribution','updates/runtime/current.json','onboarding'];
+  const paths=['gbrain/profile','gbrain/workspace','oracle-workspace','codex-workspace','distribution','updates/runtime/current.json',...vaultOnboarding.map(name=>'onboarding/'+name)];
   if(existsSync(join(c.state,'setup')))for(const name of readdirSync(join(c.state,'setup')))if(name!=='locks')paths.push(vaultPath('setup/'+name));
   const archiveRows:any[]=[];
   for(const path of paths){
@@ -214,7 +270,20 @@ async function switchVault(input:any,c:ReturnType<typeof context>){
    directory(dirname(destination));renameSync(active,destination);archiveRows.push({path,inventory});
   }
   if(c.state.split('/').includes('.work')&&input.crash_at==='after-vault-archive')process.exit(86);
+  const savedRows:any[]=[],legacyPending:string[]=[];
   if(saved)for(const row of saved.files){
+   if(row.path!=='onboarding'){savedRows.push(row);continue}
+   // Legacy receipts archived the whole directory. Only a bound original
+   // transaction can supply missing global bytes; ordinary license verification
+   // still decides whether a recovered grant is valid.
+   const oldFolder=join(c.root,'generations',targetID);if(realpathSync(oldFolder)!==oldFolder)throw Error('Linked legacy transaction refused');
+   const oldJournal=JSON.parse(checked(join(oldFolder,'journal.json')).toString());
+   if(oldJournal.kind!=='vault'||oldJournal.id!==targetID||oldJournal.state!==c.state||oldJournal.profile!==c.profile||oldJournal.previous_fields?.vault!==saved.vault||!oldJournal.moves.some((op:any)=>op.direction==='archive'&&op.path==='onboarding'&&stable(op.inventory)===stable(row.inventory)))throw Error('Legacy onboarding archive lacks its original owned journal');
+   const source=join(oldFolder,'before/onboarding'),expected=legacyInventory(source,row.inventory);
+   legacyPending.push(...recoverLegacyGlobal(source,join(c.state,'onboarding'),row.inventory));
+   for(const name of vaultOnboarding){const child=join(source,name);if(existsSync(child))savedRows.push({path:'onboarding/'+name,inventory:legacyChildInventory(name,expected,child)})}
+  }
+  for(const row of savedRows){
    const path=vaultPath(row.path),source=join(c.root,'generations',targetID,'before',path),destination=join(c.state,path);
    if(existsSync(destination)||stable(pathInventory(source))!==stable(row.inventory))throw Error('Archived vault was edited or active destination appeared; originals preserved');
    journal.moves.push({direction:'activate',path,inventory:row.inventory});atomic(join(folder,'journal.json'),journal);
@@ -235,6 +304,6 @@ async function switchVault(input:any,c:ReturnType<typeof context>){
   // needed at the commit boundary. The receipt records its immutable location.
   atomic(join(archiveRoot,'receipt.json'),{vault:oldVault,fields:previousFields,files:archiveRows,transaction:input.id});
   atomic(indexPath,nextIndex);journal.status='committed';atomic(join(folder,'journal.json'),journal);unlinkSync(c.gate);
-  return {complete:true,status:'vault_selected',vault:input.vault,restored:!!saved,previous_vault_preserved:true,canonical_files_changed:false};
+  return {complete:true,status:'vault_selected',vault:input.vault,restored:!!saved,previous_vault_preserved:true,canonical_files_changed:false,legacy_global_recovery_pending:legacyPending};
  }catch(error){restoreVault(c,journal,folder);throw error}
 }

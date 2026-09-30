@@ -23,7 +23,8 @@ func runApplicationUpdateTests() throws {
     try atomicWriteData(Data("profile stays outside the app bundle".utf8),to:marker)
 
     let install=base.appendingPathComponent("install"),current=install.appendingPathComponent("Oracle.app")
-    try fm.createDirectory(at:current,withIntermediateDirectories:true)
+    try fm.createDirectory(at:current.appendingPathComponent("Contents"),withIntermediateDirectories:true)
+    try PropertyListSerialization.data(fromPropertyList:["CFBundleIdentifier":"com.oraclecompanion.macos","CFBundleExecutable":"Oracle","CFBundleShortVersionString":"0.0.1"],format:.xml,options:0).write(to:current.appendingPathComponent("Contents/Info.plist"))
     let source=base.appendingPathComponent("release/Oracle.app"),contents=source.appendingPathComponent("Contents"),macOS=contents.appendingPathComponent("MacOS"),resources=contents.appendingPathComponent("Resources")
     try fm.createDirectory(at:macOS,withIntermediateDirectories:true);try fm.createDirectory(at:resources,withIntermediateDirectories:true)
     let executable=macOS.appendingPathComponent("Oracle")
@@ -65,5 +66,25 @@ func runApplicationUpdateTests() throws {
         _=try core.prepareApplicationUpdate(currentBundle:current,network:network(release(digestValue:"sha256:"+String(repeating:"0",count:64))))
     }
     try expect(try Data(contentsOf:marker)==Data("profile stays outside the app bundle".utf8),"failed update validation preserves profile bytes")
+    let userDirectory=base.appendingPathComponent("user/Applications")
+    let relocated=try core.prepareApplicationUpdate(currentBundle:current,destinationDirectory:userDirectory,network:network(release()))
+    try expect(relocated.current.path==userDirectory.appendingPathComponent("Oracle.app").path && relocated.original==current,"explicit user destination is bound without switching the original path")
+    try expect(fm.fileExists(atPath:current.path) && fm.fileExists(atPath:relocated.backup.path),"relocation preserves original app and prepares recoverable previous copy")
+    core.finalizeApplicationUpdateIfNeeded(currentBundle:current)
+    try expect(!fm.fileExists(atPath:relocated.replacement.path) && !fm.fileExists(atPath:relocated.receipt.path),"abandoned user destination preparation is safely discarded")
+    let occupied=userDirectory.appendingPathComponent("Oracle.app")
+    try fm.createDirectory(at:occupied,withIntermediateDirectories:true)
+    try refuses("explicit destination cannot overwrite an existing other app") {
+        _=try core.prepareApplicationUpdate(currentBundle:current,destinationDirectory:userDirectory,network:network(release()))
+    }
+    let options=core.applicationUpdateInstallationOptions(currentBundle:current)
+    try expect((options["suggestedDirectory"] as? String)?.hasSuffix("/Applications")==true,"permission plan exposes user Applications destination")
+    try fm.setAttributes([.posixPermissions:0o555],ofItemAtPath:install.path)
+    defer{try? fm.setAttributes([.posixPermissions:0o755],ofItemAtPath:install.path)}
+    let restricted=core.applicationUpdateInstallationOptions(currentBundle:current)
+    try expect(restricted["writable"] as? Bool==false && (restricted["message"] as? String ?? "").contains("~/Applications"),"standard-account permission guidance names writable user destination")
+    try refuses("nonwritable app directory is rejected without privileged helper") {
+        _=try core.prepareApplicationUpdate(currentBundle:current,network:network(release()))
+    }
     print("APPLICATION_UPDATE_RECEIPT \(checks) checks")
 }

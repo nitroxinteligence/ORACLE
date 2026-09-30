@@ -1,0 +1,67 @@
+import {mkdirSync,writeFileSync,readFileSync,existsSync,readdirSync,renameSync} from 'node:fs';
+import {join,resolve,dirname} from 'node:path';
+import {randomUUID,createHash} from 'node:crypto';
+import {runRuntimeGeneration} from '../packages/gbrain-adapter/runtime-generation.ts';
+
+if(process.argv[2]==='--child'){
+ process.env.GBRAIN_HOME=join(process.argv[3],'gbrain/profile');
+ console.log(JSON.stringify(await runRuntimeGeneration(JSON.parse(process.argv[4]))));
+}else{
+ const root=resolve('.work/runtime-generation-license/'+randomUUID());mkdirSync(root,{recursive:true});
+ let count=0;const check=(ok:boolean,name:string)=>{if(!ok)throw Error(name);console.log('PASS '+name);count++};
+ const put=(path:string,bytes:string)=>{mkdirSync(dirname(path),{recursive:true});writeFileSync(path,bytes)};
+ const json=(path:string,value:any)=>put(path,JSON.stringify(value));
+ const sha=(bytes:Buffer)=>createHash('sha256').update(bytes).digest('hex');
+ const fixture=(name:string)=>{const state=join(root,name),a=join(root,name+'-vault-a'),b=join(root,name+'-vault-b');for(const path of [join(state,'gbrain'),a,b])mkdirSync(path,{recursive:true});json(join(state,'config.json'),{vault:a});return {state,a,b}};
+ const invoke=async(state:string,input:any)=>{const child=Bun.spawn([process.execPath,import.meta.path,'--child',state,JSON.stringify(input)],{stdout:'pipe',stderr:'pipe'});const code=await child.exited,output=await new Response(child.stdout).text(),error=await new Response(child.stderr).text();return {code,output,error}};
+ const switchTo=(vault:string,crash=false)=>({action:'switch-vault',id:randomUUID(),vault,...(crash?{crash_at:'after-vault-archive'}:{})});
+ const globals=['license','device-id','device-request-v2.json','activation-request','access-grants/sentinel.license','unknown-future-consent','connection.json','plugins.json'];
+ const workspaces=['oracle-workspace','codex-workspace'];
+ const seed=(state:string)=>{for(const path of globals)put(join(state,'onboarding',path),'GLOBAL '+path);put(join(state,'onboarding/state.json'),'VAULT A');put(join(state,'onboarding/installations/run/progress.json'),'PROGRESS A');put(join(state,'onboarding/workspace/AGENTS.md'),'WORKSPACE A');for(const workspace of workspaces)put(join(state,workspace,'AGENTS.md'),'SCOPE A '+workspace)};
+ const scopes=(state:string,scope:string)=>workspaces.every(workspace=>readFileSync(join(state,workspace,'AGENTS.md'),'utf8')==='SCOPE '+scope+' '+workspace);
+ const intact=(state:string)=>globals.every(path=>readFileSync(join(state,'onboarding',path),'utf8')==='GLOBAL '+path);
+ const current=fixture('current');seed(current.state);
+ check((await invoke(current.state,switchTo(current.b))).code===0,'new vault switch succeeds');
+ check(intact(current.state),'all global auth and unknown bytes survive outgoing switch');
+ check(!existsSync(join(current.state,'onboarding/state.json')),'vault state is archived independently');
+ check(workspaces.every(workspace=>!existsSync(join(current.state,workspace))),'both scoped Codex workspaces are archived on outgoing vault switch');
+ for(const workspace of workspaces)put(join(current.state,workspace,'AGENTS.md'),'SCOPE B '+workspace);
+ put(join(current.state,'onboarding/state.json'),'VAULT B');
+ check((await invoke(current.state,switchTo(current.a))).code===0,'return restores original vault');
+ check(intact(current.state)&&readFileSync(join(current.state,'onboarding/state.json'),'utf8')==='VAULT A','return preserves global bytes and restores only vault state');
+ check(scopes(current.state,'A'),'return restores exact AGENTS scope A in both workspaces');
+ check((await invoke(current.state,switchTo(current.b,true))).code===86,'real process exits after vault archive');
+ check(intact(current.state),'global access remains present throughout crash');
+ check(workspaces.every(workspace=>!existsSync(join(current.state,workspace))),'crash occurs after both scoped workspaces are archived');
+ check((await invoke(current.state,{action:'recover'})).code===0,'new journal crash recovery succeeds');
+ check(intact(current.state)&&readFileSync(join(current.state,'onboarding/state.json'),'utf8')==='VAULT A','crash recovery preserves auth and original vault state');
+ check(scopes(current.state,'A'),'crash recovery restores original bytewise AGENTS scopes in both workspaces');
+ check((await invoke(current.state,switchTo(current.b))).code===0&&scopes(current.state,'B'),'second vault restores its own bytewise AGENTS scope B after recovery');
+
+ const inventory=(folder:string)=>{const files:any={};const walk=(dir:string,prefix='')=>{for(const name of readdirSync(dir)){const path=join(dir,name),rel=prefix+name;try{const bytes=readFileSync(path);files[rel]={sha256:sha(bytes),size:bytes.length}}catch{walk(path,rel+'/')}}};walk(folder);return {kind:'directory',files}};
+ const legacy=(name:string,pending=false)=>{const f=fixture(name);seed(f.state);const id=randomUUID(),folder=join(f.state,'updates/runtime/generations',id),original=join(f.state,'onboarding'),proof=inventory(original);mkdirSync(join(folder,'before'),{recursive:true});renameSync(original,join(folder,'before/onboarding'));const index={roots:{[sha(Buffer.from(f.a))]:{id,vault:f.a}}};json(join(folder,'journal.json'),{kind:'vault',id,state:f.state,profile:join(f.state,'gbrain/profile'),previous_fields:{vault:f.a},previous_index:{roots:{}},target_id:null,moves:[{direction:'archive',path:'onboarding',inventory:proof}],status:pending?'preparing':'committed'});if(pending){json(join(f.state,'updates/runtime/transition.json'),{id,kind:'vault'})}else{json(join(f.state,'config.json'),{vault:f.b});json(join(f.state,'vault-profiles/index.json'),index);json(join(f.state,'vault-profiles',id,'receipt.json'),{vault:f.a,transaction:id,fields:{vault:f.a},files:[{path:'onboarding',inventory:proof}]})}return {...f,id,folder}};
+ const old=legacy('legacy-return');put(join(old.state,'onboarding/license'),'CURRENT SIGNED LICENSE');
+ const legacyReturn=await invoke(old.state,switchTo(old.a));
+ check(legacyReturn.code===0,'legacy whole-directory receipt supports return');
+ check(JSON.parse(legacyReturn.output).legacy_global_recovery_pending.includes('unknown-future-consent'),'legacy result reports archived unsigned state requiring reviewed recovery');
+ check(readFileSync(join(old.state,'onboarding/license'),'utf8')==='CURRENT SIGNED LICENSE','legacy cannot replace current license');
+ check(!existsSync(join(old.state,'onboarding/device-id'))&&existsSync(join(old.folder,'before/onboarding/device-id')),'unsigned legacy device metadata stays archived for reviewed recovery');
+ check(readFileSync(join(old.state,'onboarding/access-grants/sentinel.license'),'utf8')==='GLOBAL access-grants/sentinel.license','legacy signed-license storage bytes recover without granting trust');
+ check(existsSync(join(old.folder,'before/onboarding/license')),'legacy original access copy remains recoverable');
+ check(!existsSync(join(old.state,'onboarding/unknown-future-consent'))&&existsSync(join(old.folder,'before/onboarding/unknown-future-consent')),'unknown unsigned legacy consent remains archived without activation');
+ const crashed=legacy('legacy-crash',true);put(join(crashed.state,'onboarding/license'),'CURRENT SIGNED LICENSE');put(join(crashed.state,'oracle-workspace/AGENTS.md'),'UNKNOWN PREEXISTING WORKSPACE');
+ check((await invoke(crashed.state,{action:'recover'})).code===0,'legacy interrupted whole-directory archive recovers');
+ check(readFileSync(join(crashed.state,'onboarding/license'),'utf8')==='CURRENT SIGNED LICENSE'&&readFileSync(join(crashed.state,'onboarding/state.json'),'utf8')==='VAULT A','legacy recovery preserves current license and original vault state');
+ check(readFileSync(join(crashed.state,'oracle-workspace/AGENTS.md'),'utf8')==='UNKNOWN PREEXISTING WORKSPACE','legacy journal without oracle-workspace preserves unknown current workspace bytes');
+ const activated=legacy('legacy-activated',true),targetID=randomUUID(),targetFolder=join(activated.state,'updates/runtime/generations',targetID);
+ put(join(activated.state,'onboarding/state.json'),'VAULT B');put(join(activated.state,'onboarding/license'),'CURRENT SIGNED LICENSE');
+ const targetInventory=inventory(join(activated.state,'onboarding'));mkdirSync(join(targetFolder,'before/onboarding'),{recursive:true});
+ const journalPath=join(activated.folder,'journal.json'),journal=JSON.parse(readFileSync(journalPath,'utf8'));journal.target_id=targetID;journal.moves.push({direction:'activate',path:'onboarding',inventory:targetInventory});json(journalPath,journal);
+ check((await invoke(activated.state,{action:'recover'})).code===0,'legacy recovery reverses whole-directory activation without moving auth');
+ check(readFileSync(join(activated.state,'onboarding/license'),'utf8')==='CURRENT SIGNED LICENSE'&&readFileSync(join(activated.state,'onboarding/state.json'),'utf8')==='VAULT A'&&readFileSync(join(targetFolder,'before/onboarding/state.json'),'utf8')==='VAULT B','legacy rollback keeps current auth and both vault preimages');
+ const corrupt=legacy('legacy-corrupt',true);put(join(corrupt.folder,'before/onboarding/device-id'),'TAMPERED');
+ check((await invoke(corrupt.state,{action:'recover'})).code!==0&&!existsSync(join(corrupt.state,'onboarding/device-id'))&&existsSync(join(corrupt.state,'updates/runtime/transition.json')),'changed legacy preimage cannot adopt missing auth and retains recovery gate');
+ const foreign=legacy('legacy-foreign',true),foreignJournal=join(foreign.folder,'journal.json'),forged=JSON.parse(readFileSync(foreignJournal,'utf8'));forged.state=join(root,'other-profile');json(foreignJournal,forged);
+ check((await invoke(foreign.state,{action:'recover'})).code!==0&&!existsSync(join(foreign.state,'onboarding/license'))&&existsSync(join(foreign.state,'updates/runtime/transition.json')),'journal belonging to another profile cannot restore access bytes');
+ const report={checks:count,fixture:root,scope:'synthetic adapter transactions only; no license reactivation, network, model or personal profile'};json(join(root,'report.json'),report);console.log(JSON.stringify(report));
+}

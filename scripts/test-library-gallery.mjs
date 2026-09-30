@@ -42,3 +42,13 @@ test('placeholder paints first and a rapid switch cancels stale opening',async()
  g.hide();assert.equal(await first,false);assert.equal(renders,0);
  assert.equal(await g.open('tutorials'),true);assert.equal(renders,1);assert.equal(g.mode,'tutorials');
 });
+test('captured scroll survives outgoing DOM detachment without a layout read',async()=>{
+ const f=fixture(),g=f.gallery;let value=0;
+ Object.defineProperty(g.el,'scrollTop',{get(){throw Error('Unexpected scroll layout read')},set(next){value=next}});
+ g.skeleton=()=>{};g.render=()=>{};g.active=true;g.loading=false;
+ const opening=g.open('tutorials',215);
+ assert.equal(g.models.get('prompts').scroll,215);
+ assert.equal(await opening,true);assert.equal(value,0);
+ g.hide(430);assert.equal(g.model().scroll,430);
+ g.active=true;g.hide(0);assert.equal(g.model().scroll,0,'zero is an explicit capture');
+});

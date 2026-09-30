@@ -35,3 +35,16 @@ test('welcome requires actual completed local installation, once per vault and r
  assert.equal(p.welcomeEligible({...seen,runID:'run-2'},'/tmp/A'),true);
  assert.equal(p.welcomeEligible({...ob,integrationPending:true},'/tmp/A'),true);
 });
+test('prepared interview binds structured coverage without fabricating approval',()=>{
+ const run='12345678-1234-1234-1234-123456789abc',ctx=p.context('/tmp/synthetic-vault');
+ const interview={schema_version:1,run_id:run,vault:ctx.vault,topic:'personal',area:'AREAS/pessoal',receipt_path:`SISTEMA/oracle/interviews/${run}.json`,approval:'not_observed'};
+ const prompt=p.build('personal',{...ctx,interview});
+ assert.ok(prompt.includes('Comprovante para conferência no Oracle'));
+ assert.ok(prompt.includes('Só registre esse status depois da resposta real'));
+ assert.ok(prompt.includes('text é a frase aprovada'));
+ assert.ok(prompt.includes('calcule tamanho UTF-8 em bytes e SHA-256'));
+ assert.ok(prompt.includes('confiança do projeto e permissões continuam sendo ações do usuário'));
+ assert.ok(prompt.includes(interview.receipt_path));
+ assert.equal((prompt.match(/^\d+\. /gm)||[]).length,30);
+ for(const patch of [{run_id:'../../outside'},{topic:'professional'},{area:'Profissional'},{receipt_path:'../../outside.json'}])assert.throws(()=>p.build('personal',{...ctx,interview:{...interview,...patch}}));
+});

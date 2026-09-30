@@ -21,6 +21,7 @@ extension Core {
     }
     func verifyMemoryOnlyRuntime(_ plan:[String:Any]) throws {
         guard isMemoryOnly(plan) else{throw failure("Esta operação exige um plano de memória sem identidade.")}
+        _=try OracleAIMemoryOnboarding.required(plan)
         guard let roots=plan["library_roots"] as? [String:String],roots==config["libraryRoots"] as? [String:String] else{throw failure("As bibliotecas mudaram desde este plano. Restaure as raízes escolhidas ou selecione outro vault.")}
         var identity=stat();let root=try vault()
         guard lstat(root.path,&identity)==0,let expected=plan["vault_identity"] as? [String:Any],
@@ -117,7 +118,8 @@ extension Core {
         _=try applyPlan(verifyOnly:true)
         let content=try verifyDistribution(manifest,plan:plan),memory=try verifyMemoryOnly(plan:plan),method=try verifyGBrainBridge(),codex=try verifyDistributionSkills(manifest,plan:plan)
         guard method["identity_status"] as? String=="not_applicable" else{throw failure("Ponte de memória sem identidade não verificada.")}
-        let verification:[String:Any]=["schema_version":3,"plan_hash":plan["plan_hash"]!,"manifest_sha256":manifest.hash,"structure":true,"distribution":content,"memory":memory,"method":method,"codex":codex,"identity_status":"not_applicable","localOnly":true,"hooksTrusted":false,"completed_at":ISO8601DateFormatter().string(from:Date())]
+        let aiMemory=try verifyOnboardingAIMemory(plan:plan)
+        let verification:[String:Any]=["schema_version":3,"plan_hash":plan["plan_hash"]!,"manifest_sha256":manifest.hash,"structure":true,"distribution":content,"memory":memory,"method":method,"codex":codex,"ai_memory":aiMemory,"identity_status":"not_applicable","localOnly":true,"hooksTrusted":false,"completed_at":ISO8601DateFormatter().string(from:Date())]
         try writeJSON(verification,home.appendingPathComponent("onboarding/installations/"+(plan["id"] as! String)+"/completed.json"))
         return verification
     }

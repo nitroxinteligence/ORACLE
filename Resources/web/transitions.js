@@ -72,21 +72,25 @@ window.OracleTransitions=(()=>{
   pageRevision++;pageCleanup?.();pageCleanup=null;
   cancel(document.querySelector('#graph-page'));cancel(document.querySelector('#library-page'));
  }
- function changePage(from,to,commit){
+ function changePage(from,to,commit,scroll){
   cancelPage();const revision=pageRevision;
   // The two libraries share a host. Preserve its last painted content while
   // the next library renders; never clone the SVG graph or its gradient IDs.
-  let previous=null;const previousScroll=from.scrollTop;
+  let previous=null;const previousScroll=scroll??(from.id==='library-page'?from.scrollTop:0);
   if(enabled()&&from.id==='library-page'){
    previous=from.cloneNode(false);previous.append(...from.childNodes);previous.removeAttribute('id');previous.removeAttribute('data-motion');
    previous.classList.add('page-transition-snapshot');previous.setAttribute('aria-hidden','true');previous.inert=true;
   }
-  if(commit()===false){if(previous)from.append(...previous.childNodes);return;}
+  if(commit(previousScroll)===false){if(previous)from.append(...previous.childNodes);return;}
   previous?.querySelectorAll('[id]').forEach(el=>el.removeAttribute('id'));
   if(!enabled())return;
   const finishPage=()=>{if(revision===pageRevision){pageCleanup?.();pageCleanup=null;}};
   if(previous){
-   to.parentElement.append(previous);previous.scrollTop=previousScroll;
+   // A visual offset preserves the outgoing viewport without a scrollTop
+   // write that would synchronously lay out the newly visible graph.
+   previous.style.overflow='hidden';
+   const content=previous.firstElementChild;if(content)content.style.translate=`0 -${previousScroll}px`;
+   to.parentElement.append(previous);
    pageCleanup=()=>{cancel(previous);previous.remove();};
    // New content is already opaque beneath the old page, avoiding a black gap.
    void animate(previous,[{opacity:1},{opacity:0}],{duration:220,name:'page-exit',hold:true}).then(finishPage);

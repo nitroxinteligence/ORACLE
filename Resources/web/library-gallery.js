@@ -20,8 +20,8 @@ class OracleLibraryGallery {
  inside(path,root){return path===root||path.startsWith(root+'/')}
  key(text){return String(text||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLocaleLowerCase('pt-BR')}
  signature(){const d=this.data();return JSON.stringify([this.mode,d.root,d.ambiguous,this.revision])}
- async open(mode){
-  if(this.active&&!this.loading)this.model().scroll=this.el.scrollTop;
+ async open(mode,scroll){
+  if(this.active&&!this.loading)this.model().scroll=scroll??this.el.scrollTop;
   this.mode=mode;this.active=true;this.loading=true;const sequence=++this.sequence;this.queue=[];
   this.skeleton();
   // Paint the tab and its lightweight placeholder before inventory/layout work.
@@ -36,7 +36,7 @@ class OracleLibraryGallery {
   this.el.innerHTML=`<div class="library-page-inner"><header class="gallery-heading"><div><h1>${o.title}</h1><p>${o.description}</p></div></header><div class="gallery-skeleton" role="status" aria-label="Carregando ${o.title}"><div class="gallery-skeleton-search" aria-hidden="true"></div><div class="gallery-skeleton-categories" aria-hidden="true"></div><div class="gallery-grid" aria-hidden="true">${Array.from({length:this.pageSize},()=>'<div class="gallery-card gallery-skeleton-card"><span></span><span></span></div>').join('')}</div></div></div>`;
  }
  reset(){this.hide();this.revision++;this.source=null;this.inventories.clear();this.labels.clear();this.cache.clear();this.pending.clear();this.models.clear();this.el.replaceChildren();}
- hide(){if(this.active&&!this.loading)this.model().scroll=this.el.scrollTop;this.active=false;this.loading=false;this.sequence++;this.queue=[];this.el.removeAttribute('aria-busy');}
+ hide(scroll){if(this.active&&!this.loading)this.model().scroll=scroll??this.el.scrollTop;this.active=false;this.loading=false;this.sequence++;this.queue=[];this.el.removeAttribute('aria-busy');}
  refresh(){if(!this.active||this.loading)return;const key=this.signature();if(key!==this.keyValue){this.keyValue=key;this.sequence++;this.model().selected='';this.render()}}
  remember(path,value){
   this.cache.delete(path);this.cache.set(path,value);

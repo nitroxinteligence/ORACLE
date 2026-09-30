@@ -8,10 +8,10 @@
   "commit": "2efaaf8f8a817b5b82e023383618fdcdb1cc5f7d",
   "files": [
     {
-      "bytes": 1716,
+      "bytes": 1858,
       "executable": false,
       "path": "ORACLE-CAPABILITIES.md",
-      "sha256": "85b387f3da33c76f6ef6e78fb911c0f15498382d8240054d4c8dc217125f412f",
+      "sha256": "18a11a8d6f16ead54d2eeb7b505eba769880c9afbb1fa329441b2e0e6aa0ace6",
       "upstream_git_blob": null,
       "upstream_path": null
     },

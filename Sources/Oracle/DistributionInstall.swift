@@ -226,6 +226,7 @@ extension Core {
             "vault_identity":["device":Int64(identity.st_dev),"inode":UInt64(identity.st_ino)],
             "runtime_sha256":try fileDigest(engine.appendingPathComponent("gbrain")),"adapter_sha256":try fileDigest(readAdapterExecutable()),
             "method_sha256":digest(method),"created_at":ISO8601DateFormatter().string(from:Date())]
+        plan["ai_memory"]=OracleAIMemoryProvisioning.requirement
         if let settings=try? readJSON(home.appendingPathComponent("onboarding/installations/"+id+"/maintenance.json")) {plan["maintenance"]=try OracleMaintenancePolicy.settings(settings)}
         plan["plan_hash"]=try planDigest(plan)
         // The native Install action confirms this exact scope, without fabricating identity consent.

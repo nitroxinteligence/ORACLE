@@ -133,7 +133,7 @@ func runProcess(_ executable:URL, _ args:[String], cwd:URL, environment:[String:
 extension Core {
     func bundledEngineResources() -> URL {
         let identifier=Bundle.main.bundleIdentifier
-        let allowsFixtureOverride=identifier == nil || identifier?.hasSuffix(".validation") == true
+        let allowsFixtureOverride=identifier == nil || identifier?.hasSuffix(".validation") == true || oracleDistributionResourceTestContext(home:home,override:ProcessInfo.processInfo.environment["ORACLE_ENGINE_RESOURCES"])
         if allowsFixtureOverride,let override=ProcessInfo.processInfo.environment["ORACLE_ENGINE_RESOURCES"] { return URL(fileURLWithPath:override) }
         return Bundle.main.resourceURL!.appendingPathComponent("engine")
     }

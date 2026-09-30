@@ -85,6 +85,7 @@ function modal(html,options={}){
  if(!$('#lock-screen').hidden||document.querySelector('.ob-dialog[open]'))return false;
  if(modalDirty&&options.family!=='editor'){requestEditorExit(false,()=>modal(html,options));return false}
  const dialog=$('#modal'), content=$('#modal-content'),opening=!dialog.open;
+ content.inert=false;
  OracleTransitions.cancelDialog(dialog,{preserveEntrance:true});
  const previousKey=modalPage?.key;
  content.style.height='';
@@ -132,7 +133,15 @@ $('#modal').addEventListener('cancel',e=>{e.preventDefault();closeModal()});
 $('#modal').addEventListener('close',()=>{document.body.append($('#tooltip'));modalRevision=++modalSequence;modalDirty=false;settingsTrail=false;modalHistory=[];modalPage=null;hideTooltip();const origin=modalOrigin;modalOrigin=null;if(origin?.isConnected&&!$('#app').inert)origin.focus({preventScroll:true});atlasController?.setPaused(document.hidden||window.oracleWindowVisible===false||view!=='map'||visualPaused)});
 $('#modal').addEventListener('close',()=>{$('#prompts')?.setAttribute('aria-expanded','false');$('#tutorials')?.setAttribute('aria-expanded','false')});
 function skills(id){return visibleEntries().filter(e=>!e.directory&&OracleDepartments.collectionForEntry(e,state.config.libraryRoots?.skills||"SISTEMA/skills")===id&&e.name==='SKILL.md')}
-function departmentCatalog(){return OracleDepartments.createCatalog(state.collections,visibleEntries(),state.departmentManifest||window.OracleDepartmentManifest,{...state.distributionDepartmentAssignments,...state.config.departmentAssignments},state.config.libraryRoots?.skills||"SISTEMA/skills",!!state.onboarding?.runID&&state.onboarding.profileMode==="memory-only"&&state.onboarding.status!=="completed")}
+let departmentCatalogKey=null,departmentCatalogCache=null;
+function departmentCatalog(){
+ const root=state.config.libraryRoots?.skills||'SISTEMA/skills',entries=visibleEntries().filter(e=>e.path===root||e.path.startsWith(root+'/'));
+ const manifest=state.departmentManifest||window.OracleDepartmentManifest,assignments={...state.distributionDepartmentAssignments,...state.config.departmentAssignments};
+ const forming=!!state.onboarding?.runID&&state.onboarding.profileMode==='memory-only'&&state.onboarding.status!=='completed';
+ const key=JSON.stringify([state.collections,entries.map(e=>[e.path,e.name,!!e.directory]),manifest,assignments,root,forming]);
+ if(key!==departmentCatalogKey){departmentCatalogCache=OracleDepartments.createCatalog(state.collections,entries,manifest,assignments,root,forming);departmentCatalogKey=key;}
+ return departmentCatalogCache;
+}
 function title(e){return e.name==='SKILL.md'?e.path.split('/').slice(-2,-1)[0]:e.name.replace(/\.md$/,'')}
 function entryLocation(e){const collection=state.collections.find(c=>OracleDepartments.collectionForEntry(e,state.config.libraryRoots?.skills||"SISTEMA/skills")===c.id);return collection?`${collection.name} · ${e.name==='SKILL.md'?'Skill':'Documento'}`:e.path.split('/').slice(0,-1).slice(-2).join(' / ')||'Pasta principal'}
 async function refresh(){
@@ -152,7 +161,9 @@ async function refresh(){
 async function refreshVault(){if(state.config.vault&&state.onboarding?.licensed)await call('memoryRefresh');return refresh();}
 function mountOnboarding(){return window.ORACLE_PREVIEW?Promise.resolve():window.OracleOnboarding?.mount({call,refresh,getState:()=>state,toast,openSettings:settings,canOpen:()=>$('#lock-screen').hidden&&!$('#modal').open&&!modalDirty})}
 function render(){
- renderTree();renderAtlas();renderResults();renderProgress();renderInspector();
+ if(['prompts','tutorials'].includes(view))graphSurfaceDirty=true;
+ else{renderTree();renderAtlas();renderResults();graphSurfaceDirty=false;}
+ renderProgress();renderInspector();
  renderMemoryStatus();renderMemoryFreshness();libraryGallery?.refresh();
  OracleStatusBadge.apply($('#codex-status'),state.codexPlugins?.status==='available'?'connected':state.events.some(e=>e.source==='codex-hook')?'recent_activity':'unverified',state.codexPlugins?.status==='available'?'Conectado':state.events.some(e=>e.source==='codex-hook')?'Atividade recente':'Conexão não verificada');
  renderPlayback();
@@ -180,49 +191,111 @@ async function pollMemoryStatus(){
  })();
  memoryPollTask=task;try{return await task}finally{if(memoryPollTask===task)memoryPollTask=null}
 }
+// Preserve unchanged branches and their focus, open state and native layout.
+function reconcileTreeDOM(host,html){
+ const template=document.createElement('template');template.innerHTML=html;
+ const identity=node=>{
+  if(node.nodeType!==1)return '';
+  const data=(node.tagName==='DETAILS'?node.querySelector(':scope > summary'):node)?.dataset;
+  return data?.department||data?.collection||data?.folder||data?.path||data?.knowledgePath||'';
+ };
+ const patch=(current,next)=>{
+  const old=[...current.childNodes],used=new Set(),indexed=new Map();
+  const token=node=>node.nodeType+':'+node.nodeName+':'+identity(node);
+  for(const node of old){const key=token(node);if(!indexed.has(key))indexed.set(key,[]);indexed.get(key).push(node);}
+  for(const [index,target] of [...next.childNodes].entries()){
+   const match=indexed.get(token(target))?.shift();
+   if(!match){current.insertBefore(target,current.childNodes[index]||null);continue;}
+   used.add(match);if(current.childNodes[index]!==match)current.insertBefore(match,current.childNodes[index]||null);
+   if(match.isEqualNode(target))continue;
+   if(match.nodeType!==1){match.nodeValue=target.nodeValue;continue;}
+   for(const attribute of [...match.attributes])if(!target.hasAttribute(attribute.name))match.removeAttribute(attribute.name);
+   for(const attribute of target.attributes)if(match.getAttribute(attribute.name)!==attribute.value)match.setAttribute(attribute.name,attribute.value);
+   patch(match,target);
+  }
+  for(const node of old)if(!used.has(node))node.remove();
+ };
+ patch(host,template.content);
+}
 function renderTree(){
+ const entries=visibleEntries();
+ const key=JSON.stringify([entries,state.collections,state.config.vault,state.config.libraryRoots,state.config.departmentAssignments,state.departmentManifest||window.OracleDepartmentManifest,state.distributionDepartmentAssignments,state.onboarding,selected,selectedDepartment]);
+ if(key===treeRenderKey)return false;treeRenderKey=key;
  const opened=new Set($$('#tree details[open]>summary').map(e=>e.dataset.folder||e.dataset.collection||e.dataset.department));
  const catalog=departmentCatalog();
- const areas=OracleKnowledge.areas(visibleEntries());
- const childrenByParent=new Map();for(const e of visibleEntries()){const parent=e.path.split('/').slice(0,-1).join('/');if(!childrenByParent.has(parent))childrenByParent.set(parent,[]);childrenByParent.get(parent).push(e)};const folder=(path,label,open=false)=>{const children=(childrenByParent.get(path)||[]).filter(e=>!areas.some(a=>a.path===e.path));return `<details ${open||opened.has(path)?'open':''}><summary data-folder="${esc(path)}">${icon('folder')}${esc(label||path.split('/').at(-1))}</summary><div>${children.slice(0,30).map(e=>e.directory?folder(e.path,e.name):`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}<span>${esc(e.name.replace('.md',''))}</span></button>`).join('')}${children.length>30?`<button data-prefix="${esc(path)}">Ver todos →</button>`:''}</div></details>`};
- const roots=new Set(visibleEntries().filter(e=>e.directory&&!e.path.includes('/')).map(e=>e.path));
+ const areas=OracleKnowledge.areas(entries);
+ const childrenByParent=new Map();for(const e of entries){const parent=e.path.split('/').slice(0,-1).join('/');if(!childrenByParent.has(parent))childrenByParent.set(parent,[]);childrenByParent.get(parent).push(e)};const folder=(path,label,open=false)=>{const children=(childrenByParent.get(path)||[]).filter(e=>!areas.some(a=>a.path===e.path));return `<details ${open||opened.has(path)?'open':''}><summary data-folder="${esc(path)}">${icon('folder')}${esc(label||path.split('/').at(-1))}</summary><div>${children.slice(0,30).map(e=>e.directory?folder(e.path,e.name):`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}<span>${esc(e.name.replace('.md',''))}</span></button>`).join('')}${children.length>30?`<button data-prefix="${esc(path)}">Ver todos →</button>`:''}</div></details>`};
+ const roots=new Set(entries.filter(e=>e.directory&&!e.path.includes('/')).map(e=>e.path));
  let html=`<div class="tree-section-label">Departamentos</div>`+catalog.departments.filter(d=>d.id!=='department/other').map(d=>`<details ${selectedDepartment===d.id||opened.has(d.id)?'open':''}><summary data-department="${esc(d.id)}">${icon(d.icon)}<i class="collection-dot" style="background:${d.color}"></i>${esc(d.name)}<span class="count">${d.specialistCount}</span></summary><div>${d.specialists.map(c=>`<details ${selected===c.id||opened.has(c.id)?'open':''}><summary data-collection="${esc(c.id)}">${icon('folder')}${esc(c.name)}<span class="count">${c.skillCount}</span></summary><div>${c.skills.slice(0,9).map(e=>`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}${esc(title(e).replace(/-/g,' '))}</button>`).join('')}${c.skillCount>9?`<button data-prefix="${esc(c.originPath)}">Ver todas →</button>`:''}${!c.skillCount?'<small class="empty-collection">Nenhuma skill nesta fonte</small>':''}</div></details>`).join('')}${d.empty?'<small class="empty-collection">Nenhum especialista instalado</small>':''}</div></details>`).join('');
  html+='<div class=tree-section-label>Seu conhecimento</div>'+areas.map(a=>a.exists?folder(a.path,a.name):`<button data-knowledge-area="${a.id}" data-knowledge-path="${esc(a.path)}">${icon('folder')}${a.name}<span class=count>0</span></button>`).join('');
  const extraRoots=[...roots].filter(p=>!areas.some(a=>a.path===p)).sort((a,b)=>a.localeCompare(b,'pt-BR'));html+='<div class="tree-section-label">Pastas</div>'+extraRoots.map(p=>folder(p)).join('');
  html+=(childrenByParent.get('')||[]).filter(e=>!e.directory).map(e=>`<button class="leaf" data-path="${esc(e.path)}">${icon('note')}${esc(title(e))}</button>`).join('');
  if(!state.config.vault)html='<p class="empty">Seu conhecimento, no seu espaço.<button class="primary" data-connect>Conectar vault</button></p>'+html;
- if($('#tree').oracleHTML===html)return;$('#tree').oracleHTML=html;$('#tree').innerHTML=html;OracleInstallationVisual.reveal('tree',[...$('#tree').querySelectorAll('[data-department],[data-collection],[data-folder],[data-path],[data-knowledge-path]')].map(element=>({element,key:element.dataset.department||element.dataset.collection||element.dataset.folder||element.dataset.path||element.dataset.knowledgePath})),OracleInstallationVisual.projection(state).forming,$('#motion').checked||matchMedia('(prefers-reduced-motion: reduce)').matches);$('#tree').querySelectorAll('[data-collection]').forEach(e=>e.onclick=()=>{selected=e.dataset.collection;selectedDepartment=catalog.specialistByID.get(selected)?.department||null;selectedSkill=null;renderAtlas();renderInspector()});$('#tree').querySelectorAll('[data-department]').forEach(e=>{e.style.setProperty('--department-color',OracleAtlas.departmentColor(e.dataset.department,catalog.departmentByID.get(e.dataset.department)?.color));e.onclick=()=>atlasController?.setDepartment(e.dataset.department)});bindPaths($('#tree'));$('#tree').querySelectorAll('[data-folder],[data-knowledge-path]').forEach(el=>{const path=el.dataset.folder||el.dataset.knowledgePath,area=areas.find(a=>path===a.path||path.startsWith(a.path+'/'));if(area)el.addEventListener('click',()=>atlasController?.navigateKnowledge(area.id,path))});$('#tree').querySelector('[data-connect]')?.addEventListener('click',()=>showSetup(0));$('#tree').querySelectorAll('[data-prefix]').forEach(e=>e.onclick=()=>{openSearch(e.dataset.prefix)});
+ if($('#tree').oracleHTML===html)return false;$('#tree').oracleHTML=html;reconcileTreeDOM($('#tree'),html);OracleInstallationVisual.reveal('tree',[...$('#tree').querySelectorAll('[data-department],[data-collection],[data-folder],[data-path],[data-knowledge-path]')].map(element=>({element,key:element.dataset.department||element.dataset.collection||element.dataset.folder||element.dataset.path||element.dataset.knowledgePath})),OracleInstallationVisual.projection(state).forming,$('#motion').checked||matchMedia('(prefers-reduced-motion: reduce)').matches);$('#tree').querySelectorAll('[data-collection]').forEach(e=>e.onclick=()=>{selected=e.dataset.collection;selectedDepartment=catalog.specialistByID.get(selected)?.department||null;selectedSkill=null;renderAtlas();renderInspector()});$('#tree').querySelectorAll('[data-department]').forEach(e=>{e.style.setProperty('--department-color',OracleAtlas.departmentColor(e.dataset.department,catalog.departmentByID.get(e.dataset.department)?.color));e.onclick=()=>atlasController?.setDepartment(e.dataset.department)});bindPaths($('#tree'));$('#tree').querySelectorAll('[data-folder],[data-knowledge-path]').forEach(el=>{const path=el.dataset.folder||el.dataset.knowledgePath,area=areas.find(a=>path===a.path||path.startsWith(a.path+'/'));if(area)el.onclick=()=>atlasController?.navigateKnowledge(area.id,path)});$('#tree').querySelector('[data-connect]')?.addEventListener('click',()=>showSetup(0));$('#tree').querySelectorAll('[data-prefix]').forEach(e=>e.onclick=()=>{openSearch(e.dataset.prefix)});
+ return true;
 }
 function bindPaths(container){container.querySelectorAll('[data-path]').forEach(e=>e.onclick=safe(()=>{const entry=visibleEntries().find(n=>n.path===e.dataset.path);if(entry?.directory){openSearch(entry.path)}else return openNote(e.dataset.path)}))}
 let inspectorOpenedByMap=false;
-let graphEntrancePending=true;
+let graphEntrancePending=true,graphEntranceFrame=0,graphRenderFrame=0,graphSurfaceDirty=false,atlasRenderKey=null,treeRenderKey=null;
 let atlasController=null, selectedSkill=null, selectedDepartment=null, visualPaused=false,replaySession=null,replayProjection=null;
 function renderAtlas(){
+ if(view!=='map'){atlasController?.setPaused(true);return;}
  const installation=OracleInstallationVisual.projection(state);document.body.classList.toggle('setup-pending',installation.coreReady===false);
- if(!atlasController){atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onSelect:(id,leaf,keyboard,selection)=>{selected=id;selectedSkill=leaf;selectedDepartment=selection?.department||null;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpenKnowledge:safe(openKnowledgeHub),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onOpenTutorial:safe(path=>setView('tutorials',()=>libraryGallery.openDocument(path))),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
- atlasController.update({forming:installation.forming&&state.onboarding?.profileMode==='memory-only',skillRoot:state.config.libraryRoots?.skills||'SISTEMA/skills',tutorialRoot:state.config.libraryRoots?.tutorial||'',promptRoot:state.config.libraryRoots?.prompt||'',departmentAssignments:{...state.distributionDepartmentAssignments,...state.config.departmentAssignments},departmentManifest:state.departmentManifest||window.OracleDepartmentManifest,selectedDepartment,collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||!!document.querySelector('dialog[open]')});
- if(graphEntrancePending&&view==='map'&&atlasController.revealGraph())graphEntrancePending=false;
+ if(!atlasController){atlasRenderKey=null;atlasController=new OracleAtlas($('#atlas'),{onNavigate:hideTooltip,onError:error=>toast(error.message||String(error),'error'),onCentralLayout:()=>{if(view==='map'&&graphEntrancePending)renderAtlas();},onSelect:(id,leaf,keyboard,selection)=>{selected=id;selectedSkill=leaf;selectedDepartment=selection?.department||null;renderInspector();if(leaf){if(!document.body.classList.contains('observatory-open')){inspectorOpenedByMap=true;toggleObservatory(true)}}else if(inspectorOpenedByMap){inspectorOpenedByMap=false;toggleObservatory(false)}},onConnector:id=>id==='gbrain'?safe(memory)():settings(),onOpenKnowledge:safe(openKnowledgeHub),onOpen:safe(openNote),onOpenPrompt:safe(openPromptFromOrbit),onOpenTutorial:safe(path=>setView('tutorials',()=>libraryGallery.openDocument(path))),onLayout:safe(async layout=>{if(replay)return;await call('saveLayout',{layout});state.config.layout=structuredClone(layout)}),onZoom:value=>{$('#zoom-label').textContent=Math.round(value*100)+'%'}})}
+ const atlasData={vault:state.config.vault,forming:installation.forming&&state.onboarding?.profileMode==='memory-only',skillRoot:state.config.libraryRoots?.skills||'SISTEMA/skills',tutorialRoot:state.config.libraryRoots?.tutorial||'',promptRoot:state.config.libraryRoots?.prompt||'',departmentAssignments:{...state.distributionDepartmentAssignments,...state.config.departmentAssignments},departmentManifest:state.departmentManifest||window.OracleDepartmentManifest,selectedDepartment,collections:replay&&replaySession?.kind==='formation'?replaySession.collections:installation.collections,entries:replay&&replaySession?.kind==='formation'?replaySession.entries:replay?visibleEntries():installation.entries,plugins:[],connectors:installation.connectors,coreReady:installation.coreReady,selected,selectedLeaf:selectedSkill,detail:Number($('#density').value),events:replay?timelineEvents().slice(0,cursor+1):state.events,replay,reduced:$('#motion').checked,economy:$('#economy').checked,layout:state.config.layout,formation:undefined,hidden:view!=='map'||window.oracleWindowVisible===false||installation.coreReady===false,paused:visualPaused||!!document.querySelector('dialog[open]')};
+ // Compare the complete input, including layout, roots, receipts and replay.
+ // Navigation alone does not invalidate the SVG topology or central inventory.
+ const key=JSON.stringify({...atlasData,entries:OracleAtlas.presentationEntries(atlasData.entries,atlasData.skillRoot).map(e=>[e.path,e.name,!!e.directory])});
+ if(key!==atlasRenderKey||atlasController.centralLayoutCanceled){atlasController.update(atlasData);atlasRenderKey=key;}
+ else{atlasController.data.entries=atlasData.entries;atlasController.setPaused(document.hidden||atlasData.hidden||atlasData.paused);}
+ if(graphEntrancePending&&!graphEntranceFrame){
+  // Let WebKit lay out the newly visible surface before reading its viewport.
+  graphEntranceFrame=requestAnimationFrame(()=>{graphEntranceFrame=requestAnimationFrame(()=>{
+   graphEntranceFrame=0;if(view==='map'&&$('#lock-screen').hidden&&graphEntrancePending&&atlasController.revealGraph())graphEntrancePending=false;
+  });});
+ }
 }
 function requestGraphEntrance(){graphEntrancePending=true;renderAtlas()}
 window.addEventListener('oracle:app-enter',()=>{void OracleTransitions.enterApp();requestGraphEntrance()});
 function setView(next,onReady){
  if(navigationBlocked())return false;
  const previous=view,gallery=['prompts','tutorials'].includes(next);
+ const outgoingScroll=['prompts','tutorials'].includes(previous)&&libraryGallery.active&&!libraryGallery.loading?$('#library-page').scrollTop:0;
  atlasController?.finishReveal();
  OracleTransitions.cancelPage();
  $$('.workspace-tabs [data-workspace]').forEach(button=>{const selected=button.dataset.workspace===next;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});
  OracleTransitions.indicator();
  if(next===previous){if(gallery&&libraryGallery.loading){void libraryGallery.open(next).then(ready=>{if(ready&&view===next)onReady?.()}).catch(e=>toast(e.message,'error'));}else onReady?.();return true;}
- const commit=()=>{
+ const commit=scroll=>{
   if(navigationBlocked()){$$('.workspace-tabs [data-workspace]').forEach(button=>{const selected=button.dataset.workspace===view;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});OracleTransitions.indicator();return false;}
+  atlasController?.cancelCentralLayout();
   view=next;if(next==='map')graphEntrancePending=true;document.body.classList.toggle('library-view',gallery);
   $('#graph-page').hidden=gallery;$('#library-page').hidden=!gallery;
   if(!gallery){$('#atlas').hidden=next!=='map';$('#results').hidden=next==='map';$('.map-tools').hidden=next!=='map';}
   $('#navigation-toggle').disabled=gallery;$('#replay-panel').hidden=true;
-  if(gallery){void libraryGallery.open(next).then(ready=>{if(ready&&view===next)onReady?.()}).catch(e=>toast(e.message,'error'));$('#library-page').setAttribute('aria-labelledby','workspace-'+next)}else{libraryGallery.hide();renderResults();atlasController?.resize();renderAtlas()}
-  atlasController?.setPaused(next!=='map'||document.hidden||visualPaused||!!document.querySelector('dialog[open]'));if(!gallery)onReady?.();return true;
+  if(graphRenderFrame){cancelAnimationFrame(graphRenderFrame);graphRenderFrame=0;}
+  if(gallery){void libraryGallery.open(next,scroll).then(ready=>{if(ready&&view===next)onReady?.()}).catch(e=>toast(e.message,'error'));$('#library-page').setAttribute('aria-labelledby','workspace-'+next)}
+  else{
+   libraryGallery.hide(scroll);
+   if(next==='map'){
+    const page=$('#graph-page');page.inert=true;
+    // Rebuild changed snapshots only after WebKit has laid out the visible page.
+    graphRenderFrame=requestAnimationFrame(()=>{graphRenderFrame=requestAnimationFrame(()=>{
+     graphRenderFrame=0;if(view!==next||!$('#lock-screen').hidden){page.inert=false;return;}
+     let changed=false;
+     try{if(graphSurfaceDirty){changed=renderTree();graphSurfaceDirty=false;}}
+     catch(error){page.inert=false;toast(error.message,'error');return;}
+     const paintGraph=()=>{
+      graphRenderFrame=0;if(view!==next||!$('#lock-screen').hidden){page.inert=false;return;}
+      try{renderAtlas();onReady?.();}catch(error){toast(error.message,'error');}finally{page.inert=false;}
+     };
+     if(changed)graphRenderFrame=requestAnimationFrame(paintGraph);else paintGraph();
+    });});
+   }else{if(graphSurfaceDirty){renderTree();graphSurfaceDirty=false;}renderResults();onReady?.();}
+  }
+  atlasController?.setPaused(next!=='map'||!!graphRenderFrame||document.hidden||visualPaused||!!document.querySelector('dialog[open]'));return true;
  };
- OracleTransitions.changePage($('#'+(['prompts','tutorials'].includes(previous)?'library-page':'graph-page')),$('#'+(gallery?'library-page':'graph-page')),commit);
+ OracleTransitions.changePage($('#'+(['prompts','tutorials'].includes(previous)?'library-page':'graph-page')),$('#'+(gallery?'library-page':'graph-page')),commit,outgoingScroll);
  return true;
 }
 function renderResults(){if(!['list','folders'].includes(view))return;let entries=visibleEntries().filter(e=>(view==='folders'||!e.directory)&&(!query||(e.path+' '+title(e)).toLowerCase().includes(query)));$('#results').innerHTML=`<h2>${view==='list'?'Documentos':'Pastas e documentos'} <small>${entries.length} resultados · fonte local</small></h2>`+(entries.length?entries.slice(0,300).map(e=>`<button class="result" data-path="${esc(e.path)}">${icon(e.directory?'folder':'note')}<div><strong>${esc(title(e))}</strong><small>${esc(entryLocation(e))}</small></div></button>`).join('')+(entries.length>300?'<p class="empty">Mostrando 300 resultados. Refine a busca.</p>':''):'<p class="empty">Nenhum resultado nesta pasta e filtro.</p>');bindPaths($('#results'))}
@@ -436,13 +509,13 @@ async function maintenanceSettings(){
  const remote=value.remoteProcessing===true&&value.synthesisScope==='captured_messages_codex_v1';
  modal(`<h1>Sincronização e manutenção</h1>
  <p>O índice acompanha o vault enquanto o Oracle estiver aberto e desbloqueado. A indexação básica é local e preserva instalações externas.</p>
- <dl class="ob-review"><dt>Índice</dt><dd>${esc(sync.status==='verified'?'Verificado':sync.status==='external_preserved'?'Instalação externa preservada':sync.status==='needs_attention'?'Precisa de atenção':'Aguardando configuração')}</dd><dt>Última rotina completa</dt><dd>${last?esc(new Date(last).toLocaleString('pt-BR')):'Nenhuma execução confirmada'}</dd><dt>Captura de conversa</dt><dd>${value.captureObserved?'Mensagem recebida pelos hooks':'Ainda sem mensagem recebida neste escopo'}</dd><dt>Agendamento externo</dt><dd>${value.registered?'Confirmado no Codex':value.scheduleState==='disabled'?'Não solicitado':'Pendente no Codex'}</dd></dl>
+ <dl class="ob-review"><dt>Índice</dt><dd>${esc(sync.status==='verified'?'Verificado':sync.status==='external_preserved'?'Instalação externa preservada':sync.status==='needs_attention'?'Precisa de atenção':'Aguardando configuração')}</dd><dt>Última rotina local</dt><dd>${last?esc(new Date(last).toLocaleString('pt-BR')):'Nenhuma execução confirmada'}</dd><dt>Última captura neste vault</dt><dd>${value.captureObserved?esc(new Date(value.lastCapture.at).toLocaleString('pt-BR')):'Ainda sem mensagem recebida neste escopo'}</dd><dt>Agendamento externo</dt><dd>${value.registered?'Confirmado no Codex':value.scheduleState==='disabled'?'Não solicitado':'Pendente no Codex'}</dd></dl>
  <label class="ob-check"><input type="checkbox" id="maintenance-enabled" ${value.enabled?'checked':''} ${value.external?'disabled':''}>Manutenção local diária</label>
  <div class="ob-fields"><label for="maintenance-hour">Horário preferencial</label><select id="maintenance-hour">${Array.from({length:24},(_,h)=>`<option value="${h}" ${h===value.hour?'selected':''}>${String(h).padStart(2,'0')}:00</option>`).join('')}</select><label for="maintenance-zone">Fuso horário</label><input id="maintenance-zone" value="${esc(value.timezone)}" maxlength="80"></div>
  <label class="ob-check"><input type="checkbox" id="maintenance-capture" ${capture?'checked':''}>Capturar prompts e últimas respostas do workspace Oracle</label>
  <p class="muted">Somente mensagens novas recebidas por hooks que você confiou no Codex, inclusive quando o Oracle estiver fechado. Não lê histórico privado, transcrições, raciocínio ou resultados de ferramentas. As mensagens serão guardadas localmente e projetadas em INBOX/oracle-history/conversations. Reativar não recupera mensagens de uma autorização revogada.</p>
- <p>Modelo da manutenção: <strong>GPT-5.6 Sol · médio</strong></p><label class="ob-check"><input type="checkbox" id="maintenance-remote" ${remote?'checked':''}>Consolidar essas capturas na wiki usando o Codex</label>
- <p class="muted">Consentimento separado para processamento remoto. Usa GPT-5.6 Sol no médio; exige que o modelo esteja disponível na conta; sem conexão, a fase falha e pode ser retomada. Preserva sínteses com fontes e atualiza a página de memória em WIKI/Oracle. Edições manuais em conflito são preservadas; sua identidade não é alterada.</p>
+ <label class="ob-check"><input type="checkbox" id="maintenance-remote" ${remote?'checked':''}>Consolidar essas capturas na wiki usando o Codex</label>
+ <p class="muted">Consentimento separado para processamento remoto. Usa o modelo configurado quando disponível na conta; sem conexão, a fase falha e pode ser retomada. Preserva sínteses com fontes e atualiza a página de memória em WIKI/Oracle. Edições manuais em conflito são preservadas; sua identidade não é alterada.</p>
  <p class="muted">Pausar interrompe novas capturas e a rotina diária; a indexação básica continua. Uma síntese em andamento recebe cancelamento. Conteúdo já enviado não pode ser recolhido. Mensagens já salvas não são apagadas.</p>
  <details><summary>Backup e agendamento</summary><p>Backup do banco exige o consentimento separado nos Ajustes de backup. Preparar um pedido não registra uma tarefa no host. O comando confere novamente consentimento e vault antes de executar; nenhum ID de tarefa é inventado.</p></details>
  <p role="status">${esc(value.message)}</p><p>Última tentativa: ${esc(value.lastRun?.status||'Nenhuma')}${value.lastRun?.message?' · '+esc(value.lastRun.message):''}. ${value.lastRun?.complete===false?'Há fases pendentes; a rotina completa não foi confirmada.':''}</p>
@@ -511,6 +584,8 @@ window.oracleLock=()=>{
  startupUpdateReady=false;resetUpdateTracking();
  clearTimeout(toast.timer);toast.revision=(toast.revision||0)+1;const notice=$('#toast');if(typeof notice.hidePopover==='function'&&notice.matches(':popover-open'))notice.hidePopover();notice.hidden=true;notice.replaceChildren();document.body.append(notice);hideTooltip();
  OracleTransitions.reset();
+ if(graphRenderFrame)cancelAnimationFrame(graphRenderFrame);if(graphEntranceFrame)cancelAnimationFrame(graphEntranceFrame);
+ graphRenderFrame=0;graphEntranceFrame=0;graphEntrancePending=true;atlasRenderKey=null;treeRenderKey=null;departmentCatalogKey=null;departmentCatalogCache=null;$('#graph-page').inert=false;
  $('#app').dataset.startup='pending';
  libraryGallery.reset();view='map';document.body.classList.remove('library-view');$('#library-page').hidden=true;$('#graph-page').hidden=false;$('#navigation-toggle').disabled=false;$$('.workspace-tabs [data-workspace]').forEach(b=>{b.setAttribute('aria-selected',String(b.dataset.workspace==='map'));b.tabIndex=b.dataset.workspace==='map'?0:-1});
  $('#atlas').hidden=false;$('#results').hidden=true;$('.map-tools').hidden=false;
@@ -527,7 +602,8 @@ $('#lock').onclick=safe(async()=>{await persistEditorDraft();await window.Oracle
 $('#unlock').onclick=safe(async()=>{const allowed=await call('unlock');if(!allowed)return;$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();void OracleTransitions.enterApp();if(view==='map'&&graphEntrancePending)requestGraphEntrance();await mountOnboarding();finishUpdateStartup();});
 // Deterministic ambient dust; it never represents an agent or event.
 for(let i=0;i<46;i++){const e=document.createElement('i');e.className='star';e.style.cssText=`left:${(Math.sin(i*12.9898)*43758.5453%1+1)%1*100}%;top:${(Math.sin(i*78.233)*12731.7%1+1)%1*100}%;width:${i%7===0?2:1}px;height:${i%7===0?2:1}px;opacity:${i%5/18+.04}`;$('#galaxy').append(e)}
-call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked){window.oracleLock();void OracleTransitions.content($('.lock-card'));}else{await refresh();$('#app').inert=false;void OracleTransitions.enterApp();if(view==='map'&&graphEntrancePending)requestGraphEntrance();await mountOnboarding();finishUpdateStartup()}}).catch(e=>{if($('#lock-screen').hidden){$('#app').inert=false;void OracleTransitions.enterApp();}toast(e.message)});
+function markInterfaceReady(){window.oracleStartupRendered=true;void call('interfaceReady',{schema_version:1}).catch(()=>{});}
+call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked){window.oracleLock();void OracleTransitions.content($('.lock-card'));markInterfaceReady();}else{$('#app').inert=false;void OracleTransitions.enterApp();markInterfaceReady();await refresh();if(view==='map'&&graphEntrancePending)requestGraphEntrance();await mountOnboarding();finishUpdateStartup()}}).catch(e=>{if($('#lock-screen').hidden){$('#app').inert=false;void OracleTransitions.enterApp();}toast(e.message)});
 setInterval(()=>{if(!$('#lock-screen').hidden||document.hidden)return;call('events').then(events=>{if(events.at(-1)?.event_id!==state.events.at(-1)?.event_id){state.events=events;renderProgress();renderAtlas();if(events.at(-1)?.phase&&!$('#modal').open)safe(refresh)()}}).catch(()=>{})},2500);
 setInterval(()=>{if($('#lock-screen').hidden&&!document.hidden&&!$('#modal').open)safe(refresh)()},30000);
 setInterval(()=>{void pollMemoryStatus();},1800);
@@ -838,7 +914,7 @@ function renderUpdateStatus(status,options){
  const resultsHost=$('#update-results');
  if(!(updateBusy&&!status.results?.length&&resultsHost.children.length)&&resultsHost.oracleHTML!==resultsHTML){resultsHost.innerHTML=resultsHTML;resultsHost.oracleHTML=resultsHTML;}
  const appUpdate=$('#install-oracle-update');
- if(appUpdate){appUpdate.disabled=updateBusy;appUpdate.onclick=safe(async()=>{const row=updateResultRows(latestUpdateStatus).find(item=>item.id==='oracle');if(!oracleInstallable(row))throw Error('Verifique novamente para obter a atualização publicada.');appUpdate.disabled=true;appUpdate.textContent='Preparando atualização…';const result=await call('installOracleUpdate');if(!result?.restarting)throw Error('O Oracle não confirmou o reinício da atualização.');appUpdate.textContent='Reiniciando…';});}
+ if(appUpdate){appUpdate.disabled=updateBusy;appUpdate.onclick=safe(async()=>{const row=updateResultRows(latestUpdateStatus).find(item=>item.id==='oracle');if(!oracleInstallable(row))throw Error('Verifique novamente para obter a atualização publicada.');appUpdate.disabled=true;appUpdate.textContent='Preparando atualização…';const result=await call('installOracleUpdate');if(result?.cancelled){appUpdate.textContent='Instalar atualização';return}if(!result?.restarting)throw Error('O Oracle não confirmou o reinício da atualização.');appUpdate.textContent='Reiniciando…';});}
  const recoveryHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar acervo anterior</button>':'');
  const recovery=$('#update-recovery');if(recovery.oracleHTML!==recoveryHTML){recovery.innerHTML=recoveryHTML;recovery.oracleHTML=recoveryHTML;}
  $$('[data-rollback]').forEach(b=>{b.disabled=updateBusy;b.onclick=()=>showUpdates(b.dataset.rollback).catch(e=>toast(e.message,'error'))});
@@ -1034,8 +1110,10 @@ function bindKnowledgeCopy(ctx){
    const latest=await call('snapshot');
    if(latest.config.vault!==ctx.vault)throw Error('A pasta selecionada mudou. Reabra Knowledge Base para abrir o roteiro correto.');
    const fresh=OracleKnowledgePrompts.context(latest.config.vault,latest.entries);
-   await call('onboardingOpenKnowledgeCodex',{vault:fresh.vault,prompt:OracleKnowledgePrompts.build(id,fresh)});
-   if($('#knowledge-copy-status'))$('#knowledge-copy-status').textContent='Codex aberto com o roteiro. Continue por lá.';
+   const area=fresh.areas.find(a=>a.id===id);
+   const interview=await call('onboardingPrepareKnowledgeInterview',{vault:fresh.vault,topic:id,area:area.path,prepareWriteScope:true});
+   await call('onboardingOpenKnowledgeCodex',{vault:fresh.vault,prompt:OracleKnowledgePrompts.build(id,{...fresh,vault:interview.vault,interview})});
+   if($('#knowledge-copy-status'))$('#knowledge-copy-status').textContent='Codex aberto com o roteiro. Confira o acesso ao vault no Codex; depois da entrevista, volte aqui para conferir as notas.';
   }finally{if(button.isConnected)button.disabled=false}
  }));
  $$('[data-copy-knowledge]').forEach(button=>button.onclick=safe(async()=>{
@@ -1044,10 +1122,23 @@ function bindKnowledgeCopy(ctx){
    const latest=await call('snapshot');
    if(latest.config.vault!==ctx.vault)throw Error('A pasta selecionada mudou. Reabra Knowledge Base para copiar o prompt correto.');
    const fresh=OracleKnowledgePrompts.context(latest.config.vault,latest.entries);
-   await call('copy',{text:OracleKnowledgePrompts.build(id,fresh)});
+   const area=fresh.areas.find(a=>a.id===id);
+   const interview=await call('onboardingPrepareKnowledgeInterview',{vault:fresh.vault,topic:id,area:area.path,prepareWriteScope:false});
+   await call('copy',{text:OracleKnowledgePrompts.build(id,{...fresh,vault:interview.vault,interview})});
    if($('#knowledge-copy-status'))$('#knowledge-copy-status').textContent=`Prompt de ${OracleKnowledgePrompts.topics[id].name.toLocaleLowerCase('pt-BR')} copiado. Cole no Codex para começar.`;
   }finally{button.disabled=false}
  }));
+ $$('[data-check-knowledge]').forEach(button=>button.onclick=async()=>{
+  const id=button.dataset.checkKnowledge,status=document.querySelector(`[data-knowledge-receipt="${id}"]`);
+  button.disabled=true;if(status)status.textContent='Conferindo o comprovante e as notas originais…';
+  try{
+   const latest=await call('snapshot');
+   if(latest.config.vault!==ctx.vault)throw Error('A pasta selecionada mudou. Reabra Knowledge Base para conferir a entrevista correta.');
+   const result=await call('knowledgeInterviewStatus',{topic:id});
+   if(status?.isConnected)status.textContent=result.message+(result.pending_count?` ${result.pending_count} pendências foram declaradas.`:'');
+  }catch(error){if(status?.isConnected)status.textContent='Conferência pendente: '+error.message;}
+  finally{if(button.isConnected)button.disabled=false}
+ });
 }
 function openKnowledgePromptPreview(id,ctx){
  const topic=OracleKnowledgePrompts.topics[id];
@@ -1061,7 +1152,7 @@ function openKnowledgePrompts({welcome=false,topic=null}={}){
  const descriptions={personal:'Valores, rotina, relações e planos.',professional:'Carreira, projetos, responsabilidades e negócio.'};
  const subjects={personal:['Quem você é e o que importa','Sua rotina e suas relações','Prioridades para os próximos meses'],professional:['Sua atuação e o valor que entrega','Projetos e responsabilidades atuais','Direção para sua carreira ou negócio']};
  if(modal(`<h1>Knowledge Base</h1><div class="knowledge-start"><h2>${welcome?'Seu segundo cérebro está pronto.':'Dê contexto ao seu segundo cérebro.'}</h2><p>Escolha uma área para organizar com o Codex.</p></div>
- <div class="knowledge-prompt-list">${Object.entries(topics).map(([id,t])=>`<section class="knowledge-prompt-option"><div class="knowledge-prompt-title">${icon(id==='personal'?'person':'code')}<h2>${t.name}</h2></div><p>${descriptions[id]}</p><ul>${subjects[id].map(text=>`<li>${text}</li>`).join('')}</ul><div class="knowledge-prompt-actions"><button class="quiet-link" data-preview-knowledge="${id}">Ver prompt</button><button class="quiet-link" data-copy-knowledge="${id}">Copiar prompt</button><button class="primary" data-open-knowledge="${id}">Abrir Codex</button></div></section>`).join('')}</div>
+ <div class="knowledge-prompt-list">${Object.entries(topics).map(([id,t])=>`<section class="knowledge-prompt-option"><div class="knowledge-prompt-title">${icon(id==='personal'?'person':'code')}<h2>${t.name}</h2></div><p>${descriptions[id]}</p><ul>${subjects[id].map(text=>`<li>${text}</li>`).join('')}</ul><div class="knowledge-prompt-actions"><button class="quiet-link" data-preview-knowledge="${id}">Ver prompt</button><button class="quiet-link" data-copy-knowledge="${id}">Copiar prompt</button><button class="primary" data-open-knowledge="${id}">Abrir Codex</button></div><button class="quiet-link" data-check-knowledge="${id}">Conferir entrevista</button><p class="knowledge-footer-note" data-knowledge-receipt="${id}" role="status" aria-live="polite">Após concluir no Codex, confira se os fatos do comprovante estão nas notas do vault.</p></section>`).join('')}</div>
  <ol class="knowledge-steps" aria-label="Como começar"><li><span>1</span>Escolha uma área</li><li><span>2</span>Abra no Codex</li><li><span>3</span>Responda no seu ritmo</li></ol>
  <div class="knowledge-destination">${icon('folder')}<div><span>Obsidian selecionado</span><strong>${esc(ctx.name)}</strong></div><details><summary>Ver caminho</summary><small>${esc(ctx.vault)}</small></details></div>
  <p id="knowledge-copy-status" role="status" aria-live="polite"></p>

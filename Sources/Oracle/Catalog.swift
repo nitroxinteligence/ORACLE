@@ -132,8 +132,10 @@ extension Core {
         let brain=try acquireOperationLock("gbrain");defer{releaseOperationLock(brain)}
         refreshConfig()
         let plan=try validatedPlan()
+        let aiMemoryDescriptor=try OracleAIMemoryOnboarding.required(plan) ? aiMemoryCodexDescriptor(plan:plan) : nil
         let previous=(try? readJSON(home.appendingPathComponent("setup/bridge.json"))) ?? [:]
         var mcpHash=previous["mcp_sha256"] as? String ?? ""
+        let binding=try prepareCodexRuntimeBinding()
         let root=try oracleWorkspace()
         try fm.createDirectory(at:root,withIntermediateDirectories:true)
         // Codex discovers project configuration from a repository root. Keep an
@@ -148,39 +150,56 @@ extension Core {
             try atomicWriteData(Data("*\n".utf8),to:git.appendingPathComponent("info/exclude"))
         }
         let method=try installOfficialGBrainMethod(workspace:root,plan:plan)
-        let executable=Bundle.main.executableURL!.path
+        let executable=binding["oracle"] as! String
         func quote(_ value:String)->String { "'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'" }
         let command=quote(executable)+" --state "+quote(home.path)+" --hook"
         var hooks=[String:Any]()
         for name in ["SessionStart","UserPromptSubmit","PreToolUse","PostToolUse","Stop","SessionEnd","SubagentStart","SubagentStop"] { hooks[name]=[["hooks":[["type":"command","command":command]]]] }
         let document:[String:Any]=["description":"Oracle metadata observer by default. Review and trust in Codex. Separate explicit Oracle consent may capture UserPromptSubmit.prompt and Stop.last_assistant_message from this workspace only. Never reads transcripts, reasoning or tool output.","hooks":hooks]
         let hookPath=try scoped(".codex/hooks.json",root:root)
+        let originalHooks=fm.fileExists(atPath:hookPath.path) ? digest(try Data(contentsOf:hookPath)) : nil
         if fm.fileExists(atPath:hookPath.path) {
             let existing=try readJSON(hookPath)
             let currentHash=digest(try jsonData(existing)),expectedHash=digest(try jsonData(document))
             let prior=(try? readJSON(home.appendingPathComponent("setup/bridge.json")))?["hooks_sha256"] as? String
             guard currentHash==expectedHash || currentHash==prior else { throw failure("Ponte contém alterações externas. Preserve e reconcilie o arquivo antes de preparar novamente.") }
         }
-        try writeJSON(document,hookPath)
         let source=bundledEngineResources().deletingLastPathComponent().appendingPathComponent("skills/oracle-setup/SKILL.md")
         let skill=try scoped(".agents/skills/oracle-setup/SKILL.md",root:root)
         try fm.createDirectory(at:skill.deletingLastPathComponent(),withIntermediateDirectories:true)
         let skillData=try Data(contentsOf:source)
+        let originalSkill=fm.fileExists(atPath:skill.path) ? digest(try Data(contentsOf:skill)) : nil
         if fm.fileExists(atPath:skill.path) { let existingHash=digest(try Data(contentsOf:skill));guard existingHash==digest(skillData) || existingHash==previous["skill_sha256"] as? String else { throw failure("A skill da ponte foi editada. Preserve a versão antes de atualizar.") } }
-        try atomicWriteData(skillData,to:skill,permissions:0o600)
+        var mcpData:Data?=nil
+        var mcpURL:URL?=nil
+        var originalMCP:String?=nil
         var mcpStatus="existing_installation_preserved"
         if plan["attach"] as? Bool != true {
             if isMemoryOnly(plan) {_=try verifyMemoryOnly(plan:plan)}
             else {guard (try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")))?["status"] as? String=="identity_and_index_verified" else { throw failure("Finalize GBrain com --gbrain finish antes de preparar sua conexão MCP.") }}
             func toml(_ value:String)->String { let data=try! JSONSerialization.data(withJSONObject:[value],options:[.withoutEscapingSlashes]);return String(decoding:data,as:UTF8.self).dropFirst().dropLast().description }
-            let adapter=try readAdapterExecutable().path
-            let content="""
+            let adapter=binding["adapter"] as! String
+            let mcpVault=try vault().path
+            let ownerURL=try scoped("gbrain/profile/oracle-owned.json",root:home)
+            let mcpOwner=try readJSON(ownerURL)
+            guard mcpOwner["owner"] as? String=="OracleCompanion",mcpOwner["schema_version"] as? Int==2,mcpOwner["vault_root"] as? String==mcpVault else{throw failure("O perfil MCP não pertence ao vault selecionado.")}
+            let epochURL=try scoped("gbrain/vault-epoch.json",root:home)
+            var epochBytes=Data()
+            if fm.fileExists(atPath:epochURL.path) {
+                let values=try epochURL.resourceValues(forKeys:[.isRegularFileKey,.isSymbolicLinkKey,.fileSizeKey])
+                guard values.isRegularFile==true,values.isSymbolicLink != true,(values.fileSize ?? 4097)<=4096 else{throw failure("A revisão do vault MCP está indisponível.")}
+                epochBytes=try Data(contentsOf:epochURL);guard epochBytes.count<=4096 else{throw failure("A revisão do vault MCP excedeu o limite.")}
+            }
+            let mcpEpochSHA256=digest(epochBytes)
+            var content="""
             # Oracle-owned project configuration. Review in Codex; no global settings changed.
             [mcp_servers.oracle_companion]
             command = \(toml(adapter))
             args = ["--mcp"]
             enabled_tools = ["remember", "recall", "entity", "context_pack", "delta", "forget", "search", "get_page", "list_pages", "get_links", "get_backlinks", "traverse_graph", "put_page"]
             [mcp_servers.oracle_companion.env]
+            ORACLE_MCP_VAULT = \(toml(mcpVault))
+            ORACLE_MCP_EPOCH_SHA256 = \(toml(mcpEpochSHA256))
             GBRAIN_HOME = \(toml(home.appendingPathComponent("gbrain/profile").path))
             HOME = \(toml(home.appendingPathComponent("gbrain/profile").path))
             TMPDIR = \(toml(home.appendingPathComponent("gbrain/profile/tmp").path))
@@ -193,13 +212,28 @@ extension Core {
             GEMINI_API_KEY = ""
             VOYAGE_API_KEY = ""
             """
+            if let descriptor=aiMemoryDescriptor {content+=try OracleAIMemoryOnboarding.codexConfiguration(descriptor)}
             let configURL=try scoped(".codex/config.toml",root:root)
             let data=Data(content.utf8)
-            if fm.fileExists(atPath:configURL.path) { let existingHash=digest(try Data(contentsOf:configURL));guard existingHash==digest(data) || existingHash==mcpHash else { throw failure("Configuração MCP preexistente preservada: \(configURL.path)") } }
-            try atomicWriteData(data,to:configURL,permissions:0o600);mcpHash=digest(data)
+            originalMCP=fm.fileExists(atPath:configURL.path) ? digest(try Data(contentsOf:configURL)) : nil
+            if fm.fileExists(atPath:configURL.path) { let existingHash=digest(try Data(contentsOf:configURL));guard existingHash==digest(data) || OracleKnowledgeInterview.managedConfigurationHashes(previous).contains(existingHash) else { throw failure("Configuração MCP preexistente preservada: \(configURL.path)") } }
+            mcpData=data;mcpURL=configURL;mcpHash=digest(data)
             mcpStatus="prepared_requires_codex_trust"
         }
-        let receipt:[String:Any]=["official_method":method,"required_skill_paths":requiredGBrainCodexSkillPaths(),"mcp_sha256":mcpHash,"skill_sha256":digest(skillData),"mcp_status":mcpStatus,"workspace":root.path,"hooks":hookPath.path,"skill":skill.path,"hooks_sha256":digest(try jsonData(document)),"status":"prepared_requires_codex_trust","coverage":"Only trusted hooks in tasks using this workspace. No global or existing configuration was changed."]
+        // Finish ownership checks and recheck concurrent edits before writing.
+        func unchanged(_ url:URL,_ original:String?) throws {
+            let current=fm.fileExists(atPath:url.path) ? digest(try Data(contentsOf:url)) : nil
+            guard current==original else {throw failure("A ponte mudou durante o preparo. As edições foram preservadas; tente novamente.")}
+        }
+        try unchanged(hookPath,originalHooks);try unchanged(skill,originalSkill)
+        if let url=mcpURL {try unchanged(url,originalMCP)}
+        try writeJSON(document,hookPath)
+        try atomicWriteData(skillData,to:skill,permissions:0o600)
+        if let data=mcpData,let url=mcpURL {try atomicWriteData(data,to:url,permissions:0o600)}
+        if let descriptor=aiMemoryDescriptor {
+            try recordOnboardingAIMemoryCodex(plan:plan,descriptor:descriptor,workspace:root,configurationHash:mcpHash)
+        }
+        let receipt:[String:Any]=["runtime_binding":binding,"runtime_binding_sha256":digest(try jsonData(binding)),"official_method":method,"required_skill_paths":requiredGBrainCodexSkillPaths(),"mcp_sha256":mcpHash,"skill_sha256":digest(skillData),"mcp_status":mcpStatus,"workspace":root.path,"hooks":hookPath.path,"skill":skill.path,"hooks_sha256":digest(try jsonData(document)),"status":"prepared_requires_codex_trust","coverage":"Only trusted hooks in tasks using this workspace. No global or existing configuration was changed."]
         try writeJSON(receipt,home.appendingPathComponent("setup/bridge.json"));try event(type:"bridge.prepared",summary:"Ponte preparada em workspace próprio; confiança Codex ainda não verificada",details:["run_id":plan["id"]!])
         _=try verifyGBrainBridge()
         return receipt

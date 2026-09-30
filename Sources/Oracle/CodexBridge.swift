@@ -65,10 +65,10 @@ final class CodexBridge:CodexConnection {
     private(set) var version=""
     var isRunning:Bool {condition.lock();defer{condition.unlock()};return process?.isRunning == true}
     static func executable() throws -> URL {
-        let home=FileManager.default.homeDirectoryForCurrentUser
-        // Prefer the Desktop version: an unrelated npm CLI may lag its config schema.
-        let candidates=["/Applications/Codex.app/Contents/Resources/codex","/Applications/ChatGPT.app/Contents/Resources/codex",home.appendingPathComponent("Applications/Codex.app/Contents/Resources/codex").path,home.appendingPathComponent(".npm-global/bin/codex").path,"/opt/homebrew/bin/codex","/usr/local/bin/codex"]
-        guard let path=candidates.first(where:{fm.isExecutableFile(atPath:$0)}) else {throw failure("Instale o Codex para continuar e tente conectar novamente.")};return URL(fileURLWithPath:path)
+        guard let executable=OracleCodexExecutableLocator.systemExecutable() else {
+            throw failure("Instale o Codex para continuar e tente conectar novamente.")
+        }
+        return executable
     }
     /// The app-server loads global AGENTS.md outside execution environments.
     /// Deny those reads in this child only; keep login owned by the official CLI.

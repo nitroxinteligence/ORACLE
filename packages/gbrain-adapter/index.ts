@@ -8,6 +8,7 @@ import {readFileSync,writeFileSync,mkdirSync,renameSync,existsSync,openSync,clos
 import {join,dirname,basename,resolve} from 'node:path';
 import {sha,canonical,isOwnedMemory,readCandidate,canonicalFiles,isProvenCanonicalRename} from './scope.ts';
 import {readCompleteManifest,readIndexReceipt} from './freshness.ts';
+import {indexBudget,indexResumeBudget,indexDeadlineError} from './index-resume-policy.ts';
 
 export {sha,canonical,isOwnedMemory};
 export const inventory=(root:string)=>canonicalFiles(root,Date.now()+480_000);
@@ -65,7 +66,7 @@ export async function indexVault(engine:BrainEngine,input:any){
   }
   let files:string[]=[];
   const run=randomUUID(),now=()=>new Date().toISOString();
-  const started=Date.now(),budget=Math.min(480_000,Math.max(100,Number(input.budget_ms)||25_000)),deadline=started+budget;
+  const started=Date.now(),budget=indexBudget(input.budget_ms),deadline=started+budget;
   const maxUpserts=Math.min(5000,Math.max(1,Number(input.max_upserts)||500));
   const manifestPath=join(profile,'oracle-vault-manifest.json'),checkpointPath=join(profile,'oracle-vault-checkpoint.json');
   const previous=readCompleteManifest(profile);
@@ -81,6 +82,7 @@ export async function indexVault(engine:BrainEngine,input:any){
   const reusable=new Map<string,RecordRow>([...(previous?.records||[]),...(checkpoint?.records||[])].map((row:RecordRow)=>[row.path,normalize(row)]));
   const records:RecordRow[]=[],failures:Problem[]=[],candidates:Omit<ReturnType<typeof readCandidate>,'text'>[]=[];
   let phase='preflight',upserts=0,removed=0,links=0,sequence=0,needsResume=false,reconciled=false,noOp=false;
+  let failurePhase:string|undefined,timeBudgetReached=false;
   const problem=(path:string,error:unknown)=>{if(failures.length<100)failures.push({path,error:String(error instanceof Error?error.message:error).slice(0,300)})};
   const event=(type:string,summary:string)=>{
     const id=sha(run+type+sequence++),document={schema_version:1,event_id:id,sequence:Date.now()*1000+sequence,source:'gbrain',event_type:type,
@@ -91,12 +93,14 @@ export async function indexVault(engine:BrainEngine,input:any){
   };
   const save=()=>{
     const checkpoint={schema_version:2,run_id:run,root,phase,records,managed:[...managed.values()],failures,complete:false,
-                      generation:input.generation??null,scan_complete:input.scan_complete===true,at:now()};
+                      generation:input.generation??null,scan_complete:input.scan_complete===true,at:now(),
+                      budget_ms:budget,elapsed_ms:Date.now()-started,...(failurePhase?{failure_phase:failurePhase,interrupted_phase:failurePhase}:{}),
+                      recommended_budget_ms:indexResumeBudget(budget,timeBudgetReached)};
     atomicJSON(checkpointPath,{...checkpoint,receipt_sha256:sha(canonical(checkpoint))});
   };
   const check=()=>{
     if(process.env.ORACLE_CANCEL_FILE&&existsSync(process.env.ORACLE_CANCEL_FILE))throw Error('Indexing cancelled');
-    if(Date.now()>deadline){needsResume=true;throw Error('Bounded indexing budget reached; resume from checkpoint')}
+    if(Date.now()>deadline){needsResume=true;timeBudgetReached=true;throw Error('Bounded indexing budget reached; resume from checkpoint')}
   };
   event('gbrain.index_started','Verificação do índice derivado iniciada');
   try{
@@ -207,6 +211,7 @@ export async function indexVault(engine:BrainEngine,input:any){
     const byPath=new Map(records.map(row=>[row.path,row.slug])),known=new Set(records.map(row=>row.slug));
     const relations:any[]=[],diagnostics=new LinkDiagnostics(known);let relationBytes=0,relationPages=0;
     Bun.gc(true);
+    phase='prepare-relations';save();
     for(const row of noOp?[]:records){
       check();if(++relationPages%25===0)Bun.gc(true);const page=await engine.getPage(row.slug,{sourceId:'oracle-vault'});
       if(!page||page.content_hash!==row.indexed_content_hash)throw Error('Index changed during relation preparation');
@@ -270,7 +275,10 @@ export async function indexVault(engine:BrainEngine,input:any){
     event('gbrain.index_verified',`${records.length} documentos e ${links} relações verificados`);
     return {total:files.length,verified:records.length,complete:true,failures:[],explicit_links:links,...linkDiagnostics,removed_from_derived_index:removed,changed:upserts,unchanged:records.length-upserts,no_op:noOp,receipt_sha256:manifest.receipt_sha256,manifest_file_sha256:sha(readFileSync(manifestPath))};
   }catch(error){
+    failurePhase=phase;timeBudgetReached=timeBudgetReached||indexDeadlineError(error);
+    if(timeBudgetReached)needsResume=true;
     problem('',error);phase='partial';save();event('gbrain.index_failed','Índice parcial; manifesto completo anterior e notas canônicas preservados');
-    return {total:files.length,verified:records.length,upserts,complete:false,failures,needs_resume:needsResume,reconciliation_committed:reconciled,removed_from_derived_index:reconciled?removed:0};
+    return {total:files.length,verified:records.length,upserts,complete:false,failures,needs_resume:needsResume,reconciliation_committed:reconciled,removed_from_derived_index:reconciled?removed:0,
+      failure_phase:failurePhase,interrupted_phase:failurePhase,budget_ms:budget,elapsed_ms:Date.now()-started,budget_exhausted:timeBudgetReached,recommended_budget_ms:indexResumeBudget(budget,timeBudgetReached)};
   }
 }

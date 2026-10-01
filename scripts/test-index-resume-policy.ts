@@ -1,0 +1,12 @@
+import {strict as assert} from 'node:assert';
+import {indexBudget,indexResumeBudget,indexDeadlineError,MAX_INDEX_BUDGET_MS} from '../packages/gbrain-adapter/index-resume-policy.ts';
+assert.equal(indexBudget(undefined),25_000);
+assert.equal(indexBudget(-1),100);
+assert.equal(indexBudget(Infinity),25_000);
+assert.equal(indexBudget(999_999),MAX_INDEX_BUDGET_MS);
+assert.deepEqual([25_000,120_000,240_000,480_000].map(value=>indexResumeBudget(value,true)),[120_000,240_000,480_000,480_000]);
+assert.equal(indexResumeBudget(25_000,false),25_000,'upsert quota cannot inflate the time budget');
+assert(indexDeadlineError(Error('Snapshot verification deadline exceeded')));
+assert(!indexDeadlineError(Error('Canonical note changed before commit')),'concurrent edit is not a resumable time limit');
+assert(!indexDeadlineError(Error('Indexing cancelled')),'cancellation cannot enlarge the next request');
+console.log('PASS index retry budget is explicit, bounded at 480 seconds, and only grows for time exhaustion');

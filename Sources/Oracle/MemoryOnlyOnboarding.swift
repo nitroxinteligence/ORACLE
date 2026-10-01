@@ -75,9 +75,10 @@ extension Core {
         let progressPath=home.appendingPathComponent("onboarding/installations/"+(plan["id"] as! String)+"/index.json")
         let prior=(try? readJSON(progressPath)) ?? [:]
         var generation=(prior["generation"] as? Int ?? 0)+1,changedGenerations=0
+        var budget:Double=120
         while true {
             try checkOnboardingCancellation()
-            let result=try indexVaultSnapshot(snapshot,generation:generation,planRef:plan["id"] as? String,budget:120,maxUpserts:5000)
+            let result=try indexVaultSnapshot(snapshot,generation:generation,planRef:plan["id"] as? String,budget:budget,maxUpserts:5000)
             let count=result["verified"] as? Int ?? 0
             try writeJSON(["plan_hash":plan["plan_hash"]!,"generation":generation,"signature":snapshot.signature,"result":result],progressPath)
             try distributionEvent(plan:plan,phase:"indexing",kind:"index",itemID:"oracle-vault",status:result["complete"] as? Bool==true ? "verified":"partial",paths:[],completed:count,total:result["total"] as? Int)
@@ -88,10 +89,12 @@ extension Core {
                 return receipt
             }
             if count<=lastVerified {stalled+=1}else{stalled=0};lastVerified=count
-            if result["needs_resume"] as? Bool==true && stalled<2 {continue}
+            let nextBudget=OracleIndexResumeBudget.next(budget,result:result),budgetAdvanced=nextBudget>budget
+            budget=nextBudget
+            if result["needs_resume"] as? Bool==true && (stalled<2 || budgetAdvanced) {continue}
             let current=try scanSnapshot(root:vault())
             if current.complete,current.signature != snapshot.signature,changedGenerations<3 {
-                snapshot=current;generation+=1;changedGenerations+=1;lastVerified = -1;stalled=0;continue
+                snapshot=current;generation+=1;changedGenerations+=1;lastVerified = -1;stalled=0;budget=120;continue
             }
             let reason=(result["failures"] as? [[String:Any]])?.first?["error"] as? String ?? ""
             if reason.contains("ENOSPC") || reason.contains("no space left") {

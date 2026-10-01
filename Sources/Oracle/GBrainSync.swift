@@ -90,8 +90,18 @@ extension Core {
     @discardableResult
     func performOwnedGBrainSyncLocked(force:Bool=false,reason:String,plan:[String:Any]?=nil) throws -> [String:Any] {
         let snapshot=try scanSnapshot(root:vault())
+        var budget:Double=120
         var value=try indexVaultSnapshot(snapshot,generation:0,planRef:plan?["id"] as? String,
-                                        budget:120,maxUpserts:5000,force:force)
+                                        budget:budget,maxUpserts:5000,force:force)
+        // Maintenance has no background coordinator. Retry only a genuine time
+        // limit, at most 120 -> 240 -> 480, with a fresh explicit process timeout.
+        for _ in 0..<2 {
+            let next=OracleIndexResumeBudget.next(budget,result:value)
+            guard next>budget,value["complete"] as? Bool != true else{break}
+            budget=next
+            value=try indexVaultSnapshot(snapshot,generation:0,planRef:plan?["id"] as? String,
+                                        budget:budget,maxUpserts:5000,force:force)
+        }
         value["reason"]=reason
         return value
     }

@@ -14,6 +14,7 @@ final class MemorySyncCoordinator {
     private var watchedRoot:String?
     private var active=false,scanPending=false,scanAgain=false,indexing=false,blocked=false
     private var generation=0,indexedGeneration:Int?,attempts=0
+    private var indexBudget=OracleIndexResumeBudget.initial
     private var selectedRoot:String?,cached:VaultScanSnapshot?
     private var currentState="stale",reason="Aguardando verificação local",lastError:String?
     private var lastIndexed:Date?,lastDeepCheck=Date.distantPast
@@ -55,7 +56,10 @@ final class MemorySyncCoordinator {
 
     func invalidate(reason:String) {
         locked {
-            generation+=1;attempts=0;blocked=false;self.reason=reason;lastError=nil
+            // Discard the in-flight generation, but notifications alone are not
+            // proof of a different snapshot. scan() resets retries only when its
+            // bounded inventory signature or selected root actually changes.
+            generation+=1;self.reason=reason;lastError=nil
             currentState="stale"
         }
         requestScan()
@@ -69,7 +73,7 @@ final class MemorySyncCoordinator {
              "lastIndexedAt":lastIndexed?.timeIntervalSince1970 as Any? ?? NSNull(),
              "reason":reason,"error":lastError as Any? ?? NSNull(),"watcherAvailable":watcherAvailable,
              "periodicScanSeconds":30,"deepVerificationSeconds":300,"resumeAttempts":attempts,
-             "maxResumeAttempts":8,"coverage":"Markdown local; hashes verificados antes de abrir; sem inferência remota"]
+             "maxResumeAttempts":8,"indexBudgetSeconds":indexBudget,"maximumIndexBudgetSeconds":OracleIndexResumeBudget.maximum,"coverage":"Markdown local; hashes verificados antes de abrir; sem inferência remota"]
         }
     }
 
@@ -81,7 +85,7 @@ final class MemorySyncCoordinator {
         let canonical=root.resolvingSymlinksInPath().path
         let changed=locked { ()->Bool in
             guard selectedRoot != canonical else { return false }
-            selectedRoot=canonical;cached=nil;generation+=1;attempts=0;blocked=false;currentState="stale";return true
+            selectedRoot=canonical;cached=nil;generation+=1;attempts=0;indexBudget=OracleIndexResumeBudget.initial;blocked=false;currentState="stale";return true
         }
         // Cache reads never authorize background work. A UI snapshot already
         // queued before app lock must not restart indexing after stop().
@@ -131,7 +135,7 @@ final class MemorySyncCoordinator {
             locked {
                 let changed=cached?.signature != snapshot.signature || cached?.complete != snapshot.complete || selectedRoot != canonical.path
                 snapshotChanged=changed
-                if changed { generation+=1;attempts=0;blocked=false;currentState="stale" }
+                if changed { generation+=1;attempts=0;indexBudget=OracleIndexResumeBudget.initial;blocked=false;currentState="stale" }
                 selectedRoot=canonical.path;cached=snapshot
                 if !snapshot.complete { currentState="partial";reason="Leitura parcial; exclusões suspensas" }
                 if installationPending { currentState="stale";reason="Conclua ou retome a instalação para atualizar a memória" }
@@ -140,7 +144,7 @@ final class MemorySyncCoordinator {
                     currentState="unavailable";reason="Índice local ainda não configurado"
                 } else {
                     let due=Date().timeIntervalSince(lastDeepCheck)>=300
-                    if due && !blocked && !indexing { generation+=1;attempts=0;currentState=snapshot.complete ? "stale" : "partial";lastDeepCheck=Date() }
+                    if OracleIndexResumeBudget.beginDeepVerification(due:due,indexing:indexing,blocked:blocked,generation:generation,indexedGeneration:indexedGeneration) { generation+=1;attempts=0;currentState=snapshot.complete ? "stale" : "partial";lastDeepCheck=Date() }
                     shouldIndex = !indexing && !blocked && attempts<8 && !OracleUpdatePriority.hasPending(home:home) && (indexedGeneration != generation || due)
                     if shouldIndex { indexing=true;reason="Verificando memória em tarefa local separada" }
                 }
@@ -174,17 +178,19 @@ final class MemorySyncCoordinator {
                 // Another state or a changed selection must not borrow this snapshot.
                 guard try core.vault().resolvingSymlinksInPath() == snapshot.root,core.config["gbrainWorkspace"] == nil else { throw failure("A seleção da memória mudou") }
                 guard self.locked({self.active && self.generation==target}) else {self.locked{self.indexing=false};self.requestScan();return}
-                self.locked{self.attempts+=1};attemptStarted=true
-                let result=try core.indexVaultSnapshot(snapshot,generation:target,cancellation:self.cancellationURL)
+                self.locked{if self.attempts==0{self.lastDeepCheck=Date()};self.attempts+=1};attemptStarted=true
+                let requestBudget=self.locked{self.indexBudget}
+                let result=try core.indexVaultSnapshot(snapshot,generation:target,budget:requestBudget,cancellation:self.cancellationURL)
                 self.locked {
                     self.indexing=false
                     guard self.active else { return }
                     guard self.generation == target else { resume=true;return }
                     if result["complete"] as? Bool == true {
-                        self.indexedGeneration=target;self.currentState="current";self.lastIndexed=Date();self.reason="Snapshot completo verificado";self.lastError=nil
+                        self.attempts=0;self.indexBudget=OracleIndexResumeBudget.initial;self.indexedGeneration=target;self.currentState="current";self.lastIndexed=Date();self.lastDeepCheck=Date();self.reason="Snapshot completo verificado";self.lastError=nil
                     } else {
                         self.currentState="partial";self.reason="Índice parcial; checkpoint preservado"
                         self.lastError=(result["failures"] as? [[String:Any]])?.first?["error"] as? String
+                        self.indexBudget=OracleIndexResumeBudget.next(requestBudget,result:result)
                         resume=result["needs_resume"] as? Bool == true && self.attempts<8
                         self.blocked = !resume
                     }

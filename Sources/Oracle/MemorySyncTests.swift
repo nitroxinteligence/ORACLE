@@ -20,6 +20,19 @@ func runDataReliabilityTests() throws {
         do { try operation() } catch { print("PASS \(message)");return };throw failure("Accepted: "+message)
     }
     func write(_ path:String,_ text:String)throws { try Data(text.utf8).write(to:root.appendingPathComponent(path)) }
+    var retryBudget=OracleIndexResumeBudget.initial
+    for expected in [120.0,240.0,480.0,480.0] {
+        let next=min(480,max(120,retryBudget*2))
+        retryBudget=OracleIndexResumeBudget.next(retryBudget,result:["needs_resume":true,"budget_exhausted":true,"budget_ms":retryBudget*1000,"recommended_budget_ms":next*1000])
+        try expect(retryBudget==expected,"index retry consumes only the locally derived finite budget \(expected)")
+    }
+    try expect(OracleIndexResumeBudget.next(25,result:["needs_resume":true,"budget_exhausted":false,"budget_ms":25_000,"recommended_budget_ms":120_000])==25,"upsert quota does not enlarge time window")
+    try expect(OracleIndexResumeBudget.next(25,result:["needs_resume":true,"budget_exhausted":true,"budget_ms":25_000,"recommended_budget_ms":999_000])==25,"arbitrary retry hint cannot enlarge time window")
+    try expect(OracleIndexResumeBudget.next(25,result:["needs_resume":true,"budget_exhausted":true,"budget_ms":120_000,"recommended_budget_ms":240_000])==25,"another request's hint cannot change this generation's window")
+    try expect(!OracleIndexResumeBudget.beginDeepVerification(due:true,indexing:false,blocked:false,generation:2,indexedGeneration:1),"periodic check cannot reset partial generation after a 240 or 480 second retry")
+    try expect(!OracleIndexResumeBudget.beginDeepVerification(due:true,indexing:true,blocked:false,generation:2,indexedGeneration:2),"periodic check cannot reset an active index request")
+    try expect(!OracleIndexResumeBudget.beginDeepVerification(due:true,indexing:false,blocked:true,generation:2,indexedGeneration:1),"periodic check preserves exhausted eight-attempt cap")
+    try expect(OracleIndexResumeBudget.beginDeepVerification(due:true,indexing:false,blocked:false,generation:2,indexedGeneration:2),"periodic check starts a separate verification only after completed generation")
     let storageFailure=gbrainFailureMessage(ProcessResult(code:1,output:"PGLite failed to initialize its WASM runtime. Possible cause: corrupt WAL/checkpoint state. Original error: ErrnoError (errno 51)"))
     try expect(storageFailure.contains("Espaço insuficiente") && storageFailure.contains("PGLite ENOSPC"),"pinned PGLite errno 51 reports storage exhaustion instead of generic corruption")
     try expect(!storageFailure.contains("pglite-repair") && storageFailure.contains("não apague"),"storage error does not recommend deleting locks or repairing the database")

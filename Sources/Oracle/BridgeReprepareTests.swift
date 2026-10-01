@@ -8,6 +8,15 @@ func runBridgeReprepareTests(core:Core,resources:URL) throws {
     var count=0
     func check(_ condition:Bool,_ label:String)throws{guard condition else{throw failure("FAIL bridge reprepare: "+label)};count+=1;print("PASS bridge reprepare: "+label)}
     let planURL=core.home.appendingPathComponent("setup/plan.json"),planBytes=try Data(contentsOf:planURL),plan=try core.validatedPlan(),workspace=try core.oracleWorkspace()
+    // Simulate only the transient device-number change. The original pinned
+    // plan, runtime hashes and confirmation files remain untouched.
+    var remountedPlan=plan,remountedIdentity=plan["vault_identity"] as! [String:Any]
+    remountedIdentity["device"]=(remountedIdentity["device"] as! NSNumber).int64Value+1
+    remountedPlan["vault_identity"]=remountedIdentity
+    if remountedIdentity["volume_uuid"] != nil {
+        _=try core.verifyMemoryOnlyRuntime(remountedPlan)
+        try check((try core.verifyVaultPlanIdentity(remountedPlan))["mode"] as? String=="pinned_volume_inode" && (try Data(contentsOf:planURL))==planBytes,"runtime verifier accepts pinned-volume remount without rewriting confirmed plan")
+    }
     let sourceRoot=resources.appendingPathComponent("gbrain-method"),manifestURL=sourceRoot.appendingPathComponent("manifest.json"),manifestBytes=try Data(contentsOf:manifestURL)
     let capabilityURL=sourceRoot.appendingPathComponent("ORACLE-CAPABILITIES.md"),capabilityBytes=try Data(contentsOf:capabilityURL)
     let adapterURL=resources.appendingPathComponent("engine/oracle-gbrain-read"),adapterBytes=try Data(contentsOf:adapterURL),backupURL=resources.appendingPathComponent("engine/bridge-reprepare-original-adapter")

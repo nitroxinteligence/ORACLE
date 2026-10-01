@@ -20,6 +20,7 @@ func runDataReliabilityTests() throws {
         do { try operation() } catch { print("PASS \(message)");return };throw failure("Accepted: "+message)
     }
     func write(_ path:String,_ text:String)throws { try Data(text.utf8).write(to:root.appendingPathComponent(path)) }
+    try runVaultIdentityTests(root:base.appendingPathComponent("vault-identity"))
     var retryBudget=OracleIndexResumeBudget.initial
     for expected in [120.0,240.0,480.0,480.0] {
         let next=min(480,max(120,retryBudget*2))

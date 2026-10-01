@@ -23,9 +23,7 @@ extension Core {
         guard isMemoryOnly(plan) else{throw failure("Esta operação exige um plano de memória sem identidade.")}
         _=try OracleAIMemoryOnboarding.required(plan)
         guard let roots=plan["library_roots"] as? [String:String],roots==config["libraryRoots"] as? [String:String] else{throw failure("As bibliotecas mudaram desde este plano. Restaure as raízes escolhidas ou selecione outro vault.")}
-        var identity=stat();let root=try vault()
-        guard lstat(root.path,&identity)==0,let expected=plan["vault_identity"] as? [String:Any],
-              (expected["device"] as? NSNumber)?.int64Value==Int64(identity.st_dev),(expected["inode"] as? NSNumber)?.uint64Value==UInt64(identity.st_ino) else{throw failure("O vault foi movido ou substituído. Selecione a pasta novamente para criar um plano separado.")}
+        _=try verifyVaultPlanIdentity(plan)
         let engine=try engineResources()
         guard try fileDigest(engine.appendingPathComponent("gbrain"))==plan["runtime_sha256"] as? String,
               try fileDigest(readAdapterExecutable())==plan["adapter_sha256"] as? String,

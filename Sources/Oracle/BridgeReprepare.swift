@@ -36,12 +36,9 @@ extension Core {
         }
         _=try OracleAIMemoryOnboarding.required(plan)
         guard let roots=plan["library_roots"] as? [String:String],roots==config["libraryRoots"] as? [String:String] else{throw failure("As bibliotecas mudaram desde a instalação. Nenhum arquivo da ponte foi alterado.")}
-        let root=try vault();var identity=stat()
-        guard lstat(root.path,&identity)==0,let expected=plan["vault_identity"] as? [String:Any],
-              (expected["device"] as? NSNumber)?.int64Value==Int64(identity.st_dev),
-              (expected["inode"] as? NSNumber)?.uint64Value==UInt64(identity.st_ino) else{throw failure("O vault foi movido ou substituído. Nenhum arquivo da ponte foi alterado.")}
+        let root=try vault(),vaultIdentity=try verifyVaultPlanIdentity(plan)
         let owner=try readJSON(scoped("gbrain/profile/oracle-owned.json",root:home))
-        guard owner["schema_version"] as? Int==2,owner["owner"] as? String=="OracleCompanion",owner["vault_root"] as? String==root.path else{throw failure("O perfil local não pertence ao vault confirmado.")}
+        guard owner["schema_version"] as? Int==2,owner["owner"] as? String=="OracleCompanion",owner["vault_root"] as? String==root.path,owner["plan_hash"] as? String==plan["plan_hash"] as? String else{throw failure("O perfil local não pertence ao vault confirmado.")}
         let completed=try readJSON(scoped("onboarding/installations/"+id+"/completed.json",root:home))
         guard completed["plan_hash"] as? String==plan["plan_hash"] as? String,completed["identity_status"] as? String=="not_applicable",
               (completed["distribution"] as? [String:Any])?["complete"] as? Bool==true,
@@ -101,7 +98,7 @@ extension Core {
         // prepareBridge can write. The historical binding can be absent or stale.
         let binding=try prepareCodexRuntimeBinding()
         return ["schema_version":1,"owner":"OracleCompanion","plan_hash":plan["plan_hash"]!,"confirmed_hash":plan["confirmed_hash"]!,
-                "profile":home.path,"vault":root.path,"distribution":distribution,"index":currentIndex,
+                "profile":home.path,"vault":root.path,"vault_identity":vaultIdentity,"distribution":distribution,"index":currentIndex,
                 "previous_method_sha256":installed["manifest_sha256"] ?? "","method_sha256":next["manifest_sha256"]!,
                 "runtime_sha256":try fileDigest(engine.appendingPathComponent("gbrain")),"adapter_sha256":try fileDigest(adapter),
                 "runtime_binding_sha256":digest(try jsonData(binding)),"inference":false,"hooksTrusted":false]

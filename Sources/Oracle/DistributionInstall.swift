@@ -213,7 +213,7 @@ extension Core {
         let engineLock=try acquireOperationLock("gbrain");defer{releaseOperationLock(engineLock)}
         refreshConfig();guard UUID(uuidString:id) != nil else{throw failure("Instalação inválida.")}
         let root=try vault(),roots=try distributionLibraryRoots(root),preflight=try distributionPreflight(manifest,roots:roots)
-        var identity=stat();guard lstat(root.path,&identity)==0,(identity.st_mode&S_IFMT)==S_IFDIR else{throw failure("A identidade da pasta do vault não pôde ser confirmada.")}
+        let identity=try OracleVaultIdentity.planIdentity(root)
         let baseline=try scan(root:root),spaces=knowledgeSpaces(baseline)
         var folders=["INBOX/oracle","INBOX/oracle-memory/people","INBOX/oracle-memory/projects","INBOX/oracle-memory/signals","PROJETOS","WIKI/pessoas","WIKI/organizacoes","WIKI/conceitos","FONTES","DIARIO","OUTPUTS","ARQUIVO","SISTEMA/agentes","SISTEMA/modelos","SISTEMA/indices","SISTEMA/oracle"]
         folders += spaces.compactMap{$0["path"]}+roots.values.sorted()
@@ -223,7 +223,7 @@ extension Core {
         var plan:[String:Any]=["schema_version":3,"profile_mode":"memory-only","id":id,"vault":root.path,"library_roots":roots,"skill_department_folders":skillFolders,"folders":folders,
             "knowledge_spaces":spaces,"catalog_collections":[String](),"attach":false,"executor":"native-local","template_profile":"complete-distribution-v3",
             "release_id":manifest.releaseID,"distribution_sha256":manifest.hash,"sequence":manifest.sequence,"preflight":preflight,
-            "vault_identity":["device":Int64(identity.st_dev),"inode":UInt64(identity.st_ino)],
+            "vault_identity":identity,
             "runtime_sha256":try fileDigest(engine.appendingPathComponent("gbrain")),"adapter_sha256":try fileDigest(readAdapterExecutable()),
             "method_sha256":digest(method),"created_at":ISO8601DateFormatter().string(from:Date())]
         plan["ai_memory"]=OracleAIMemoryProvisioning.requirement

@@ -127,29 +127,20 @@ extension Core {
         if receipt?["workspace"] as? String==legacy.path { return legacy }
         return try scoped("oracle-workspace",root:home)
     }
-    func prepareBridge() throws -> [String:Any] {
+    func prepareBridge(reprepare:Bool=false) throws -> [String:Any] {
+        let installation=reprepare ? try acquireOperationLock("installation") : nil
+        defer{if let installation{releaseOperationLock(installation)}}
         let setup=try acquireOperationLock("setup");defer{releaseOperationLock(setup)}
         let brain=try acquireOperationLock("gbrain");defer{releaseOperationLock(brain)}
         refreshConfig()
         let plan=try validatedPlan()
+        let admission=reprepare ? try admitBridgeReprepare(plan:plan) : nil
         let aiMemoryDescriptor=try OracleAIMemoryOnboarding.required(plan) ? aiMemoryCodexDescriptor(plan:plan) : nil
         let previous=(try? readJSON(home.appendingPathComponent("setup/bridge.json"))) ?? [:]
         var mcpHash=previous["mcp_sha256"] as? String ?? ""
         let binding=try prepareCodexRuntimeBinding()
         let root=try oracleWorkspace()
-        try fm.createDirectory(at:root,withIntermediateDirectories:true)
-        // Codex discovers project configuration from a repository root. Keep an
-        // empty local repository: no commit, remote, upload or trust is granted.
-        let git=try scoped(".git",root:root)
-        if !fm.fileExists(atPath:git.path) {
-            for path in ["objects", "refs/heads", "refs/tags", "info"] {
-                try fm.createDirectory(at:git.appendingPathComponent(path),withIntermediateDirectories:true)
-            }
-            try atomicWriteData(Data("ref: refs/heads/main\n".utf8),to:git.appendingPathComponent("HEAD"))
-            try atomicWriteData(Data("[core]\nrepositoryformatversion = 0\nbare = false\n".utf8),to:git.appendingPathComponent("config"))
-            try atomicWriteData(Data("*\n".utf8),to:git.appendingPathComponent("info/exclude"))
-        }
-        let method=try installOfficialGBrainMethod(workspace:root,plan:plan)
+        _=try installOfficialGBrainMethod(workspace:root,plan:plan,preflightOnly:true)
         let executable=binding["oracle"] as! String
         func quote(_ value:String)->String { "'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'" }
         let command=quote(executable)+" --state "+quote(home.path)+" --hook"
@@ -166,7 +157,6 @@ extension Core {
         }
         let source=bundledEngineResources().deletingLastPathComponent().appendingPathComponent("skills/oracle-setup/SKILL.md")
         let skill=try scoped(".agents/skills/oracle-setup/SKILL.md",root:root)
-        try fm.createDirectory(at:skill.deletingLastPathComponent(),withIntermediateDirectories:true)
         let skillData=try Data(contentsOf:source)
         let originalSkill=fm.fileExists(atPath:skill.path) ? digest(try Data(contentsOf:skill)) : nil
         if fm.fileExists(atPath:skill.path) { let existingHash=digest(try Data(contentsOf:skill));guard existingHash==digest(skillData) || existingHash==previous["skill_sha256"] as? String else { throw failure("A skill da ponte foi editada. Preserve a versão antes de atualizar.") } }
@@ -175,7 +165,7 @@ extension Core {
         var originalMCP:String?=nil
         var mcpStatus="existing_installation_preserved"
         if plan["attach"] as? Bool != true {
-            if isMemoryOnly(plan) {_=try verifyMemoryOnly(plan:plan)}
+            if isMemoryOnly(plan) {if admission==nil {_=try verifyMemoryOnly(plan:plan)}}
             else {guard (try? readJSON(home.appendingPathComponent("setup/gbrain-readback.json")))?["status"] as? String=="identity_and_index_verified" else { throw failure("Finalize GBrain com --gbrain finish antes de preparar sua conexão MCP.") }}
             func toml(_ value:String)->String { let data=try! JSONSerialization.data(withJSONObject:[value],options:[.withoutEscapingSlashes]);return String(decoding:data,as:UTF8.self).dropFirst().dropLast().description }
             let adapter=binding["adapter"] as! String
@@ -227,6 +217,22 @@ extension Core {
         }
         try unchanged(hookPath,originalHooks);try unchanged(skill,originalSkill)
         if let url=mcpURL {try unchanged(url,originalMCP)}
+        try fm.createDirectory(at:root,withIntermediateDirectories:true)
+        // Codex discovers project configuration from a repository root. Keep an
+        // empty local repository: no commit, remote, upload or trust is granted.
+        let git=try scoped(".git",root:root)
+        if !fm.fileExists(atPath:git.path) {
+            for path in ["objects", "refs/heads", "refs/tags", "info"] {
+                try fm.createDirectory(at:git.appendingPathComponent(path),withIntermediateDirectories:true)
+            }
+            try atomicWriteData(Data("ref: refs/heads/main\n".utf8),to:git.appendingPathComponent("HEAD"))
+            try atomicWriteData(Data("[core]\nrepositoryformatversion = 0\nbare = false\n".utf8),to:git.appendingPathComponent("config"))
+            try atomicWriteData(Data("*\n".utf8),to:git.appendingPathComponent("info/exclude"))
+        }
+        try fm.createDirectory(at:skill.deletingLastPathComponent(),withIntermediateDirectories:true)
+        let method=try installOfficialGBrainMethod(workspace:root,plan:plan)
+        try unchanged(hookPath,originalHooks);try unchanged(skill,originalSkill)
+        if let url=mcpURL {try unchanged(url,originalMCP)}
         try writeJSON(document,hookPath)
         try atomicWriteData(skillData,to:skill,permissions:0o600)
         if let data=mcpData,let url=mcpURL {try atomicWriteData(data,to:url,permissions:0o600)}
@@ -236,6 +242,7 @@ extension Core {
         let receipt:[String:Any]=["runtime_binding":binding,"runtime_binding_sha256":digest(try jsonData(binding)),"official_method":method,"required_skill_paths":requiredGBrainCodexSkillPaths(),"mcp_sha256":mcpHash,"skill_sha256":digest(skillData),"mcp_status":mcpStatus,"workspace":root.path,"hooks":hookPath.path,"skill":skill.path,"hooks_sha256":digest(try jsonData(document)),"status":"prepared_requires_codex_trust","coverage":"Only trusted hooks in tasks using this workspace. No global or existing configuration was changed."]
         try writeJSON(receipt,home.appendingPathComponent("setup/bridge.json"));try event(type:"bridge.prepared",summary:"Ponte preparada em workspace próprio; confiança Codex ainda não verificada",details:["run_id":plan["id"]!])
         _=try verifyGBrainBridge()
+        if let admission {var record=admission;record["status"]="verified";record["bridge_sha256"]=digest(try jsonData(receipt));record["verified_at"]=ISO8601DateFormatter().string(from:Date());try writeJSON(record,home.appendingPathComponent("setup/bridge-reprepare.json"))}
         return receipt
     }
 }

@@ -71,3 +71,43 @@ test('autoatualização só aceita o ZIP oficial da release Oracle esperada',()=
  for(const downloadURL of [row.downloadURL+'?redirect=elsewhere',row.downloadURL.replace('nitroxinteligence','foreign'),row.downloadURL.replace('arm64','x64'),row.downloadURL.replace('v0.3.14','v0.3.13')])assert.equal(h.api.installable({...row,downloadURL}),false);
  assert.equal(h.api.installable({...row,status:'error'}),false);
 });
+
+// Focused post-update onboarding regression: real production progress/controller
+// functions with a bounded DOM contract, no WK/Core/personal profile.
+const onboardingSource=readFileSync(new URL('../Resources/web/onboarding-v2.js',import.meta.url),'utf8');
+function repairSetup(status,repairCall){
+ const calls=[],toasts=[],hosts=new Map();
+ const classes={toggle(){},contains:()=>false};
+ const leaf=()=>({hidden:false,textContent:'',classList:classes,setAttribute(){}});
+ for(const key of ['progress','strong','.ob2-install-error','.ob2-retry'])hosts.set(key,leaf());
+ const buttons=['[data-open-codex]','[data-copy-codex]','[data-verify-codex]'].map(key=>{
+  const host={key,button:null,replaceChildren(button){this.button=button||null},querySelector(){return this.button}};hosts.set(key,host);return host;
+ });
+ const actions={hidden:true,dataset:{},children:buttons,querySelector(key){return key==='button'?buttons.find(host=>host.button)?.button:key.endsWith(' button')?hosts.get(key.slice(0,-7))?.button:hosts.get(key)}};
+ hosts.set('.ob2-codex-actions',actions);
+ const progress={hidden:false,classList:classes,querySelector:key=>hosts.get(key)};
+ const context=vm.createContext({current:{...status},progress,screen:{open:false},generation:1,busy:false,repairing:false,openedRun:'',integrationMessage:'',progressRun:'',progressValue:0,needsRecovery:()=>false,positionProgress(){},effects:()=>({beam(){}}),animate(){},clean(){},errorToast:error=>toasts.push(error.message),document:{createElement:()=>({textContent:'',disabled:false})},api:{call:async(method,params)=>{calls.push({method,params});if(method==='onboardingReprepareIntegration')return repairCall();if(method==='onboardingStatus')return {...status};return{}},refresh:async()=>{},toast:text=>toasts.push(text)}});
+ const invoke=onboardingSource.slice(onboardingSource.indexOf('  async function invoke('),onboardingSource.indexOf('  function ensure('));
+ const buttonsCode=onboardingSource.slice(onboardingSource.indexOf('  async function run('),onboardingSource.indexOf('  function closeScreen('));
+ const progressCode=onboardingSource.slice(onboardingSource.indexOf('  function updateProgress('),onboardingSource.indexOf('  async function poll('));
+ vm.runInContext(invoke+buttonsCode+progressCode+';globalThis.render=updateProgress;',context);
+ context.render();return{context,calls,toasts,hosts,actions,progress,button:()=>hosts.get('[data-open-codex]').button};
+}
+const staleBridge={licensed:true,hasVault:true,status:'completed',runID:'synthetic',resumeExisting:true,integrationPending:false,bridgeNeedsReprepare:true,bridgeRepairMessage:'O Oracle foi atualizado. Atualize a ligação local com o Codex.',maintenance:{enabled:false}};
+test('ponte stale oferece reparo sem manutenção/integrationPending ou abertura automática',()=>{
+ const h=repairSetup(staleBridge,()=>({}));assert.equal(h.progress.hidden,false);assert.equal(h.button().textContent,'Atualizar integração local');assert.match(h.hosts.get('.ob2-install-error').textContent,/Oracle foi atualizado/);assert.equal(h.calls.length,0);assert.equal(h.hosts.get('[data-copy-codex]').button,null);assert.equal(h.hosts.get('[data-verify-codex]').button,null);
+});
+test('reparo chama ação exata uma vez, fica busy e aplica snapshot sem abrir Codex',async()=>{
+ let resolve;const h=repairSetup(staleBridge,()=>new Promise(r=>{resolve=r}));
+ const first=h.button().onclick();const duplicate=h.button().onclick();
+ assert.equal(h.button().disabled,true);assert.equal(h.button().textContent,'Atualizando…');assert.equal(h.calls.length,1);assert.equal(h.calls[0].method,'onboardingReprepareIntegration');assert.equal(Object.keys(h.calls[0].params).length,0);
+ resolve({...staleBridge,resumeExisting:false,bridgeNeedsReprepare:false,integrationPending:true,bridgeRepairMessage:'Ligação atualizada; revise a confiança no Codex.',hooksTrusted:false});await first;await duplicate;
+ assert.equal(h.context.current.hooksTrusted,false);assert.equal(h.context.current.integrationPending,true);assert.equal(h.context.current.bridgeNeedsReprepare,false);assert.equal(h.button().textContent,'Abrir Codex');assert.match(h.hosts.get('.ob2-install-error').textContent,/revise a confiança/);assert.equal(h.calls.length,1);
+});
+test('conflito preservado mantém reparo disponível, erro visível e atualiza snapshot',async()=>{
+ const h=repairSetup(staleBridge,()=>{throw Error('A configuração foi editada fora do Oracle. Revise antes de continuar.');});
+ await h.button().onclick();assert.equal(h.button().disabled,false);assert.equal(h.button().textContent,'Atualizar integração local');assert.match(h.hosts.get('.ob2-install-error').textContent,/editada fora/);assert(h.toasts.some(text=>text.includes('editada fora')));assert.deepEqual(h.calls.map(c=>c.method),['onboardingReprepareIntegration','onboardingStatus','onboardingStatus']);
+});
+test('resposta tardia do reparo não aplica snapshot após encerramento',async()=>{
+ let resolve;const h=repairSetup(staleBridge,()=>new Promise(r=>{resolve=r}));const click=h.button().onclick();h.context.generation++;resolve({...staleBridge,bridgeNeedsReprepare:false});await click;assert.equal(h.context.current.bridgeNeedsReprepare,true);assert.equal(h.calls.length,1);
+});

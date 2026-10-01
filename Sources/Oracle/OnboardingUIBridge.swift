@@ -61,6 +61,7 @@ extension App {
                 case "onboardingCheckConnection":result=try controller.checkConnection()
                 case "onboardingSelectModel":try controller.selectModel(params["model"] as? String ?? "")
                 case "onboardingVerifyIntegration":result=try controller.verifyCodexIntegration()
+                case "onboardingReprepareIntegration":result=try controller.reprepareCodexIntegration()
                 case "onboardingCancelLogin":try controller.cancelLogin()
                 case "onboardingDraft":try controller.saveDraft(params)
                 case "onboardingDraftUI":try controller.saveUIState(params)

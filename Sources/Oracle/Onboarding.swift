@@ -58,6 +58,7 @@ extension Core {
         value["codexConnected"]=(try? readJSON(home.appendingPathComponent("onboarding/connection.json")))?["connected"] as? Bool ?? false
         let runtime=codexRuntimeBindingStatus()
         value["codexRuntime"]=runtime
+        for (key,field) in bridgeReprepareStatus(runtime:runtime){value[key]=field}
         let progress=try onboardingProgress();value["confirmed"]=progress
         value["completed"]=progress.count;value["total"]=NSNull()
         if value["profileMode"] as? String=="memory-only",let id=value["runID"] as? String,UUID(uuidString:id) != nil {
@@ -649,6 +650,12 @@ final class OnboardingController {
         guard required.isSubset(of:discovered) else{throw failure("O Codex ainda não reconheceu todos os procedimentos instalados. Abra o espaço Oracle no Codex e verifique suas permissões.")}
         let method=try core.verifyGBrainBridge()
         try writeJSON(["workspace":workspace,"skills":required.sorted(),"verifiedAt":ISO8601DateFormatter().string(from:Date()),"skillDiscoveryVerified":true,"identityFilesVerified":method["identity"] ?? false,"modelExecutionVerified":false,"hooksTrusted":false],core.home.appendingPathComponent("setup/codex-discovery.json"))
+    }
+    func reprepareCodexIntegration() throws -> [String:Any] {
+        stateLock.lock();defer{stateLock.unlock()}
+        try requireAccess();try ensureNotRunning()
+        _=try core.prepareBridge(reprepare:true)
+        return try snapshot()
     }
     func verifyCodexIntegration() throws -> [String:Any] {
         try requireAccess()

@@ -31,7 +31,7 @@ extension Core {
         [".agents/skills/oracle-setup/SKILL.md",".agents/skills/oracle-gbrain-method/SKILL.md"].map {((try? oracleWorkspace()) ?? home.appendingPathComponent("oracle-workspace")).appendingPathComponent($0).path}
     }
     @discardableResult
-    func installOfficialGBrainMethod(workspace:URL,plan:[String:Any]) throws -> [String:Any] {
+    func installOfficialGBrainMethod(workspace:URL,plan:[String:Any],preflightOnly:Bool=false) throws -> [String:Any] {
         let manifest=try officialGBrainMethodManifest(),bundle=officialGBrainMethodRoot()
         let receiptURL=try scoped("setup/gbrain-method-install.json",root:home)
         let previous=(try? readJSON(receiptURL)) ?? [:]
@@ -151,9 +151,14 @@ extension Core {
             let target=try scoped(path,root:workspace)
             if fm.fileExists(atPath:target.path),digest(try Data(contentsOf:target)) != old[path] {throw failure("Arquivo antigo editado preservado: \(path)")}
         }
+        if preflightOnly {return ["files":expected,"manifest_sha256":digest(manifestData)]}
         for path in expected.keys.sorted() {
             let target=try scoped(path,root:workspace)
-            if fm.fileExists(atPath:target.path),digest(try Data(contentsOf:target))==expected[path] {continue}
+            if fm.fileExists(atPath:target.path) {
+                let current=digest(try Data(contentsOf:target))
+                if current==expected[path] {continue}
+                guard current==old[path] else{throw failure("O método mudou durante o preparo; edição preservada: \(path)")}
+            }
             let data=try generated[path] ?? Data(contentsOf:sources[path]!)
             guard digest(data)==expected[path] else {throw failure("A origem mudou durante a instalação do método.")}
             try fm.createDirectory(at:target.deletingLastPathComponent(),withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
@@ -166,12 +171,15 @@ extension Core {
         for path in old.keys where expected[path]==nil {
             let target=try scoped(path,root:workspace)
             if fm.fileExists(atPath:target.path) {
+                guard try fileDigest(target)==old[path] else{throw failure("Arquivo antigo editado preservado: \(path)")}
                 if memoryOnly,path.hasPrefix(".oracle/identity/") {
                     let archived=try scoped("setup/legacy-identities/"+(plan["id"] as! String)+"/"+String(path.dropFirst(".oracle/identity/".count)),root:home)
                     try fm.createDirectory(at:archived.deletingLastPathComponent(),withIntermediateDirectories:true)
+                    guard try fileDigest(target)==old[path] else{throw failure("Identidade mudou antes do arquivo de recuperação; edição preservada.")}
                     if !fm.fileExists(atPath:archived.path){try fm.copyItem(at:target,to:archived)}
                     guard try fileDigest(archived)==old[path] else{throw failure("Arquivo de identidade anterior preservado; recuperação divergente.")}
                 }
+                guard try fileDigest(target)==old[path] else{throw failure("Arquivo antigo mudou antes da remoção; edição preservada: \(path)")}
                 guard Darwin.unlink(target.path)==0 else{throw failure("Arquivo antigo preservado; não foi possível concluir a atualização do método.")}
             }
         }

@@ -2,7 +2,7 @@
 (function () {
   'use strict';
   let api, root, screen, activation, progress, current={}, stage='', timer, generation=0, pending=false, busy=false;
-  let progressRun='',progressValue=0,openedRun='',integrationMessage='';
+  let progressRun='',progressValue=0,openedRun='',integrationMessage='',repairing=false;
   let integration={enabled:true,autoCapture:false,remoteProcessing:false,hour:15,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone};
   const needsRecovery=value=>value.licensed&&!['starting','running','cancelling','completed'].includes(value.status)&&(value.libraryRootChoices?.length||value.distributionConflicts?.length);
   const motionHandles=new Set();
@@ -118,8 +118,9 @@
   }
   function updateProgress(){
     if(!progress)return;
-    const integrating=current.status==='completed'&&current.integrationPending===true;
-    const installing=!!current.runID&&(current.status!=='completed'||integrating)&&!current.resumeExisting;
+    const repair=current.status==='completed'&&current.bridgeNeedsReprepare===true;
+    const integrating=current.status==='completed'&&(current.integrationPending===true||repair);
+    const installing=repair||!!current.runID&&(current.status!=='completed'||integrating)&&!current.resumeExisting;
     const visible=installing&&!screen.open;
     if(!visible){progress.hidden=true;clean(progress);return;}
     const wasHidden=progress.hidden;progress.hidden=false;progress.classList.toggle('ob2-integrating',integrating);
@@ -135,15 +136,29 @@
     progressValue=Math.max(progressValue,phase[0]+(phase[1]-phase[0])*fraction);
     bar.max=100;bar.value=progressValue;
     bar.setAttribute('aria-valuetext',phase[2]+(counted?`: ${done} de ${total} ${unit}`:''));
-    progress.querySelector('strong').textContent=integrating?'Conclua a integração no Codex':phase[2]+(counted&&unit==='arquivos'?` · ${done}/${total}`:'…');
+    const actions=progress.querySelector('.ob2-codex-actions');actions.hidden=!integrating;
+    const actionMode=repair?'repair':'codex';
+    if(actions.dataset.mode!==actionMode){for(const host of actions.children)host.replaceChildren();actions.dataset.mode=actionMode;if(!repairing)integrationMessage='';}
+    progress.querySelector('strong').textContent=repair?'Atualize a integração local':integrating?'Conclua a integração no Codex':phase[2]+(counted&&unit==='arquivos'?` · ${done}/${total}`:'…');
     const failed=['failed','interrupted','paused','cancelled'].includes(current.status);
     const error=progress.querySelector('.ob2-install-error');error.hidden=!failed&&!integrating;
-    error.textContent=integrating?integrationMessage||'Instalação local concluída. Abra o Codex com o roteiro pronto. Revise os hooks e envie a mensagem para registrar a manutenção. Depois clique em Verificar.':failed?(current.message||'Não foi possível concluir a instalação.'):'';
+    error.textContent=repair?(integrationMessage||current.bridgeRepairMessage||'O Oracle foi atualizado. Atualize a ligação local com o Codex para continuar.'):integrating?integrationMessage||'Instalação local concluída. Abra o Codex com o roteiro pronto. Revise os hooks e envie a mensagem para registrar a manutenção. Depois clique em Verificar.':failed?(current.message||'Não foi possível concluir a instalação.'):'';
     error.classList.toggle('ob2-pending',integrating);
     const retry=progress.querySelector('.ob2-retry');retry.hidden=!failed;
     if(failed&&!retry.querySelector('button'))metal(retry,'Tentar novamente',async()=>{await invoke('onboardingResume');await poll();});
-    const actions=progress.querySelector('.ob2-codex-actions');actions.hidden=!integrating;
-    if(integrating&&!actions.querySelector('button')){
+    if(repair&&!actions.querySelector('button')){
+      plain(actions.querySelector('[data-open-codex]'),'Atualizar integração local',async()=>{
+        const epoch=generation;repairing=true;openedRun=current.runID;integrationMessage='';updateProgress();
+        try{current=await invoke('onboardingReprepareIntegration');integrationMessage=current.bridgeRepairMessage||'';updateProgress();api.toast?.(integrationMessage||'Integração local atualizada.');await api.refresh?.();}
+        catch(error){
+          if(epoch!==generation)return;
+          try{current=await invoke('onboardingStatus');}catch{}
+          integrationMessage=error.message||'Não foi possível atualizar a integração local.';updateProgress();throw error;
+        }finally{if(epoch===generation){repairing=false;updateProgress();}}
+      });
+    }
+    if(repair){const button=actions.querySelector('[data-open-codex] button');if(button){button.disabled=repairing;button.textContent=repairing?'Atualizando…':'Atualizar integração local';}}
+    if(integrating&&!repair&&!actions.querySelector('button')){
       plain(actions.querySelector('[data-open-codex]'),'Abrir Codex',async()=>{await invoke('onboardingOpenIntegrationCodex');});
       plain(actions.querySelector('[data-copy-codex]'),'Copiar instruções',async()=>{const value=await invoke('maintenanceScheduleRequest');await invoke('copy',{text:value.request});api.toast?.('Instruções copiadas. Envie-as em uma conversa no espaço Oracle.');});
       plain(actions.querySelector('[data-verify-codex]'),'Verificar',async()=>{
@@ -153,7 +168,7 @@
         finally {button.disabled=false;button.textContent='Verificar';}
       });
     }
-    if(integrating&&openedRun!==current.runID){openedRun=current.runID;invoke('onboardingOpenIntegrationCodex').catch(errorToast);}
+    if(integrating&&!repair&&openedRun!==current.runID){openedRun=current.runID;invoke('onboardingOpenIntegrationCodex').catch(errorToast);}
     positionProgress();
   }
 
@@ -171,7 +186,7 @@
       }
     }catch(error){if(epoch===generation)errorToast(error);}finally{if(epoch===generation)pending=false;}
   }
-  function suspend(){generation++;for(const animation of motionHandles)animation.cancel();motionHandles.clear();clearInterval(timer);busy=false;pending=false;if(root){clean(root);activation.close();screen.close();progress.hidden=true;const content=screen.querySelector('.ob2-content');content.inert=false;delete content.dataset.transitioning;}document.body.classList.remove('ob2-configuring');api=null;}
+  function suspend(){generation++;for(const animation of motionHandles)animation.cancel();motionHandles.clear();clearInterval(timer);busy=false;pending=false;repairing=false;integrationMessage='';if(root){clean(root);activation.close();screen.close();progress.hidden=true;const content=screen.querySelector('.ob2-content');content.inert=false;delete content.dataset.transitioning;}document.body.classList.remove('ob2-configuring');api=null;}
   window.OracleOnboardingV2={
     async mount(options){suspend();api=options;ensure();current=await invoke('onboardingStatus');const next=!current.licensed?'license':current.resumeExisting?'completed':current.runID?(current.status==='completed'?'completed':'progress'):current.hasVault&&current.ui?.step==='install'?'install':'vault';show(next);timer=setInterval(()=>{if(!document.hidden&&!busy)void poll();},800);},
     open(options={}){if(options.connection)return;show(options.previewStage||(!current.licensed?'license':current.runID&&current.status!=='completed'?'progress':current.hasVault?'install':'vault'));},

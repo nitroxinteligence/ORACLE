@@ -256,6 +256,7 @@ func runDistributionTests() throws {
         try check(!fm.fileExists(atPath:state.appendingPathComponent("setup/identity-render.json").path) && !fm.fileExists(atPath:state.appendingPathComponent("gbrain/workspace/SOUL.md").path),"real official initialization never renders personal identity")
         let reopened=try Core(home:state)
         try check((try reopened.completeMemoryOnly(plan:plan))["plan_hash"] as? String==plan["plan_hash"] as? String,"reopened profile verifies complete real-engine installation")
+        try runBridgeReprepareTests(core:core,resources:resources)
         let slotID=UUID().uuidString,slot=state.appendingPathComponent("updates/runtime/versions/"+slotID)
         try fm.createDirectory(at:slot,withIntermediateDirectories:true)
         var hashes=[String:String]()

@@ -2,6 +2,7 @@ import Foundation
 
 func runDesktopPluginExportTests(root:URL)throws {
     guard oracleRuntimeBindingTestContext(home:root) else{throw failure("Exportação exige perfil sintético explícito dentro de .work.")}
+    try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
     let scope=OracleDesktopPluginExportScope(state:root.path,vault:root.appendingPathComponent("vault").path,revision:"synthetic-revision")
     let png=Data(base64Encoded:"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=")!
     var checks=0

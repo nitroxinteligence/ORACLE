@@ -41,6 +41,56 @@ def inventory(root):
     return result
 
 
+
+def probe_native_plugin(app):
+    """Probe only boot/EOF in a new retained .work profile, without native UI."""
+    probe_root = ROOT / '.work/desktop-plugin-package-probes'
+    probe_root.mkdir(parents=True, exist_ok=True)
+    directory = Path(tempfile.mkdtemp(prefix='probe-', dir=probe_root))
+    state = directory / 'state'
+    temporary = directory / 'tmp'
+    for path in (state, temporary):
+        path.mkdir(parents=True)
+    request = {'id': 'package-boot-probe', 'method': 'boot', 'params': {}}
+    environment = {'PATH': '/usr/bin:/bin:/usr/sbin:/sbin', 'TMPDIR': str(temporary)}
+    record = {'schemaVersion': 1, 'app': str(app), 'state': str(state),
+              'request': request, 'passed': False}
+    try:
+        result = subprocess.run([str(app / 'Contents/MacOS/Oracle'), '--plugin-server', '--state', str(state)],
+                                input=json.dumps(request) + '\n', text=True, capture_output=True,
+                                env=environment, timeout=30, check=False)
+        (directory / 'stdout.jsonl').write_text(result.stdout)
+        (directory / 'stderr.txt').write_text(result.stderr)
+        record['exitCode'] = result.returncode
+        if result.returncode != 0:
+            raise ValueError('Native plugin boot probe failed; inspect ' + str(directory))
+        lines = result.stdout.splitlines()
+        if len(lines) != 1:
+            raise ValueError('Native plugin boot probe returned an invalid JSONL stream; inspect ' + str(directory))
+        response = json.loads(lines[0])
+        if not isinstance(response, dict) or response.get('id') != request['id'] or set(response) != {'id', 'value'}:
+            raise ValueError('Native plugin boot probe returned an incompatible response; inspect ' + str(directory))
+        value = response['value']
+        if not isinstance(value, dict) or set(value) != {'locked', 'accessibility'} or type(value['locked']) is not bool:
+            raise ValueError('Native plugin boot probe returned incompatible boot state; inspect ' + str(directory))
+        accessibility = value['accessibility']
+        if not isinstance(accessibility, dict) or set(accessibility) != {'reduceMotion', 'reduceTransparency'} or any(type(item) is not bool for item in accessibility.values()):
+            raise ValueError('Native plugin boot probe returned incompatible accessibility state; inspect ' + str(directory))
+        record['passed'] = True
+        record['response'] = response
+        return {'method': 'boot', 'exitCode': 0, 'response': value}
+    except subprocess.TimeoutExpired as error:
+        for name, output in [('stdout.jsonl', error.stdout), ('stderr.txt', error.stderr)]:
+            (directory / name).write_text(output.decode(errors='replace') if isinstance(output, bytes) else output or '')
+        record['error'] = 'Native plugin boot probe timed out'
+        raise ValueError(record['error'] + '; inspect ' + str(directory)) from error
+    except Exception as error:
+        record['error'] = str(error)
+        raise
+    finally:
+        (directory / 'probe-receipt.json').write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n')
+
+
 def package(app, bun, output, channel):
     app, bun, output = app.resolve(), bun.resolve(), output.absolute()
     if output.exists() or output.is_symlink():
@@ -49,12 +99,12 @@ def package(app, bun, output, channel):
     if manifest['architecture'] != 'arm64' or manifest['channel'] != channel:
         raise ValueError('Bundle architecture/channel does not match requested package')
     verify_source_provenance(manifest)
-    if b'--plugin-server' not in (app / 'Contents/MacOS/Oracle').read_bytes():
-        raise ValueError('Bundle predates the desktop plugin server; build the current source first')
     subprocess.run(['python3', str(ROOT / 'scripts/build-manifest.py'), 'verify', '--channel', channel, '--app', str(app)], check=True)
     subprocess.run(['python3', str(ROOT / 'scripts/build-manifest.py'), 'verify-signature', '--channel', channel, '--app', str(app)], check=True)
     if channel == 'release':
         subprocess.run(['xcrun', 'stapler', 'validate', str(app)], check=True)
+    verify_source_provenance(manifest)
+    native_probe = probe_native_plugin(app)
     if not bun.is_file() or not os.access(bun, os.X_OK):
         raise ValueError('An existing executable Bun runtime must be supplied')
     arch = subprocess.check_output(['lipo', '-archs', str(bun)], text=True).strip().split()
@@ -85,7 +135,7 @@ def package(app, bun, output, channel):
                    'minimumMacOS': manifest['minimumMacOS'], 'channel': channel,
                    'bundleBuildID': manifest['buildID'], 'bundleCommit': manifest['commit'],
                    'bundleSourceHash': manifest['sourceHash'], 'bunVersion': version,
-                   'bunSHA256': digest(bun), 'files': inventory(stage),
+                   'bunSHA256': digest(bun), 'nativePluginProbe': native_probe, 'files': inventory(stage),
                    'installed': False, 'published': False}
         (stage / 'package-receipt.json').write_text(json.dumps(receipt, ensure_ascii=False, indent=2) + '\n')
         os.rename(stage, output)

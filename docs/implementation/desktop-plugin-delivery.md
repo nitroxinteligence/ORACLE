@@ -22,7 +22,7 @@ python3 scripts/package-desktop-plugin.py \
   --output .work/distribution/oracle-system/oracle-desktop
 ```
 
-O empacotador compara commit e sourceHash do bundle com o snapshot atual antes e depois da cópia, recusa executáveis anteriores ao entrypoint `--plugin-server` e exige manifesto válido, canal e arquitetura correspondentes, assinatura verificada e Bun no pin compatível com o manifesto. O canal release também exige ticket stapled do bundle. Guarda hashes de todos os arquivos em `package-receipt.json`, preserva o commit e build ID do bundle e recusa sobrescrever a saída. O recibo verifica integridade local; não substitui assinatura autenticada do plugin nem notarização do container.
+O empacotador compara commit e sourceHash do bundle com o snapshot atual antes e depois da cópia, verifica o entrypoint `--plugin-server` com uma chamada JSONL real de `boot` em perfil novo dentro de `.work/`, depois da verificação do manifesto e da assinatura e exige manifesto válido, canal e arquitetura correspondentes, assinatura verificada e Bun no pin compatível com o manifesto. O canal release também exige ticket stapled do bundle. Guarda hashes de todos os arquivos em `package-receipt.json`, preserva o commit e build ID do bundle e recusa sobrescrever a saída. O recibo verifica integridade local; não substitui assinatura autenticada do plugin nem notarização do container.
 
 O Bun transportado inclui o documento de licenças oficial do pin em `licenses/BUN-LICENSE.md`; notices de GBrain e suas dependências permanecem em `runtime/Oracle.app/Contents/Resources/engine/`. A versão e SHA-256 do Bun constam do recibo. O ícone é o símbolo aprovado existente, copiado sem redesign.
 
@@ -52,7 +52,7 @@ python3 scripts/test-desktop-plugin-package.py
 node --test scripts/test-desktop-plugin-update.mjs
 ```
 
-Os sete testes do pacote usam bundle e Bun sintéticos, com validação externa substituída apenas nesse teste. Exercitam preservação de entradas/config, backup do pacote anterior, rollback após falha de escrita, rejeição de pacote alterado, catálogo inválido, escape por symlink e recusa de fonte divergente do build. Não comprovam assinatura real, runtime nativo, renderização da interface ou a jornada pessoal.
+Os dez testes do pacote usam bundle e Bun sintéticos, com validação externa substituída apenas nesse teste. Exercitam preservação de entradas/config, backup do pacote anterior, rollback após falha de escrita, rejeição de pacote alterado, catálogo inválido, escape por symlink e recusa de fonte divergente do build e validação exata do probe nativo, com recusa de execução após assinatura inválida. Não comprovam assinatura real, runtime nativo, renderização da interface ou a jornada pessoal.
 
 A entrega completa exige evidências separadas de build atual, startup do pacote fora do repositório, `initialize`, descoberta de ferramentas, chamada inofensiva, recurso MCP App, renderização no host e todas as áreas do produto. Reutilizar os recursos e handlers existentes é necessário, mas não comprova sozinho que diálogos, clipboard, download, drag-and-drop, agendamento e outras capacidades do host têm comportamento equivalente.
 

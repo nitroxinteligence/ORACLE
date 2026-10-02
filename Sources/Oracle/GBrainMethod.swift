@@ -191,6 +191,7 @@ extension Core {
         try writeJSON(receipt,receiptURL);return receipt
     }
     func prepareCodexRuntimeBinding() throws -> [String:Any] {
+        if let binding=try desktopPluginRuntimeBinding() {return binding}
         var bundle=Bundle.main.bundleURL
         var roots=[URL(fileURLWithPath:"/Applications"),fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications")]
         var fixture=false

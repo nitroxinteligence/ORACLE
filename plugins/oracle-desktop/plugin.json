@@ -1,0 +1,39 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "oracle-desktop",
+  "version": "0.3.22",
+  "description": "Sistema de trabalho com inteligência artificial e conhecimento local do Obsidian, com interface Oracle dentro do Codex.",
+  "author": {
+    "name": "Mateus M"
+  },
+  "license": "LicenseRef-Oracle-Proprietary",
+  "keywords": [
+    "obsidian",
+    "knowledge",
+    "local",
+    "oracle"
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Oracle System",
+        "shortDescription": "Conhecimento local no Codex",
+        "longDescription": "Oracle para macOS 13 ou superior, Apple Silicon. Inclui runtime local, interface visual, método e integração GBrain. Instalação e licenciamento mantêm seus consentimentos próprios.",
+        "developerName": "Mateus M",
+        "category": "Productivity",
+        "capabilities": [
+          "Interactive",
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Abra o Oracle para explorar meu conhecimento local.",
+          "Abra as configurações do Oracle."
+        ],
+        "brandColor": "#101113",
+        "logo": "./assets/icon.svg",
+        "composerIcon": "./assets/icon.svg"
+      }
+    }
+  }
+}

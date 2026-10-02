@@ -7,7 +7,7 @@ function icon(name,cls=''){return `<svg class="${cls}" viewBox="0 0 24 24" fill=
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 $$('[data-icon]').forEach(e=>e.outerHTML=icon(e.dataset.icon));$('#settings').innerHTML=icon('sliders');$('#lock').innerHTML=icon('lock');
 const pending=new Map();let requestID=0;
-function call(method,params={}){return new Promise((resolve,reject)=>{
+function call(method,params={}){if(window.OraclePluginBridge?.active())return window.OraclePluginBridge.call(method,params);return new Promise((resolve,reject)=>{
  if(!window.webkit?.messageHandlers.oracle){reject(Error('O aplicativo macOS é necessário. Este arquivo não é um app web.'));return}
  if(pending.size>=128){reject(Error('Há operações demais em andamento. Aguarde as respostas atuais.'));return}
  const id=String(++requestID),timeout=setTimeout(()=>{pending.delete(id);reject(Error('A operação não respondeu a tempo. Confira o estado antes de repetir.'));},['gbrainRead','onboardingConnect','codexPlugins','codexPluginsRefresh'].includes(method)?120000:90000);
@@ -319,7 +319,20 @@ function renderProgress(){
  if(active){const completed=Math.max(0,Math.min(last.completed||0,last.total));bar.setAttribute('aria-valuemin','0');bar.setAttribute('aria-valuemax',String(last.total));bar.setAttribute('aria-valuenow',String(completed));bar.setAttribute('aria-valuetext',`${completed} de ${last.total} arquivos verificados`);$('#progress-fill').style.width=(completed/last.total*100)+'%'}
  renderPlayback();
 }
-let editorSession=null,draftTimer=null,editorWrites=Promise.resolve();
+let editorSession=null,draftTimer=null,editorWrites=Promise.resolve(),pluginHeldDraft=null;
+// Only the active editor can be retained: one note, bound to its exact vault.
+// This closure is never rendered while locked or sent to model context.
+function retainPluginEditorDraft(){
+ if(window.OraclePluginBridge?.active()&&editorSession&&modalDirty)pluginHeldDraft={path:editorSession.path,hash:editorSession.hash,text:editorSession.text,vault:state.config.vault};
+}
+function clearPluginHeldDraft(path){if(pluginHeldDraft?.path===path&&pluginHeldDraft.vault===state.config.vault)pluginHeldDraft=null;}
+async function flushPluginHeldDraft(){
+ const held=pluginHeldDraft;if(!held)return;
+ if(!$('#lock-screen').hidden||held.vault!==state.config.vault)throw Error('O rascunho permanece reservado à pasta original. Desbloqueie essa pasta antes de fechar.');
+ const saved=await queueEditorWrite(()=>call('saveDraft',{path:held.path,hash:held.hash,text:held.text}));
+ if(saved?.saved!==true)throw Error('A gravação do rascunho ainda não foi confirmada.');
+ if(pluginHeldDraft===held)pluginHeldDraft=null;
+}
 function queueEditorWrite(operation){const task=editorWrites.catch(()=>{}).then(operation);editorWrites=task.catch(()=>{});return task}
 async function persistEditorDraft(){
  clearTimeout(draftTimer);
@@ -328,12 +341,16 @@ async function persistEditorDraft(){
  const revision=session.revision,text=session.text;
  if(text===session.base)return;
  const saved=await queueEditorWrite(()=>call('saveDraft',{path:session.path,hash:session.hash,text}));
+ if(window.OraclePluginBridge?.active()&&saved?.saved!==true)throw Error('A gravação do rascunho ainda não foi confirmada.');
+ if(saved?.saved===true&&pluginHeldDraft?.text===text)clearPluginHeldDraft(session.path);
  if(editorSession===session&&revision===session.revision){session.saved=true;const status=$('#draft-status');if(status)status.textContent='Rascunho guardado neste Mac'}
  return saved;
 }
 async function openNote(path){
  if(navigationBlocked())return;
+ if(pluginHeldDraft&&(pluginHeldDraft.path!==path||pluginHeldDraft.vault!==state.config.vault))await flushPluginHeldDraft();
  const epoch=navigationEpoch,sequence=++noteReadSequence,document=await call('read',{path});if(epoch!==navigationEpoch||sequence!==noteReadSequence||navigationBlocked())return;
+ if(pluginHeldDraft?.path===path&&pluginHeldDraft.vault===state.config.vault)document.draft={path,vault:pluginHeldDraft.vault,originalHash:pluginHeldDraft.hash,text:pluginHeldDraft.text};
  readDocument={...document,relative:path};editorSession=null;
  const name=path.endsWith('/SKILL.md')?path.split('/').at(-2).replace(/-/g,' '):path.split('/').at(-1).replace(/\.md$/i,'');
  modal(`<h1>${esc(name)}</h1>${document.draft&&document.draft.text!==document.text?'<div class="editor-recovery"><p>Há um rascunho que ainda não foi salvo no documento.</p><button class="secondary" id="recover-draft">Retomar</button></div>':''}<div class="document-meta"><span>${path.endsWith('/SKILL.md')?'Skill':'Nota'}</span><span>${Math.max(1,Math.ceil(document.text.split(/\s+/).length/220))} min de leitura</span><span title="${esc(path)}">${esc(path.split('/').slice(0,-1).join(' / '))}</span></div><div class="reader-layout"><nav class="reader-outline" aria-label="Seções do documento" hidden></nav><article class="markdown-reader">${markdown(document.text)}</article></div><details class="source-details"><summary>Detalhes do arquivo</summary><div class="source">${esc(document.path)}<br>SHA-256 ${document.hash}</div></details>${actions(`<button class="secondary" id="reveal-note">Mostrar no Finder</button>${document.editable!==false?'<button class="primary" id="edit-note">Editar</button>':''}`)}`,{family:'reader',key:'document:'+path});
@@ -372,6 +389,7 @@ async function saveEditor(){
  const save=queueEditorWrite(()=>call('saveNote',{path:sent.path,hash:sent.hash,text:sent.text})).then(result=>{
   if(result.status==='conflict'){session.conflict=result.current;if(editorSession===session)showEditorConflict(result.current);return result}
   if(result.status!=='saved'||!result.document?.hash)throw Error('A gravação ainda não foi confirmada. Seu texto continua no editor.');
+  clearPluginHeldDraft(session.path);
   session.base=sent.text;session.hash=result.document.hash;
   modalHistory=modalHistory.filter(page=>!(page.family==='reader'&&page.document?.relative===session.path));
   session.saved=session.text===sent.text;
@@ -425,10 +443,10 @@ function requestEditorExit(discardOnly=false,onExit=null){
  $('.modal-body').prepend(notice);notice.scrollIntoView({block:'nearest'});
  $('#keep-editing').onclick=()=>{notice.remove();$('#editor')?.focus()};
  $('#keep-draft-close')?.addEventListener('click',safe(async()=>{const draft=editorSession;await persistEditorDraft();editorSession=null;modalDirty=false;await leave();toast('Rascunho guardado neste Mac.','success');if($('#modal').open&&$('#modal').dataset.family==='reader'&&readDocument?.relative===draft.path){let recovery=$('#recover-draft');if(!recovery){const box=document.createElement('div');box.className='editor-recovery';box.innerHTML='<p>Seu rascunho continua guardado.</p><button class=secondary id=recover-draft>Retomar</button>';$('.modal-body').prepend(box);recovery=$('#recover-draft')}recovery.onclick=()=>editNote(draft.text,draft.hash)}}));
- $('#confirm-discard').onclick=safe(async()=>{clearTimeout(draftTimer);await call('discardDraft',{path:editorSession.path});editorSession=null;modalDirty=false;await leave();toast('Alterações descartadas.','success')});
+ $('#confirm-discard').onclick=safe(async()=>{clearTimeout(draftTimer);await call('discardDraft',{path:editorSession.path});clearPluginHeldDraft(editorSession.path);editorSession=null;modalDirty=false;await leave();toast('Alterações descartadas.','success')});
  $('#keep-editing').focus();
 }
-window.oraclePrepareToClose=async()=>{if(editorSession?.savePromise)await editorSession.savePromise;await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();await OracleTransitions.exitApp();return true};
+window.oraclePrepareToClose=async()=>{if(editorSession?.savePromise)await editorSession.savePromise;await persistEditorDraft();await flushPluginHeldDraft();await window.OracleOnboarding?.prepareToClose?.();await OracleTransitions.exitApp();return true};
 function showSetup(options={}){
  if(!window.OracleOnboarding||window.ORACLE_PREVIEW){toast('A configuração funciona no aplicativo para macOS.');return;}
  const enter=()=>{closeModal(true);OracleOnboarding.open(typeof options==='object'?options:{});};
@@ -581,6 +599,7 @@ $('.wordmark').onclick=e=>{e.preventDefault();setView('map',()=>{renderAtlas();a
 $('#updates').onclick=()=>{showUpdates(false).catch(e=>toast(e.message,'error'))};
 function setZoom(factor){atlasController?.zoomAt(factor)}$('#zoom-in').onclick=()=>setZoom(1.2);$('#zoom-out').onclick=()=>setZoom(1/1.2);$('#zoom-reset').onclick=()=>atlasController?.fit();$('#context-back').onclick=()=>atlasController?.back();$('#reset-layout').onclick=()=>{atlasController?.reset();toast('Posições restauradas. Nenhum arquivo foi movido.')};$('#economy').onchange=safe(()=>saveVisualPreference('economy',$('#economy').checked));
 window.oracleLock=()=>{
+ retainPluginEditorDraft();
  startupUpdateReady=false;resetUpdateTracking();
  clearTimeout(toast.timer);toast.revision=(toast.revision||0)+1;const notice=$('#toast');if(typeof notice.hidePopover==='function'&&notice.matches(':popover-open'))notice.hidePopover();notice.hidden=true;notice.replaceChildren();document.body.append(notice);hideTooltip();
  OracleTransitions.reset();
@@ -593,13 +612,14 @@ window.oracleLock=()=>{
  window.OracleOnboarding?.suspend();OracleInstallationVisual.reset();refreshSequence++;navigationEpoch++;noteReadSequence++;refreshTask=null;
  memoryEpoch++;memoryPollTask=null;lastMemorySignature='';visualPending={};
  clearTimeout(initialScanTimer);initialScanRetries=0;clearTimeout(updatePolling);
+ window.OraclePluginBridge?.cancelPending('Oracle bloqueado');
  for(const p of pending.values()){clearTimeout(p.timeout);p.reject(Error('Oracle bloqueado'));}pending.clear();
  replay=false;replayProjection=null;replaySession=null;closeModal(true);if(atlasController){atlasController.dispose();atlasController=null;}
  $('#lock-screen').hidden=false;$('#app').inert=true;state={entries:[],collections:[],events:[],config:{}};readDocument=null;editorSession=null;clearTimeout(draftTimer);
  $('#tree').oracleHTML=null;$('#tree').textContent='';$('#results').textContent='';$('#atlas').textContent='';$('#modal-content').textContent='';clearInterval(timer);timer=null;
 };
-$('#lock').onclick=safe(async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();if(!window.ORACLE_PREVIEW)await call('lock');else window.oracleLock();});
-$('#unlock').onclick=safe(async()=>{const allowed=await call('unlock');if(!allowed)return;$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();void OracleTransitions.enterApp();if(view==='map'&&graphEntrancePending)requestGraphEntrance();await mountOnboarding();finishUpdateStartup();});
+$('#lock').onclick=safe(async()=>{await persistEditorDraft();await window.OracleOnboarding?.prepareToClose?.();if(!window.ORACLE_PREVIEW){await call('lock');if(window.OraclePluginBridge?.active())window.oracleLock();}else window.oracleLock();});
+$('#unlock').onclick=safe(async()=>{const allowed=await call('unlock');if(!allowed)return;$('#lock-screen').hidden=true;$('#app').inert=false;await refresh();try{await flushPluginHeldDraft();}catch(error){toast(error.message,'error');}void OracleTransitions.enterApp();if(view==='map'&&graphEntrancePending)requestGraphEntrance();await mountOnboarding();finishUpdateStartup();});
 // Deterministic ambient dust; it never represents an agent or event.
 for(let i=0;i<46;i++){const e=document.createElement('i');e.className='star';e.style.cssText=`left:${(Math.sin(i*12.9898)*43758.5453%1+1)%1*100}%;top:${(Math.sin(i*78.233)*12731.7%1+1)%1*100}%;width:${i%7===0?2:1}px;height:${i%7===0?2:1}px;opacity:${i%5/18+.04}`;$('#galaxy').append(e)}
 function markInterfaceReady(){window.oracleStartupRendered=true;void call('interfaceReady',{schema_version:1}).catch(()=>{});}
@@ -607,6 +627,16 @@ call('boot').then(async b=>{applyAccessibility(b.accessibility);if(b.locked){win
 setInterval(()=>{if(!$('#lock-screen').hidden||document.hidden)return;call('events').then(events=>{if(events.at(-1)?.event_id!==state.events.at(-1)?.event_id){state.events=events;renderProgress();renderAtlas();if(events.at(-1)?.phase&&!$('#modal').open)safe(refresh)()}}).catch(()=>{})},2500);
 setInterval(()=>{if($('#lock-screen').hidden&&!document.hidden&&!$('#modal').open)safe(refresh)()},30000);
 setInterval(()=>{void pollMemoryStatus();},1800);
+window.addEventListener('oracle-plugin-tool-result',()=>{if(!modalDirty)void window.oracleVaultSnapshotChanged?.();});
+window.addEventListener('oracle-plugin-tool-cancelled',event=>toast(event.detail.reason,'error'));
+window.addEventListener('oracle-plugin-teardown',()=>window.oracleLock());
+window.addEventListener('oracle-plugin-teardown-error',event=>toast(event.detail.reason,'error'));
+let pluginAccessibilityPoll=null;
+setInterval(()=>{
+ if(pluginAccessibilityPoll||!window.OraclePluginBridge?.active()||!window.OraclePluginBridge.initialized||document.hidden||!$('#lock-screen').hidden)return;
+ const epoch=memoryEpoch;
+ pluginAccessibilityPoll=call('boot').then(boot=>{if(epoch!==memoryEpoch||document.hidden||!$('#lock-screen').hidden)return;if(boot.locked)window.oracleLock();else applyAccessibility(boot.accessibility);}).catch(()=>{}).finally(()=>{pluginAccessibilityPoll=null;});
+},5000);
 // Native filesystem scans publish immediately; polling remains a fallback for
 // missed events and hidden windows. Never wait for the derived engine index.
 window.oracleVaultSnapshotChanged=async()=>{
@@ -861,6 +891,7 @@ function updateNewsMessage(status){
  return 'Verificação concluída.';
 }
 function oracleInstallable(row){
+ if(window.OraclePluginBridge?.active()&&row?.id==='oracle'&&row.pluginUpdate===true&&row.channel==='desktop-plugin')return row.status==='install_available'&&/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(row.version||'');
  if(row?.id!=='oracle'||row.status!=='install_available'||!/^sha256:[a-f0-9]{64}$/.test(row.downloadSHA256||''))return false;
  if(!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(row.version||''))return false;
  try{
@@ -914,7 +945,7 @@ function renderUpdateStatus(status,options){
  const resultsHost=$('#update-results');
  if(!(updateBusy&&!status.results?.length&&resultsHost.children.length)&&resultsHost.oracleHTML!==resultsHTML){resultsHost.innerHTML=resultsHTML;resultsHost.oracleHTML=resultsHTML;}
  const appUpdate=$('#install-oracle-update');
- if(appUpdate){appUpdate.disabled=updateBusy;appUpdate.onclick=safe(async()=>{const row=updateResultRows(latestUpdateStatus).find(item=>item.id==='oracle');if(!oracleInstallable(row))throw Error('Verifique novamente para obter a atualização publicada.');appUpdate.disabled=true;appUpdate.textContent='Preparando atualização…';const result=await call('installOracleUpdate');if(result?.cancelled){appUpdate.textContent='Instalar atualização';return}if(!result?.restarting)throw Error('O Oracle não confirmou o reinício da atualização.');appUpdate.textContent='Reiniciando…';});}
+ if(appUpdate){appUpdate.disabled=updateBusy;appUpdate.onclick=safe(async()=>{const row=updateResultRows(latestUpdateStatus).find(item=>item.id==='oracle');if(!oracleInstallable(row))throw Error('Verifique novamente para obter a atualização publicada.');appUpdate.disabled=true;appUpdate.textContent='Preparando atualização…';const result=await call('installOracleUpdate');if(result?.cancelled){appUpdate.textContent='Instalar atualização';return}if(window.OraclePluginBridge?.active()&&result?.installed===true&&result.restartRequired===true){appUpdate.textContent='Atualizar e reiniciar';toast(result.message||'Atualização instalada. Reabra o Oracle no Codex.','success');return}if(!result?.restarting)throw Error('O Oracle não confirmou o reinício da atualização.');appUpdate.textContent='Reiniciando…';});}
  const recoveryHTML=(status.gbrain_rollback?'<button class="secondary" data-rollback="rollback-gbrain">Restaurar Second Brain</button>':'')+(status.skills_rollback?'<button class="secondary" data-rollback="rollback-skills">Restaurar acervo anterior</button>':'');
  const recovery=$('#update-recovery');if(recovery.oracleHTML!==recoveryHTML){recovery.innerHTML=recoveryHTML;recovery.oracleHTML=recoveryHTML;}
  $$('[data-rollback]').forEach(b=>{b.disabled=updateBusy;b.onclick=()=>showUpdates(b.dataset.rollback).catch(e=>toast(e.message,'error'))});

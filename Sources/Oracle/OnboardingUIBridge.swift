@@ -27,12 +27,12 @@ extension App {
         if method=="onboardingChooseVault" || method=="onboardingChooseBrain" {
             let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.canCreateDirectories=false
             panel.message=method=="onboardingChooseVault" ? "Escolha a pasta original do seu vault Obsidian." : "Escolha a pasta da sua instalação existente do Second Brain."
-            panel.beginSheetModal(for:window) {response in
+            presentPanel(panel) {response in
                 guard response == .OK,let url=panel.url else{self.reply(id,NSNull());return}
                 if method=="onboardingChooseBrain" {
                     let profilePanel=NSOpenPanel();profilePanel.canChooseDirectories=true;profilePanel.canChooseFiles=false;profilePanel.canCreateDirectories=false
                     profilePanel.directoryURL=url;profilePanel.message="Escolha o perfil local do Second Brain que contém o arquivo de configuração. Pode ser o próprio workspace; nenhum perfil global será usado automaticamente."
-                    profilePanel.beginSheetModal(for:self.window) {profileResponse in
+                    self.presentPanel(profilePanel) {profileResponse in
                         guard profileResponse == .OK,let profile=profilePanel.url else{self.reply(id,NSNull());return}
                         controller.queue.async {
                             do {try controller.selectBrain(workspace:url,profile:profile);DispatchQueue.main.async{self.reply(id,["name":url.lastPathComponent,"profileName":profile.lastPathComponent])}}

@@ -84,5 +84,67 @@ func runCodexRuntimeBindingTests(root:URL)throws {
     try reject("deleted and relocated bundle marks binding broken"){try verify()}
     let relocated=try OracleCodexRuntimeBinding.prepare(bundle:moved,oracle:moved.appendingPathComponent("Contents/MacOS/Oracle"),adapter:moved.appendingPathComponent("Contents/Resources/engine/oracle-gbrain-read"),installationRoots:[applications],signature:{_ in "test_fixture"})
     try check(relocated["bundle"] as? String==moved.path,"explicit current relocated bundle accepted")
+    try runDesktopPluginRuntimeBindingTests(root:root.appendingPathComponent("desktop-plugin-tests"))
     print("PASS \(count) runtime binding checks")
+}
+
+func runDesktopPluginRuntimeBindingTests(root:URL)throws {
+    guard oracleRuntimeBindingTestContext(home:root) else{throw failure("Runtime do plugin exige perfil sintético isolado.")}
+    let manager=FileManager.default,cache=root.appendingPathComponent("cache/version-a/runtime/Oracle.app"),home=root.appendingPathComponent("profile")
+    try manager.createDirectory(at:home,withIntermediateDirectories:true)
+    try writeOracleRuntimeFixture(bundle:cache)
+    let expected=try OracleDesktopPluginRuntime.inventory(cache)
+    let signature:(URL)throws->String={_ in "test_fixture"}
+    let first=try OracleDesktopPluginRuntime.prepare(home:home,source:cache,expectedFiles:expected,signature:signature)
+    var pluginChecks=0
+    func check(_ condition:Bool,_ label:String)throws {guard condition else{throw failure("FAIL plugin runtime "+label)};pluginChecks+=1;print("PASS plugin runtime "+label)}
+    func reject(_ label:String,_ body:()throws->Void)throws {var refused=false;do{try body()}catch{refused=true};try check(refused,label)}
+    let executable=first["oracle"] as! String,adapter=first["adapter"] as! String
+    var events=[String:Any]();for name in OracleCodexRuntimeBinding.hookEvents {events[name]=[["hooks":[["type":"command","command":OracleCodexRuntimeBinding.hookCommand(executable:executable,state:home.path)]]]]}
+    let hooks:[String:Any]=["hooks":events]
+    func verifyFirst()throws {_=try OracleCodexRuntimeBinding.verify(binding:first,hooks:hooks,mcp:nil,state:home.path)}
+    try check(!executable.hasPrefix(root.appendingPathComponent("cache").path),"hooks use immutable owned generation")
+    try verifyFirst()
+    let relocated=root.appendingPathComponent("cache/version-relocated/runtime/Oracle.app")
+    try manager.createDirectory(at:relocated.deletingLastPathComponent(),withIntermediateDirectories:true)
+    try manager.moveItem(at:cache,to:relocated)
+    let same=try OracleDesktopPluginRuntime.prepare(home:home,source:relocated,expectedFiles:expected,signature:signature)
+    try check(same["oracle"] as? String==executable,"cache relocation reuses identical verified generation")
+    let copiedAdapter=URL(fileURLWithPath:adapter),before=try Data(contentsOf:copiedAdapter)
+    try manager.removeItem(at:relocated)
+    try verifyFirst();try check(try Data(contentsOf:copiedAdapter)==before,"cache deletion preserves hooks and adapter")
+    let next=root.appendingPathComponent("cache/version-b/runtime/Oracle.app")
+    try writeOracleRuntimeFixture(bundle:next)
+    try Data("#!/bin/sh\nexit 2\n".utf8).write(to:next.appendingPathComponent("Contents/MacOS/Oracle"))
+    let nextFiles=try OracleDesktopPluginRuntime.inventory(next)
+    let second=try OracleDesktopPluginRuntime.prepare(home:home,source:next,expectedFiles:nextFiles,signature:signature)
+    try check(second["oracle"] as? String != executable,"updated runtime creates separate immutable generation")
+    try verifyFirst();try check(manager.fileExists(atPath:executable),"old generation survives update for existing hooks/scheduler")
+    let current=home.appendingPathComponent("desktop-plugin-runtime/current.json")
+    try manager.removeItem(at:current)
+    let recovered=try OracleDesktopPluginRuntime.prepare(home:home,source:next,expectedFiles:nextFiles,signature:signature)
+    try check(recovered["oracle"] as? String==second["oracle"] as? String && manager.fileExists(atPath:current.path),"move-before-pointer interruption recovers verified generation")
+    let partial=home.appendingPathComponent("desktop-plugin-runtime/.stage-interrupted")
+    try manager.createDirectory(at:partial,withIntermediateDirectories:false)
+    _=try OracleDesktopPluginRuntime.prepare(home:home,source:next,expectedFiles:nextFiles,signature:signature)
+    try check(manager.fileExists(atPath:partial.path),"unowned interrupted staging is preserved")
+    try reject("inventory mismatch rejected"){_=try OracleDesktopPluginRuntime.prepare(home:home,source:next,expectedFiles:expected,signature:signature)}
+    try reject("signature failure preserves old generation"){_=try OracleDesktopPluginRuntime.prepare(home:home,source:next,expectedFiles:nextFiles,signature:{_ in throw failure("synthetic signature failure")})}
+    try Data("tampered".utf8).write(to:URL(fileURLWithPath:second["adapter"] as! String))
+    try reject("tampered owned generation is not overwritten"){_=try OracleDesktopPluginRuntime.prepare(home:home,source:next,expectedFiles:nextFiles,signature:signature)}
+    let foreign=root.appendingPathComponent("foreign-profile");try manager.createDirectory(at:foreign.appendingPathComponent("desktop-plugin-runtime"),withIntermediateDirectories:true)
+    try writeJSON(["owner":"other","schema_version":1,"home":foreign.path],foreign.appendingPathComponent("desktop-plugin-runtime/owner.json"))
+    try reject("foreign owner is preserved"){_=try OracleDesktopPluginRuntime.prepare(home:foreign,source:next,expectedFiles:nextFiles,signature:signature)}
+    let linked=next.appendingPathComponent("Contents/Resources/foreign-link")
+    try manager.createSymbolicLink(at:linked,withDestinationURL:home)
+    try reject("source symlink is rejected"){_=try OracleDesktopPluginRuntime.inventory(next)}
+    if let path=ProcessInfo.processInfo.environment["ORACLE_PLUGIN_RUNTIME_BENCHMARK_BUNDLE"] {
+        let bundle=URL(fileURLWithPath:path).standardizedFileURL
+        guard bundle.pathComponents.contains(".work"),bundle.pathExtension=="app" else{throw failure("Benchmark exige bundle local dentro de .work.")}
+        OracleCodexRuntimeBinding.invalidateCache()
+        let start=Date(),cold=try OracleDesktopPluginRuntime.inventory(bundle),middle=Date(),hot=try OracleDesktopPluginRuntime.inventory(bundle),end=Date()
+        try check(cold==hot,"cold/hot inventory fingerprint cache preserves exact hashes")
+        print("BENCHMARK plugin inventory files=\(cold.count) cold_ms=\(Int(middle.timeIntervalSince(start)*1000)) hot_ms=\(Int(end.timeIntervalSince(middle)*1000))")
+    }
+    print("PASS \(pluginChecks) desktop plugin immutable runtime relocation/update/recovery checks")
 }

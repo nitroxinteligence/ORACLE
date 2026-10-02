@@ -1,0 +1,101 @@
+#!/bin/sh
+set -eu
+case "$(/usr/bin/uname -s):$(/usr/bin/uname -m)" in Darwin:arm64) ;; *) echo 'Oracle System requer macOS Apple Silicon.' >&2; exit 1;; esac
+plugin_dir=$(CDPATH= cd -- "$(/usr/bin/dirname -- "$0")/.." && pwd -P)
+archive_sha='@ARCHIVE_SHA@'
+inventory_sha='@INVENTORY_SHA@'
+parts_sha='@PARTS_SHA@'
+archive_bytes='@ARCHIVE_BYTES@'
+part_count='@PART_COUNT@'
+file_count='@FILE_COUNT@'
+expanded_bytes='@EXPANDED_BYTES@'
+owner_uid=$(/usr/bin/id -u)
+user_home=${HOME:?HOME indisponível}
+store="$user_home/.codex/oracle-plugin-payloads"
+generation="$store/$archive_sha"
+stage=''
+lock_held=false
+fail() { echo "Oracle System: $*" >&2; exit 1; }
+check_dir() {
+  [ ! -L "$1" ] && [ -d "$1" ] || fail "Pasta ausente ou link simbólico: $1"
+  [ "$(/usr/bin/stat -f '%u' "$1")" = "$owner_uid" ] || fail 'Pasta não pertence ao usuário atual.'
+  mode=$(/usr/bin/stat -f '%Lp' "$1")
+  [ "$((0$mode & 022))" -eq 0 ] || fail 'Pasta de runtime permite escrita por terceiros.'
+}
+check_file() {
+  [ ! -L "$1" ] && [ -f "$1" ] || fail "Arquivo ausente ou link simbólico: $1"
+  [ "$(/usr/bin/stat -f '%u' "$1")" = "$owner_uid" ] && [ "$(/usr/bin/stat -f '%l' "$1")" -eq 1 ] || fail 'Arquivo fora da propriedade exclusiva do runtime.'
+}
+sha_file() { /usr/bin/shasum -a 256 "$1" | /usr/bin/awk '{print $1}'; }
+cleanup() {
+  if [ -n "$stage" ]; then case "$stage" in "$store"/.pending.*) /bin/rm -rf -- "$stage";; esac; fi
+  if [ "$lock_held" = true ]; then /bin/rmdir -- "$store/.assemble-$archive_sha.lock" 2>/dev/null || true; fi
+}
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+[ "$(CDPATH= cd -- "$user_home" && pwd -P)" = "$user_home" ] || fail 'HOME precisa ser um diretório canônico.'
+check_dir "$user_home"
+[ -e "$user_home/.codex" ] || /bin/mkdir -m 700 "$user_home/.codex" 2>/dev/null || check_dir "$user_home/.codex"
+check_dir "$user_home/.codex"
+[ -e "$store" ] || /bin/mkdir -m 700 "$store" 2>/dev/null || check_dir "$store"
+check_dir "$store"
+owner_file="$store/.owner"
+if [ ! -e "$owner_file" ]; then
+  owner_tmp=$(/usr/bin/mktemp "$store/.owner.XXXXXX")
+  /bin/chmod 600 "$owner_tmp"
+  /usr/bin/printf 'oracle-account-payload-store-v1:%s\n' "$owner_uid" > "$owner_tmp"
+  if /bin/ln "$owner_tmp" "$owner_file" 2>/dev/null; then /bin/rm "$owner_tmp"; else /bin/rm "$owner_tmp"; fi
+fi
+check_file "$owner_file"
+[ "$(/bin/cat "$owner_file")" = "oracle-account-payload-store-v1:$owner_uid" ] || fail 'Propriedade do armazenamento não confirmada.'
+# Every boot checks the outer indexes against pins, including cached reuse.
+check_file "$plugin_dir/payload/parts.sha256"
+check_file "$plugin_dir/payload/expanded.sha256"
+[ "$(sha_file "$plugin_dir/payload/parts.sha256")" = "$parts_sha" ] || fail 'Índice das partes foi alterado.'
+[ "$(sha_file "$plugin_dir/payload/expanded.sha256")" = "$inventory_sha" ] || fail 'Inventário completo foi alterado.'
+[ "$(/usr/bin/find "$plugin_dir/payload/parts" -type f | /usr/bin/wc -l | /usr/bin/tr -d ' ')" = "$part_count" ] || fail 'Quantidade de partes inválida.'
+[ -z "$(/usr/bin/find "$plugin_dir/payload" -type l -print)" ] || fail 'Payload contém link simbólico.'
+(cd "$plugin_dir/payload" && /usr/bin/shasum -a 256 -c parts.sha256 >/dev/null) || fail 'Uma parte do pacote foi alterada.'
+waited=0
+until /bin/mkdir -m 700 "$store/.assemble-$archive_sha.lock" 2>/dev/null; do
+  [ -e "$store/.assemble-$archive_sha.lock" ] || [ -L "$store/.assemble-$archive_sha.lock" ] || continue
+  check_dir "$store/.assemble-$archive_sha.lock"
+  waited=$((waited+1)); [ "$waited" -le 90 ] || fail 'Outra montagem ainda está em andamento. Confira o processo antes de tentar novamente.'
+  /bin/sleep 1
+done
+lock_held=true
+verify_generation() {
+  check_dir "$generation"
+  check_file "$generation/payload.zip"
+  check_file "$generation/.owner"
+  [ "$(/bin/cat "$generation/.owner")" = "oracle-account-payload-generation-v1:$owner_uid:$archive_sha" ] || fail 'Geração sem propriedade válida.'
+  [ "$(/usr/bin/stat -f '%z' "$generation/payload.zip")" = "$archive_bytes" ] && [ "$(sha_file "$generation/payload.zip")" = "$archive_sha" ] || fail 'Arquivo completo em cache foi alterado.'
+  check_dir "$generation/oracle-desktop"
+  [ -z "$(/usr/bin/find "$generation/oracle-desktop" ! -type f ! -type d -print)" ] || fail 'Runtime contém arquivo incompatível ou link simbólico.'
+  [ "$(/usr/bin/find "$generation/oracle-desktop" -type f | /usr/bin/wc -l | /usr/bin/tr -d ' ')" = "$file_count" ] || fail 'Inventário do runtime não corresponde ao pacote.'
+  (cd "$generation" && /usr/bin/shasum -a 256 -c "$plugin_dir/payload/expanded.sha256" >/dev/null) || fail 'Os arquivos extraídos foram alterados. A geração foi preservada para recuperação.'
+  /usr/bin/codesign --verify --deep --strict "$generation/oracle-desktop/runtime/Oracle.app" || fail 'A assinatura interna do runtime não passou na verificação.'
+}
+if [ -e "$generation" ] || [ -L "$generation" ]; then
+  verify_generation
+else
+  stage=$(/usr/bin/mktemp -d "$store/.pending.XXXXXX")
+  /bin/chmod 700 "$stage"
+  index=0
+  : > "$stage/payload.zip"
+  while [ "$index" -lt "$part_count" ]; do
+    part=$(/usr/bin/printf '%04d' "$index")
+    /bin/cat "$plugin_dir/payload/parts/$part.bin" >> "$stage/payload.zip"
+    index=$((index+1))
+  done
+  [ "$(/usr/bin/stat -f '%z' "$stage/payload.zip")" = "$archive_bytes" ] && [ "$(sha_file "$stage/payload.zip")" = "$archive_sha" ] || fail 'Reconstrução do arquivo completo não corresponde ao SHA publicado.'
+  /usr/bin/ditto -x -k "$stage/payload.zip" "$stage"
+  /usr/bin/printf 'oracle-account-payload-generation-v1:%s:%s\n' "$owner_uid" "$archive_sha" > "$stage/.owner"
+  # Verify before atomic promotion. The pinned archive was checked before extraction.
+  saved_generation=$generation; generation=$stage; verify_generation; generation=$saved_generation
+  [ ! -e "$generation" ] && [ ! -L "$generation" ] || fail 'A geração apareceu durante a montagem; nenhuma versão foi substituída.'
+  /bin/mv "$stage" "$generation"; stage=''
+fi
+/bin/rmdir -- "$store/.assemble-$archive_sha.lock"; lock_held=false
+trap - EXIT HUP INT TERM
+exec "$generation/oracle-desktop/runtime/bun" "$generation/oracle-desktop/server.mjs" "$@"

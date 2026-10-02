@@ -28,7 +28,9 @@ enum OracleCodexRuntimeBinding {
         guard try fingerprint(url)==stamp else {throw error("O runtime mudou durante a verificação. Tente novamente.")}
         let result=hash.finalize().map{String(format:"%02x",$0)}.joined()
         cacheLock.lock()
-        if hashCache.count>32 {hashCache.removeAll()}
+        // Full plugin generations include resource files. Fingerprints still check
+        // every lookup; bounded metadata avoids rehashing hundreds of MB on status.
+        if hashCache.count>30_000 {hashCache.removeAll()}
         hashCache[url.path]=(stamp,result);cacheLock.unlock()
         return result
     }
@@ -73,6 +75,7 @@ enum OracleCodexRuntimeBinding {
               let bundle=binding["bundle"] as? String,let oracle=binding["oracle"] as? String,let adapter=binding["adapter"] as? String,
               oracle==bundle+"/Contents/MacOS/Oracle",adapter==bundle+"/Contents/Resources/engine/oracle-gbrain-read" else {throw error("Vínculo de runtime ausente. Prepare novamente a ponte a partir do Oracle instalado em Aplicativos.")}
         guard classification=="test_fixture" || (!URL(fileURLWithPath:bundle).pathComponents.contains(".work") && !URL(fileURLWithPath:bundle).pathComponents.contains("AppTranslocation")) else {throw error("Runtime temporário não pode manter uma conexão durável.")}
+        if binding["plugin_generation"] != nil {try OracleDesktopPluginRuntime.verify(binding:binding,state:state)}
         try existing(URL(fileURLWithPath:bundle),directory:true)
         for (path,key,executable) in [(oracle,"oracle_sha256",true),(adapter,"adapter_sha256",true),(bundle+"/Contents/Resources/build-manifest.json","manifest_sha256",false),(bundle+"/Contents/Info.plist","info_sha256",false)] {
             let url=URL(fileURLWithPath:path);try existing(url,executable:executable)

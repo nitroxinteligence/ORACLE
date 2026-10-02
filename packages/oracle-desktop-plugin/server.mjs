@@ -11,23 +11,24 @@ const web=process.env.ORACLE_DESKTOP_WEB_ROOT || resolve(runtime,'Contents/Resou
 const resourceURI='ui://oracle/workspace';
 const mimeType='text/html;profile=mcp-app';
 const uiMeta={ui:{resourceUri:resourceURI,visibility:['app','model']},'openai/outputTemplate':resourceURI,'openai/ui':{entrypoints:[{type:'global'},{type:'thread'}]}};
-let native;let nextID=0;let inputEnded=false;let hostWritable=true;const pending=new Map();
+let native;let nextID=0;let inputEnded=false;let hostWritable=true;const pending=new Map();const hostRequests=new Map();
 function sendHost(value){if(hostWritable)process.stdout.write(JSON.stringify(value)+"\n");}
 process.stdout.on("error",error=>{hostWritable=false;if(error.code!=="EPIPE")process.stderr.write(error.message+"\n");});
-function nativeCall(method,params={}) {
+function forgetHostRequest(hostKey,id){if(!hostKey)return;const requests=hostRequests.get(hostKey);requests?.delete(id);if(requests?.size===0)hostRequests.delete(hostKey);}
+function nativeCall(method,params={},requestID) {
   if(inputEnded)throw new Error("O transporte foi encerrado antes de iniciar esta operação.");
   if(!native) {
     if(!existsSync(executable)) throw new Error('Runtime local do Oracle ausente. Reinstale o plugin completo.');
     const args=['--plugin-server'];if(process.env.ORACLE_DESKTOP_STATE) args.push('--state',process.env.ORACLE_DESKTOP_STATE);
     native=spawn(executable,args,{stdio:['pipe','pipe','inherit'],env:{...process.env,ORACLE_DESKTOP_PLUGIN_ROOT:root}});
     createInterface({input:native.stdout}).on('line',line=>{
-      try {const reply=JSON.parse(line);const request=pending.get(reply.id);if(!request)return;pending.delete(reply.id);clearTimeout(request.timer);reply.error?request.reject(new Error(reply.error)):request.resolve(reply.value);}catch(error){process.stderr.write(`Oracle: resposta inválida: ${error.message}\n`);}
+      try {const reply=JSON.parse(line);const request=pending.get(reply.id);if(!request)return;pending.delete(reply.id);forgetHostRequest(request.hostKey,reply.id);clearTimeout(request.timer);reply.error?request.reject(new Error(reply.error)):request.resolve(reply.value);}catch(error){process.stderr.write(`Oracle: resposta inválida: ${error.message}\n`);}
     });
-    const fail=error=>{native=null;for(const request of pending.values()){clearTimeout(request.timer);request.reject(error)};pending.clear();};
+    const fail=error=>{native=null;for(const request of pending.values()){clearTimeout(request.timer);request.reject(error)};pending.clear();hostRequests.clear();};
     native.stdin.on('error',fail);native.on('error',fail);native.on('exit',(code,signal)=>fail(new Error(`Runtime Oracle encerrado (${signal||code}).`)));
   }
   if(pending.size>=128)throw new Error('Limite de operações simultâneas atingido.');
-  return new Promise((resolve,reject)=>{const id=String(++nextID);const timer=setTimeout(()=>{pending.delete(id);reject(new Error('A operação Oracle não respondeu em 30 minutos. Confira seu estado antes de repetir a ação.'));},30*60*1000);timer.unref();pending.set(id,{resolve,reject,timer});native.stdin.write(JSON.stringify({id,method,params})+'\n',error=>{if(error){clearTimeout(timer);pending.delete(id);reject(error);}});});
+  return new Promise((resolve,reject)=>{const id=String(++nextID);const hostKey=requestID===undefined?null:JSON.stringify(requestID);if(hostKey){if(!hostRequests.has(hostKey))hostRequests.set(hostKey,new Set());hostRequests.get(hostKey).add(id);}const timer=setTimeout(()=>{pending.delete(id);forgetHostRequest(hostKey,id);reject(new Error('A operação Oracle não respondeu em 30 minutos. Confira seu estado antes de repetir a ação.'));},30*60*1000);timer.unref();pending.set(id,{resolve,reject,timer,hostKey});native.stdin.write(JSON.stringify({id,method,params})+'\n',error=>{if(error){clearTimeout(timer);pending.delete(id);forgetHostRequest(hostKey,id);reject(error);}});});
 }
 function localFile(path) {const file=resolve(web,path.split(/[?#]/)[0]);if(!file.startsWith(resolve(web)+sep))throw new Error('Recurso fora do pacote.');return file;}
 function dataURI(path) {
@@ -66,7 +67,7 @@ async function pluginUpdateStatus(force=false) {
   pluginUpdatePending=import('./update.mjs').then(module=>nativeCall('desktopPluginUpdateInfo',{}).then(info=>module.inspectPluginUpdate({pluginRoot:root,codexCommand:info.codexExecutable||undefined}))).catch(error=>({supported:false,available:false,message:error.message})).then(value=>{pluginUpdateCache={at:Date.now(),value};return value;}).finally(()=>{pluginUpdatePending=null;});
   return pluginUpdatePending;
 }
-async function dispatchNative(method,params) {
+async function dispatchNative(method,params,requestID) {
   if(method==='installOracleUpdate') {
     const admission=await nativeCall('desktopPluginUpdateAdmission',{});
     const module=await import('./update.mjs');
@@ -74,7 +75,7 @@ async function dispatchNative(method,params) {
     pluginUpdateCache=null;
     return value;
   }
-  const value=await nativeCall(method,params);
+  const value=await nativeCall(method,params,requestID);
   if(method!=='updateStatus'||!value||typeof value!=='object')return value;
   const update=await pluginUpdateStatus();
   const row={id:'oracle',channel:'desktop-plugin',pluginUpdate:true,status:update.available?'install_available':update.supported?'current':'not_checked',version:update.latestVersion||update.currentVersion,installedVersion:update.currentVersion,message:update.message};
@@ -87,12 +88,12 @@ async function dispatchNative(method,params) {
   return merged;
 }
 function result(value,meta={}) {return {content:[{type:'text',text:JSON.stringify(value)}],structuredContent:{value},_meta:meta};}
-async function request(method,params={}) {
+async function request(method,params={},requestID) {
   switch(method) {
     case 'initialize': return {protocolVersion:(['2026-01-26','2025-11-25','2025-06-18','2025-03-26','2024-11-05'].includes(params.protocolVersion)?params.protocolVersion:'2025-11-25'),capabilities:{tools:{},resources:{}},serverInfo:{name:'oracle-desktop',title:'Oracle System',version:'1.0.0'}};
     case 'ping':return {};
     case 'tools/list':return {tools:[
-      {name:'oracle_open',description:'Abrir o Oracle no Codex para explorar o vault, notas, skills e configuração local.',inputSchema:{type:'object',properties:{},additionalProperties:false},_meta:uiMeta},
+      {name:'oracle_open',title:'Oracle System',description:'Abrir o Oracle System no Codex para explorar o vault, notas, skills e configuração local.',inputSchema:{type:'object',properties:{},additionalProperties:false},_meta:uiMeta},
       {name:'oracle_dispatch',description:'Executar uma ação da interface Oracle usando o runtime local e seus gates de autorização.',inputSchema:{type:'object',properties:{method:{type:'string',maxLength:80},params:{type:'object'}},required:['method'],additionalProperties:false},_meta:{ui:{visibility:['app']}}}
     ]};
     case 'tools/call': {
@@ -101,7 +102,7 @@ async function request(method,params={}) {
         if(params.name!=='oracle_dispatch')throw new Error('Ferramenta desconhecida.');
         const input=params.arguments||{};
         if(typeof input.method!=='string'||input.method.length>80||input.params&&(typeof input.params!=='object'||Array.isArray(input.params)))throw new Error('Pedido Oracle inválido.');
-        return result(await dispatchNative(input.method,input.params||{}));
+        return result(await dispatchNative(input.method,input.params||{},requestID));
       }catch(error){return {content:[{type:'text',text:error.message}],isError:true};}
     }
     case 'resources/list':return {resources:[{uri:resourceURI,name:'Oracle System',mimeType,_meta:{ui:{prefersBorder:false}}}]};
@@ -112,8 +113,16 @@ async function request(method,params={}) {
 const input=createInterface({input:process.stdin,crlfDelay:Infinity});
 input.on('line',line=>{
   let message;try{if(Buffer.byteLength(line)>4_000_000)throw new Error('Pedido excede 4 MB.');message=JSON.parse(line);}catch(error){sendHost({jsonrpc:'2.0',id:null,error:{code:-32700,message:error.message}});return;}
-  if(message.id===undefined)return;
-  request(message.method,message.params).then(value=>sendHost({jsonrpc:'2.0',id:message.id,result:value}),error=>sendHost({jsonrpc:'2.0',id:message.id,error:{code:error.code||-32603,message:error.message}}));
+  if(message.id===undefined) {
+    if(message.method==='notifications/cancelled') {
+      const requests=hostRequests.get(JSON.stringify(message.params?.requestId));
+      for(const id of requests||[]) {
+        try{nativeCall('desktopPluginCancelRequest',{requestID:id}).catch(()=>{});}catch{}
+      }
+    }
+    return;
+  }
+  request(message.method,message.params,message.id).then(value=>sendHost({jsonrpc:'2.0',id:message.id,result:value}),error=>sendHost({jsonrpc:'2.0',id:message.id,error:{code:error.code||-32603,message:error.message}}));
 });
 function closeNativeInput(){if(inputEnded)return;inputEnded=true;native?.stdin.end();}
 input.on('close',closeNativeInput);

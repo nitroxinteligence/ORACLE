@@ -63,6 +63,7 @@ try:
     assert request('initialize', {'protocolVersion': 'unknown'})['protocolVersion'] == '2025-11-25'
     checks.append('initialize and protocol negotiation')
     tools = {tool['name']: tool for tool in request('tools/list')['tools']}
+    assert tools['oracle_open']['title'] == 'Oracle System'
     metadata = tools['oracle_open']['_meta']
     assert metadata['openai/ui']['entrypoints'] == [{'type': 'global'}, {'type': 'thread'}]
     assert tools['oracle_dispatch']['_meta']['ui']['visibility'] == ['app']

@@ -21,7 +21,7 @@ let validationState = Bundle.main.bundleIdentifier?.hasSuffix(".validation") == 
 let core = try Core(home: (argument("--state") ?? validationState).map { URL(fileURLWithPath:$0) })
 // A CLI is another entrypoint, not an authorization bypass. Test switches only
 // run their own synthetic suites, never a second mutating command in the same invocation.
-let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-update-admission","--self-test-update-channels","--self-test-backup","--self-test-maintenance","--self-test-maintenance-live","--self-test-distribution","--self-test-knowledge-interviews","--self-test-vault-backup","--self-test-ai-memory-export","--self-test-runtime-binding","--self-test-cache-retention","--self-test-oracle-router","--self-test-memory-command","--self-test-ai-memory-onboarding","--self-test-ai-memory-provisioning"]
+let testSwitches:Set<String>=["--self-test","--self-test-editor","--self-test-onboarding","--self-test-updates","--self-test-update-admission","--self-test-update-channels","--self-test-backup","--self-test-maintenance","--self-test-maintenance-live","--self-test-distribution","--self-test-knowledge-interviews","--self-test-vault-backup","--self-test-ai-memory-export","--self-test-runtime-binding","--self-test-cache-retention","--self-test-oracle-router","--self-test-memory-command","--self-test-ai-memory-onboarding","--self-test-ai-memory-provisioning","--self-test-desktop-plugin-export"]
 if arguments.contains(where:{$0.hasPrefix("--self-test") && !testSwitches.contains($0)}) {fputs("Teste solicitado desconhecido.\n",stderr);exit(2)}
 let mutatingSwitches:Set<String>=["--install-oracle-skill","--install-vault-skill","--prepare-bridge","--gbrain","--create-plan","--confirm-plan","--confirm-gbrain","--setup","--update","--sync-gbrain","--backup","--maintenance"]
 if arguments.contains("--self-test-distribution") {
@@ -107,6 +107,7 @@ if arguments.contains("--self-test-memory-command") {do{try runMemoryCommandTest
 if arguments.contains("--self-test-ai-memory-export") {do{let root=try oracleTestDirectory("ai-memory-export-tests");defer{try? fm.removeItem(at:root)};try runAIMemoryVaultExportTests(root:root);try runAIMemoryVaultExportCoreTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
 if arguments.contains("--self-test-ai-memory-onboarding") {do{let root=try oracleTestDirectory("ai-memory-onboarding-tests");defer{try? fm.removeItem(at:root)};try runAIMemoryOnboardingTests(root:root);exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
 if arguments.contains("--self-test-ai-memory-provisioning") {do{let root=try oracleTestDirectory("ai-memory-provisioning-tests");defer{try? fm.removeItem(at:root)};try runAIMemoryProvisioningTests(root:root);exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
+if arguments.contains("--self-test-desktop-plugin-export") {do{let root=try oracleTestDirectory("desktop-plugin-export-tests");defer{try? fm.removeItem(at:root)};try runDesktopPluginExportTests(root:root);exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
 if arguments.contains("--self-test-runtime-binding") {do{let root=try oracleTestDirectory("runtime-binding-tests");defer{try? fm.removeItem(at:root)};try runCodexRuntimeBindingTests(root:root);exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
 if arguments.contains("--self-test-cache-retention") {do{try runUpdateCacheRetentionTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
 if arguments.contains("--self-test-oracle-router") {do{try runOracleSkillPreflightTests();exit(0)}catch{fputs(error.localizedDescription+"\n",stderr);exit(1)}}
@@ -139,6 +140,8 @@ if let operation = argument("--update") {
 }
 
 final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSWindowDelegate {
+    var pluginExportPanels=[String:NSSavePanel]()
+    var pluginExports=[String:OracleDesktopPluginExportBuffer]()
     var pluginClosing=false
     var pluginAuthenticationContexts=[LAContext]()
     var pluginReply:((String,[String:Any])->Void)?
@@ -289,6 +292,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     }
     @objc func about() { let a = NSAlert(); a.messageText = "Oracle"; a.informativeText = OracleBuildIdentity.description(); addAlertBreadcrumb(a,"Oracle › Sobre o Oracle");a.addButton(withTitle:"Voltar");a.runModal() }
     @objc func lockApp() {
+        pluginExports.removeAll();Array(pluginExportPanels.values).forEach{$0.cancel(nil)}
         updateCoordinator.setAllowed(false)
         lockGeneration += 1;locked=true;core.memorySync.stop()
         localServices?.setPaused(true)
@@ -325,6 +329,9 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     func dispatchRequest(_ id:String,method:String,params p:[String:Any]) {
         guard !pluginClosing,id.count<=64,method.count<=80,requestMethods.count<128,requestMethods[id]==nil else {pluginReply?(id,["error":"Pedido inválido ou limite de operações atingido."]);return}
         requestMethods[id]=method
+        if method=="desktopPluginCancelRequest",pluginReply != nil {
+            reply(id,cancelDesktopPluginExport(requestID:p["requestID"] as? String ?? ""));return
+        }
         if method == "lock" { lockApp(); reply(id,true); return }
         if method == "boot" { reply(id,["locked":locked,"accessibility":["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]]); return }
         if method == "interfaceReady" {
@@ -355,6 +362,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         }
         let recoveryOnly=method=="updateStart" && ["rollback-gbrain","rollback-skills"].contains(p["operation"] as? String ?? "")
         if !hasAccess && !recoveryOnly && !["copy","openExternal","openCodex"].contains(method) {reply(id,nil,"Ative a licença deste Mac para continuar.");return}
+        if handleDesktopPluginExport(id,method:method,params:p) {return}
         if method=="chooseGBrain" {_ = handleOnboarding(id,method:"onboardingChooseBrain",params:p);return}
         if method=="chooseVault" {_ = handleOnboarding(id,method:"onboardingChooseVault",params:p);return}
         if method=="confirmGBrain" {_ = handleOnboarding(id,method:"onboardingConfirmIdentity",params:p);return}

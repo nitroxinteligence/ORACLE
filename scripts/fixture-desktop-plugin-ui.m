@@ -25,7 +25,12 @@
    [self.web evaluateJavaScript:[NSString stringWithFormat:@"window.__fixtureSnapshotDone(%@,%@)",[[NSString alloc] initWithData:[NSJSONSerialization dataWithJSONObject:@[name] options:0 error:nil] encoding:NSUTF8StringEncoding],saved?@"true":@"false"] completionHandler:nil];
   }];return;
  }
- if([body[@"type"] isEqual:@"export"]){NSData *png=[[NSData alloc] initWithBase64EncodedString:body[@"base64"] options:0];[png writeToFile:[self.scratch stringByAppendingPathComponent:@"exported.png"] atomically:NO];return;}
+ if([body[@"type"] isEqual:@"export"]){
+  NSData *png=[[NSData alloc] initWithBase64EncodedString:body[@"base64"] options:0];NSString *path=[self.scratch stringByAppendingPathComponent:@"exported.png"];
+  BOOL saved=png&&[png writeToFile:path atomically:YES];
+  NSData *json=[NSJSONSerialization dataWithJSONObject:@[saved?path:(id)[NSNull null]] options:0 error:nil];NSString *argument=[[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+  [self.web evaluateJavaScript:[NSString stringWithFormat:@"window.__fixtureExportDone(%@[0])",argument] completionHandler:nil];return;
+ }
  if([body[@"type"] isEqual:@"done"]){[self finish:body];return;}
  if([body[@"type"] isEqual:@"case"]){NSData *data=[NSJSONSerialization dataWithJSONObject:body options:0 error:nil];fwrite(data.bytes,1,data.length,stdout);fputc('\n',stdout);fflush(stdout);}
 }

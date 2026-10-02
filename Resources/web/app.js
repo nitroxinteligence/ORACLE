@@ -507,7 +507,7 @@ function settings(){
  $('#knowledge-settings').onclick=safe(()=>openKnowledgePrompts());
  $('#restart-setup').onclick=vaultSettings;
  $('#updates-settings').onclick=safe(()=>showUpdates(false));
- $('#export-view').onclick=safe(async()=>{await closeModal();const path=await call('exportSnapshot');if(path)toast(window.OraclePluginBridge?.active()?'Exportação da imagem iniciada.':'Imagem salva.')});
+ $('#export-view').onclick=safe(async()=>{await closeModal();const path=await call('exportSnapshot');if(path)toast('Imagem salva.')});
  $('#protect-settings').onclick=safe(async()=>{await call('protect');await refresh();settings();toast('Bloqueio ativado')});
  $('#revoke').onclick=()=>{modal(`<h1>Desconectar pastas?</h1><p>O Oracle deixará de acessar seus documentos. Os arquivos continuam no Obsidian e você pode conectar a pasta novamente.</p>${actions('<button class="secondary" id="revoke-cancel">Voltar</button><button class="primary" id="confirm-revoke">Desconectar</button>')}`);$('#revoke-cancel').onclick=settings;$('#confirm-revoke').onclick=safe(async()=>{await call('revoke');live();selected=null;selectedSkill=null;query='';await refresh();settings();toast('Pastas desconectadas.','success')})};
 }

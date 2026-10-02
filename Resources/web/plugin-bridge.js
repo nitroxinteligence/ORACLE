@@ -17,11 +17,12 @@
   function cancelPending(reason='Oracle bloqueado'){
    for(const [id,item] of pending){env.clearTimeout(item.timeout);pending.delete(id);if(!item.local)cancel(id,reason);item.reject(Error(reason));}
   }
-  function request(method,params={},milliseconds=timeoutMS){
+  function request(method,params={},milliseconds=timeoutMS,scope){
    if(disposed)return Promise.reject(Error('A interface do Oracle foi encerrada. Reabra o plugin.'));
    if(pending.size>=MAX_PENDING)return Promise.reject(Error('Há operações demais em andamento. Aguarde as respostas atuais.'));
    return new Promise((resolve,reject)=>{
-    const id='oracle-ui-'+(++sequence);
+    const id='oracle-ui-'+(++sequence);scope?.add(id);
+    const complete=fn=>value=>{scope?.delete(id);fn(value);};resolve=complete(resolve);reject=complete(reject);
     const timeout=env.setTimeout(()=>{pending.delete(id);cancel(id,'timeout');reject(Error('A operação não respondeu a tempo. Confira o estado antes de repetir.'));},milliseconds);
     pending.set(id,{resolve,reject,timeout});
     try{send({jsonrpc:'2.0',id,method,params});}catch(error){env.clearTimeout(timeout);pending.delete(id);reject(error);}
@@ -51,7 +52,7 @@
   }
   async function exportSnapshot(stillActive){
    const original=env.document.querySelector('#app');
-   if(!original||!env.Image||!env.URL?.createObjectURL)throw Error('A imagem da interface ainda não está disponível para exportar neste host.');
+   if(!original||!env.Image)throw Error('A imagem da interface ainda não está disponível para exportar neste host.');
    const rasterLayers=[],copy=original.cloneNode(true),sourceNodes=[original,...original.querySelectorAll('*')],copyNodes=[copy,...copy.querySelectorAll('*')];
    // Capture the complete visible interface, as the native WKWebView snapshot
    // does. Keep styles local and preserve the existing PNG export contract.
@@ -85,25 +86,53 @@
    try{context.drawImage(image,0,0,canvas.width,canvas.height);for(const {bitmap,node} of rasterLayers){const bounds=node.getBoundingClientRect(),fit=Math.min(bounds.width/bitmap.width,bounds.height/bitmap.height),w=bitmap.width*fit,h=bitmap.height*fit;context.drawImage(bitmap,(bounds.left+(bounds.width-w)/2)*scale,(bounds.top+(bounds.height-h)/2)*scale,w*scale,h*scale);}blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));}catch{throw Error('Este host não permite capturar a interface como PNG. Exporte pelo aplicativo macOS.');}
    if(!blob)throw Error('Não foi possível gerar a imagem PNG.');
    if(!stillActive())throw Error('Exportação cancelada.');
-   const url=env.URL.createObjectURL(blob),link=env.document.createElement('a');link.href=url;link.download='Oracle-universo.png';
-   env.document.body.append(link);try{link.click();}finally{link.remove();env.setTimeout(()=>env.URL.revokeObjectURL(url),1000);}
-   return 'Oracle-universo.png';
+   return blob;
   }
+  function dispatch(method,params={},scope){
+   return request('tools/call',{name:'oracle_dispatch',arguments:{method,params}},slowMethods.has(method)?Math.max(timeoutMS,120000):timeoutMS,scope).then(unwrap);
+  }
+  async function saveSnapshot(stillActive,scope){
+   let exportID;
+   const check=()=>{if(!stillActive())throw Error('Exportação cancelada.');};
+   try{
+    check();const receipt=await dispatch('exportSnapshotBegin',{},scope);
+    if(typeof receipt?.exportID!=='string'||!receipt.exportID)throw Error('Não foi possível iniciar a exportação.');
+    exportID=receipt.exportID;check();
+    const blob=await exportSnapshot(stillActive);
+    if(blob.size>32*1024*1024)throw Error('A imagem excede o limite de exportação de 32 MiB.');
+    const bytes=new Uint8Array(await blob.arrayBuffer());check();
+    for(let offset=0,index=0;offset<bytes.length;offset+=256*1024,index++){
+     check();let binary='';for(const byte of bytes.subarray(offset,offset+256*1024))binary+=String.fromCharCode(byte);
+     const accepted=await dispatch('exportSnapshotChunk',{exportID,index,base64:env.btoa(binary)},scope);
+     if(accepted?.accepted!==true)throw Error('O Oracle não confirmou o recebimento da imagem.');
+    }
+    check();const path=await dispatch('exportSnapshot',{exportID},scope);check();
+    if(path!==null&&(typeof path!=='string'||!path.startsWith('/')))throw Error('O Oracle não confirmou a gravação da imagem.');
+    exportID=null;return path;
+   }finally{
+    // Failed transfers never claim a saved file. The backend also expires
+    // orphaned buffers when the frame vanishes before cleanup can be sent.
+    if(exportID&&!disposed)void dispatch('exportSnapshotDiscard',{exportID}).catch(()=>{});
+   }
+  }
+
   function runExport(){
    if(pending.size>=MAX_PENDING)return Promise.reject(Error('Há operações demais em andamento. Aguarde as respostas atuais.'));
    return new Promise((resolve,reject)=>{
-    const id='oracle-local-'+(++sequence),timeout=env.setTimeout(()=>{pending.delete(id);reject(Error('A exportação da imagem não respondeu a tempo.'));},timeoutMS);
-    pending.set(id,{resolve,reject,timeout,local:true});
+    const scope=new Set(),id='oracle-local-'+(++sequence);
+    const abort=()=>{for(const requestID of scope){const item=pending.get(requestID);if(!item)continue;pending.delete(requestID);env.clearTimeout(item.timeout);cancel(requestID,'Exportação cancelada');item.reject(Error('Exportação cancelada.'));}};
+    const timeout=env.setTimeout(()=>{pending.delete(id);abort();reject(Error('A exportação da imagem não respondeu a tempo.'));},timeoutMS);
+    pending.set(id,{resolve,reject:error=>{abort();reject(error);},timeout,local:true});
     const finish=(error,value)=>{const item=pending.get(id);if(!item)return;pending.delete(id);env.clearTimeout(timeout);error?reject(error):resolve(value);};
-    exportSnapshot(()=>pending.has(id)&&!disposed).then(value=>finish(null,value),error=>finish(error));
+    saveSnapshot(()=>pending.has(id)&&!disposed,scope).then(value=>finish(null,value),error=>finish(error));
    });
   }
   async function call(method,params={}){
    await ready();
    if(disposed)throw Error('A interface do Oracle foi encerrada. Reabra o plugin.');
-   if(method==='exportSnapshot')return runExport();
    if(!capabilities.serverTools)throw Error('Este host não disponibiliza as ferramentas do Oracle para a interface.');
-   return unwrap(await request('tools/call',{name:'oracle_dispatch',arguments:{method,params}},slowMethods.has(method)?Math.max(timeoutMS,120000):timeoutMS));
+   if(method==='exportSnapshot')return runExport();
+   return dispatch(method,params);
   }
   async function requestDisplayMode(mode){
    await ready();

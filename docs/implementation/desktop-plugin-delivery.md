@@ -77,3 +77,22 @@ O módulo guarda uma cópia completa do plugin em execução e o catálogo anter
 Não há uma fonte remota assinada do plugin completo configurada nesta entrega. `refreshMarketplace: true` é recusado explicitamente. Isso é uma limitação real da atualização remota; um repositório com apenas o servidor JavaScript não substitui o bundle e o runtime que precisam ser distribuídos. O comando de atualização de marketplaces do CLI se aplica a fontes Git e recusa o marketplace pessoal local.
 
 A pesquisa do CLI 0.157.1 em perfil sintético confirmou que `plugin list --json` mantém a versão instalada antiga e não expõe automaticamente a nova versão do manifesto da fonte; `plugin add` instalou a versão nova em outro diretório de cache. Recibos em `.work/desktop-plugin-cli-isolation/plugin-update-list.json` e `plugin-reinstall.json`. Os oito testes de atualização usam pacotes sintéticos e um runner substituto para os comandos externos; cobrem o contrato, integridade, backup, recusa de assinatura, emissor release diferente e procedência divergente, sem instalar no perfil pessoal.
+
+## Container para transporte pela conta
+
+O envio do ZIP completo ao Plugin Creator encontrou o limite por membro no binário GBrain. `scripts/package-plugin-account.py` resolve somente o transporte: conserva o ZIP original completo, inclusive runtime, recursos, notices e recibos, em partes opacas de até 4 MiB. O ZIP externo mantém os manifestos, skills e ícones; seu launcher usa apenas utilitários fornecidos pelo macOS para reconstruir o pacote. Não exige Node, Python, Bun ou CLI instalados separadamente no computador cliente.
+
+```sh
+python3 scripts/package-plugin-account.py \
+  --archive .work/distribution/<entrega>/Oracle-System-0.3.21-macos-arm64.zip \
+  --expected-sha256 <SHA-256-verificado-do-ZIP-completo> \
+  --output .work/distribution/<container>/oracle-desktop \
+  --outer-archive .work/distribution/<container>/Oracle-System-account-macos-arm64.zip
+python3 scripts/test-plugin-account.py
+```
+
+A procedência do payload continua sendo o commit, sourceHash, assinatura e inventário do pacote original. A geração externa tem identidade própria em `account-transport.json`, com SHA do ZIP original, partes, expansão e commit do bundle. Seu empacotamento não modifica nem recompila o payload. Um ensaio antigo não substitui o pacote funcional final nem demonstra publicação ou instalação pela conta.
+
+O launcher verifica os índices fixados, a contagem e hashes das partes e o SHA do ZIP antes de extrair. Usa `~/.codex/oracle-plugin-payloads/<SHA>/oracle-desktop`, fora do cache do host, com propriedade do usuário, lock de montagem e promoção da geração completa. Toda inicialização, inclusive reuso, verifica novamente o ZIP completo, o conjunto exato de arquivos extraídos, seus hashes e `codesign --verify --deep --strict`. Recusa links simbólicos e preserva gerações adulteradas para recuperação, sem sobrescrever ou apagar versões anteriores. Não baixa dependências, remove quarentena, altera confiança de hooks ou contorna Gatekeeper. Assinatura ad hoc permanece ad hoc; a assinatura nativa não autentica o JavaScript externo, cuja integridade fica vinculada ao SHA fixado no launcher entregue pela conta.
+
+Os sete testes isolados usam um bundle nativo sintético realmente assinado ad hoc. Exercitam montagem e reuso byte a byte, concorrência, rejeição de parte/ZIP/arquivo adulterado, armazenamento por symlink e caminho inseguro no ZIP. Não substituem o teste do pacote real pela conta. O mapa do pacote pessoal `839fe4a` abriu dentro do Codex, confirmado pelo usuário em `.work/desktop-plugin-host-confirmation.json`; essa confirmação cobre o mapa, sem comprovar todos os fluxos ou instalação pelo Plugin Creator.

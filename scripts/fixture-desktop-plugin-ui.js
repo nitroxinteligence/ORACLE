@@ -8,7 +8,7 @@
  }
  const resource=__RESOURCE_JSON__;
  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
- const cases=[],messages=[],errors=[],unexpectedCalls=[],drafts=new Map(),teardownReplies=new Map();let exported=null,started=false,initialized=false,hostLocked=false,failDraft=false,lockedWrites=0;
+ const cases=[],messages=[],errors=[],unexpectedCalls=[],drafts=new Map(),teardownReplies=new Map();let exportChunks=[],exportSaved=false,exportFinalPending=false,exportSaveResolve;let exported=null,started=false,initialized=false,hostLocked=false,failDraft=false,lockedWrites=0;
  const report=value=>webkit.messageHandlers.fixture.postMessage(value);
  const check=(name,pass,detail={})=>{const item={name,pass:!!pass,...detail};cases.push(item);report({type:'case',...item});};
  const wait=async(fn,label,ms=7000)=>{const until=performance.now()+ms;while(performance.now()<until){if(fn())return;await sleep(30);}throw Error('Timed out: '+label);};
@@ -18,7 +18,12 @@
  const onboarding={schemaVersion:2,licensed:true,legacyAccess:true,status:'completed',resumeExisting:true,profileMode:'memory-only',hasVault:true,hasExistingBrain:true,runID:'synthetic-completed',completed:2,total:2,codexConnected:false,confirmed:[],models:[],knowledgeWelcome:{runID:'synthetic-completed',vault:'/synthetic/vault'}};
  const memory={state:'current',generation:1,indexedGeneration:1,indexing:false,lastScanAt:1};
  const snapshot={config:{vault:'/synthetic/vault',fixture:true,layout:{nodes:{},leaves:{}},libraryRoots:{skills:'SISTEMA/skills',tutorial:'SISTEMA/Tutoriais',prompt:'SISTEMA/prompts'},visualPreferences:{reduceMotion:true}},entries,collections:[{id:'code',name:'Code',icon:'code'},{id:'marketing',name:'Marketing',icon:'chart'}],events:[],projects:[],onboarding,memorySync:memory,scan:{pending:false,complete:true,at:1,signature:'synthetic'},operations:{setup:false,gbrain:false},setup:{plan_id:'synthetic-completed'},setupBaselinePaths:files,codexPlugins:{status:'unavailable',plugins:[]},gbrainSync:{status:'verified'},build:{version:'synthetic',channel:'fixture',commit:'fixture',buildID:'fixture'}};
+ window.__fixtureExportDone=(path)=>{exportSaveResolve?.(path);exportSaveResolve=null;};
  const value=(method,params)=>{
+  if(method==='exportSnapshotBegin'){if(hostLocked)throw Error('Oracle bloqueado');exportChunks=[];return {exportID:'synthetic-export'};}
+  if(method==='exportSnapshotChunk'){if(hostLocked)throw Error('Oracle bloqueado');if(params.exportID!=='synthetic-export'||params.index!==exportChunks.length)throw Error('Invalid chunk');exportChunks.push(params.base64);return {accepted:true};}
+  if(method==='exportSnapshotDiscard'){exportChunks=[];return {discarded:true};}
+  if(method==='exportSnapshot'){if(hostLocked)throw Error('Oracle bloqueado');exportFinalPending=true;return new Promise(resolve=>{exportSaveResolve=path=>{exportSaved=!!path;exportFinalPending=false;resolve(path);};const binary=exportChunks.map(part=>atob(part)).join('');report({type:'export',base64:btoa(binary)});});}
   if(method==='boot')return {locked:hostLocked,accessibility:{reduceMotion:true,reduceTransparency:false}};
   if(method==='snapshot')return snapshot;
   if(method==='onboardingStatus')return onboarding;
@@ -36,7 +41,7 @@
  const snapshots=new Map();
  window.__fixtureSnapshotDone=(names,saved)=>{snapshots.get(names[0])?.(saved);snapshots.delete(names[0]);};
  const capture=name=>new Promise(resolve=>{snapshots.set(name,resolve);report({type:'snapshot',name});});
- window.addEventListener('message',event=>{
+ window.addEventListener('message',async event=>{
   const frame=document.querySelector('#oracle');if(event.source!==frame?.contentWindow)return;
   const message=event.data;
   if(message?.fixture==='error'){errors.push(message.message);return;}
@@ -47,7 +52,7 @@
   if(message.method==='ui/initialize'){send({protocolVersion:'2026-01-26',hostCapabilities:{serverTools:{}},hostInfo:{name:'Synthetic isolated WKWebView host',version:'1'},hostContext:{displayMode:'fullscreen',availableDisplayModes:['inline','fullscreen'],containerDimensions:{width:1280,height:820}}});return;}
   if(message.method==='ui/notifications/initialized'){initialized=true;return;}
   if(message.method==='tools/call'){
-   try{if(!initialized)throw Error('Dispatch before initialized');if(message.params?.name!=='oracle_dispatch')throw Error('Unexpected tool');const {method,params={}}=message.params.arguments;send({structuredContent:{value:value(method,params)},content:[]});}catch(error){send({isError:true,content:[{type:'text',text:error.message}]});}return;
+   try{if(!initialized)throw Error('Dispatch before initialized');if(message.params?.name!=='oracle_dispatch')throw Error('Unexpected tool');const {method,params={}}=message.params.arguments;send({structuredContent:{value:await value(method,params)},content:[]});}catch(error){send({isError:true,content:[{type:'text',text:error.message}]});}return;
   }
   if(message.method==='ui/request-display-mode'){send({mode:message.params.mode});return;}
  });
@@ -68,7 +73,7 @@
      if(blob&&type==='image/png'){
       let metrics;
       try{const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;let nonempty=0;const colors=new Set();for(let i=0;i<pixels.length;i+=16){if(pixels[i+3])nonempty++;colors.add([pixels[i],pixels[i+1],pixels[i+2]].join(','));}const bounds=q('.metallic-symbol').getBoundingClientRect(),scale=canvas.width/child.innerWidth,brand=canvas.getContext('2d').getImageData(Math.round(bounds.x*scale),Math.round(bounds.y*scale),Math.round(bounds.width*scale),Math.round(bounds.height*scale)).data;let brandPixels=0;for(let n=0;n<brand.length;n+=4)if(Math.max(brand[n],brand[n+1],brand[n+2])>80)brandPixels++;metrics={width:canvas.width,height:canvas.height,nonempty,sampleColors:colors.size,brandPixels,mime:blob.type,bytes:blob.size};}catch(error){metrics={error:error.message};}
-      const reader=new FileReader();reader.onload=()=>{exported=metrics;report({type:'export',base64:reader.result.split(',')[1]});};reader.readAsDataURL(blob);
+      exported=metrics;
      }
      callback(blob);
     },type,...args);
@@ -100,6 +105,8 @@
    exportAction.click();await sleep(250);check('original export action receives click',exportClicked,{modalOpen:q('#modal').open,toast:q('#toast')?.textContent});await wait(()=>exported||exportFailure,'actual PNG result or explicit failure',20000).catch(error=>{throw Error(error.message+'; dispatched='+exportDispatched+'; toast='+q('#toast')?.textContent);});
    check('real canvas exported PNG with nonempty varied pixels',exported?.mime==='image/png'&&exported.bytes>1000&&exported.nonempty>1000&&exported.sampleColors>5,{exported,exportFailure,exportDispatched,visibleError:q('#toast')?.textContent});
 
+   await wait(()=>exportSaved||exportFailure,'confirmed isolated native write',20000);
+   check('export confirms success only after real isolated file persistence',exportSaved&&q('#toast')?.textContent==='Imagem salva.'&&!exportFinalPending,{chunks:exportChunks.length,toast:q('#toast')?.textContent});
    check('exported PNG preserves the original header planet',exported?.brandPixels>100,{brandPixels:exported?.brandPixels});
    // Reproduce the sub-450ms draft race, with storage denied while locked.
    await child.openNote('WIKI/Nota sintética.md');q('#edit-note').click();await wait(()=>q('#editor'),'editor before external lock');

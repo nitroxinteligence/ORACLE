@@ -61,6 +61,7 @@ enum OracleDesktopPluginServer {
     static func beginShutdown(app:App) {
         guard !app.pluginClosing else{return}
         app.pluginClosing=true
+        app.pluginExports.removeAll();Array(app.pluginExportPanels.values).forEach{$0.cancel(nil)}
         app.lockGeneration+=1
         app.pluginAuthenticationContexts.forEach{$0.invalidate()};app.pluginAuthenticationContexts.removeAll()
         if NSApp.modalWindow != nil {NSApp.abortModal()}

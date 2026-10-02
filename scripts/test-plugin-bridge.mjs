@@ -82,18 +82,59 @@ test('initialization timeout and unsupported protocol prevent dispatch',async()=
  const h=harness();const p=h.bridge.call('boot');const rejected=assert.rejects(p,/não respondeu/);for(const {fn} of [...h.timers.values()])fn();await rejected;assert.equal(h.messages.some(r=>r.message.method==='tools/call'),false);h.bridge.dispose();
  const b=harness();const q=b.bridge.ready();b.reply(b.messages.at(-1).message,{protocolVersion:'unsupported'});await assert.rejects(q,/versão/);b.bridge.dispose();
 });
-test('export captures complete interface as PNG without backend dispatch',async()=>{
- const h=harness();await h.initialize();let clicked=false,removed=false,captured='',pngType='';
+function captureFixture(h){
+ let captured='',pngType='',captures=0;
  const copy={style:{setProperty(){}},querySelectorAll(){return [];},setAttribute(){}};
  const original={cloneNode(){return copy;},querySelectorAll(){return [];}};
- h.env.document.querySelector=selector=>selector==='#app'?original:null;h.env.document.body={append(){}};
- h.env.document.createElement=type=>type==='canvas'?{getContext(){return {fillRect(){},drawImage(){}};},toBlob(callback,mime){pngType=mime;callback(new Blob(['synthetic'],{type:mime}));}}:{click(){clicked=true;},remove(){removed=true;}};
+ h.env.document.querySelector=selector=>selector==='#app'?original:null;h.env.document.body={};
+ h.env.document.createElement=type=>{assert.equal(type,'canvas');return {getContext(){return {fillRect(){},drawImage(){}};},toBlob(callback,mime){captures++;pngType=mime;callback(new Blob(['synthetic PNG bytes'],{type:mime}));}};};
  h.env.getComputedStyle=()=>({length:0,backgroundColor:'#000'});h.env.HTMLInputElement=class {};
  h.env.XMLSerializer=class{serializeToString(){return '<div id="app"/>';}};
  h.env.Image=class{set src(value){captured=decodeURIComponent(value);this.onload();}};
- h.env.URL={createObjectURL(){return 'blob:synthetic';},revokeObjectURL(){}};
- const before=h.messages.length;assert.equal(await h.bridge.call('exportSnapshot'),'Oracle-universo.png');
- assert.equal(h.messages.length,before);assert.equal(pngType,'image/png');assert.ok(captured.includes('foreignObject')&&captured.includes('id="app"'));assert.ok(clicked&&removed);h.bridge.dispose();
+ h.env.btoa=value=>Buffer.from(value,'binary').toString('base64');
+ return {get captures(){return captures;},get captured(){return captured;},get pngType(){return pngType;}};
+}
+function respondExports(h,responder){
+ const post=h.env.parent.postMessage;
+ h.env.parent.postMessage=(message,origin)=>{post(message,origin);if(message.method==='tools/call')queueMicrotask(()=>{const {method,params}=message.params.arguments;try{h.reply(message,{structuredContent:{value:responder(method,params)}});}catch(error){h.reply(message,{isError:true,content:[{type:'text',text:error.message}]});}});};
+}
+test('export gates before raster and confirms only the native persisted path',async()=>{
+ const h=harness();await h.initialize();const capture=captureFixture(h),methods=[];let saved;
+ respondExports(h,(method,params)=>{methods.push(method);if(method==='exportSnapshotBegin'){assert.equal(capture.captures,0);return {exportID:'test-export'};}if(method==='exportSnapshotChunk'){assert.equal(params.exportID,'test-export');assert.equal(params.index,0);assert.equal(Buffer.from(params.base64,'base64').toString(),'synthetic PNG bytes');return {accepted:true};}if(method==='exportSnapshot'){assert.equal(capture.captures,1);return '/isolated/unused.png';}throw Error('Unexpected method');});
+ // Delay final save reply to verify no success is fabricated after PNG creation.
+ const post=h.env.parent.postMessage;h.env.parent.postMessage=(message,origin)=>{if(message.params?.arguments?.method==='exportSnapshot'){saved=message;h.messages.push({message,origin});}else post(message,origin);};
+ let resolved=false;const result=h.bridge.call('exportSnapshot').then(value=>{resolved=true;return value;});
+ for(let n=0;n<30&&!saved;n++)await new Promise(resolve=>setImmediate(resolve));
+ assert.ok(saved);assert.equal(resolved,false);h.reply(saved,{structuredContent:{value:'/isolated/Oracle-universo.png'}});
+ assert.equal(await result,'/isolated/Oracle-universo.png');assert.equal(capture.pngType,'image/png');assert.ok(capture.captured.includes('foreignObject')&&capture.captured.includes('id="app"'));assert.equal(h.timers.size,0);h.bridge.dispose();
+});
+test('export capability and native licence refusal prevent raster',async()=>{
+ const unavailable=harness();await unavailable.initialize({});const capture=captureFixture(unavailable);await assert.rejects(unavailable.bridge.call('exportSnapshot'),/não disponibiliza/);assert.equal(capture.captures,0);unavailable.bridge.dispose();
+ const h=harness();await h.initialize();const refused=captureFixture(h);respondExports(h,()=>{throw Error('Ative a licença');});await assert.rejects(h.bridge.call('exportSnapshot'),/licença/);assert.equal(refused.captures,0);h.bridge.dispose();
+});
+test('native chooser cancellation is null and failed write is never successful',async()=>{
+ for(const outcome of [null,'failure','invalid']){
+  const h=harness();await h.initialize();captureFixture(h);const methods=[];
+  respondExports(h,method=>{methods.push(method);if(method==='exportSnapshotBegin')return {exportID:'export'};if(method==='exportSnapshotChunk')return {accepted:true};if(method==='exportSnapshotDiscard')return {discarded:true};if(outcome==='failure')throw Error('Gravação recusada');return outcome==='invalid'?true:null;});
+  if(outcome===null)assert.equal(await h.bridge.call('exportSnapshot'),null);else await assert.rejects(h.bridge.call('exportSnapshot'),outcome==='failure'?/Gravação recusada/:/não confirmou a gravação/);
+  await tick();assert.equal(methods.includes('exportSnapshotDiscard'),outcome!==null);h.bridge.dispose();
+ }
+});
+test('unconfirmed chunk stops before chooser and discards its buffer',async()=>{
+ const h=harness();await h.initialize();captureFixture(h);const methods=[];
+ respondExports(h,method=>{methods.push(method);return method==='exportSnapshotBegin'?{exportID:'export'}:{};});
+ await assert.rejects(h.bridge.call('exportSnapshot'),/não confirmou o recebimento/);await tick();assert.equal(methods.includes('exportSnapshot'),false);assert.ok(methods.includes('exportSnapshotDiscard'));h.bridge.dispose();
+});
+test('export timeout cancels a pending native chooser and discards without late success',async()=>{
+ const h=harness();await h.initialize();captureFixture(h);let chooser;
+ respondExports(h,method=>method==='exportSnapshotBegin'?{exportID:'export'}:{accepted:true});
+ const post=h.env.parent.postMessage;h.env.parent.postMessage=(message,origin)=>{if(message.params?.arguments?.method==='exportSnapshot'){chooser=message;h.messages.push({message,origin});}else post(message,origin);};
+ const result=h.bridge.call('exportSnapshot');const rejected=assert.rejects(result,/não respondeu/);
+ for(let n=0;n<30&&!chooser;n++)await new Promise(resolve=>setImmediate(resolve));assert.ok(chooser);
+ const localTimer=[...h.timers.values()][0];localTimer.fn();await rejected;await tick();
+ assert.ok(h.messages.some(r=>r.message.method==='notifications/cancelled'&&r.message.params.requestId===chooser.id));
+ assert.ok(h.messages.some(r=>r.message.params?.arguments?.method==='exportSnapshotDiscard'));
+ h.reply(chooser,{structuredContent:{value:'/isolated/late.png'}});h.bridge.dispose();
 });
 test('full UI loads transport before app and preserves active SVG renderer',()=>{
  const html=readFileSync(new URL('../Resources/web/index.html',import.meta.url),'utf8');

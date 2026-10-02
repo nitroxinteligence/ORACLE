@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "oracle-desktop",
-  "version": "0.3.21",
+  "version": "0.3.22",
   "description": "Sistema de trabalho com inteligência artificial e conhecimento local do Obsidian, com interface Oracle dentro do Codex.",
   "author": {
     "name": "Mateus M"

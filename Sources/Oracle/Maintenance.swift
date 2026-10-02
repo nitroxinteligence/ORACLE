@@ -95,7 +95,8 @@ extension Core {
     }
 
     private func maintenanceScheduleInstructions(_ settings:[String:Any]) throws -> String {
-        let args=[Bundle.main.executableURL!.path,"--state",home.path,"--maintenance","run"]
+        let executable=try desktopPluginRuntimeBinding()?["oracle"] as? String ?? Bundle.main.executableURL!.path
+        let args=[executable,"--state",home.path,"--maintenance","run"]
         let command=String(decoding:try jsonData(args),as:UTF8.self)
         return """
         Configure a manutenção diária do Oracle neste Codex Desktop. O consentimento já foi registrado no onboarding; não o solicite novamente. A revisão e a confiança dos hooks continuam a cargo do usuário no Codex.

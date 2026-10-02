@@ -54,6 +54,8 @@ final class MemorySyncCoordinator {
         scanQueue.async { [weak self] in self?.stopWatcher() }
     }
 
+    func stopAndDrain(_ completion:@escaping()->Void) {stop();scanQueue.async{completion()}}
+
     func invalidate(reason:String) {
         locked {
             // Discard the in-flight generation, but notifications alone are not

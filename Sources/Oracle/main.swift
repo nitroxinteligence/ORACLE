@@ -139,6 +139,9 @@ if let operation = argument("--update") {
 }
 
 final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavigationDelegate, NSWindowDelegate {
+    var pluginClosing=false
+    var pluginAuthenticationContexts=[LAContext]()
+    var pluginReply:((String,[String:Any])->Void)?
     var onboardingController:OnboardingController?
     var localServices:OracleLocalServices?
     var window: NSWindow!
@@ -224,7 +227,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         guard notification.userInfo?["home"] as? String==core.home.path else{return}
         DispatchQueue.main.async { [weak self] in
             guard let self,!self.locked else{return}
-            self.web.evaluateJavaScript("window.oracleVaultSnapshotChanged?.()",completionHandler:nil)
+            self.web?.evaluateJavaScript("window.oracleVaultSnapshotChanged?.()",completionHandler:nil)
         }
     }
     func windowDidMiniaturize(_ notification:Notification) { web.evaluateJavaScript("window.oracleVisibility?.(false)",completionHandler:nil) }
@@ -232,7 +235,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     func windowDidChangeOcclusionState(_ notification:Notification) { web.evaluateJavaScript("window.oracleVisibility?.(\(window.occlusionState.contains(.visible) ? "true" : "false"))",completionHandler:nil) }
     @objc func accessibilityChanged() {
         let value:[String:Any]=["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]
-        if let data=try? jsonData(value) {web.evaluateJavaScript("window.oracleAccessibility?.(\(String(decoding:data,as:UTF8.self)))",completionHandler:nil)}
+        if let data=try? jsonData(value) {web?.evaluateJavaScript("window.oracleAccessibility?.(\(String(decoding:data,as:UTF8.self)))",completionHandler:nil)}
     }
     func applicationShouldTerminate(_ sender:NSApplication)->NSApplication.TerminateReply {
         guard web != nil else {return .terminateNow}
@@ -301,22 +304,27 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     }
     func authenticate(_ completion:@escaping(Bool,String?)->Void) {
         let generation=lockGeneration
-        let context = LAContext(); var error:NSError?
+        let context = LAContext();if pluginReply != nil {pluginAuthenticationContexts.append(context)}; var error:NSError?
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication,error:&error) else { completion(false,error?.localizedDescription ?? "Autenticação indisponível"); return }
-        context.evaluatePolicy(.deviceOwnerAuthentication,localizedReason:"Abrir seu universo no Oracle") { success,error in DispatchQueue.main.async { completion(success && generation==self.lockGeneration,generation==self.lockGeneration ? error?.localizedDescription : "Autenticação cancelada após bloqueio") } }
+        context.evaluatePolicy(.deviceOwnerAuthentication,localizedReason:"Abrir seu universo no Oracle") { success,error in DispatchQueue.main.async { self.pluginAuthenticationContexts.removeAll{$0 === context};completion(success && generation==self.lockGeneration,generation==self.lockGeneration ? error?.localizedDescription : "Autenticação cancelada após bloqueio") } }
     }
     func reply(_ id: String,_ value: Any? = nil,_ error: String? = nil) {
         let method=requestMethods.removeValue(forKey:id) ?? ""
         let finalError = locked && !["boot","unlock","lock","interfaceReady"].contains(method) ? "Oracle bloqueado" : error
         let result:[String:Any] = finalError.map { ["error":$0] } ?? ["value":value ?? NSNull()]
+        if let pluginReply { pluginReply(id,result);return }
         guard let data = try? jsonData(result), let idData = try? JSONSerialization.data(withJSONObject:[id]) else { return }
         let safeID = String(decoding:idData,as:UTF8.self)
         web.evaluateJavaScript("window.oracleReply(\(safeID)[0],\(String(decoding:data,as:UTF8.self)))",completionHandler:nil)
     }
     func userContentController(_ userContentController: WKUserContentController,didReceive message:WKScriptMessage) {
         guard message.frameInfo.isMainFrame,let origin=message.frameInfo.request.url,origin.isFileURL,origin.standardizedFileURL.path.hasPrefix(resourceRoot.path+"/"),let body = message.body as? [String:Any],let id=body["id"] as? String,id.count<=64,let method=body["method"] as? String,method.count<=80,requestMethods.count<128 else {return}
+        dispatchRequest(id,method:method,params:body["params"] as? [String:Any] ?? [:])
+    }
+    /// Shared by the trusted local WK bridge and the bundled Desktop plugin.
+    func dispatchRequest(_ id:String,method:String,params p:[String:Any]) {
+        guard !pluginClosing,id.count<=64,method.count<=80,requestMethods.count<128,requestMethods[id]==nil else {pluginReply?(id,["error":"Pedido inválido ou limite de operações atingido."]);return}
         requestMethods[id]=method
-        let p = body["params"] as? [String:Any] ?? [:]
         if method == "lock" { lockApp(); reply(id,true); return }
         if method == "boot" { reply(id,["locked":locked,"accessibility":["reduceMotion":NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,"reduceTransparency":NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency]]); return }
         if method == "interfaceReady" {
@@ -359,7 +367,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         if method == "chooseVault" || method == "chooseProject" {
             let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
             panel.message = method == "chooseVault" ? "Escolha o vault. Oracle lê os documentos e salva os arquivos que você editar nesta pasta." : method == "chooseProject" ? "Autorize somente a descoberta de AGENTS.md e AGENTS.override.md neste projeto." : "Escolha o workspace do Second Brain existente. Apenas operações oficiais de consulta serão usadas."
-            panel.beginSheetModal(for:window) { response in
+            presentPanel(panel) { response in
                 guard response == .OK, let url = panel.url else { self.reply(id,NSNull()); return }
                 self.queue.async { do {
                     let lock=try core.acquireOperationLock("setup");defer{core.releaseOperationLock(lock)};let brain=try core.acquireOperationLock("gbrain");defer{core.releaseOperationLock(brain)};core.refreshConfig()
@@ -377,13 +385,14 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
             return
         }
         if method == "installOracleUpdate" {
+            guard pluginReply == nil else {reply(id,nil,"Atualize o Oracle System pela página de plugins do Codex. A atualização do aplicativo macOS não substitui o runtime do plugin.");return}
             let options=core.applicationUpdateInstallationOptions()
             if options["writable"] as? Bool != true {
                 let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.canCreateDirectories=true
                 panel.message=options["message"] as? String
                 if let suggested=options["suggestedDirectory"] as? String{panel.directoryURL=URL(fileURLWithPath:suggested)}
                 panel.prompt="Atualizar nesta pasta"
-                panel.beginSheetModal(for:window){response in
+                presentPanel(panel){response in
                     guard response == .OK,let destination=panel.url else{self.reply(id,["cancelled":true]);return}
                     self.prepareOracleApplicationUpdate(id,destination:destination)
                 }
@@ -398,8 +407,9 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         if method == "copy" { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(p["text"] as? String ?? "",forType:.string); reply(id,true); return }
         if method == "reveal" { do { let url = try core.scoped(p["path"] as? String ?? "",root:core.vault()); NSWorkspace.shared.activateFileViewerSelecting([url]); reply(id,true) } catch { reply(id,nil,error.localizedDescription) }; return }
         if method == "exportSnapshot" {
+            guard web != nil else {reply(id,nil,"Exporte a imagem pela interface do Oracle no Codex.");return}
             let panel=NSSavePanel(); panel.nameFieldStringValue="Oracle-universo.png"; panel.allowedContentTypes=[.png]; panel.message="Exportar a visão atual do Oracle como imagem."
-            panel.beginSheetModal(for:window) { result in guard result == .OK,let url=panel.url else { self.reply(id,NSNull()); return }
+            presentPanel(panel) { result in guard result == .OK,let url=panel.url else { self.reply(id,NSNull()); return }
                 DispatchQueue.main.asyncAfter(deadline:.now()+0.25) { self.web.takeSnapshot(with:nil) { image,error in
                     do { guard let image,let tiff=image.tiffRepresentation,let rep=NSBitmapImageRep(data:tiff),let png=rep.representation(using:.png,properties:[:]) else { throw error ?? failure("Não foi possível gerar a imagem") }; try atomicWriteData(png,to:url); self.reply(id,url.path) } catch { self.reply(id,nil,error.localizedDescription) }
                 } }
@@ -407,7 +417,7 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
         }
         if method == "importConversations" {
             let panel = NSOpenPanel(); panel.allowedContentTypes = [.json]; panel.message = "Importe uma exportação Oracle Conversations v1. Não lê histórico privado nem conteúdo cloud automaticamente."
-            panel.beginSheetModal(for:window) { result in guard result == .OK,let url = panel.url else { self.reply(id,NSNull()); return }; self.queue.async { do { let data = try Data(contentsOf:url); guard data.count < 10_000_000 else { throw failure("Exportação maior que 10 MB") }; let doc = try readJSON(url); guard doc["schema_version"] as? Int == 1,let items = doc["conversations"] as? [[String:Any]], items.count <= 1000 else { throw failure("Formato: schema_version 1, conversations[]") }; var clean = [[String:Any]](); for item in items { guard let title = item["title"] as? String,let messages = item["messages"] as? [[String:String]] else { throw failure("Conversa inválida") }; clean.append(["title":title,"source":url.lastPathComponent,"messages":messages.filter { ["user","assistant"].contains($0["role"] ?? "") }.map { ["role":$0["role"]!,"text":$0["text"] ?? ""] }]) }; try writeJSON(["schema_version":1,"conversations":clean],core.home.appendingPathComponent("conversations.json")); DispatchQueue.main.async { self.reply(id,clean) } } catch { DispatchQueue.main.async { self.reply(id,nil,error.localizedDescription) } } } }; return
+            presentPanel(panel) { result in guard result == .OK,let url = panel.url else { self.reply(id,NSNull()); return }; self.queue.async { do { let data = try Data(contentsOf:url); guard data.count < 10_000_000 else { throw failure("Exportação maior que 10 MB") }; let doc = try readJSON(url); guard doc["schema_version"] as? Int == 1,let items = doc["conversations"] as? [[String:Any]], items.count <= 1000 else { throw failure("Formato: schema_version 1, conversations[]") }; var clean = [[String:Any]](); for item in items { guard let title = item["title"] as? String,let messages = item["messages"] as? [[String:String]] else { throw failure("Conversa inválida") }; clean.append(["title":title,"source":url.lastPathComponent,"messages":messages.filter { ["user","assistant"].contains($0["role"] ?? "") }.map { ["role":$0["role"]!,"text":$0["text"] ?? ""] }]) }; try writeJSON(["schema_version":1,"conversations":clean],core.home.appendingPathComponent("conversations.json")); DispatchQueue.main.async { self.reply(id,clean) } } catch { DispatchQueue.main.async { self.reply(id,nil,error.localizedDescription) } } } }; return
         }
         if method == "maintenanceRun" {
             // Do not occupy the settings queue: pause/revoke must work mid-turn.
@@ -439,6 +449,8 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
                     for point in Array(nodes.values)+Array(leaves.values) { guard let x=point["x"],let y=point["y"],x.isFinite,y.isFinite,abs(x)<=2000,abs(y)<=2000 else { throw failure("Posição inválida") } }
                     core.config["layout"]=layout; try core.persist(); result=true
                 case "configureSkillSource": try core.requireCapability(.manageCatalogSource);result = try core.configureSkillSource(p["repository"] as? String ?? "")
+                case "desktopPluginUpdateAdmission":try core.requireCapability(.configure);result=["codexExecutable":OracleCodexExecutableLocator.systemExecutable()?.path as Any? ?? NSNull()]
+                case "desktopPluginUpdateInfo":result=["codexExecutable":OracleCodexExecutableLocator.systemExecutable()?.path as Any? ?? NSNull()]
                 case "maintenanceStatus":result=try core.maintenanceSnapshot()
                 case "configureMaintenance":result=try core.configureMaintenance(p)
                 case "backupStatus":result=core.gbrainBackupStatus()
@@ -523,5 +535,9 @@ final class App: NSObject, NSApplicationDelegate, WKScriptMessageHandler, WKNavi
     }
 }
 let app = App()
+if arguments.contains("--plugin-server") {
+    OracleDesktopPluginServer.run(app:app)
+    exit(0)
+}
 NSApplication.shared.delegate = app
 NSApplication.shared.run()

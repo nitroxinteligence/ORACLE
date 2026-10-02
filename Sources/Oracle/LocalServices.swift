@@ -22,6 +22,7 @@ final class OracleLocalServices {
     func setPaused(_ value:Bool) {mutex.lock();paused=value;mutex.unlock()}
     func isPaused() -> Bool {mutex.lock();defer{mutex.unlock()};return paused}
     func stop() {setPaused(true);timer?.cancel();timer=nil}
+    func stopAndDrain(_ completion:@escaping()->Void) {stop();queue.async{completion()}}
     deinit {timer?.cancel()}
 
     /// Coalesces editor saves, wake-ups and timer ticks into one pending scan.
